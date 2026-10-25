@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "socialhub.task-request.v1",
+  "title": "Encargo de SocialHub para un agente de IA",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract", "version", "taskId", "type", "goal", "inputs", "idempotencyKey"],
+  "properties": {
+    "contract": { "const": "socialhub.task-request" },
+    "version": { "const": 1 },
+    "taskId": { "type": "string", "format": "uuid" },
+    "brand": { "type": ["string", "null"], "description": "Identificador de la marca, o null si es común" },
+    "promotion": { "type": ["string", "null"] },
+    "type": { "type": "string", "description": "Tipo de encargo, por ejemplo instagram.profiles.batch" },
+    "goal": { "type": "string", "minLength": 1 },
+    "inputs": { "type": "object" },
+    "rules": { "type": "array", "items": { "type": "string" } },
+    "model": { "type": "string", "enum": ["haiku", "sonnet", "opus"] },
+    "deadline": { "type": "string", "format": "date-time" },
+    "idempotencyKey": { "type": "string", "format": "uuid" }
+  }
+}

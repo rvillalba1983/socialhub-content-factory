@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "socialhub.task-result.v1",
+  "title": "Resultado de un agente de IA para SocialHub",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract", "version", "taskId", "status", "outputs", "agent"],
+  "properties": {
+    "contract": { "const": "socialhub.task-result" },
+    "version": { "const": 1 },
+    "taskId": { "type": "string", "format": "uuid" },
+    "status": { "type": "string", "enum": ["completed", "failed", "needs_human"] },
+    "outputs": { "type": "object" },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["driveId", "role"],
+        "properties": { "driveId": { "type": "string" }, "role": { "type": "string" } }
+      }
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["title", "url"],
+        "properties": { "title": { "type": "string" }, "url": { "type": "string", "format": "uri" } }
+      }
+    },
+    "warnings": { "type": "array", "items": { "type": "string" } },
+    "error": { "type": ["string", "null"] },
+    "agent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runtime"],
+      "properties": { "runtime": { "type": "string" }, "model": { "type": "string" } }
+    },
+    "startedAt": { "type": "string", "format": "date-time" },
+    "finishedAt": { "type": "string", "format": "date-time" }
+  }
+}

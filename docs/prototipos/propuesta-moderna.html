@@ -1,0 +1,1085 @@
+<title>SocialHub Moderna</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: anillo de producción sobre lienzo limpio; tarjetas fuera del anillo (arriba fila 1, abajo fila 2); resumen dentro del anillo; herramientas a la derecha. Interfaz monocroma: el color solo comunica estado. */
+:root{
+  --bg:#F4F5F7; --surface:#FFFFFF; --surface-2:#F0F2F5; --line:#E2E5EA; --line-2:#D2D7DE;
+  --ink:#0D1117; --ink-2:#4A5361; --ink-3:#8A93A1; --accent:#0D1117; --accent-soft:#EDEFF3; --track:#D7DCE3; --dots:rgba(13,17,23,.07);
+  --shadow-sm:0 1px 2px rgba(13,17,23,.06); --shadow:0 1px 2px rgba(13,17,23,.04),0 10px 30px -12px rgba(13,17,23,.18);
+  --ok:#0F9A50; --ok-bg:#E5F5EC; --run:#2F67E8; --run-bg:#E8EEFD; --wait:#B57D06; --wait-bg:#FBF2D9;
+  --block:#DD5F0B; --block-bg:#FDEDE1; --err:#DF3B3B; --err-bg:#FDE8E8; --idle:#8A93A1; --idle-bg:#EDEFF2; --cancel:#6A7280; --cancel-bg:#ECEDEF;
+  --b-delito:#D23A2E; --b-lito:#C47619;
+  --f-display:"Geist","Helvetica Neue","Segoe UI",system-ui,sans-serif;
+  --f-body:"Geist","Helvetica Neue","Segoe UI",system-ui,sans-serif;
+  --f-mono:"Geist Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0A0C10; --surface:#12151B; --surface-2:#191D24; --line:#232832; --line-2:#2F3542;
+  --ink:#EEF1F5; --ink-2:#A8B1BE; --ink-3:#6E7786; --accent:#EEF1F5; --accent-soft:#1D222B; --track:#2A303B; --dots:rgba(238,241,245,.06);
+  --shadow-sm:0 1px 2px rgba(0,0,0,.4); --shadow:0 1px 2px rgba(0,0,0,.3),0 12px 30px -12px rgba(0,0,0,.6);
+  --ok:#3CCB7F; --ok-bg:#0F2A1C; --run:#6E9BFF; --run-bg:#152447; --wait:#E9B640; --wait-bg:#2E2510;
+  --block:#FF8A3D; --block-bg:#33200F; --err:#FF6464; --err-bg:#371616; --idle:#8A93A1; --idle-bg:#1F242C; --cancel:#8E95A2; --cancel-bg:#1F2329;
+  --b-delito:#F06A5C; --b-lito:#E59A45; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0A0C10; --surface:#12151B; --surface-2:#191D24; --line:#232832; --line-2:#2F3542;
+  --ink:#EEF1F5; --ink-2:#A8B1BE; --ink-3:#6E7786; --accent:#EEF1F5; --accent-soft:#1D222B; --track:#2A303B; --dots:rgba(238,241,245,.06);
+  --shadow-sm:0 1px 2px rgba(0,0,0,.4); --shadow:0 1px 2px rgba(0,0,0,.3),0 12px 30px -12px rgba(0,0,0,.6);
+  --ok:#3CCB7F; --ok-bg:#0F2A1C; --run:#6E9BFF; --run-bg:#152447; --wait:#E9B640; --wait-bg:#2E2510;
+  --block:#FF8A3D; --block-bg:#33200F; --err:#FF6464; --err-bg:#371616; --idle:#8A93A1; --idle-bg:#1F242C; --cancel:#8E95A2; --cancel-bg:#1F2329;
+  --b-delito:#F06A5C; --b-lito:#E59A45; color-scheme:dark}
+
+[hidden]{display:none!important}
+html{height:100%;box-sizing:border-box}
+*,*::before,*::after{box-sizing:inherit}
+body{height:100%;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;display:grid;grid-template-rows:auto 1fr;overflow:hidden;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+h1,h2,h3,h4{font-family:var(--f-display);margin:0;text-wrap:balance;font-weight:600;letter-spacing:-.02em}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.ic{width:15px;height:15px;flex:none;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+
+/* Controles */
+.btn,.ibtn,.open-cc,.chip,.mini-acts button,.qrow,.rc{background:var(--surface);border:1px solid var(--line);border-radius:10px;transition:background .15s,border-color .15s,box-shadow .15s}
+.btn:hover,.ibtn:hover,.chip:hover,.mini-acts button:hover,.qrow:hover,.rc:hover{border-color:var(--line-2);background:var(--surface-2)}
+.btn{padding:8px 13px;font-weight:500}
+.btn.primary,.open-cc{background:var(--ink);border-color:var(--ink);color:var(--surface)}
+.btn.primary:hover,.open-cc:hover{opacity:.88;background:var(--ink)}
+.btn.danger{color:var(--err)}
+button:disabled{opacity:.4;cursor:default}
+
+/* Barra superior */
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));background:color-mix(in srgb,var(--surface) 86%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--line);position:relative;z-index:30}
+.mark{display:flex;align-items:center;gap:9px;font-family:var(--f-display);font-weight:650;font-size:16px;letter-spacing:-.02em;border:0;background:none;padding:0}
+.mark i{width:24px;height:24px;border-radius:7px;background:var(--ink);display:grid;place-items:center}
+.mark i::before{content:"";width:11px;height:11px;border:2px solid var(--surface);border-radius:50%;border-right-color:transparent;transform:rotate(45deg)}
+.crumbs{display:flex;align-items:center;gap:2px;min-width:0;flex:1 1 220px;color:var(--ink-3);font-size:13.5px;overflow:hidden}
+.crumbs button{border:0;background:none;padding:4px 7px;border-radius:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px;color:var(--ink-2)}
+.crumbs button:not(.cur){flex-shrink:0}
+.crumbs button:hover{background:var(--surface-2);color:var(--ink)}
+.crumbs .cur{color:var(--ink);font-weight:550}
+.crumbs .sep{color:var(--line-2)}
+.demo{font-size:12px;font-weight:500;color:var(--ink-2);background:var(--surface-2);border:1px dashed var(--line-2);padding:4px 10px;border-radius:999px;white-space:nowrap}
+.search{position:relative;flex:0 1 300px;min-width:170px}
+.search input{width:100%;border:1px solid var(--line);background:var(--surface-2);border-radius:10px;padding:8px 10px 8px 32px;outline:none}
+.search input:focus{border-color:var(--line-2);background:var(--surface);box-shadow:0 0 0 4px var(--accent-soft)}
+.search .ic{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--ink-3)}
+.results{position:absolute;top:calc(100% + 8px);left:0;right:0;min-width:300px;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:6px;max-height:60vh;overflow:auto;z-index:50}
+.results button{display:flex;gap:10px;align-items:flex-start;width:100%;text-align:left;border:0;background:none;padding:9px 10px;border-radius:9px}
+.results button:hover,.results button.on{background:var(--surface-2)}
+.results small{display:block;color:var(--ink-3);font-size:11.5px}
+.results .none{padding:12px;color:var(--ink-3)}
+.ctrls{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.seg{display:flex;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:2px}
+.seg button{border:0;background:none;padding:5px 11px;font-size:13px;color:var(--ink-2);border-radius:8px;font-weight:500}
+.seg button.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow-sm)}
+.ibtn{height:32px;min-width:32px;display:grid;place-items:center;padding:0 8px}
+.zpct{font-size:12px;color:var(--ink-3);min-width:42px;text-align:center}
+
+/* Lienzo */
+.vp{position:relative;overflow:hidden;touch-action:none;cursor:grab;background-color:var(--bg);background-image:radial-gradient(var(--dots) 1.2px,transparent 1.4px);background-size:22px 22px}
+.vp.grabbing{cursor:grabbing}
+.world{position:absolute;left:0;top:0;transform-origin:0 0;width:2780px}
+.track{position:absolute;left:0;top:0;overflow:visible;pointer-events:none}
+.seg-base{fill:none;stroke:var(--track);stroke-width:14;stroke-linecap:round}
+.seg{fill:none;stroke-width:3;stroke-linecap:round}
+.seg.idle{stroke:transparent}
+.seg.flow{stroke:var(--ink-3);stroke-dasharray:2 16;animation:flow 1s linear infinite}
+.seg.fb{stroke-dasharray:2 22;animation-duration:2s}
+.seg.jam{stroke-width:14;stroke-dasharray:none;opacity:.35;animation:jam 1.4s ease-in-out infinite}
+.seg.jam-err{stroke:var(--err)} .seg.jam-block{stroke:var(--block)}
+@keyframes flow{to{stroke-dashoffset:-18}}
+@keyframes jam{50%{opacity:.08}}
+.pk{stroke:var(--surface);stroke-width:3}
+.seglabel{position:absolute;transform:translate(-50%,-50%);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px 11px;font-size:13px;color:var(--ink-2);white-space:nowrap;box-shadow:var(--shadow-sm)}
+.seglabel.fbl{font-weight:500;color:var(--ink)}
+.seglabel .ic{vertical-align:-3px;margin-right:4px}
+
+/* Nodos de estación sobre el anillo */
+.node{position:absolute;width:80px;height:80px;border-radius:50%;background:var(--surface);border:3px solid var(--c);color:var(--c);display:grid;place-items:center;box-shadow:var(--shadow);padding:0;z-index:2}
+.node .ic{width:30px;height:30px;stroke-width:1.5}
+.node:hover{transform:scale(1.06)}
+.node{transition:transform .2s}
+.node.sel{box-shadow:0 0 0 6px var(--accent-soft),var(--shadow)}
+.node.running::after{content:"";position:absolute;inset:-9px;border-radius:50%;border:2px solid transparent;border-top-color:var(--run);animation:spin 1.6s linear infinite}
+.node.attn::before{content:"";position:absolute;inset:-4px;border-radius:50%;background:var(--c);opacity:.35;animation:halo 1.6s ease-out infinite;z-index:-1}
+@keyframes halo{0%{transform:scale(1);opacity:.45}100%{transform:scale(1.9);opacity:0}}
+.node .badge{position:absolute;top:-6px;right:-6px;min-width:26px;height:26px;border-radius:13px;background:var(--c);color:#fff;font-family:var(--f-mono);font-size:13px;font-weight:600;display:grid;place-items:center;padding:0 6px;border:2px solid var(--surface);animation:nudge 1.6s ease-in-out infinite}
+@keyframes nudge{0%,70%,100%{transform:translateY(0)}80%{transform:translateY(-5px)}90%{transform:translateY(0)}}
+
+/* Tarjetas de estación */
+.st{position:absolute;width:340px;background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);cursor:pointer;transition:border-color .2s,box-shadow .2s}
+.st:hover{border-color:var(--line-2)}
+.st.row0{transform:translateY(-100%)}
+.st::after{content:"";position:absolute;left:50%;width:1px;height:24px;background:var(--line-2)}
+.st.row0::after{top:100%}.st.row1::after{bottom:100%}
+.st.sel{border-color:var(--ink);box-shadow:0 0 0 4px var(--accent-soft),var(--shadow)}
+.st.attn-err{border-color:color-mix(in srgb,var(--err) 55%,var(--line));box-shadow:0 0 0 4px color-mix(in srgb,var(--err) 14%,transparent),var(--shadow)}
+.st.attn-block{border-color:color-mix(in srgb,var(--block) 55%,var(--line))}
+.st-h{display:grid;grid-template-columns:1fr;gap:6px;justify-items:start;padding:16px 18px 12px}
+.st-n{font-family:var(--f-mono);font-size:11.5px;color:var(--ink-3)}
+.st-h h3{font-size:17px;line-height:1.25}
+.st-what{margin:0 18px 10px;color:var(--ink-2);font-size:13px;line-height:1.5}
+.st-note{margin:0 18px 12px;font-size:12.5px;color:var(--ink);background:var(--surface-2);border-radius:10px;padding:8px 10px;line-height:1.45}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin:0 18px 14px;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.kpi{padding:8px 10px;min-width:0;display:grid;gap:1px}
+.kpi+.kpi{border-left:1px solid var(--line)}
+.kpi .ki{display:none}
+.kpi b{font-family:var(--f-display);font-size:20px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.1;letter-spacing:-.02em}
+.kpi .kl{font-size:11px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi.k-run b{color:var(--run)} .kpi.k-wait b{color:var(--wait)} .kpi.k-block b{color:var(--block)} .kpi.k-err b{color:var(--err)}
+.kpi.zero b{color:var(--line-2)}
+.tasks{list-style:none;margin:0;padding:0 12px 12px;display:grid;gap:6px}
+.tk{border:1px solid var(--line);border-radius:12px;padding:10px 11px;background:var(--surface);display:grid;gap:6px;position:relative;transition:border-color .15s}
+.tk:hover{border-color:var(--line-2);background:var(--surface-2)}
+.tk.sel{border-color:var(--ink)}
+.tk.s-err{border-color:color-mix(in srgb,var(--err) 45%,var(--line))}
+.tk-top{display:flex;gap:8px;align-items:flex-start}
+.tk-title{font-weight:550;font-size:13px;line-height:1.35}
+.tk-meta{display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+.tag{font-size:11px;font-weight:550;padding:2px 7px;border-radius:999px;background:color-mix(in srgb,currentColor 12%,transparent);line-height:1.35}
+.tag.b-delito{color:var(--b-delito)} .tag.b-litoques{color:var(--b-lito)} .tag.b-none{color:var(--ink-3)}
+.agent{display:inline-flex;gap:4px;align-items:center;font-size:11px;color:var(--ink-2);background:var(--surface-2);padding:2px 7px;border-radius:999px}
+.agent .ic{width:11px;height:11px}
+.why{font-size:12px;color:var(--ink-2);line-height:1.45}
+.bar{height:6px;background:var(--surface-2);border-radius:3px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--run);border-radius:3px;transition:width .6s ease}
+.prog{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;font-size:11.5px;color:var(--ink-3)}
+.deep{display:grid;gap:8px;padding-top:8px;border-top:1px solid var(--line)}
+.steps{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.steps li{display:flex;gap:7px;font-size:11.5px;line-height:1.4;color:var(--ink-2)}
+.steps li.d{color:var(--ink-3)} .steps li.c{color:var(--ink);font-weight:550} .steps li.f{color:var(--err)}
+.steps .ic{width:12px;height:12px;margin-top:1px}
+.facts{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:11px;margin:0}
+.facts dt{color:var(--ink-3)} .facts dd{margin:0;color:var(--ink-2)}
+.mini-acts{display:flex;gap:5px;flex-wrap:wrap}
+.mini-acts button{font-size:11.5px;padding:4px 9px;border-radius:8px}
+.st-res{padding:0 18px 16px;display:grid;gap:8px;font-size:12px;color:var(--ink-2)}
+.st-res .chips{display:flex;flex-wrap:wrap;gap:5px}
+
+/* Zoom semántico */
+.vp[data-lod="1"] .min-2,.vp[data-lod="1"] .only-2,.vp[data-lod="1"] .only-3{display:none}
+.vp[data-lod="2"] .only-1,.vp[data-lod="2"] .only-3{display:none}
+.vp[data-lod="3"] .only-1,.vp[data-lod="3"] .only-2{display:none}
+.vp[data-lod="1"] .st-h{padding:22px 24px 14px}
+.vp[data-lod="1"] .st-n{font-size:17px}
+.vp[data-lod="1"] .st-h h3{font-size:30px}
+.vp[data-lod="1"] .st .pill{font-size:18px;padding:6px 13px;gap:7px}
+.vp[data-lod="1"] .st .pill .ic{width:18px;height:18px}
+.vp[data-lod="1"] .kpis{margin:0 24px 22px;border-radius:14px}
+.vp[data-lod="1"] .kpi{padding:10px 12px;grid-template-columns:auto 1fr;align-items:center;gap:8px}
+.vp[data-lod="1"] .kpi .ki{display:block;color:var(--c,var(--ink-3))}
+.vp[data-lod="1"] .kpi .ki .ic{width:20px;height:20px}
+.vp[data-lod="1"] .kpi .kl{display:none}
+.vp[data-lod="1"] .kpi b{font-size:30px}
+.kpi.k-run{--c:var(--run)}.kpi.k-wait{--c:var(--wait)}.kpi.k-block{--c:var(--block)}.kpi.k-err{--c:var(--err)}
+.kpi.zero{--c:var(--line-2)}
+.vp[data-lod="1"] .seglabel{font-size:20px;padding:6px 16px}
+
+/* Centro del anillo */
+.hub{position:absolute;display:grid;grid-template-columns:1fr 1fr 1fr;gap:22px;align-items:start}
+.promo,.attn-card{background:var(--surface);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);padding:22px 24px;display:grid;gap:14px;min-width:0}
+.promo{cursor:pointer;transition:border-color .2s}
+.promo:hover{border-color:var(--line-2)}
+.p-top{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.eyebrow{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:550;color:var(--ink-2)}
+.eyebrow::before{content:"";width:10px;height:10px;border-radius:3px;background:var(--pc)}
+.promo h2{font-size:24px}
+.promo .sub{color:var(--ink-3);font-size:13px;margin-top:-8px}
+.promo-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.stack{display:flex;height:8px;border-radius:4px;overflow:hidden;background:var(--surface-2);gap:2px}
+.stack i{display:block;height:100%;border-radius:2px}
+.legend-row{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--ink-2)}
+.legend-row span{display:inline-flex;align-items:center;gap:5px}
+.legend-row span::before{content:"";width:8px;height:8px;border-radius:2px;background:var(--c)}
+.timeline{position:relative;height:18px}
+.timeline .rail{position:absolute;left:0;right:0;top:8px;height:2px;background:var(--line);border-radius:1px}
+.timeline .done{position:absolute;left:0;top:8px;height:2px;background:var(--ink);border-radius:1px}
+.timeline .ms{position:absolute;top:5px;width:8px;height:8px;margin-left:-4px;border-radius:50%;background:var(--surface);border:2px solid var(--line-2)}
+.timeline .now{position:absolute;top:2px;width:14px;height:14px;margin-left:-7px;border-radius:50%;background:var(--ink);border:3px solid var(--surface);box-shadow:0 0 0 1px var(--ink)}
+.promo-facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.promo-facts div{padding:9px 12px;min-width:0}
+.promo-facts div+div{border-left:1px solid var(--line)}
+.promo-facts small{display:block;font-size:11px;color:var(--ink-3)}
+.promo-facts b{font-size:14px;font-weight:600;font-variant-numeric:tabular-nums}
+.promo-facts .bad b{color:var(--err)}
+.open-cc{justify-self:start;padding:9px 15px;font-weight:550;border-radius:10px}
+.attn-card h2{font-size:20px;display:flex;align-items:center;gap:10px}
+.attn-card .count{font-family:var(--f-mono);font-size:13px;background:var(--err);color:#fff;border-radius:999px;padding:1px 9px}
+.attn-card .src{font-size:12.5px}
+.aitem{display:flex;gap:10px;align-items:flex-start;text-align:left;width:100%;border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:10px 12px}
+.aitem:hover{background:var(--surface-2);border-color:var(--line-2)}
+.aitem>span:not(.dot){flex:1;min-width:0;font-size:13px;line-height:1.4;color:var(--ink-2)}
+.aitem b{display:block;color:var(--ink);font-weight:600;font-size:13.5px}
+.aitem.s-err{border-color:color-mix(in srgb,var(--err) 40%,var(--line))}
+.vp[data-lod="1"] .hub{gap:30px}
+.vp[data-lod="1"] .promo,.vp[data-lod="1"] .attn-card{padding:28px 30px;gap:18px}
+.vp[data-lod="1"] .promo h2{font-size:34px}
+.vp[data-lod="1"] .eyebrow{font-size:18px}
+.vp[data-lod="1"] .promo .sub{font-size:18px}
+.vp[data-lod="1"] .promo-facts small{font-size:15px}
+.vp[data-lod="1"] .promo-facts b{font-size:20px}
+.vp[data-lod="1"] .open-cc{font-size:18px;padding:12px 20px}
+.vp[data-lod="1"] .stack{height:12px}
+.vp[data-lod="1"] .attn-card h2{font-size:30px}
+.vp[data-lod="1"] .attn-card .count{font-size:20px;padding:2px 12px}
+.vp[data-lod="1"] .aitem b{font-size:19px}
+.vp[data-lod="1"] .aitem span{font-size:17px}
+.vp[data-lod="1"] .aitem .dot{width:24px;height:24px}
+.vp[data-lod="1"] .attn-card .src{font-size:16px}
+
+/* Herramientas */
+.res{position:absolute;background:var(--surface);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);padding:22px 22px 12px;display:grid;gap:4px;align-content:start}
+.res h2{font-size:18px}
+.res .sub{color:var(--ink-3);font-size:12.5px;margin-bottom:10px}
+.res-grid{display:grid;gap:0}
+.rc{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;align-items:center;text-align:left;border:0;border-top:1px solid var(--line);border-radius:0;padding:10px 4px;background:none}
+.rc:hover{background:var(--surface-2);border-color:var(--line)}
+.rc b{font-size:13.5px;font-weight:550}
+.rc small{grid-column:2;font-size:12px;color:var(--ink-3)}
+.vp[data-lod="1"] .res h2{font-size:28px}
+.vp[data-lod="1"] .res .sub{font-size:16px}
+.vp[data-lod="1"] .rc b{font-size:19px}
+.vp[data-lod="1"] .rc small{font-size:15px}
+.vp[data-lod="1"] .rc .dot{width:22px;height:22px}
+
+/* Estados */
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:550;padding:3px 9px;border-radius:999px;white-space:nowrap;color:var(--c);background:var(--cb)}
+.s-ok{--c:var(--ok);--cb:var(--ok-bg)}
+.s-run{--c:var(--run);--cb:var(--run-bg)}
+.s-wait{--c:var(--wait);--cb:var(--wait-bg)}
+.s-block{--c:var(--block);--cb:var(--block-bg)}
+.s-err{--c:var(--err);--cb:var(--err-bg)}
+.s-idle{--c:var(--idle);--cb:var(--idle-bg)}
+.s-cancel{--c:var(--cancel);--cb:var(--cancel-bg)}
+.s-cancel .tk-title{text-decoration:line-through;color:var(--ink-3)}
+.dot{width:18px;height:18px;border-radius:50%;display:grid;place-items:center;color:var(--c);background:var(--cb);flex:none}
+.dot .ic{width:11px;height:11px;stroke-width:2}
+.spin{animation:spin 1.4s linear infinite;transform-origin:center}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Flotantes */
+.float{position:absolute;z-index:5;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow)}
+.legend{left:calc(12px + env(safe-area-inset-left,0px));bottom:calc(12px + env(safe-area-inset-bottom,0px));padding:6px;display:flex;gap:4px;max-width:calc(100% - 340px);overflow:hidden}
+.legend .pill{font-size:11.5px;padding:2px 8px}
+.hint{right:calc(12px + env(safe-area-inset-right,0px));bottom:calc(12px + env(safe-area-inset-bottom,0px));padding:7px 12px;font-size:12px;color:var(--ink-3)}
+@media (max-width:1100px){.legend .pill span{display:none}}
+@media (max-width:760px){.hint{display:none}.legend{max-width:calc(100% - 24px)}}
+.avisos{left:50%;transform:translateX(-50%);top:10px;padding:6px 8px;display:flex;flex-wrap:wrap;align-items:center;gap:6px;max-width:calc(100% - 24px);width:max-content;border-radius:999px}
+.vp[data-lod="1"] .avisos{display:none}
+.avisos h4{font-size:12.5px;font-weight:600;padding:0 6px}
+.aviso{display:flex;gap:6px;align-items:center;text-align:left;border:1px solid var(--line);background:var(--surface);padding:3px 10px 3px 4px;border-radius:999px;font-size:12.5px;max-width:380px}
+.aviso:hover{background:var(--surface-2)}
+.aviso span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.aviso b{font-weight:600}
+.avisos .src{font-size:12px;padding:0 6px}
+
+/* Panel lateral */
+.panel{position:absolute;top:10px;right:10px;bottom:10px;width:430px;max-width:calc(100% - 20px);background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);z-index:20;display:flex;flex-direction:column;overflow:hidden;animation:slidein .22s ease-out}
+@keyframes slidein{from{transform:translateX(16px);opacity:0}}
+.panel-h{display:flex;gap:10px;align-items:flex-start;padding:20px 20px 14px;border-bottom:1px solid var(--line)}
+.panel-h h2{font-size:20px;flex:1;line-height:1.25}
+.panel-h small{display:block;font-size:12px;color:var(--ink-3);margin-bottom:4px;font-family:var(--f-body)}
+.panel-b{overflow:auto;padding:16px 20px 24px;display:grid;gap:18px;align-content:start}
+.panel-b section{display:grid;gap:8px}
+.panel-b h4{font-size:12px;color:var(--ink-3);font-weight:550;letter-spacing:0}
+.panel-b p{margin:0;line-height:1.55;color:var(--ink-2)}
+.panel-b ul{margin:0;padding-left:18px;color:var(--ink-2);line-height:1.55}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:7px 16px;font-size:13px;margin:0}
+.kv dt{color:var(--ink-3)} .kv dd{margin:0;min-width:0}
+.panel .steps li{font-size:13px}
+.panel .steps .ic{width:14px;height:14px;margin-top:2px}
+.log{list-style:none;margin:0;padding:0;display:grid;gap:7px;font-size:12.5px}
+.log li{display:grid;grid-template-columns:46px 1fr;gap:8px;color:var(--ink-2)}
+.log time{font-family:var(--f-mono);color:var(--ink-3);font-size:11.5px}
+.acts{display:flex;flex-wrap:wrap;gap:6px}
+.confirm{border:1px solid color-mix(in srgb,var(--err) 40%,var(--line));background:var(--err-bg);border-radius:12px;padding:12px 14px;display:grid;gap:8px}
+.note{font-size:12px;color:var(--ink-3);border-top:1px solid var(--line);padding-top:12px}
+.qrow{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;text-align:left;width:100%}
+.qrow>span:not(.dot){flex:1;min-width:0}
+.qrow small{display:block;color:var(--ink-3);font-size:12px;margin-top:2px}
+select.agent-sel{border:1px solid var(--line);background:var(--surface-2);border-radius:10px;padding:7px 9px;max-width:100%}
+@media (max-width:760px){.panel{top:auto;left:8px;right:8px;bottom:8px;width:auto;height:62%}}
+
+.toast{position:absolute;left:50%;transform:translateX(-50%);top:14px;z-index:60;background:var(--ink);color:var(--surface);padding:9px 15px;border-radius:12px;font-size:13px;box-shadow:var(--shadow);max-width:calc(100% - 32px)}
+
+/* Centro de control */
+.cc{position:absolute;inset:0;z-index:25;background:var(--bg);overflow:auto}
+.cc-in{max-width:1180px;margin:0 auto;padding-block:24px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:20px}
+.cc-head{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;justify-content:space-between}
+.cc-head h1{font-size:clamp(28px,4vw,44px);letter-spacing:-.03em}
+.cc-head .eyebrow{margin-bottom:8px}
+.cc-head p{margin:6px 0 0;color:var(--ink-2)}
+.tabs{display:flex;gap:2px;overflow-x:auto;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:3px;width:max-content;max-width:100%}
+.tabs button{border:0;background:none;padding:7px 13px;color:var(--ink-2);white-space:nowrap;font-weight:500;border-radius:9px}
+.tabs button.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow-sm)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:20px 22px;display:grid;gap:12px;align-content:start;min-width:0}
+.card h3{font-size:16px}
+.card ul{margin:0;padding-left:18px;line-height:1.6;color:var(--ink-2)}
+.card p{margin:0;color:var(--ink-2);line-height:1.55}
+.ms-list{list-style:none;padding:0!important;display:grid;gap:9px}
+.ms-list li{display:grid;grid-template-columns:90px 1fr;gap:10px}
+.ms-list time{font-family:var(--f-mono);font-size:12px;color:var(--ink-3);padding-top:2px}
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;color:var(--ink-3);font-weight:550;background:var(--surface-2);white-space:nowrap}
+tr:last-child td{border-bottom:0}
+tr.hl td{background:var(--accent-soft)}
+td.nowrap{white-space:nowrap}
+.cal-nav{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.cal-nav b{font-weight:600}
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px}
+.day{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px;min-height:160px;display:grid;gap:6px;align-content:start;min-width:0}
+.day.today{border-color:var(--ink);box-shadow:0 0 0 3px var(--accent-soft)}
+.day header{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;color:var(--ink-3)}
+.day header b{font-size:18px;color:var(--ink);font-weight:600}
+.ev{border:0;border-radius:10px;padding:7px 8px;background:var(--cb);display:grid;gap:3px;font-size:11.5px;text-align:left;width:100%}
+.ev .t{display:flex;gap:5px;align-items:center;color:var(--c);font-weight:600}
+.ev .x{color:var(--ink);line-height:1.35}
+.ev .f{color:var(--err);font-weight:600}
+.empty{color:var(--ink-3);font-size:12px}
+@media (max-width:860px){.cal{grid-template-columns:1fr}.day{min-height:0}}
+.filters{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border-radius:999px;padding:6px 12px;font-size:12.5px}
+.chip.on{background:var(--ink);border-color:var(--ink);color:var(--surface)}
+.metric{display:grid;grid-template-columns:1fr auto;gap:8px;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px}
+.metric:last-child{border-bottom:0}
+.metric .v{color:var(--ink-3);font-family:var(--f-mono);font-size:12px}
+.src{font-size:12.5px;color:var(--ink-3)}
+.back{display:inline-flex;gap:6px;align-items:center}
+@media (prefers-reduced-motion:reduce){.seg.flow,.seg.jam,.node.attn::before,.node.running::after,.node .badge,.spin,.panel{animation:none}.bar i,.node{transition:none}}
+</style>
+
+<header class="top">
+  <button class="mark" data-act="home" aria-label="Volver a la vista general"><i></i>SocialHub</button>
+  <nav class="crumbs" id="crumbs" aria-label="Ruta de navegación"></nav>
+  <span class="demo" title="Estados simulados a partir de las campañas reales de El DeLito y Litoques. Ningún botón actúa sobre servicios reales.">Datos de ejemplo</span>
+  <div class="search">
+    <svg class="ic" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+    <input id="q" type="search" placeholder="Buscar estación, tarea, publicación…" autocomplete="off" aria-label="Buscar">
+    <div class="results" id="results" hidden></div>
+  </div>
+  <div class="ctrls" id="ctrls">
+    <div class="seg" role="group" aria-label="Nivel de detalle">
+      <button data-act="lod" data-v="1">Fábrica</button>
+      <button data-act="lod" data-v="2">Estación</button>
+      <button data-act="lod" data-v="3">Tarea</button>
+    </div>
+    <button class="ibtn" data-act="zout" aria-label="Alejar"><svg class="ic" viewBox="0 0 16 16"><path d="M3.5 8h9"/></svg></button>
+    <span class="zpct mono" id="zpct">100%</span>
+    <button class="ibtn" data-act="zin" aria-label="Acercar"><svg class="ic" viewBox="0 0 16 16"><path d="M3.5 8h9M8 3.5v9"/></svg></button>
+    <button class="ibtn" data-act="fit" aria-label="Encuadrar todo" title="Encuadrar todo (0)"><svg class="ic" viewBox="0 0 16 16"><path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10"/></svg></button>
+  </div>
+</header>
+
+<main class="vp" id="vp" data-lod="1">
+  <div class="world" id="world"></div>
+  <div class="float avisos" id="avisos" aria-label="Avisos"></div>
+  <div class="float legend" id="legend" aria-label="Leyenda de estados"></div>
+  <div class="float hint">Rueda: zoom · Arrastra: mover · Clic: detalle · <span class="mono">0</span>: encuadrar</div>
+  <aside class="panel" id="panel" hidden aria-live="polite"></aside>
+  <section class="cc" id="cc" hidden></section>
+  <div class="toast" id="toast" hidden></div>
+</main>
+
+<script>
+/* ---------- utilidades ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const MES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+const DIA=['dom','lun','mar','mié','jue','vie','sáb'];
+const D=(y,m,d)=>new Date(Date.UTC(y,m-1,d));
+const addD=(dt,n)=>new Date(dt.getTime()+n*864e5);
+const iso=dt=>dt.toISOString().slice(0,10);
+const lbl=dt=>`${DIA[dt.getUTCDay()]} ${dt.getUTCDate()} ${MES[dt.getUTCMonth()]}`;
+const fromIso=s=>{const[y,m,d]=s.split('-').map(Number);return D(y,m,d)};
+const TODAY=D(2026,10,25);
+let clock=15*60+30;
+const now=()=>`${String(Math.floor(clock/60)).padStart(2,'0')}:${String(clock%60).padStart(2,'0')}`;
+const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const IC={
+ check:'<path d="M3 8.5l3 3 7-7"/>',
+ run:'<path d="M8 2a6 6 0 1 1-6 6"/>',
+ clock:'<circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 1.5"/>',
+ lock:'<rect x="3.5" y="7" width="9" height="6.5" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/>',
+ alert:'<path d="M8 2.2l6.3 11H1.7z"/><path d="M8 6.5v3M8 11.4v.1"/>',
+ dash:'<circle cx="8" cy="8" r="6" stroke-dasharray="2.4 2.6"/>',
+ x:'<path d="M4 4l8 8M12 4l-8 8"/>',
+ local:'<rect x="3.5" y="3.5" width="9" height="9" rx="1.5"/><path d="M6 1.5v2M10 1.5v2M6 12.5v2M10 12.5v2M1.5 6h2M1.5 10h2M12.5 6h2M12.5 10h2"/>',
+ ai:'<path d="M8 1.8l1.6 4.6L14.2 8l-4.6 1.6L8 14.2l-1.6-4.6L1.8 8l4.6-1.6z"/>',
+ human:'<circle cx="8" cy="5" r="2.6"/><path d="M3 14c.6-3 2.6-4.5 5-4.5s4.4 1.5 5 4.5"/>',
+ browser:'<rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M2 6h12"/>',
+ plug:'<path d="M6 2v3M10 2v3M4.5 5h7v2.5a3.5 3.5 0 0 1-7 0zM8 11v3"/>',
+ back:'<path d="M10 3L5 8l5 5"/>',
+ close:'<path d="M4 4l8 8M12 4l-8 8"/>'
+};
+const ic=(n,cls='')=>`<svg class="ic ${cls}" viewBox="0 0 16 16" aria-hidden="true">${IC[n]}</svg>`;
+const S={ok:{l:'OK',i:'check'},run:{l:'En progreso',i:'run'},wait:{l:'En espera',i:'clock'},block:{l:'Bloqueado',i:'lock'},err:{l:'Error',i:'alert'},idle:{l:'Inactivo',i:'dash'},cancel:{l:'Cancelado',i:'x'}};
+const pill=(s,label)=>`<span class="pill s-${s}">${ic(S[s].i,s==='run'&&!reduced?'spin':'')}<span>${esc(label||S[s].l)}</span></span>`;
+const dot=s=>`<span class="dot s-${s}" title="${S[s].l}">${ic(S[s].i)}</span>`;
+const P={idea:{l:'Idea',s:'idle'},proposal:{l:'Propuesta',s:'idle'},production:{l:'En producción',s:'run'},draft:{l:'Borrador',s:'run'},review:{l:'Pendiente de revisión',s:'wait'},approved:{l:'Aprobada',s:'ok'},scheduled:{l:'Programada',s:'wait'},publishing:{l:'Publicando',s:'run'},published:{l:'Publicada',s:'ok'},error:{l:'Error de publicación',s:'err'},cancelled:{l:'Cancelada',s:'cancel'}};
+const BR={delito:{name:'El DeLito',handle:'@elde_lito',c:'var(--b-delito)'},litoques:{name:'Litoques',handle:'@litoques',c:'var(--b-lito)'}};
+const tag=p=>p?`<span class="tag b-${p}">${BR[p].name}</span>`:`<span class="tag b-none">Común</span>`;
+const AK={ai:'ai',local:'local',human:'human',browser:'browser',conn:'plug'};
+const agentLabel=a=>a.k==='ai'?`Claude ${a.n}`:a.n;
+const agentChip=a=>`<span class="agent">${ic(AK[a.k])}${esc(agentLabel(a))}</span>`;
+
+/* ---------- datos de ejemplo (basados en las campañas reales) ---------- */
+const STATIONS=[
+ {id:'inv',name:'Investigación',status:'ok',what:'Busca perfiles, contactos y oportunidades para cada promoción.',tools:['Claude Sonnet','Búsqueda de Instagram','Gmail · borradores'],limit:'Pausa de 1 s entre peticiones: Instagram responde 429 si se abusa.'},
+ {id:'est',name:'Selección y estrategia',status:'run',what:'Decide qué piezas tocan cada semana, con qué ángulo y a qué hora.',tools:['Claude Opus','Claude Sonnet','Planes en Claude Docs'],limit:'Opus solo para estrategia, balances y los días gratis.'},
+ {id:'gen',name:'Generación de contenido',status:'run',what:'Prepara imágenes, vídeos, textos y hashtags. Primero herramientas locales.',tools:['promo.py','FFmpeg','Claude Sonnet'],limit:'Piezas en tamaño Instagram y por debajo de 9,5 MB.'},
+ {id:'rev',name:'Revisión y calidad',status:'wait',what:'Comprobaciones automáticas y, en modo supervisado, la revisión de Raúl.',tools:['Comprobaciones locales','Raúl'],limit:'Modo supervisado: nada se programa sin aprobación.',note:'Esperando la revisión de Raúl de la semana 1 de El DeLito.'},
+ {id:'prog',name:'Programación',status:'block',what:'Programa en Publer, Metricool o Buffer con 6 h de margen como mínimo.',tools:['Publer · Chrome','Metricool','Buffer'],limit:'Publer necesita el PC encendido, la pantalla activa y Chrome sin minimizar.',note:'Bloqueada: el PC de Raúl está apagado y Publer solo funciona por Chrome.'},
+ {id:'pub',name:'Publicación',status:'ok',what:'Confirma lo publicado y deja listo lo que Raúl envía a mano.',tools:['Publer','Instagram · Raúl','Gmail · Raúl'],limit:'Claude no envía mensajes directos ni correos.'},
+ {id:'ana',name:'Análisis de resultados',status:'wait',what:'Lee métricas de Metricool o las que aporta Raúl.',tools:['Metricool','Historico_promociones.xlsx'],limit:'Metricool gratis: 1 marca (El DeLito) y unas 20 publicaciones al mes.'},
+ {id:'ret',name:'Retroalimentación',status:'ok',what:'Respuestas, balances y propuestas que vuelven a la investigación.',tools:['Claude Haiku','Claude Opus'],limit:'Una cifra aislada no cambia la estrategia.'}
+];
+const ORDER=STATIONS.map(s=>s.id);
+
+const TASKS=[
+ {id:'t1',st:'inv',promo:'delito',title:'Tanda de 5 perfiles de Instagram · semana 1',status:'run',progress:62,agent:{k:'ai',n:'Sonnet'},
+  why:'Tanda semanal de perfiles: Sonnet, según la tabla de elección de modelo.',
+  goal:'Encontrar 5 perfiles nuevos y activos de poesía en español (500–50.000 seguidores) y dejar un mensaje personalizado para cada uno.',
+  inputs:['Perfiles ya contactados (sección «Mensajes de Instagram» del plan)','Búsqueda: poesía en español, bookstagram, poemas'],
+  steps:[['Leer perfiles ya contactados',1],['Buscar por palabra clave',1],['Filtrar por seguidores y actividad reciente',.5],['Redactar mensajes (firma «Raúl»)',0],['Guardar Mensajes_Instagram_tanda2.txt',0]],
+  checks:[['Ningún perfil repetido',1],['Pausa de 1 s entre peticiones',1]],started:'15:04',
+  events:[['15:04','Lanzada por la tarea semanal'],['15:09','14 candidatos encontrados'],['15:21','Filtrando candidatos']]},
+ {id:'t2',st:'inv',promo:'litoques',title:'5 perfiles internacionales de guitarra',status:'wait',agent:{k:'ai',n:'Sonnet'},reason:'Programada para el lunes 26 oct a las 8:49 con la tanda L-X-V.',
+  goal:'Proponer 5 perfiles de guitarra acústica e instrumental, en inglés o español según el perfil, con firma «Lito».',
+  inputs:['Mensajes ya enviados por @litoques','Reel de Faroles para incluir en los mensajes'],steps:[['Esperar la ejecución del lunes',0]],events:[['08:00','Encolada']]},
+ {id:'t3',st:'inv',promo:'delito',title:'Medios y agendas culturales de Granada',status:'ok',progress:100,agent:{k:'ai',n:'Sonnet'},
+  goal:'Localizar medios y agendas de Granada y preparar la nota de prensa del kit como borrador.',
+  steps:[['Buscar medios activos',1],['Verificar contactos',1],['Crear borradores en Gmail',1]],checks:[['Solo borradores: nada enviado',1]],
+  result:'Borradores en Gmail con el asunto «El DeLito · propuesta de lectura». Los envía Raúl.',events:[['11:40','Completada']]},
+
+ {id:'t4',st:'est',promo:'delito',title:'Piezas para los días gratis (13–15 nov)',status:'run',progress:35,agent:{k:'ai',n:'Opus'},
+  why:'Pieza para los días gratis: se sube un nivel de modelo.',
+  goal:'Elegir las piezas de los días gratis y dejar su spec para promo.py, con horario de España y de América.',
+  inputs:['Kit de ampliación','Versos para redes','Horario: 13 nov 9:00 – 16 nov 8:59 en España'],
+  steps:[['Confirmar horario España / América',1],['Elegir ilustraciones del kit',.5],['Textos con versos literales',0],['Spec JSON para promo.py',0]],
+  checks:[['Sin precios en euros',1],['No revela detalles escondidos',0]],started:'14:50',events:[['14:50','Iniciada'],['15:02','Horario confirmado']]},
+ {id:'t5',st:'est',promo:'delito',title:'Encaje del kit de ampliación · semana 2',status:'wait',agent:{k:'ai',n:'Sonnet'},reason:'El kit se usa a partir de la semana 2 (2 nov).',
+  goal:'Sustituir huecos de la semana 2 por piezas del kit y marcarlas como «usada · Semana 2».',steps:[['Leer la tabla «Encaje en el calendario»',0]],events:[]},
+ {id:'t6',st:'est',promo:'delito',title:'Balance de la semana 3',status:'wait',agent:{k:'ai',n:'Opus'},reason:'Necesita las métricas de la semana 3 (Metricool y cifras de Raúl).',deps:['t19'],
+  goal:'Revisar qué funcionó y ajustar el calendario sin cambios drásticos.',steps:[['Esperar métricas',0]],events:[]},
+
+ {id:'t7',st:'gen',promo:'delito',title:'Carruseles e historias de la semana 1',status:'run',progress:78,agent:{k:'local',n:'promo.py'},
+  why:'Herramienta local gratuita: cubre carrusel e historia sin usar IA.',
+  goal:'Generar 3 carruseles 1080x1350 y 2 historias 1080x1920 con el estilo de la marca.',
+  inputs:['Páginas de DeLito_final_A5_v7 (traídas en una llamada)','spec.json con las 5 piezas'],
+  steps:[['Traer páginas de G: en una sola llamada',1],['Escribir spec.json',1],['promo.py build',.5],['promo.py check (< 9,5 MB)',0],['Guardar en DeLito\\Instagram\\Semana 1',0]],
+  checks:[['Tamaño Instagram',1],['Paleta crema, tinta y rojo',1]],started:'15:12',events:[['15:12','Spec escrito'],['15:14','Generando piezas']]},
+ {id:'t8',st:'gen',promo:'litoques',title:'Comprimir Litoques_IG_05 para el Reel',status:'run',progress:40,agent:{k:'local',n:'FFmpeg · promo.py comprimir'},
+  why:'Tarea mecánica: se resuelve en local.',goal:'Dejar el vídeo por debajo de 9,5 MB sin perder calidad visible.',
+  steps:[['Leer vídeo original',1],['Comprimir',.5],['Comprobar tamaño',0]],started:'15:20',events:[['15:20','Iniciada']]},
+ {id:'t9',st:'gen',promo:'delito',title:'Textos y hashtags de la semana 1',status:'ok',progress:100,agent:{k:'ai',n:'Sonnet'},
+  goal:'Captions con versos literales y hashtags neutros.',steps:[['Leer «Versos para redes»',1],['Redactar captions',1],['Añadir hashtags',1]],
+  checks:[['Versos copiados sin corregir',1],['Máximo dos hashtags de país',1]],result:'5 captions listos para revisión.',events:[['13:30','Completada']]},
+ {id:'t10',st:'gen',promo:'litoques',title:'Reel de 25 s con fundidos · día 7',status:'block',agent:{k:'local',n:'promo.py reel'},reason:'Depende de «Comprimir Litoques_IG_05 para el Reel».',deps:['t8'],
+  goal:'Montar el Reel del día 7 con un tema de Litoques y fundidos, nombrando el tema en el texto.',steps:[['Esperar vídeo comprimido',0],['Montar reel',0]],events:[]},
+
+ {id:'t11',st:'rev',promo:'delito',title:'Revisión de Raúl · semana 1',status:'wait',agent:{k:'human',n:'Raúl'},human:true,reason:'Esperando a Raúl. Las comprobaciones automáticas ya han pasado.',
+  goal:'Que Raúl apruebe o corrija las piezas de la semana 1 antes de programarlas.',
+  steps:[['Comprobaciones automáticas',1],['Revisión de Raúl',.5]],
+  checks:[['Tamaño por debajo de 9,5 MB',1],['Versos literales contra «Escritos terminados»',1],['No revela detalles escondidos',1],['Sin precios en euros',1],['Aprobación de Raúl',0]],events:[['13:35','Enviada a revisión']]},
+ {id:'t12',st:'rev',promo:'litoques',title:'Control automático · Reel día 6',status:'ok',progress:100,agent:{k:'local',n:'Comprobaciones locales'},
+  goal:'Validar formato, peso y texto del Reel del día 6.',steps:[['1080x1920',1],['Peso < 9,5 MB',1],['Línea final en inglés',1]],result:'Aprobado: listo para programar.',events:[['12:10','Aprobado']]},
+
+ {id:'t13',st:'prog',promo:'litoques',title:'Programar historia del 26 oct (21:00) en Publer',status:'err',agent:{k:'browser',n:'Publer · Chrome'},attempts:'1 de 2',
+  error:'La página de Publer salió vacía: pantalla apagada o Chrome minimizado. Se ha marcado como «pendiente de programar».',
+  goal:'Programar la historia del día 5 con publicación automática y zona Europe/Madrid.',
+  steps:[['Abrir Publer',-1],['Crear historia',0],['Subir archivo',0],['Programar 21:00',0]],events:[['08:49','Ejecución L-X-V'],['08:51','Captura caducada'],['08:52','Marcada como pendiente de programar']]},
+ {id:'t14',st:'prog',promo:'delito',title:'Programar semana 1 (L/X/V 19:00 · M/J 13:00)',status:'block',agent:{k:'browser',n:'Publer · Chrome'},reason:'Depende de «Revisión de Raúl · semana 1» y del PC encendido.',deps:['t11'],
+  goal:'Programar las 5 piezas en la misma pestaña, sin recargar, y verificar una vez en la vista semanal.',
+  steps:[['Esperar aprobación',0],['Programar 5 piezas',0],['Verificar en vista semanal',0]],events:[]},
+ {id:'t15',st:'prog',promo:'litoques',title:'Programar días 6 a 8',status:'wait',agent:{k:'browser',n:'Publer · Chrome'},reason:'Lunes 26 oct a las 8:49. Necesita el PC encendido.',
+  goal:'Programar Reel 19:00 e historia 21:00 de cada día.',steps:[['Esperar ejecución',0]],events:[]},
+
+ {id:'t16',st:'pub',promo:'litoques',title:'Reel de hoy 19:00 · @litoques',status:'wait',agent:{k:'conn',n:'Publer · automático'},reason:'Programado en Publer. SocialHub espera la confirmación tras las 19:00.',
+  goal:'Confirmar que el Reel de hoy se publica.',steps:[['Programado',1],['Confirmar publicación',0]],events:[['Vie','Programado']]},
+ {id:'t17',st:'pub',promo:'delito',title:'Mensajes de Instagram · tanda 1',status:'wait',agent:{k:'human',n:'Raúl'},human:true,reason:'Raúl los envía: Claude no puede enviar mensajes directos.',
+  goal:'Que Raúl envíe los 5 mensajes guardados en Mensajes_Instagram_tanda1.txt.',steps:[['Mensajes preparados',1],['Raúl envía (0 de 5)',.5]],events:[['22 oct','Tanda preparada']]},
+ {id:'t18',st:'pub',promo:'delito',title:'Borradores de correo · propuesta de lectura',status:'ok',progress:100,agent:{k:'conn',n:'Gmail · borradores'},
+  goal:'Dejar los correos como borradores.',steps:[['Crear borradores',1]],result:'Borradores listos. Ninguno enviado.',events:[['11:45','Completada']]},
+
+ {id:'t19',st:'ana',promo:'delito',title:'Métricas de El DeLito desde Metricool',status:'wait',agent:{k:'ai',n:'Haiku'},reason:'Jueves 29 oct a las 8:31, en la nube, solo lectura.',
+  why:'Lectura de cifras: Haiku basta.',goal:'Escribir cifras y mejores horas en «Métricas (Metricool)» del plan.',steps:[['Esperar ejecución',0]],events:[]},
+ {id:'t20',st:'ana',promo:'litoques',title:'Métricas de Litoques del sábado',status:'block',agent:{k:'human',n:'Raúl'},human:true,reason:'No hay conector de métricas para @litoques: las cifras las aporta Raúl.',
+  goal:'Rellenar las columnas amarillas de Historico_promociones.xlsx.',steps:[['Raúl aporta cifras',0],['Registrar en el histórico',0]],events:[['Sáb','Cifras pendientes']]},
+
+ {id:'t23',st:'pub',promo:null,title:'Crear cuentas de TikTok de prueba',status:'wait',agent:{k:'human',n:'Raúl'},human:true,reason:'Las crea Raúl: SocialHub no crea cuentas ni inicia sesión.',
+  goal:'Tener una cuenta de TikTok para Litoques y otra para El DeLito, solo para probar el sistema.',
+  steps:[['Crear cuenta para Litoques',0],['Crear cuenta para El DeLito',0],['Conectarlas a SocialHub',0]],
+  checks:[['Cuentas separadas por marca',0],['Sin datos de pago',1]],events:[['15:41','Decidido: TikTok entra como plataforma de pruebas']]},
+ {id:'t24',st:'prog',promo:null,title:'Adaptador TikTok · publicación de prueba privada',status:'block',agent:{k:'conn',n:'TikTok · API oficial'},reason:'Depende de «Crear cuentas de TikTok de prueba».',deps:['t23'],
+  goal:'Validar el flujo completo con una publicación que solo vea la propia cuenta, sin exponer contenido mientras se prueba.',
+  inputs:['Vídeo 1080x1920 ya generado por promo.py','Requisitos de acceso de la API (por verificar en la fase de publicación)'],
+  steps:[['Comprobar requisitos de acceso',0],['Subir vídeo de prueba',0],['Publicar como privada',0],['Confirmar estado en TikTok',0]],
+  checks:[['No se marca como publicada sin confirmación de TikTok',1],['Reintentos sin duplicar',1]],events:[]},
+ {id:'t21',st:'ret',promo:null,title:'Revisar respuestas de correo',status:'ok',progress:100,agent:{k:'ai',n:'Haiku'},
+  goal:'Revisar respuestas de ambas campañas y preparar contestaciones si hacen falta.',steps:[['Leer bandeja',1],['Clasificar',1]],result:'Sin respuestas nuevas hoy.',events:[['13:13','Ejecución diaria']]},
+ {id:'t22',st:'ret',promo:null,title:'Propuesta: ampliar promo.py con «cuenta atrás»',status:'idle',agent:{k:'ai',n:'Opus'},reason:'Idea registrada. No se ejecuta sin tu aprobación.',
+  goal:'Añadir a promo.py un tipo de pieza de cuenta atrás para los días gratis.',steps:[['Esperar aprobación',0]],events:[]}
+];
+
+const RES=[
+ {n:'Claude Pro',d:'Haiku · Sonnet · Opus',s:'ok',note:'Cuota: no expuesta por el proveedor'},
+ {n:'OpenCode',d:'Agente / runtime',s:'idle',note:'No configurado'},
+ {n:'promo.py',d:'Local · carrusel, historia, reel, clip',s:'ok',note:'_herramientas en Drive'},
+ {n:'FFmpeg',d:'Local · vídeo',s:'ok',note:'Detectado'},
+ {n:'ImageMagick',d:'Local · imagen',s:'idle',note:'Sin comprobar en este equipo'},
+ {n:'Whisper.cpp',d:'Local · subtítulos',s:'idle',note:'No instalado'},
+ {n:'Google Drive',d:'Repositorio central',s:'ok',note:'cositas artisticas'},
+ {n:'Publer',d:'Programación · ambas cuentas',s:'block',note:'Vía Chrome: PC apagado'},
+ {n:'Metricool',d:'Conector · El DeLito',s:'ok',note:'Unas 20 publicaciones/mes'},
+ {n:'Buffer',d:'Respaldo · @elde_lito',s:'ok',note:'Vía probada'},
+ {n:'Gmail',d:'Solo borradores',s:'ok',note:'Nunca envía'},
+ {n:'Instagram API',d:'Publicación oficial',s:'block',note:'Sin acceso a Meta Business'},
+ {n:'TikTok',d:'Adaptador · pruebas',s:'wait',note:'Cuentas de prueba por crear'},
+ {n:'PC de Raúl',d:'Chrome y pantalla activa',s:'wait',note:'Apagado · próxima tarea lunes 8:49'}
+];
+
+const COMMON_RULES=['Nunca publicar al instante: mínimo 6 h de margen','Correos y mensajes directos: solo borradores; los envía Raúl','Nada de pago ni suscripciones','No crear cuentas ni iniciar sesión por Raúl','No inventar datos, contactos ni cifras'];
+const PROMOS={
+ delito:{id:'delito',brand:'delito',name:'Lanzamiento del poemario',range:'26 oct 2026 – 11 ene 2027 · 12 semanas',phase:'La semana 1 empieza mañana',
+  start:D(2026,10,26),end:D(2027,1,17),
+  desc:'Poemario-objeto con 30 poemas ilustrados. Kindle (KDP Select) y tapa blanda en Amazon.',
+  goals:['Lecturas en Kindle Unlimited y descargas en los días gratis','Seguidores y conversación en @elde_lito','Reseñas en Amazon y Goodreads, sin ofrecer nada ni pedir nota','Presencia en medios y agendas culturales de Granada'],
+  scope:'Todo el mundo hispanohablante. Enlace universal de books2read; sin precios en euros. Instagram en producción; TikTok en pruebas.',
+  cadence:'Posts L/X/V 19:00 · historias M/J 13:00',
+  human:['Crear la cuenta de TikTok de prueba','Revisar las piezas de la semana 1','Enviar los 5 mensajes de Instagram de la tanda 1','Reclamar el enlace de Books2Read cuando funcione el inicio de sesión'],
+  milestones:[['26 oct','Semana 1'],['13–15 nov','Días gratis en Kindle (hora del Pacífico)'],['16 nov','Balance de la semana 3'],['7 dic','Semana 7: balance y mensaje a @enebrobar'],['11 ene','Semana 12: balance final']],
+  rules:['Nunca inventar versos: solo «Versos para redes», el kit o texto literal, con la ortografía de Raúl','Los detalles escondidos no se revelan en público; los aciertos se confirman por privado','KDP Select: el libro completo nunca sale de Amazon','Poemas excluidos de la promoción según el plan','Historias sin pegatinas: la llamada a la acción va escrita en la imagen'],
+  drive:[['DeLito\\Instagram\\Semana N','Piezas generadas cada semana'],['DeLito\\Instagram\\Dias gratis 13-15 nov','Piezas de los días gratis'],['DeLito\\Amazon\\A+','Imágenes del contenido A+'],['DeLito\\DeLito_final_A5_v7_…_paginas_separadas','Poemas en páginas impares, ilustraciones en pares'],['Escritos terminados (Google Doc)','Fuente de los versos; se copian sin corregir'],['Historico_promociones.xlsx','Histórico de publicaciones y métricas'],['Mensajes_Instagram_tanda1.txt','Mensajes que envía Raúl'],['_herramientas\\promo.py','Generador local de piezas']],
+  docs:[['Plan El DeLito','Estado, calendario de 12 semanas y registro semanal'],['Kit de ampliación','Series, reels sin grabar y nota de prensa de Granada']],
+  autos:[['Semana de El DeLito','Jueves 8:48','Sonnet','PC','wait'],['Métricas (Metricool)','Jueves 8:31','Haiku','Nube','wait'],['Revisar respuestas de correo','Diaria 13:13','Haiku','Nube','ok']],
+  routes:[['Publer por Chrome','ok','Probada','Ambas cuentas · nunca pulsar «Publicar»'],['Metricool','ok','Probada','Solo El DeLito · URLs públicas'],['Buffer','ok','Probada','Solo @elde_lito'],['Manual con LEEME','ok','Respaldo','Raúl publica'],['Meta Business Suite','cancel','Descartada','Sin acceso'],['TikTok','wait','En pruebas','Cuenta nueva por crear · publicaciones privadas'],['Posty, Publer MCP, Ayrshare','cancel','Descartadas','De pago']],
+  metricsSrc:'Metricool, cada jueves a las 8:31 (solo lectura). Balances de las semanas 3, 7 y 12 con cifras de Raúl.',
+  config:[['Plataformas','Instagram @elde_lito · TikTok (pruebas)','Promoción'],['Idioma','Español neutro','Marca'],['Alcance','Mundo hispanohablante','Promoción'],['Hashtags','#poesíaenespañol #poesía #poemas #librosrecomendados #bookstagram #poesíacontemporánea #leerenespañol #ElDeLito','Promoción'],['Horario','L/X/V 19:00 · M/J 13:00','Promoción'],['Zona horaria','Europe/Madrid','Marca'],['Estilo','Crema, tinta y rojo; letra serif','Marca'],['Presupuesto','0 € · solo herramientas gratuitas','Marca'],['Autonomía','Supervisada: Raúl revisa y pulsa enviar','Marca']]},
+ litoques:{id:'litoques',brand:'litoques',name:'Lanzamiento del álbum',range:'22 oct – 5 nov 2026 · 15 días',phase:'Día 4 de 15',
+  start:D(2026,10,22),end:D(2026,11,6),
+  desc:'17 temas de guitarra española acústica instrumental. Spotify y Bandcamp (pon tu precio).',
+  goals:['Escuchas en Spotify y descargas en Bandcamp','Seguidores en @litoques','Curadores, blogs, radios y escuelas de guitarra, también en Granada'],
+  scope:'Mundial: caption en español con una línea final en inglés. Instagram en producción; TikTok en pruebas; sin YouTube.',
+  cadence:'Reel 19:00 + una historia 21:00',
+  human:['Crear la cuenta de TikTok de prueba','Aportar las métricas del sábado','Enviar los mensajes de la tanda del lunes'],
+  milestones:[['22 oct','Día 1'],['25 oct','Hoy · día 4'],['26 oct','Tanda de perfiles del lunes'],['5 nov','Día 15 · cierre']],
+  rules:['Reels con un tema de Litoques y fundidos, nombrado en el texto','Hashtags mitad en español, mitad en inglés','Firma «Lito» en mensajes y correos','No se promociona el audio «Sientes»'],
+  drive:[['Litoques\\Videos Instagram','Vídeos reales de Lito (Litoques_IG_01…08)'],['Litoques\\Reels generados','17 reels de 25 s'],['Litoques\\Stories programadas','Historias listas'],['Litoques\\Videos comprimidos','Versiones por debajo de 9,5 MB'],['Litoques\\audacity\\masterizadas','MP3 masterizados'],['Historico_promociones.xlsx','Histórico de publicaciones y métricas']],
+  docs:[['Plan Litoques','Estado, calendario, enlaces oficiales y secciones «Día N»']],
+  autos:[['Tanda Litoques','L-X-V 8:49','Sonnet','PC','err'],['Revisar respuestas de correo','Diaria 13:13','Haiku','Nube','ok']],
+  routes:[['Publer por Chrome','ok','Probada','Cuenta «Litoques»'],['Manual con LEEME','ok','Respaldo','Raúl publica'],['Metricool','cancel','No aplica','El plan gratis cubre solo una marca'],['TikTok','wait','En pruebas','Cuenta nueva por crear · publicaciones privadas'],['YouTube','idle','Fuera de alcance','Sin cuenta']],
+  metricsSrc:'Las cifras las aporta Raúl los sábados. No hay conector de métricas para @litoques.',
+  config:[['Plataformas','Instagram @litoques · TikTok (pruebas)','Promoción'],['Idioma','Español + una línea en inglés','Promoción'],['Alcance','Mundial','Promoción'],['Hashtags','#spanishguitar #acousticguitar #fingerstyle #instrumentalmusic #classicalguitar #guitarraespañola #musicainstrumental #litoques','Promoción'],['Horario','Reel 19:00 · historia 21:00','Promoción'],['Zona horaria','Europe/Madrid','Marca'],['Presupuesto','0 € · solo herramientas gratuitas','Marca'],['Autonomía','Supervisada: Raúl revisa y pulsa enviar','Marca']]}
+};
+
+/* publicaciones */
+const PUBS=[];let pid=0;
+const addPub=o=>PUBS.push(Object.assign({id:'p'+(++pid),flag:''},o));
+(function(){
+ const series=['Un poema, una historia','Conoce a Lito y Pachi','¿Lo has encontrado?','Detrás de las páginas'];
+ for(let w=1;w<=12;w++){
+  const mon=addD(D(2026,10,26),7*(w-1));
+  [[0,'19:00','Carrusel'],[1,'13:00','Historia'],[2,'19:00','Carrusel'],[3,'13:00','Historia'],[4,'19:00','Carrusel']].forEach(([o,h,type],k)=>{
+   const dt=addD(mon,o),d=iso(dt);
+   let st=w===1?(o<2?'review':'production'):w===2?'proposal':'idea';
+   let title=type==='Historia'?'Historia con la llamada a la acción escrita':(w===1&&o===0?'Presentación: 30 poemas que se leen… y se juegan':`${series[(w+k)%4]} · semana ${w}`);
+   if(d==='2026-11-13'){title='Días gratis: empieza hoy (hora de España y de América)';st='proposal'}
+   addPub({promo:'delito',date:d,time:h,type,title,state:st,route:'Publer'});
+  });
+ }
+ addPub({promo:'delito',date:'2026-11-14',time:'13:00',type:'Historia',title:'Días gratis: segundo día',state:'proposal',route:'Publer'});
+ addPub({promo:'delito',date:'2026-11-15',time:'13:00',type:'Historia',title:'Días gratis: último día',state:'proposal',route:'Publer'});
+ for(let n=1;n<=15;n++){
+  const dt=addD(D(2026,10,21),n),d=iso(dt);let rs,hs;
+  if(dt<TODAY){rs=hs='published'}else if(n===4){rs=hs='scheduled'}else if(n===5){rs='scheduled';hs='approved'}
+  else if(n===6){rs='approved';hs='draft'}else if(n===7){rs=hs='production'}else{rs=hs=n<=9?'proposal':'idea'}
+  addPub({promo:'litoques',date:d,time:'19:00',type:'Reel',title:`Día ${n} · Reel de 25 s con un tema de Litoques`,state:rs,route:'Publer',note:rs==='published'?'Confirmada en la vista semanal de Publer':''});
+  addPub({promo:'litoques',date:d,time:'21:00',type:'Historia',title:`Día ${n} · Historia`,state:hs,route:'Publer',flag:n===5?'Pendiente de programar: Publer no respondió':'',note:hs==='published'?'Confirmada en la vista semanal de Publer':''});
+ }
+ ['delito','litoques'].forEach(p=>addPub({promo:p,date:'2026-11-02',time:'12:00',type:'TikTok · prueba privada',title:'Primera prueba del adaptador de TikTok (solo visible para la cuenta)',state:'idea',route:'TikTok · API oficial',flag:'Sin cuenta todavía'}));
+ PUBS.sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+})();
+
+/* ---------- estado de la vista ---------- */
+const vp=$('#vp'),world=$('#world'),panel=$('#panel'),cc=$('#cc');
+let view={s:1,tx:0,ty:0},lod=1,sel={type:null,id:null},ccState={promo:null,tab:'resumen',week:0,filter:'all',hl:null},confirmFor=null;
+const T=id=>TASKS.find(t=>t.id===id);
+const ST=id=>STATIONS.find(s=>s.id===id);
+
+/* ---------- distribución: anillo de producción ---------- */
+const TR={x0:300,x1:2260,y0:620,y1:1250,r:150},SX=[650,1070,1490,1910],WW=2780,WH=1700;
+const POS=i=>{const row=i<4?0:1,k=row?7-i:i;return{row,k,cx:SX[k],cy:row?TR.y1:TR.y0}};
+const ST_ICON={
+ inv:'<circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/>',
+ est:'<circle cx="8" cy="8" r="6"/><path d="M10.6 5.4L9.1 9.1 5.4 10.6 6.9 6.9z"/>',
+ gen:'<path d="M8 2l1.4 4.6L14 8l-4.6 1.4L8 14l-1.4-4.6L2 8l4.6-1.4z"/>',
+ rev:'<path d="M8 1.8l5 2v4c0 3-2.2 5.2-5 6.4C5.2 13 3 10.8 3 7.8v-4z"/><path d="M5.8 8l1.6 1.6 3-3.1"/>',
+ prog:'<rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3M8 9v2l1.3.8"/>',
+ pub:'<path d="M14 2L7 9"/><path d="M14 2l-4.5 12-2.5-5-5-2.5z"/>',
+ ana:'<path d="M2.5 13.5h11"/><path d="M4.5 11V8M8 11V4.5M11.5 11V7"/>',
+ ret:'<path d="M13 8a5 5 0 1 1-1.5-3.6"/><path d="M13 2.5v3h-3"/>'
+};
+const BFILL={delito:'var(--b-delito)',litoques:'var(--b-lito)',none:'var(--ink-3)'};
+function stVis(s){const c=counts(s.id);return{s:s.status,run:c.run>0&&!s.paused,err:c.err>0,alert:c.err>0?'err':s.status==='block'?'block':null}}
+function segPath(i){const{x0,x1,y0,y1,r}=TR,g=50;
+ if(i<3)return`M${SX[i]+g} ${y0}H${SX[i+1]-g}`;
+ if(i===3)return`M${SX[3]+g} ${y0}H${x1-r}A${r} ${r} 0 0 1 ${x1} ${y0+r}V${y1-r}A${r} ${r} 0 0 1 ${x1-r} ${y1}H${SX[3]+g}`;
+ if(i<7){const k=7-i;return`M${SX[k]-g} ${y1}H${SX[k-1]+g}`}
+ return`M${SX[0]-g} ${y1}H${x0+r}A${r} ${r} 0 0 1 ${x0} ${y1-r}V${y0+r}A${r} ${r} 0 0 1 ${x0+r} ${y0}H${SX[0]-g}`}
+function segMid(i){const{x0,x1,y0,y1}=TR;if(i<3)return[(SX[i]+SX[i+1])/2,y0];if(i===3)return[x1,(y0+y1)/2];if(i<7){const k=7-i;return[(SX[k]+SX[k-1])/2,y1]}return[x0,(y0+y1)/2]}
+function trackSvg(){
+ let base='',over='',pk='';
+ for(let i=0;i<8;i++){
+  const a=STATIONS[i],b=STATIONS[(i+1)%8],va=stVis(a),vb=stVis(b),d=segPath(i),fb=i===7;
+  const moving=fb?(a.status!=='wait'&&!a.paused):(va.run||vb.run),jam=!fb&&!moving&&vb.alert;
+  base+=`<path class="seg-base" d="${d}"/>`;
+  over+=`<path class="seg ${moving?'flow':jam?'jam jam-'+vb.alert:'idle'}${fb?' fb':''}" d="${d}"/>`;
+  if(moving&&!reduced){const brands=fb?['none']:TASKS.filter(x=>(x.st===a.id||x.st===b.id)&&x.status==='run').map(x=>x.promo||'none'),n=fb?2:3,dur=fb?10:5;
+   for(let k=0;k<n;k++)pk+=`<circle class="pk" r="${fb?7:9}" style="fill:${BFILL[brands[k%brands.length]||'none']}"><animateMotion dur="${dur}s" repeatCount="indefinite" begin="-${(k*dur/n).toFixed(2)}s" path="${d}"/></circle>`}
+ }
+ return `<svg class="track" width="${WW}" height="${WH}" viewBox="0 0 ${WW} ${WH}" aria-hidden="true">${base}${over}${pk}</svg>`;
+}
+function segLabels(){
+ let out='';
+ for(let i=0;i<7;i++){const q=TASKS.filter(t=>t.st===ORDER[i+1]&&(t.status==='wait'||t.status==='block')).length;if(!q)continue;const[x,y]=segMid(i);out+=`<div class="seglabel" style="left:${x}px;top:${y}px">${q} en cola</div>`}
+ const[x,y]=segMid(7);out+=`<div class="seglabel fbl" style="left:${x}px;top:${y}px">${ic('back')}Resultados → Investigación</div>`;
+ return out;
+}
+
+/* ---------- render del mundo ---------- */
+function counts(stId){const ts=TASKS.filter(t=>t.st===stId);const c=k=>ts.filter(t=>t.status===k).length;return{all:ts.length,run:c('run'),wait:c('wait'),block:c('block'),err:c('err'),ok:c('ok'),idle:c('idle'),cancel:c('cancel')}}
+function pubCounts(p){const ps=PUBS.filter(x=>x.promo===p);const g=f=>ps.filter(x=>f.includes(x.state)).length;
+ return[['Publicadas',g(['published']),'var(--ok)'],['Programadas',g(['scheduled','publishing']),'var(--wait)'],['Aprobadas',g(['approved']),'var(--ink)'],['En revisión',g(['review']),'var(--block)'],['En producción',g(['production','draft']),'var(--run)'],['Ideas y propuestas',g(['idea','proposal']),'var(--line-2)'],['Con error',g(['error']),'var(--err)']].filter(x=>x[1]>0)}
+function nextPub(p){return PUBS.find(x=>x.promo===p&&x.date>=iso(TODAY)&&!['published','cancelled'].includes(x.state))}
+function promoCard(p){
+ const pr=PROMOS[p],pc=pubCounts(p),tot=pc.reduce((a,b)=>a+b[1],0),nx=nextPub(p);
+ const span=pr.end-pr.start,done=Math.max(0,Math.min(1,(TODAY-pr.start)/span));
+ const incid=PUBS.filter(x=>x.promo===p&&(x.flag||x.state==='error')).length+TASKS.filter(t=>t.promo===p&&t.status==='err').length;
+ const human=TASKS.filter(t=>(t.promo===p||t.promo===null)&&t.human&&t.status!=='ok').length;
+ const ms=pr.milestones.map(([d])=>{const m=d.match(/(\d+)(?:–\d+)?\s(\w+)/);if(!m)return'';const mi=MES.indexOf(m[2]);const dt=D(mi<6?2027:2026,mi+1,+m[1]);const q=(dt-pr.start)/span;return q>=0&&q<=1?`<i class="ms" style="left:${(q*100).toFixed(1)}%"></i>`:''}).join('');
+ return `<article class="promo" style="--pc:${BR[pr.brand].c}" data-act="cc" data-promo="${p}" tabindex="0" aria-label="Abrir el centro de control de ${esc(pr.name)}">
+  <div class="p-top"><span class="eyebrow">${BR[pr.brand].name} · ${BR[pr.brand].handle}</span>${pill('ok','Activa')}</div>
+  <h2>${esc(pr.name)}</h2><div class="sub">${esc(pr.phase)}<span class="min-2"> · ${esc(pr.range)}</span></div>
+  <div class="timeline" aria-hidden="true"><i class="rail"></i><i class="done" style="width:${(done*100).toFixed(1)}%"></i>${ms}<i class="now" style="left:${(done*100).toFixed(1)}%"></i></div>
+  <div class="stack" role="img" aria-label="Publicaciones por estado">${pc.map(([l,n,c])=>`<i style="width:${n/tot*100}%;background:${c}" title="${l}: ${n}"></i>`).join('')}</div>
+  <div class="legend-row min-2">${pc.map(([l,n,c])=>`<span style="--c:${c}">${l} <b class="mono">${n}</b></span>`).join('')}</div>
+  <div class="promo-facts">
+   <div><small>Próxima</small><b>${nx?`${lbl(fromIso(nx.date))} ${nx.time}`:'—'}</b></div>
+   <div class="${incid?'bad':''}"><small>Incidencias</small><b>${incid}</b></div>
+   <div><small>Esperan a Raúl</small><b>${human}</b></div>
+  </div>
+  <button class="open-cc" data-act="cc" data-promo="${p}">Abrir centro de control →</button>
+ </article>`;
+}
+function alertItems(){
+ const items=[];
+ TASKS.filter(t=>t.status==='err').forEach(t=>items.push({s:'err',where:ST(t.st).name,msg:t.error||t.title,short:'Error: '+t.title,go:`data-act="task" data-task="${t.id}"`}));
+ STATIONS.filter(s=>s.status==='block').forEach(s=>items.push({s:'block',where:s.name,msg:s.note||'Estación bloqueada',short:s.id==='prog'?'Bloqueada: el PC está apagado y Publer solo funciona por Chrome':'Bloqueada',go:`data-act="station" data-st="${s.id}"`}));
+ return items;
+}
+function attnCard(){
+ const items=alertItems(),nb=TASKS.filter(t=>t.status==='block').length,nh=TASKS.filter(t=>t.human&&!['ok','cancel'].includes(t.status)).length;
+ return `<section class="attn-card" aria-label="Necesita tu atención"><h2>Necesita atención ${items.length?`<span class="count">${items.length}</span>`:''}</h2>
+  ${items.length?items.map(a=>`<button class="aitem s-${a.s}" ${a.go}>${dot(a.s)}<span><b>${esc(a.where)}</b>${esc(a.short)}</span></button>`).join(''):'<p class="src">Todo en orden.</p>'}
+  <p class="src">${nb} tareas bloqueadas por dependencias · ${nh} esperan a Raúl</p></section>`;
+}
+function hub(){return `<div class="hub" style="left:${TR.x0+175}px;top:${TR.y0+85}px;width:${TR.x1-TR.x0-350}px">${promoCard('delito')}${promoCard('litoques')}${attnCard()}</div>`}
+function resPanel(){
+ return `<section class="res" style="left:${TR.x1+140}px;top:${TR.y0-300}px;width:380px" aria-label="Agentes y herramientas"><h2>Agentes y herramientas</h2><span class="sub">Local primero · solo gratuitas · 0 € de gasto</span>
+ <div class="res-grid">${RES.map((r,i)=>`<button class="rc" data-act="res" data-i="${i}">${dot(r.s)}<b>${esc(r.n)}</b><small>${esc(r.d)}<span class="min-2"> · ${esc(r.note)}</span></small></button>`).join('')}</div></section>`;
+}
+function taskRow(t){
+ const s=sel.type==='task'&&sel.id===t.id?' sel':'';
+ const prog=t.status==='run'?`<div class="prog"><div class="bar"><i data-bar="${t.id}" style="width:${t.progress}%"></i></div><span class="mono" data-pct="${t.id}">${Math.floor(t.progress)}%</span></div>`
+  :t.status==='err'?`<div class="why" style="color:var(--err)">${esc(t.error)}</div>`:(t.reason?`<div class="why">${esc(t.reason)}</div>`:(t.result?`<div class="why">${esc(t.result)}</div>`:''));
+ const steps=(t.steps||[]).map(([n,v])=>`<li class="${v===1?'d':v===-1?'f':v>0?'c':''}">${v===1?ic('check'):v===-1?ic('alert'):v>0?ic('run',reduced?'':'spin'):ic('dash')}${esc(n)}</li>`).join('');
+ const acts=actionsFor(t).slice(0,3).map(a=>`<button data-act="${a.id}" data-task="${t.id}">${esc(a.l)}</button>`).join('');
+ return `<li class="tk s-${t.status}${s}" data-task="${t.id}" data-act="task">
+  <div class="tk-top">${dot(t.status)}<span class="tk-title">${esc(t.title)}</span></div>
+  <div class="tk-meta">${tag(t.promo)}${agentChip(t.agent)}</div>
+  ${prog}
+  <div class="deep only-3"><ol class="steps">${steps}</ol>
+   <dl class="facts"><dt>Estado</dt><dd>${S[t.status].l}</dd>${t.started?`<dt>Inicio</dt><dd class="mono">${t.started}</dd>`:''}<dt>Coste</dt><dd>0 € · ${t.agent.k==='ai'?'incluido en Claude Pro':'herramienta gratuita'}</dd>${t.agent.k==='ai'?`<dt>Cuota</dt><dd>No expuesta por el proveedor</dd>`:''}</dl>
+   <div class="mini-acts">${acts}</div></div>
+ </li>`;
+}
+function stationCard(s,i){
+ const P0=POS(i),c=counts(s.id),ts=TASKS.filter(t=>t.st===s.id),selc=sel.type==='station'&&sel.id===s.id?' sel':'',v=stVis(s);
+ const k=(cls,n,l,icn)=>`<div class="kpi k-${cls}${n?'':' zero'}" title="${l}"><span class="ki">${ic(icn)}</span><b>${n}</b><span class="kl">${l}</span></div>`;
+ const badge=v.alert?`<span class="badge">${c.err||c.block||'!'}</span>`:'';
+ return `<button class="node s-${v.alert||s.status}${v.alert?' attn':''}${v.run?' running':''}${selc}" data-act="station" data-st="${s.id}" style="left:${P0.cx-40}px;top:${P0.cy-40}px" aria-label="${esc(s.name)}: ${S[s.status].l}"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true">${ST_ICON[s.id]}</svg>${badge}</button>
+ <article class="st row${P0.row} s-${s.status}${selc}${v.alert?' attn-'+v.alert:''}" data-st="${s.id}" data-act="station" style="left:${P0.cx-170}px;top:${P0.row?P0.cy+64:P0.cy-64}px" tabindex="0" aria-label="${esc(s.name)}: ${S[s.status].l}">
+  <header class="st-h"><span class="st-n">${String(i+1).padStart(2,'0')}</span><h3>${esc(s.name)}</h3>${pill(s.status)}</header>
+  <p class="st-what min-2">${esc(s.what)}</p>
+  ${s.note?`<p class="st-note min-2">${esc(s.note)}</p>`:''}
+  <div class="kpis">${k('run',c.run,'En curso','run')}${k('wait',c.wait,'En espera','clock')}${k('block',c.block,'Bloqueadas','lock')}${k('err',c.err,'Errores','alert')}</div>
+  <ul class="tasks min-2">${ts.map(taskRow).join('')}</ul>
+  <div class="st-res only-3"><div class="chips">${s.tools.map(x=>`<span class="agent">${esc(x)}</span>`).join('')}</div><div>${esc(s.limit)}</div></div>
+ </article>`;
+}
+function renderAvisos(){
+ const items=alertItems(),el=$('#avisos');
+ el.innerHTML=`<h4>Atención</h4>${items.length?items.map(a=>`<button class="aviso s-${a.s}" ${a.go} title="${esc(a.msg)}">${dot(a.s)}<span><b>${esc(a.where)}</b> · ${esc(a.short)}</span></button>`).join(''):'<span class="src">Todo en orden</span>'}`;
+}
+function renderWorld(){
+ world.innerHTML=trackSvg()+segLabels()+hub()+resPanel()+STATIONS.map(stationCard).join('');
+ renderAvisos();
+}
+function drawTerrain(){}
+function animLoop(){}
+
+function renderLegend(){$('#legend').innerHTML=Object.keys(S).map(k=>pill(k)).join('')}
+
+/* ---------- transformaciones y zoom semántico ---------- */
+function lodFor(s){return s<.72?1:s<1.55?2:3}
+function apply(){
+ world.style.transform=`translate(${view.tx}px,${view.ty}px) scale(${view.s})`;
+ const l=lodFor(view.s);if(l!==lod){lod=l;vp.dataset.lod=l}
+ $('#zpct').textContent=Math.round(view.s*100)+'%';
+ document.querySelectorAll('[data-act="lod"]').forEach(b=>b.classList.toggle('on',+b.dataset.v===lod));
+}
+const clampS=s=>Math.max(.08,Math.min(3.5,s));
+function zoomAt(cx,cy,f){const s=clampS(view.s*f);const k=s/view.s;view.tx=cx-(cx-view.tx)*k;view.ty=cy-(cy-view.ty)*k;view.s=s;apply()}
+let anim=null;
+function animateTo(t){
+ cancelAnimationFrame(anim);
+ if(reduced){view={...t};apply();return}
+ const f={...view},t0=performance.now(),dur=480;
+ const step=n=>{let p=Math.min(1,(n-t0)/dur);p=1-Math.pow(1-p,3);
+  view.s=f.s+(t.s-f.s)*p;view.tx=f.tx+(t.tx-f.tx)*p;view.ty=f.ty+(t.ty-f.ty)*p;apply();if(p<1)anim=requestAnimationFrame(step)};
+ anim=requestAnimationFrame(step);
+}
+function avail(){const narrow=vp.clientWidth<=760,open=!panel.hidden;return{w:vp.clientWidth-(open&&!narrow?420:0),h:open&&narrow?vp.clientHeight*.38:vp.clientHeight}}
+function contentBounds(l){const prev=vp.dataset.lod;vp.dataset.lod=String(l);const wr=world.getBoundingClientRect(),b={x0:1e9,y0:1e9,x1:-1e9,y1:-1e9};
+ world.querySelectorAll('.st,.hub,.res,.node,.seglabel').forEach(e=>{const q=e.getBoundingClientRect();b.x0=Math.min(b.x0,(q.left-wr.left)/view.s);b.y0=Math.min(b.y0,(q.top-wr.top)/view.s);b.x1=Math.max(b.x1,(q.right-wr.left)/view.s);b.y1=Math.max(b.y1,(q.bottom-wr.top)/view.s)});
+ vp.dataset.lod=prev;return b}
+function fit(){
+ const a=avail(),pad=16,pt=vp.clientWidth>760?58:16,pb=vp.clientWidth>760?52:16,b=contentBounds(1),w=b.x1-b.x0,h=b.y1-b.y0,ah=a.h-pt-pb;
+ const s=clampS(Math.min((a.w-pad*2)/w,ah/h,.7));
+ animateTo({s,tx:(a.w-w*s)/2-b.x0*s,ty:pt+(ah-h*s)/2-b.y0*s});
+}
+function flyToStation(id,scale){
+ const a=avail(),s=clampS(scale||1.15),l=lodFor(s),wr=world.getBoundingClientRect(),prev=vp.dataset.lod;vp.dataset.lod=String(l);
+ let y0=1e9,y1=-1e9,x0=1e9,x1=-1e9;world.querySelectorAll(`.node[data-st="${id}"],.st[data-st="${id}"]`).forEach(e=>{const q=e.getBoundingClientRect();x0=Math.min(x0,(q.left-wr.left)/view.s);x1=Math.max(x1,(q.right-wr.left)/view.s);y0=Math.min(y0,(q.top-wr.top)/view.s);y1=Math.max(y1,(q.bottom-wr.top)/view.s)});
+ vp.dataset.lod=prev;
+ const ty=(y1-y0)*s<=a.h-60?a.h/2-(y0+y1)/2*s:50-y0*s;
+ animateTo({s,tx:a.w/2-(x0+x1)/2*s,ty});
+}
+function setLod(l){
+ const a=avail();const cx=a.w/2,cy=a.h/2;
+ if(l===1){fit();return}
+ const target=l===2?1.1:1.7;
+ const focus=sel.type==='task'?T(sel.id).st:sel.type==='station'?sel.id:(TASKS.find(t=>t.status==='run')||{}).st;
+ if(focus){flyToStation(focus,target);return}
+ const k=target/view.s;animateTo({s:target,tx:cx-(cx-view.tx)*k,ty:cy-(cy-view.ty)*k});
+}
+
+/* ---------- interacción de puntero ---------- */
+const ptrs=new Map();let drag=null,pinch=null,suppress=false;
+vp.addEventListener('pointerdown',e=>{
+ if(e.target.closest('.panel,.cc,.float,input,select'))return;
+ if(e.pointerType==='mouse'&&e.button!==0)return;
+ ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+ if(ptrs.size===1){drag={x:e.clientX,y:e.clientY,tx:view.tx,ty:view.ty,moved:false,id:e.pointerId}}
+ if(ptrs.size===2){const[p1,p2]=[...ptrs.values()];const r=vp.getBoundingClientRect();
+  pinch={d:Math.hypot(p1.x-p2.x,p1.y-p2.y),cx:(p1.x+p2.x)/2-r.left,cy:(p1.y+p2.y)/2-r.top,s:view.s,tx:view.tx,ty:view.ty};drag=null}
+});
+vp.addEventListener('pointermove',e=>{
+ if(!ptrs.has(e.pointerId))return;ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+ if(pinch&&ptrs.size===2){const[p1,p2]=[...ptrs.values()];const d=Math.hypot(p1.x-p2.x,p1.y-p2.y);const s=clampS(pinch.s*d/pinch.d),k=s/pinch.s;
+  view.s=s;view.tx=pinch.cx-(pinch.cx-pinch.tx)*k;view.ty=pinch.cy-(pinch.cy-pinch.ty)*k;cancelAnimationFrame(anim);apply();suppress=true;return}
+ if(drag){const dx=e.clientX-drag.x,dy=e.clientY-drag.y;
+  if(!drag.moved&&Math.hypot(dx,dy)>5){drag.moved=true;vp.classList.add('grabbing');try{vp.setPointerCapture(e.pointerId)}catch(_){}}
+  if(drag.moved){cancelAnimationFrame(anim);view.tx=drag.tx+dx;view.ty=drag.ty+dy;apply()}}
+});
+const endPtr=e=>{if(drag&&drag.moved)suppress=true;ptrs.delete(e.pointerId);if(ptrs.size<2)pinch=null;if(!ptrs.size){drag=null;vp.classList.remove('grabbing');setTimeout(()=>suppress=false,0)}};
+vp.addEventListener('pointerup',endPtr);vp.addEventListener('pointercancel',endPtr);
+vp.addEventListener('wheel',e=>{
+ if(e.target.closest('.panel,.cc,.results'))return;
+ e.preventDefault();cancelAnimationFrame(anim);const r=vp.getBoundingClientRect();
+ if(!e.ctrlKey&&e.deltaMode===0&&Math.abs(e.deltaX)>Math.abs(e.deltaY)*.5&&Math.abs(e.deltaY)<50){view.tx-=e.deltaX;view.ty-=e.deltaY;apply();return}
+ const f=Math.exp(-e.deltaY*(e.ctrlKey?.012:e.deltaMode===1?.05:.0016));zoomAt(e.clientX-r.left,e.clientY-r.top,f);
+},{passive:false});
+document.addEventListener('click',e=>{if(suppress&&vp.contains(e.target)){e.stopPropagation();e.preventDefault();suppress=false}},true);
+
+/* ---------- acciones contextuales ---------- */
+function actionsFor(t){
+ const A=(id,l,k='')=>({id,l,k});const out=[];
+ switch(t.status){
+  case'run':out.push(A('log','Ver registros'),A('pause','Pausar'),A('cancel','Cancelar','danger'));break;
+  case'wait':if(t.paused)out.push(A('resume','Reanudar','primary'));
+   else if(t.human&&t.id==='t11')out.push(A('approve','Aprobar como Raúl','primary'),A('remind','Avisar a Raúl'));
+   else if(t.human)out.push(A('remind','Avisar a Raúl','primary'),A('done','Marcar como hecho'));
+   else out.push(A('runnow','Ejecutar ahora','primary'),A('resched','Reprogramar'));
+   out.push(A('cancel','Cancelar','danger'));break;
+  case'block':out.push(A('dep','Ver dependencia','primary'),A('recheck','Comprobar de nuevo'),A('cancel','Cancelar','danger'));break;
+  case'err':out.push(A('retry','Reintentar','primary'),A('manual','Pasar a manual con LEEME'),A('log','Diagnóstico'));break;
+  case'ok':out.push(A('result','Ver resultado','primary'),A('rerun','Volver a ejecutar'));break;
+  case'idle':out.push(A('start','Aprobar e iniciar','primary'),A('cancel','Descartar','danger'));break;
+  case'cancel':out.push(A('reopen','Reactivar','primary'));break;
+ }
+ if(t.agent.k==='ai'&&!['ok','cancel'].includes(t.status))out.push(A('agent','Cambiar agente'));
+ return out;
+}
+function ev(t,msg){t.events=t.events||[];t.events.push([now(),msg])}
+function setStep(t,from){if(!t.steps)return;t.steps=t.steps.map(([n,v])=>[n,v===-1?0:v]);const i=t.steps.findIndex(s=>s[1]<1);if(i>=0)t.steps[i][1]=.5}
+function resolveDeps(){
+ TASKS.forEach(t=>{if(t.status==='block'&&t.deps&&t.deps.every(d=>T(d).status==='ok')){t.status='wait';t.reason=t.id==='t24'?'Cuentas creadas. Lista para la primera prueba privada.':t.id==='t14'?'Aprobada. Se programará cuando el PC esté encendido (lunes 8:49).':'Dependencia resuelta: en cola.';ev(t,'Dependencia resuelta')}});
+}
+function doAct(id,t,extra){
+ const msg={pause:'Tarea pausada',resume:'Tarea reanudada',cancel:'Tarea cancelada',retry:'Reintento lanzado',manual:'Pasada a publicación manual',runnow:'Ejecución adelantada',resched:'Reprogramada',recheck:'Dependencia comprobada',start:'Tarea iniciada',reopen:'Tarea reactivada',approve:'Aprobada como Raúl',remind:'Aviso preparado para Raúl',done:'Marcada como hecha',rerun:'Ejecución relanzada'};
+ switch(id){
+  case'pause':t.status='wait';t.paused=true;t.reason='Pausada por ti.';ev(t,'Pausada');break;
+  case'resume':t.status='run';t.paused=false;ev(t,'Reanudada');break;
+  case'cancel':if(confirmFor!==t.id){confirmFor=t.id;openTask(t.id,false);return}confirmFor=null;t.status='cancel';t.paused=false;t.reason='Cancelada por ti.';ev(t,'Cancelada');break;
+  case'retry':t.status='run';t.progress=t.progress||8;t.error='';t.attempts='2 de 2';setStep(t);ev(t,'Reintento 2 de 2');break;
+  case'manual':t.status='wait';t.agent={k:'human',n:'Raúl'};t.human=true;t.reason='Publicación manual: LEEME preparado en la carpeta de la campaña. Raúl publica.';t.error='';ev(t,'Pasada a manual con LEEME');
+   PUBS.filter(p=>p.flag&&p.promo===t.promo).forEach(p=>p.flag='Publicación manual con LEEME');break;
+  case'runnow':case'start':case'rerun':t.status='run';t.progress=id==='rerun'?0:3;t.started=now();setStep(t);ev(t,msg[id]);break;
+  case'resched':t.reason=(t.reason||'')+' Reprogramada +1 día.';ev(t,'Reprogramada un día después');break;
+  case'recheck':ev(t,'Comprobado: la dependencia sigue pendiente');break;
+  case'reopen':t.status='wait';t.reason='Reactivada: en cola.';ev(t,'Reactivada');break;
+  case'approve':t.status='ok';t.progress=100;t.checks=t.checks.map(([n])=>[n,1]);t.steps=t.steps.map(([n])=>[n,1]);t.result='Aprobada. Pasa a programación.';ev(t,'Aprobada por Raúl');
+   PUBS.filter(p=>p.promo==='delito'&&p.state==='review').forEach(p=>p.state='approved');break;
+  case'done':t.status='ok';t.progress=100;t.result='Hecho por Raúl.';ev(t,'Marcada como hecha');break;
+  case'remind':ev(t,'Aviso preparado para Raúl');break;
+  case'agent':{const old=agentLabel(t.agent);t.agent={k:'ai',n:extra};ev(t,`Agente cambiado de ${old} a Claude ${extra}`);toast(`Agente: Claude ${extra} · simulado`);rerender();return}
+  case'dep':{const d=(t.deps||[])[0];if(d){select('task',d);openTask(d);flyToStation(T(d).st,Math.max(view.s,1.1))}else toast('Depende de un recurso externo: '+(t.reason||''));return}
+  case'log':openTask(t.id);setTimeout(()=>{const el=panel.querySelector('#sec-log');el&&el.scrollIntoView({block:'start',behavior:reduced?'auto':'smooth'})},30);return;
+  case'result':openTask(t.id);return;
+ }
+ resolveDeps();toast((msg[id]||'Hecho')+' · simulado en el prototipo');rerender();
+}
+function stationAct(id,s){
+ const ts=TASKS.filter(t=>t.st===s.id);
+ if(id==='spause'){ts.filter(t=>t.status==='run').forEach(t=>{t.status='wait';t.paused=true;t.reason='Estación pausada.';ev(t,'Pausada con la estación')});s.prevStatus=s.status;s.status='wait';s.paused=true;s.note='Estación pausada por ti.'}
+ if(id==='sresume'){ts.filter(t=>t.paused).forEach(t=>{t.status='run';t.paused=false;ev(t,'Reanudada con la estación')});s.status=s.prevStatus||'ok';s.paused=false;s.note=''}
+ toast((id==='spause'?'Estación pausada':'Estación reanudada')+' · simulado');rerender();
+}
+
+/* ---------- panel ---------- */
+function openPanel(html){panel.innerHTML=html;panel.hidden=false}
+function closePanel(){panel.hidden=true;sel={type:null,id:null};confirmFor=null;renderWorld();crumbs()}
+const ph=(eyebrow,title,extra='')=>`<div class="panel-h"><div style="flex:1;min-width:0"><small>${eyebrow}</small><h2>${title}</h2>${extra}</div><button class="ibtn" data-act="close" aria-label="Cerrar panel">${ic('close')}</button></div>`;
+function openStation(id){
+ const s=ST(id),i=ORDER.indexOf(id),c=counts(id),ts=TASKS.filter(t=>t.st===id);
+ const errs=ts.filter(t=>t.status==='err');
+ openPanel(ph(`Estación ${String(i+1).padStart(2,'0')}`,esc(s.name),`<div style="margin-top:8px">${pill(s.status)}</div>`)+`<div class="panel-b">
+  <section><p>${esc(s.what)}</p>${s.note?`<p style="color:var(--ink)">${esc(s.note)}</p>`:''}
+   <p class="src">El estado de la estación es independiente del de sus tareas: puede estar operativa con trabajos en espera.</p></section>
+  <section><h4>Tareas</h4><dl class="kv"><dt>Total</dt><dd class="mono">${c.all}</dd><dt>En curso</dt><dd class="mono">${c.run}</dd><dt>En espera</dt><dd class="mono">${c.wait}</dd><dt>Bloqueadas</dt><dd class="mono">${c.block}</dd><dt>Con error</dt><dd class="mono">${c.err}</dd><dt>Terminadas</dt><dd class="mono">${c.ok}</dd></dl></section>
+  <section><h4>Cola de trabajo</h4>${ts.map(t=>`<button class="qrow" data-act="task" data-task="${t.id}">${dot(t.status)}<span>${esc(t.title)}<small>${t.promo?BR[t.promo].name:'Común'} · ${esc(agentLabel(t.agent))}${t.status==='run'?` · ${Math.floor(t.progress)}%`:''}</small></span></button>`).join('')}</section>
+  ${errs.length?`<section><h4>Errores recientes</h4>${errs.map(t=>`<p style="color:var(--err)">${esc(t.error)}</p>`).join('')}</section>`:''}
+  <section><h4>Herramientas y agentes</h4><div class="acts">${s.tools.map(x=>`<span class="agent">${esc(x)}</span>`).join('')}</div><p>${esc(s.limit)}</p></section>
+  <section><h4>Acciones</h4><div class="acts">${s.paused?`<button class="btn primary" data-act="sresume" data-st="${id}">Reanudar estación</button>`:`<button class="btn" data-act="spause" data-st="${id}">Pausar estación</button>`}<button class="btn" data-act="zoomst" data-st="${id}">Acercar al detalle de tareas</button></div></section>
+  <p class="note">Simulación local. Las acciones cambian solo los datos de ejemplo de esta página.</p></div>`);
+}
+function openTask(id,keepConfirm=true){
+ const t=T(id),s=ST(t.st);if(!keepConfirm)0;
+ const steps=(t.steps||[]).map(([n,v])=>`<li class="${v===1?'d':v===-1?'f':v>0?'c':''}">${v===1?ic('check'):v===-1?ic('alert'):v>0?ic('run',reduced?'':'spin'):ic('dash')}${esc(n)}</li>`).join('');
+ const checks=(t.checks||[]).map(([n,v])=>`<li class="${v?'d':''}">${v?ic('check'):ic('dash')}${esc(n)}</li>`).join('');
+ const acts=actionsFor(t).filter(a=>a.id!=='agent').map(a=>`<button class="btn ${a.k}" data-act="${a.id}" data-task="${t.id}">${esc(a.l)}</button>`).join('');
+ const canAgent=t.agent.k==='ai'&&!['ok','cancel'].includes(t.status);
+ const confirm=confirmFor===t.id?`<div class="confirm"><b>¿Cancelar «${esc(t.title)}»?</b><span>Se detiene la ejecución y queda registrada. Podrás reactivarla.</span><div class="acts"><button class="btn danger" data-act="cancel" data-task="${t.id}">Sí, cancelar</button><button class="btn" data-act="nocancel" data-task="${t.id}">No</button></div></div>`:'';
+ openPanel(ph(`${esc(s.name)} · ${t.promo?BR[t.promo].name:'Común'}`,esc(t.title),`<div class="promo-row" style="margin-top:8px">${pill(t.status,t.paused?'En espera · pausada':'')}${tag(t.promo)}</div>`)+`<div class="panel-b">
+  ${confirm}
+  <section><h4>Objetivo</h4><p>${esc(t.goal)}</p></section>
+  ${t.status==='run'?`<section><h4>Progreso</h4><div class="prog"><div class="bar"><i data-bar="${t.id}" style="width:${t.progress}%"></i></div><span class="mono" data-pct="${t.id}">${Math.floor(t.progress)}%</span></div></section>`:''}
+  ${t.reason&&t.status!=='run'?`<section><h4>${t.status==='block'?'Por qué está bloqueada':t.status==='idle'?'Situación':'Motivo de la espera'}</h4><p>${esc(t.reason)}</p></section>`:''}
+  ${t.error?`<section><h4>Error</h4><p style="color:var(--err)">${esc(t.error)}</p></section>`:''}
+  ${t.result?`<section id="sec-result"><h4>Resultado</h4><p>${esc(t.result)}</p></section>`:''}
+  ${(t.inputs||[]).length?`<section><h4>Datos de entrada</h4><ul>${t.inputs.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></section>`:''}
+  <section><h4>Plan de ejecución</h4><ol class="steps">${steps}</ol></section>
+  ${checks?`<section><h4>Validaciones</h4><ol class="steps">${checks}</ol></section>`:''}
+  <section><h4>Agente o herramienta</h4><dl class="kv"><dt>Usa</dt><dd>${agentChip(t.agent)}</dd>${t.why?`<dt>Motivo</dt><dd>${esc(t.why)}</dd>`:''}<dt>Coste</dt><dd>0 € · ${t.agent.k==='ai'?'incluido en Claude Pro':'gratuito'}</dd><dt>Tokens</dt><dd>Desconocido</dd>${t.agent.k==='ai'?`<dt>Cuota</dt><dd>No expuesta por el proveedor</dd>`:''}${t.attempts?`<dt>Intentos</dt><dd class="mono">${t.attempts}</dd>`:''}${t.started?`<dt>Inicio</dt><dd class="mono">${t.started}</dd>`:''}${(t.deps||[]).length?`<dt>Depende de</dt><dd>${t.deps.map(d=>`<button class="btn" style="padding:3px 8px" data-act="task" data-task="${d}">${esc(T(d).title)}</button>`).join(' ')}</dd>`:''}</dl>
+   ${canAgent?`<label for="agent-sel" class="src">Reasignar agente</label><select id="agent-sel" class="agent-sel" data-task="${t.id}">${['Haiku','Sonnet','Opus'].map(m=>`<option value="${m}" ${t.agent.n===m?'selected':''}>Claude ${m} · Claude Pro</option>`).join('')}<option disabled>OpenCode · no configurado</option></select>`:''}</section>
+  <section><h4>Acciones</h4><div class="acts">${acts}</div></section>
+  <section id="sec-log"><h4>Historial</h4><ul class="log">${(t.events||[]).slice().reverse().map(([a,b])=>`<li><time>${esc(a)}</time><span>${esc(b)}</span></li>`).join('')||'<li><time>—</time><span>Sin eventos todavía</span></li>'}</ul></section>
+  <p class="note">Simulación local. Las acciones cambian solo los datos de ejemplo de esta página.</p></div>`);
+}
+function openRes(i){
+ const r=RES[i],uses=STATIONS.filter(s=>s.tools.some(x=>x.toLowerCase().includes(r.n.toLowerCase().split(' ')[0])));
+ openPanel(ph('Agentes y herramientas',esc(r.n),`<div style="margin-top:8px">${pill(r.s)}</div>`)+`<div class="panel-b">
+  <section><dl class="kv"><dt>Tipo</dt><dd>${esc(r.d)}</dd><dt>Situación</dt><dd>${esc(r.note)}</dd><dt>Coste</dt><dd>0 € · gratuito</dd></dl></section>
+  ${uses.length?`<section><h4>La usan</h4>${uses.map(s=>`<button class="qrow" data-act="station" data-st="${s.id}">${dot(s.status)}<span>${esc(s.name)}</span></button>`).join('')}</section>`:''}
+  <p class="note">En la versión real, este estado lo aporta el registro de herramientas locales y el motor de cuotas.</p></div>`);
+}
+function rerender(){
+ renderWorld();
+ if(!panel.hidden){if(sel.type==='task')openTask(sel.id);else if(sel.type==='station')openStation(sel.id);}
+ if(!cc.hidden)renderCC();
+ crumbs();
+}
+function select(type,id){sel={type,id};confirmFor=null}
+
+/* ---------- centro de control ---------- */
+function openCC(p,tab='resumen',hl=null){
+ ccState={promo:p,tab,week:defaultWeek(p),filter:'all',hl};cc.hidden=false;panel.hidden=true;sel={type:null,id:null};renderCC();crumbs();
+ cc.scrollTop=0;
+}
+function closeCC(){cc.hidden=true;ccState.promo=null;crumbs();renderWorld()}
+function weeks(p){const pr=PROMOS[p];const first=addD(pr.start,-((pr.start.getUTCDay()+6)%7));const out=[];for(let d=first;d<pr.end;d=addD(d,7))out.push(d);return out}
+function defaultWeek(p){const ws=weeks(p);let i=ws.findIndex(w=>TODAY>=w&&TODAY<addD(w,7));if(i<0)i=0;if(p==='delito')i=Math.max(0,ws.findIndex(w=>iso(w)==='2026-10-26'));return i}
+function pubEv(x){const ps=P[x.state];return `<button class="ev s-${ps.s}" data-act="pubjump" data-pub="${x.id}"><span class="t">${ic(S[ps.s].i)}<span class="mono">${x.time}</span> · ${esc(x.type)}</span><span class="x">${esc(x.title)}</span><span class="t" style="font-weight:500">${ps.l}</span>${x.flag?`<span class="f">${esc(x.flag)}</span>`:''}</button>`}
+function renderCC(){
+ const p=ccState.promo,pr=PROMOS[p],b=BR[pr.brand];
+ const tabs=[['resumen','Resumen'],['calendario','Calendario'],['publicaciones','Publicaciones'],['tareas','Tareas'],['recursos','Recursos'],['automatizacion','Automatización'],['metricas','Métricas'],['config','Configuración']];
+ let body='';
+ const ps=PUBS.filter(x=>x.promo===p);
+ if(ccState.tab==='resumen'){
+  const tasks=TASKS.filter(t=>t.promo===p);const inc=tasks.filter(t=>t.status==='err'||t.status==='block');
+  const next=ps.filter(x=>x.date>=iso(TODAY)&&!['published','cancelled'].includes(x.state)).slice(0,4);
+  body=`<div class="grid2">
+   <div class="card"><h3>Objetivos</h3><ul>${pr.goals.map(g=>`<li>${esc(g)}</li>`).join('')}</ul><p class="src">${esc(pr.scope)}</p></div>
+   <div class="card"><h3>Hitos</h3><ul class="ms-list">${pr.milestones.map(([d,t])=>`<li><time>${esc(d)}</time><span>${esc(t)}</span></li>`).join('')}</ul></div>
+   <div class="card"><h3>Próximas publicaciones</h3>${next.map(pubEv).join('')||'<p>Nada pendiente.</p>'}</div>
+   <div class="card"><h3>Incidencias</h3>${inc.length?inc.map(t=>`<button class="qrow" data-act="cctask" data-task="${t.id}">${dot(t.status)}<span>${esc(t.title)}<small>${esc(t.error||t.reason)}</small></span></button>`).join(''):'<p>Ninguna.</p>'}</div>
+   <div class="card"><h3>Esperan a Raúl</h3><ul>${pr.human.map(h=>`<li>${esc(h)}</li>`).join('')}</ul><p class="src">Claude prepara, programa y avisa. Raúl solo revisa y pulsa enviar.</p></div>
+   <div class="card"><h3>Reglas de la promoción</h3><ul>${pr.rules.concat(COMMON_RULES).map(r=>`<li>${esc(r)}</li>`).join('')}</ul></div></div>`;
+ }
+ if(ccState.tab==='calendario'){
+  const ws=weeks(p),w=ws[ccState.week];const days=[...Array(7)].map((_,i)=>addD(w,i));
+  body=`<div class="cal-nav"><button class="btn" data-act="wk" data-d="-1" ${ccState.week===0?'disabled':''}>Semana anterior</button><b>${lbl(days[0])} – ${lbl(days[6])}</b><button class="btn" data-act="wk" data-d="1" ${ccState.week>=ws.length-1?'disabled':''}>Semana siguiente</button><span class="src">${esc(pr.cadence)} · Europe/Madrid</span></div>
+  <div class="cal">${days.map(d=>{const ev=ps.filter(x=>x.date===iso(d));const free=p==='delito'&&['2026-11-13','2026-11-14','2026-11-15'].includes(iso(d));
+   return `<div class="day${iso(d)===iso(TODAY)?' today':''}"><header><span>${DIA[d.getUTCDay()]}${iso(d)===iso(TODAY)?' · hoy':''}</span><b>${d.getUTCDate()}</b></header>${free?'<span class="pill s-ok" style="justify-self:start">Días gratis</span>':''}${ev.map(pubEv).join('')||'<span class="empty">Sin publicaciones</span>'}</div>`}).join('')}</div>`;
+ }
+ if(ccState.tab==='publicaciones'){
+  const groups=[['all','Todas'],['pending','Pendientes'],['review','En revisión'],['scheduled','Programadas'],['published','Publicadas'],['issues','Con incidencia']];
+  const f=ccState.filter;const list=ps.filter(x=>f==='all'||(f==='pending'&&['idea','proposal','production','draft'].includes(x.state))||(f==='issues'&&(x.flag||x.state==='error'))||x.state===f);
+  body=`<div class="filters">${groups.map(([k,l])=>`<button class="chip${f===k?' on':''}" data-act="flt" data-f="${k}">${l}</button>`).join('')}</div>
+  <div class="tbl-wrap"><table><thead><tr><th>Fecha</th><th>Tipo</th><th>Pieza</th><th>Estado</th><th>Vía</th><th>Observaciones</th></tr></thead><tbody>${list.map(x=>`<tr id="row-${x.id}" class="${ccState.hl===x.id?'hl':''}"><td class="nowrap mono">${lbl(fromIso(x.date))} ${x.time}</td><td>${esc(x.type)}</td><td>${esc(x.title)}</td><td>${pill(P[x.state].s,P[x.state].l)}</td><td>${esc(x.route)}</td><td>${esc(x.flag||x.note||'')}</td></tr>`).join('')||'<tr><td colspan="6">Ninguna publicación con este filtro.</td></tr>'}</tbody></table></div>
+  <p class="src">Una publicación solo pasa a «Publicada» cuando se confirma en la plataforma o en la vista semanal de Publer, nunca porque se haya generado el archivo.</p>`;
+ }
+ if(ccState.tab==='tareas'){
+  const ts=TASKS.filter(t=>t.promo===p||t.promo===null);
+  body=`<div class="tbl-wrap"><table><thead><tr><th>Estación</th><th>Tarea</th><th>Estado</th><th>Agente</th><th>Detalle</th></tr></thead><tbody>${ts.map(t=>`<tr><td class="nowrap">${esc(ST(t.st).name)}</td><td><button class="btn" style="padding:3px 8px;text-align:left" data-act="cctask" data-task="${t.id}">${esc(t.title)}</button></td><td>${pill(t.status)}</td><td>${agentChip(t.agent)}</td><td>${esc(t.status==='run'?Math.floor(t.progress)+' %':t.error||t.reason||t.result||'')}</td></tr>`).join('')}</tbody></table></div>`;
+ }
+ if(ccState.tab==='recursos'){
+  body=`<div class="grid2"><div class="card"><h3>Google Drive · cositas artisticas</h3><div class="tbl-wrap"><table><tbody>${pr.drive.map(([a,d])=>`<tr><td class="mono" style="font-size:12px">${esc(a)}</td><td>${esc(d)}</td></tr>`).join('')}</tbody></table></div><p class="src">Solo se crean archivos nuevos dentro de la carpeta de la campaña. Nunca se borra ni se modifica nada.</p></div>
+  <div class="card"><h3>Planes y documentos</h3>${pr.docs.map(([a,d])=>`<div><b>${esc(a)}</b><p>${esc(d)}</p></div>`).join('')}</div></div>`;
+ }
+ if(ccState.tab==='automatizacion'){
+  body=`<div class="card"><h3>Tareas programadas</h3><div class="tbl-wrap"><table><thead><tr><th>Nombre</th><th>Cuándo</th><th>Modelo</th><th>Dónde</th><th>Estado</th></tr></thead><tbody>${pr.autos.map(([n,w,m,d,s])=>`<tr><td>${esc(n)}</td><td class="nowrap">${esc(w)}</td><td>Claude ${esc(m)}</td><td>${d==='PC'?'PC de Raúl (Chrome activo)':'Nube'}</td><td>${pill(s)}</td></tr>`).join('')}</tbody></table></div></div>
+  <div class="card"><h3>Vías de publicación, por orden de preferencia</h3><div class="tbl-wrap"><table><thead><tr><th>Vía</th><th>Estado</th><th>Notas</th></tr></thead><tbody>${pr.routes.map(([n,s,l,d])=>`<tr><td>${esc(n)}</td><td>${pill(s,l)}</td><td>${esc(d)}</td></tr>`).join('')}</tbody></table></div></div>
+  <div class="card"><h3>Elección de modelo por tipo de trabajo</h3><div class="tbl-wrap"><table><thead><tr><th>Trabajo</th><th>Base</th><th>Sube un nivel si…</th></tr></thead><tbody>
+   <tr><td>Revisar correo, comprobar publicaciones, listar archivos, leer métricas</td><td>Haiku</td><td>Un correo pide dinero, datos o algo raro</td></tr>
+   <tr><td>Tanda semanal: piezas, textos, hashtags, spec de promo.py, programar, contactos</td><td>Sonnet</td><td>Falla dos veces; piezas de los días gratis; algo distinto de lo habitual</td></tr>
+   <tr><td>Estrategia, herramienta nueva, arreglar algo roto, balances, campaña nueva</td><td>Opus</td><td>—</td></tr></tbody></table></div>
+   <p class="src">Local primero: si promo.py, FFmpeg o ImageMagick resuelven la tarea, no se usa IA.</p></div>`;
+ }
+ if(ccState.tab==='metricas'){
+  const ms=['Alcance','Impresiones','Interacciones','Reproducciones','Guardados','Compartidos','Seguidores ganados','Clics en el enlace'];
+  body=`<div class="grid2"><div class="card"><h3>Métricas de la promoción</h3><p class="src">${esc(pr.metricsSrc)}</p>${ms.map(m=>`<div class="metric"><span>${m}</span><span class="v">Sin dato</span></div>`).join('')}</div>
+  <div class="card"><h3>Cómo se usarán</h3><ul><li>Comparar por formato, tema, día y hora dentro de la misma marca.</li><li>No sacar conclusiones con muestras pequeñas.</li><li>Las conclusiones vuelven a la estación de investigación y quedan registradas.</li></ul><p class="src">El prototipo no inventa cifras: aparecerán cuando lleguen datos reales.</p></div></div>`;
+ }
+ if(ccState.tab==='config'){
+  body=`<div class="tbl-wrap"><table><thead><tr><th>Parámetro</th><th>Valor</th><th>Origen</th></tr></thead><tbody>${pr.config.map(([a,v,o])=>`<tr><td class="nowrap">${esc(a)}</td><td>${esc(v)}</td><td>${o==='Marca'?'Heredado de la marca':'Propio de la promoción'}</td></tr>`).join('')}</tbody></table></div>`;
+ }
+ cc.innerHTML=`<div class="cc-in" style="--pc:${b.c}">
+  <div><button class="btn back" data-act="closecc">${ic('back')}Volver al mapa</button></div>
+  <div class="cc-head"><div><div class="eyebrow">${b.name} · ${b.handle}</div><h1>${esc(pr.name)}</h1><p>${esc(pr.range)} · ${esc(pr.phase)}</p><p>${esc(pr.desc)}</p></div><div class="promo-row">${pill('ok','Activa')}<span class="pill s-wait">${ic('human')}<span>Supervisada</span></span></div></div>
+  <nav class="tabs" role="tablist">${tabs.map(([k,l])=>`<button role="tab" aria-selected="${ccState.tab===k}" class="${ccState.tab===k?'on':''}" data-act="tab" data-tab="${k}">${l}</button>`).join('')}</nav>
+  ${body}</div>`;
+ if(ccState.hl&&ccState.tab==='publicaciones'){const r=cc.querySelector('#row-'+ccState.hl);r&&r.scrollIntoView({block:'center'})}
+}
+
+/* ---------- ruta de navegación ---------- */
+function crumbs(){
+ const c=[`<button data-act="home" class="${!sel.type&&cc.hidden?'cur':''}">Fábrica</button>`];
+ const add=(h,cur)=>c.push(`<span class="sep">/</span>${h.replace('<button','<button class="'+(cur?'cur':'')+'"')}`);
+ if(!cc.hidden&&ccState.promo){const pr=PROMOS[ccState.promo];add(`<button data-act="cc" data-promo="${pr.id}">${BR[pr.brand].name}</button>`);add(`<button data-act="cc" data-promo="${pr.id}">${esc(pr.name)}</button>`,true)}
+ else if(sel.type==='station'){add(`<button data-act="station" data-st="${sel.id}">${esc(ST(sel.id).name)}</button>`,true)}
+ else if(sel.type==='task'){const t=T(sel.id);add(`<button data-act="station" data-st="${t.st}">${esc(ST(t.st).name)}</button>`);add(`<button data-act="task" data-task="${t.id}">${esc(t.title)}</button>`,true)}
+ else if(sel.type==='res'){add(`<button>${esc(RES[sel.id].n)}</button>`,true)}
+ $('#crumbs').innerHTML='<span class="sep" style="margin-right:2px">SocialHub</span><span class="sep">/</span>'+c.join('');
+}
+
+/* ---------- búsqueda ---------- */
+const q=$('#q'),results=$('#results');let hits=[],hi=0;
+function search(term){
+ const n=s=>s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');const k=n(term.trim());if(!k){results.hidden=true;return}
+ hits=[];
+ STATIONS.forEach(s=>n(s.name+' '+s.what).includes(k)&&hits.push({t:'Estación',l:s.name,go:()=>goStation(s.id)}));
+ Object.values(PROMOS).forEach(p=>n(p.name+' '+BR[p.brand].name).includes(k)&&hits.push({t:'Promoción',l:`${BR[p.brand].name} · ${p.name}`,go:()=>openCC(p.id)}));
+ TASKS.forEach(t=>n(t.title+' '+(t.goal||'')).includes(k)&&hits.push({t:'Tarea · '+ST(t.st).name,l:t.title,s:t.status,go:()=>goTask(t.id)}));
+ PUBS.forEach(x=>n(x.title+' '+x.type).includes(k)&&hits.push({t:`Publicación · ${BR[x.promo].name} · ${lbl(fromIso(x.date))}`,l:x.title,go:()=>openCC(x.promo,'publicaciones',x.id)}));
+ RES.forEach((r,i)=>n(r.n+' '+r.d).includes(k)&&hits.push({t:'Herramienta',l:r.n,s:r.s,go:()=>{closeCCIf();sel={type:'res',id:i};openRes(i);crumbs()}}));
+ hits=hits.slice(0,10);hi=0;
+ results.innerHTML=hits.length?hits.map((h,i)=>`<button data-hit="${i}" class="${i===0?'on':''}">${h.s?dot(h.s):''}<span><small>${esc(h.t)}</small>${esc(h.l)}</span></button>`).join(''):'<div class="none">Sin resultados.</div>';
+ results.hidden=false;
+}
+q.addEventListener('input',()=>search(q.value));
+q.addEventListener('keydown',e=>{
+ if(e.key==='Escape'){results.hidden=true;q.blur()}
+ if(results.hidden||!hits.length)return;
+ if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();hi=(hi+(e.key==='ArrowDown'?1:-1)+hits.length)%hits.length;results.querySelectorAll('button').forEach((b,i)=>b.classList.toggle('on',i===hi))}
+ if(e.key==='Enter'){e.preventDefault();pick(hi)}
+});
+results.addEventListener('click',e=>{const b=e.target.closest('[data-hit]');if(b)pick(+b.dataset.hit)});
+function pick(i){const h=hits[i];results.hidden=true;q.value='';h&&h.go()}
+document.addEventListener('pointerdown',e=>{if(!e.target.closest('.search'))results.hidden=true});
+
+/* ---------- navegación ---------- */
+function closeCCIf(){if(!cc.hidden){cc.hidden=true;ccState.promo=null}}
+function goStation(id){closeCCIf();select('station',id);renderWorld();openStation(id);crumbs();flyToStation(id)}
+function goTask(id){closeCCIf();const t=T(id);select('task',id);renderWorld();openTask(id);crumbs();flyToStation(t.st,Math.max(1.7,view.s))}
+
+document.addEventListener('click',e=>{
+ const el=e.target.closest('[data-act]');if(!el)return;
+ const a=el.dataset.act,t=el.dataset.task&&T(el.dataset.task);
+ if(el.tagName==='LI'&&e.target.closest('button[data-act]')&&e.target.closest('button[data-act]')!==el)return;
+ e.stopPropagation();
+ switch(a){
+  case'home':closeCCIf();panel.hidden=true;sel={type:null,id:null};renderWorld();crumbs();fit();break;
+  case'fit':fit();break;
+  case'zin':{const v=avail();zoomAt(v.w/2,v.h/2,1.25);break}
+  case'zout':{const v=avail();zoomAt(v.w/2,v.h/2,.8);break}
+  case'lod':setLod(+el.dataset.v);break;
+  case'station':goStation(el.dataset.st);break;
+  case'zoomst':flyToStation(el.dataset.st,1.7);break;
+  case'task':goTask(el.dataset.task);break;
+  case'res':closeCCIf();sel={type:'res',id:+el.dataset.i};renderWorld();openRes(+el.dataset.i);crumbs();break;
+  case'close':closePanel();break;
+  case'cc':openCC(el.dataset.promo);break;
+  case'closecc':closeCC();break;
+  case'tab':ccState.tab=el.dataset.tab;ccState.hl=null;renderCC();break;
+  case'wk':ccState.week+=+el.dataset.d;renderCC();break;
+  case'flt':ccState.filter=el.dataset.f;renderCC();break;
+  case'pubjump':ccState.tab='publicaciones';ccState.filter='all';ccState.hl=el.dataset.pub;renderCC();break;
+  case'cctask':goTask(el.dataset.task);break;
+  case'spause':case'sresume':stationAct(a,ST(el.dataset.st));break;
+  case'nocancel':confirmFor=null;openTask(t.id);break;
+  default:if(t){if(sel.id!==t.id||sel.type!=='task'){select('task',t.id);if(a==='cancel')confirmFor=null}doAct(a,t)}
+ }
+});
+document.addEventListener('change',e=>{if(e.target.id==='agent-sel'){doAct('agent',T(e.target.dataset.task),e.target.value)}});
+document.addEventListener('keydown',e=>{
+ if(e.target.closest('input,select,textarea'))return;
+ if(e.key==='Enter'&&e.target.matches('.st,.promo')){e.target.click()}
+ if(e.key==='0'){fit()} if(e.key==='+'||e.key==='='){const v=avail();zoomAt(v.w/2,v.h/2,1.25)} if(e.key==='-'){const v=avail();zoomAt(v.w/2,v.h/2,.8)}
+ if(e.key==='Escape'){if(!cc.hidden)closeCC();else if(!panel.hidden)closePanel()}
+});
+
+/* ---------- motor de demostración ---------- */
+let toastT;function toast(m){const el=$('#toast');el.textContent=m;el.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>el.hidden=true,2600)}
+setInterval(()=>{
+ clock+=1;let changed=false;
+ TASKS.forEach(t=>{if(t.status!=='run'||t.paused)return;t.progress=Math.min(100,t.progress+.25+Math.random()*.55);
+  document.querySelectorAll(`[data-bar="${t.id}"]`).forEach(b=>b.style.width=t.progress+'%');
+  document.querySelectorAll(`[data-pct="${t.id}"]`).forEach(b=>b.textContent=Math.floor(t.progress)+'%');
+  if(t.progress>=100){t.status='ok';t.steps&&(t.steps=t.steps.map(([n])=>[n,1]));t.result=t.result||'Completada en la simulación.';ev(t,'Completada');changed=true;toast(`Terminada: ${t.title}`)}});
+ if(changed){resolveDeps();rerender()}
+},1500);
+
+/* ---------- arranque ---------- */
+drawTerrain();renderLegend();renderWorld();apply();crumbs();if(!reduced)requestAnimationFrame(animLoop);
+requestAnimationFrame(()=>{fit();const h=(location.hash||'').slice(1);if(PROMOS[h])openCC(h)});
+let rz;addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(fit,150)});
+</script>
