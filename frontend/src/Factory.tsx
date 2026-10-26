@@ -1,0 +1,362 @@
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { api } from './api';
+import { ControlCenter } from './ControlCenter';
+import { Icon } from './icons';
+import { STATUS, normalize, shortDate, type Snapshot, type StatusCode, type Task } from './model';
+import { ArmoryPanel, StationPanel, TaskPanel } from './Panel';
+import { Dot, Pill, prefersReducedMotion } from './ui';
+import { World, type Selection } from './World';
+
+interface View { s: number; tx: number; ty: number }
+const clampS = (s: number) => Math.max(0.08, Math.min(3.5, s));
+const lodFor = (s: number) => (s < 0.72 ? 1 : s < 1.55 ? 2 : 3);
+
+interface Hit { kind: string; label: string; s?: StatusCode; go: () => void }
+
+export function Factory({ data, live, onLogout, onRefresh }: {
+  data: Snapshot; live: boolean; onLogout: () => void; onRefresh: () => void;
+}) {
+  const vp = useRef<HTMLElement>(null);
+  const world = useRef<HTMLDivElement>(null);
+  const view = useRef<View>({ s: 0.5, tx: 0, ty: 0 });
+  const anim = useRef<number>(0);
+  const [lod, setLod] = useState(1);
+  const [zoom, setZoom] = useState(50);
+  const [sel, setSel] = useState<Selection>({ type: null, id: null });
+  const [cc, setCc] = useState<{ promo: string; tab: string; hl: string | null } | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const [hitIndex, setHitIndex] = useState(0);
+  const fitted = useRef(false);
+
+  const brands = useMemo(() => new Map(data.brands.map(b => [b.id, b])), [data.brands]);
+  const brandOf = useCallback((pid: string | null) => {
+    const p = data.promotions.find(x => x.id === pid);
+    return p ? brands.get(p.brandId) : undefined;
+  }, [data.promotions, brands]);
+
+  // ---------- vista: zoom, desplazamiento y zoom semántico ----------
+  const apply = useCallback(() => {
+    const v = view.current;
+    if (world.current) world.current.style.transform = `translate(${v.tx}px,${v.ty}px) scale(${v.s})`;
+    const l = lodFor(v.s);
+    if (vp.current && vp.current.dataset.lod !== String(l)) vp.current.dataset.lod = String(l);
+    setLod(l);
+    setZoom(Math.round(v.s * 100));
+  }, []);
+
+  const animateTo = useCallback((t: View) => {
+    cancelAnimationFrame(anim.current);
+    if (prefersReducedMotion()) { view.current = t; apply(); return; }
+    const from = { ...view.current }, t0 = performance.now(), dur = 480;
+    const step = (n: number) => {
+      let p = Math.min(1, (n - t0) / dur); p = 1 - Math.pow(1 - p, 3);
+      view.current = { s: from.s + (t.s - from.s) * p, tx: from.tx + (t.tx - from.tx) * p, ty: from.ty + (t.ty - from.ty) * p };
+      apply();
+      if (p < 1) anim.current = requestAnimationFrame(step);
+    };
+    anim.current = requestAnimationFrame(step);
+  }, [apply]);
+
+  const panelOpen = sel.type !== null;
+  const avail = useCallback(() => {
+    const el = vp.current!;
+    const narrow = el.clientWidth <= 760;
+    return { w: el.clientWidth - (panelOpen && !narrow ? 450 : 0), h: panelOpen && narrow ? el.clientHeight * 0.38 : el.clientHeight };
+  }, [panelOpen]);
+
+  /** Mide el contenido con un nivel de detalle concreto, sin que se vea el cambio. */
+  const measure = useCallback((level: number, selector: string) => {
+    const el = vp.current!, w = world.current!, prev = el.dataset.lod;
+    el.dataset.lod = String(level);
+    const wr = w.getBoundingClientRect(), s = view.current.s;
+    const b = { x0: 1e9, y0: 1e9, x1: -1e9, y1: -1e9 };
+    w.querySelectorAll(selector).forEach(e => {
+      const q = e.getBoundingClientRect();
+      b.x0 = Math.min(b.x0, (q.left - wr.left) / s); b.y0 = Math.min(b.y0, (q.top - wr.top) / s);
+      b.x1 = Math.max(b.x1, (q.right - wr.left) / s); b.y1 = Math.max(b.y1, (q.bottom - wr.top) / s);
+    });
+    el.dataset.lod = prev;
+    return b;
+  }, []);
+
+  const fit = useCallback(() => {
+    if (!vp.current || !world.current) return;
+    const a = avail(), wide = vp.current.clientWidth > 760, pt = wide ? 58 : 16, pb = wide ? 52 : 16, pad = 16;
+    const b = measure(1, '.st,.hub,.res,.node,.seglabel');
+    const w = b.x1 - b.x0, h = b.y1 - b.y0, ah = a.h - pt - pb;
+    const s = clampS(Math.min((a.w - pad * 2) / w, ah / h, 0.7));
+    animateTo({ s, tx: (a.w - w * s) / 2 - b.x0 * s, ty: pt + (ah - h * s) / 2 - b.y0 * s });
+  }, [avail, measure, animateTo]);
+
+  const flyToStation = useCallback((id: string, scale = 1.15) => {
+    if (!vp.current) return;
+    const a = avail(), s = clampS(scale);
+    const b = measure(lodFor(s), `.node[data-st="${id}"],.st[data-st="${id}"]`);
+    const ty = (b.y1 - b.y0) * s <= a.h - 60 ? a.h / 2 - (b.y0 + b.y1) / 2 * s : 50 - b.y0 * s;
+    animateTo({ s, tx: a.w / 2 - (b.x0 + b.x1) / 2 * s, ty });
+  }, [avail, measure, animateTo]);
+
+  const zoomAt = useCallback((cx: number, cy: number, f: number) => {
+    cancelAnimationFrame(anim.current);
+    const v = view.current, s = clampS(v.s * f), k = s / v.s;
+    view.current = { s, tx: cx - (cx - v.tx) * k, ty: cy - (cy - v.ty) * k };
+    apply();
+  }, [apply]);
+
+  useLayoutEffect(() => {
+    if (!fitted.current && world.current) { fitted.current = true; apply(); fit(); }
+  }, [apply, fit]);
+
+  useEffect(() => {
+    let t: number;
+    const onResize = () => { clearTimeout(t); t = window.setTimeout(fit, 150); };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [fit]);
+
+  // Rueda, arrastre y pellizco
+  useEffect(() => {
+    const el = vp.current!;
+    const ptrs = new Map<number, { x: number; y: number }>();
+    let drag: { x: number; y: number; tx: number; ty: number; moved: boolean } | null = null;
+    let pinch: { d: number; cx: number; cy: number; s: number; tx: number; ty: number } | null = null;
+    let suppress = false;
+    const skip = (t: EventTarget | null) => (t as HTMLElement | null)?.closest?.('.panel,.cc,.float,input,select,.results');
+    const down = (e: PointerEvent) => {
+      if (skip(e.target) || (e.pointerType === 'mouse' && e.button !== 0)) return;
+      ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (ptrs.size === 1) drag = { x: e.clientX, y: e.clientY, tx: view.current.tx, ty: view.current.ty, moved: false };
+      if (ptrs.size === 2) {
+        const [p1, p2] = [...ptrs.values()], r = el.getBoundingClientRect();
+        pinch = { d: Math.hypot(p1.x - p2.x, p1.y - p2.y), cx: (p1.x + p2.x) / 2 - r.left, cy: (p1.y + p2.y) / 2 - r.top, ...view.current };
+        drag = null;
+      }
+    };
+    const move = (e: PointerEvent) => {
+      if (!ptrs.has(e.pointerId)) return;
+      ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pinch && ptrs.size === 2) {
+        const [p1, p2] = [...ptrs.values()], s = clampS(pinch.s * Math.hypot(p1.x - p2.x, p1.y - p2.y) / pinch.d), k = s / pinch.s;
+        view.current = { s, tx: pinch.cx - (pinch.cx - pinch.tx) * k, ty: pinch.cy - (pinch.cy - pinch.ty) * k };
+        cancelAnimationFrame(anim.current); apply(); suppress = true; return;
+      }
+      if (drag) {
+        const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+        if (!drag.moved && Math.hypot(dx, dy) > 5) { drag.moved = true; el.classList.add('grabbing'); try { el.setPointerCapture(e.pointerId); } catch { /* */ } }
+        if (drag.moved) { cancelAnimationFrame(anim.current); view.current = { ...view.current, tx: drag.tx + dx, ty: drag.ty + dy }; apply(); }
+      }
+    };
+    const up = (e: PointerEvent) => {
+      if (drag?.moved) suppress = true;
+      ptrs.delete(e.pointerId);
+      if (ptrs.size < 2) pinch = null;
+      if (!ptrs.size) { drag = null; el.classList.remove('grabbing'); setTimeout(() => { suppress = false; }, 0); }
+    };
+    const wheel = (e: WheelEvent) => {
+      if (skip(e.target)) return;
+      e.preventDefault();
+      const r = el.getBoundingClientRect();
+      if (!e.ctrlKey && e.deltaMode === 0 && Math.abs(e.deltaX) > Math.abs(e.deltaY) * 0.5 && Math.abs(e.deltaY) < 50) {
+        cancelAnimationFrame(anim.current);
+        view.current = { ...view.current, tx: view.current.tx - e.deltaX, ty: view.current.ty - e.deltaY }; apply(); return;
+      }
+      zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY * (e.ctrlKey ? 0.012 : e.deltaMode === 1 ? 0.05 : 0.0016)));
+    };
+    const click = (e: MouseEvent) => { if (suppress && el.contains(e.target as Node)) { e.stopPropagation(); e.preventDefault(); suppress = false; } };
+    el.addEventListener('pointerdown', down); el.addEventListener('pointermove', move);
+    el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+    el.addEventListener('wheel', wheel, { passive: false });
+    document.addEventListener('click', click, true);
+    return () => {
+      el.removeEventListener('pointerdown', down); el.removeEventListener('pointermove', move);
+      el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up);
+      el.removeEventListener('wheel', wheel); document.removeEventListener('click', click, true);
+    };
+  }, [apply, zoomAt]);
+
+  // ---------- navegación ----------
+  const goStation = useCallback((id: string) => {
+    setCc(null); setSel({ type: 'station', id });
+    requestAnimationFrame(() => flyToStation(id));
+  }, [flyToStation]);
+
+  const goTask = useCallback((id: string) => {
+    const t = data.tasks.find(x => x.id === id);
+    if (!t) return;
+    setCc(null); setSel({ type: 'task', id });
+    requestAnimationFrame(() => flyToStation(t.stationId, Math.max(1.7, view.current.s)));
+  }, [data.tasks, flyToStation]);
+
+  const home = useCallback(() => { setCc(null); setSel({ type: null, id: null }); requestAnimationFrame(fit); }, [fit]);
+
+  const setLevel = (l: number) => {
+    if (l === 1) { fit(); return; }
+    const target = l === 2 ? 1.1 : 1.7;
+    const focus = sel.type === 'task' ? data.tasks.find(t => t.id === sel.id)?.stationId
+      : sel.type === 'station' ? sel.id : data.tasks.find(t => t.status === 'run')?.stationId;
+    if (focus) { flyToStation(focus, target); return; }
+    const a = avail(), k = target / view.current.s;
+    animateTo({ s: target, tx: a.w / 2 - (a.w / 2 - view.current.tx) * k, ty: a.h / 2 - (a.h / 2 - view.current.ty) * k });
+  };
+
+  // ---------- acciones ----------
+  const say = useCallback((m: string) => { setToast(m); window.setTimeout(() => setToast(null), 2800); }, []);
+  const runTask = useCallback(async (t: Task, action: string, model?: string) => {
+    try {
+      await api.taskAction(t.id, action, model);
+      const label = action === 'agent' ? `Agente: Claude ${model}` : t.actions.find(a => a.id === action)?.label ?? 'Hecho';
+      say(`${label} · ${t.title}`);
+      onRefresh();
+    } catch (e) {
+      say(e instanceof Error ? e.message : 'No se pudo completar la acción.');
+    }
+  }, [onRefresh, say]);
+
+  const runStation = useCallback(async (id: string, action: 'pause' | 'resume') => {
+    try {
+      await api.stationAction(id, action);
+      say(action === 'pause' ? 'Estación pausada' : 'Estación reanudada');
+      onRefresh();
+    } catch (e) { say(e instanceof Error ? e.message : 'No se pudo completar la acción.'); }
+  }, [onRefresh, say]);
+
+  // ---------- teclado ----------
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement).closest('input,select,textarea')) return;
+      const a = avail();
+      if (e.key === '0') fit();
+      if (e.key === '+' || e.key === '=') zoomAt(a.w / 2, a.h / 2, 1.25);
+      if (e.key === '-') zoomAt(a.w / 2, a.h / 2, 0.8);
+      if (e.key === 'Escape') { if (cc) setCc(null); else if (sel.type) setSel({ type: null, id: null }); }
+    };
+    document.addEventListener('keydown', key);
+    return () => document.removeEventListener('keydown', key);
+  }, [avail, fit, zoomAt, cc, sel.type]);
+
+  // ---------- búsqueda ----------
+  const hits: Hit[] = useMemo(() => {
+    const k = normalize(query.trim());
+    if (!k) return [];
+    const out: Hit[] = [];
+    data.stations.forEach(s => normalize(`${s.name} ${s.description}`).includes(k) && out.push({ kind: 'Estación', label: s.name, s: s.status, go: () => goStation(s.id) }));
+    data.promotions.forEach(p => normalize(`${p.name} ${brands.get(p.brandId)?.name}`).includes(k)
+      && out.push({ kind: 'Promoción', label: `${brands.get(p.brandId)?.name} · ${p.name}`, go: () => { setSel({ type: null, id: null }); setCc({ promo: p.id, tab: 'resumen', hl: null }); } }));
+    data.tasks.forEach(t => normalize(`${t.title} ${t.goal}`).includes(k)
+      && out.push({ kind: `Tarea · ${data.stations.find(s => s.id === t.stationId)?.name}`, label: t.title, s: t.status, go: () => goTask(t.id) }));
+    data.publications.forEach(x => normalize(`${x.title} ${x.type}`).includes(k)
+      && out.push({ kind: `Publicación · ${brandOf(x.promotionId)?.name} · ${shortDate(x.date)}`, label: x.title,
+        go: () => { setSel({ type: null, id: null }); setCc({ promo: x.promotionId, tab: 'publicaciones', hl: x.id }); } }));
+    data.armory.forEach(r => normalize(`${r.name} ${r.description}`).includes(k)
+      && out.push({ kind: 'Herramienta', label: r.name, s: r.status, go: () => { setCc(null); setSel({ type: 'armory', id: r.id }); } }));
+    return out.slice(0, 10);
+  }, [query, data, brands, brandOf, goStation, goTask]);
+  const pick = (h?: Hit) => { setQuery(''); h?.go(); };
+
+  // ---------- render ----------
+  const selStation = sel.type === 'station' ? data.stations.find(s => s.id === sel.id) : undefined;
+  const selTask = sel.type === 'task' ? data.tasks.find(t => t.id === sel.id) : undefined;
+  const selArmory = sel.type === 'armory' ? data.armory.find(a => a.id === sel.id) : undefined;
+  const ccPromotion = cc ? data.promotions.find(p => p.id === cc.promo) : undefined;
+
+  const crumbs: { label: string; go?: () => void }[] = [{ label: 'Fábrica', go: home }];
+  if (ccPromotion) {
+    crumbs.push({ label: brands.get(ccPromotion.brandId)?.name ?? '' }, { label: ccPromotion.name });
+  } else if (selStation) crumbs.push({ label: selStation.name });
+  else if (selTask) crumbs.push({ label: data.stations.find(s => s.id === selTask.stationId)?.name ?? '', go: () => goStation(selTask.stationId) }, { label: selTask.title });
+  else if (selArmory) crumbs.push({ label: selArmory.name });
+
+  return (
+    <>
+      <header className="top">
+        <button className="mark" onClick={home} aria-label="Volver a la vista general"><i />SocialHub</button>
+        <nav className="crumbs" aria-label="Ruta de navegación">
+          {crumbs.map((c, i) => (
+            <span key={i} style={{ display: 'contents' }}>
+              {i > 0 && <span className="sep">/</span>}
+              <button className={i === crumbs.length - 1 ? 'cur' : ''} onClick={c.go}>{c.label}</button>
+            </span>
+          ))}
+        </nav>
+        {data.demo && <span className="demo" title="Datos de ejemplo basados en las campañas reales de El DeLito y Litoques. Las acciones cambian la base de datos de SocialHub, pero no actúan sobre servicios reales.">Datos de ejemplo</span>}
+        <span className="demo" title={live ? 'Recibiendo cambios en directo' : 'Sin conexión en directo: se recarga al actuar'}>{live ? '● En directo' : '○ Sin directo'}</span>
+        <div className="search">
+          <Icon name="search" />
+          <input id="q" type="search" placeholder="Buscar estación, tarea, publicación…" autoComplete="off" aria-label="Buscar"
+            value={query} onChange={e => { setQuery(e.target.value); setHitIndex(0); }}
+            onKeyDown={e => {
+              if (e.key === 'Escape') setQuery('');
+              if (!hits.length) return;
+              if (e.key === 'ArrowDown') { e.preventDefault(); setHitIndex((hitIndex + 1) % hits.length); }
+              if (e.key === 'ArrowUp') { e.preventDefault(); setHitIndex((hitIndex - 1 + hits.length) % hits.length); }
+              if (e.key === 'Enter') { e.preventDefault(); pick(hits[hitIndex]); }
+            }} />
+          {query.trim() && (
+            <div className="results">
+              {hits.length ? hits.map((h, i) => (
+                <button key={i} className={i === hitIndex ? 'on' : ''} onClick={() => pick(h)}>
+                  {h.s && <Dot s={h.s} />}<span><small>{h.kind}</small>{h.label}</span>
+                </button>
+              )) : <div className="none">Sin resultados.</div>}
+            </div>
+          )}
+        </div>
+        <div className="ctrls">
+          <div className="seg" role="group" aria-label="Nivel de detalle">
+            {['Fábrica', 'Estación', 'Tarea'].map((l, i) => <button key={l} className={lod === i + 1 ? 'on' : ''} onClick={() => setLevel(i + 1)}>{l}</button>)}
+          </div>
+          <button className="ibtn" onClick={() => { const a = avail(); zoomAt(a.w / 2, a.h / 2, 0.8); }} aria-label="Alejar"><Icon name="minus" /></button>
+          <span className="zpct mono">{zoom}%</span>
+          <button className="ibtn" onClick={() => { const a = avail(); zoomAt(a.w / 2, a.h / 2, 1.25); }} aria-label="Acercar"><Icon name="plus" /></button>
+          <button className="ibtn" onClick={fit} aria-label="Encuadrar todo" title="Encuadrar todo (0)"><Icon name="fit" /></button>
+          <button className="ibtn" onClick={onLogout} title="Cerrar sesión">Salir</button>
+        </div>
+      </header>
+
+      <main className="vp" ref={vp} data-lod="1">
+        <div className="world" ref={world}>
+          <World data={data} sel={sel} onStation={goStation} onTask={goTask}
+            onTaskAction={(t, a) => (t.actions.find(x => x.id === a)?.confirm ? goTask(t.id) : runTask(t, a))}
+            onArmory={id => { setCc(null); setSel({ type: 'armory', id }); }}
+            onPromotion={id => { setSel({ type: null, id: null }); setCc({ promo: id, tab: 'resumen', hl: null }); }} />
+        </div>
+
+        {data.alerts.length > 0 && (
+          <div className="float avisos" aria-label="Avisos">
+            <h4>Atención</h4>
+            {data.alerts.map(a => (
+              <button key={a.kind + a.id} className={`aviso s-${a.kind}`} title={a.detail}
+                onClick={() => (a.target === 'task' ? goTask(a.id) : goStation(a.id))}>
+                <Dot s={a.kind} /><span><b>{a.title}</b> · {a.detail}</span>
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="float legend" aria-label="Leyenda de estados">
+          {(['ok', 'run', 'wait', 'block', 'err', 'idle', 'cancel'] as StatusCode[]).map(s => <Pill key={s} s={s} label={STATUS[s].label} />)}
+        </div>
+        <div className="float hint">Rueda: zoom · Arrastra: mover · Clic: detalle · <span className="mono">0</span>: encuadrar</div>
+
+        {selStation && (
+          <StationPanel s={selStation} index={data.stations.indexOf(selStation)} tasks={data.tasks.filter(t => t.stationId === selStation.id)}
+            brandOf={brandOf} onClose={() => setSel({ type: null, id: null })} onTask={goTask}
+            onPause={() => runStation(selStation.id, 'pause')} onResume={() => runStation(selStation.id, 'resume')}
+            onZoom={() => flyToStation(selStation.id, 1.7)} />
+        )}
+        {selTask && (
+          <TaskPanel key={selTask.id} t={selTask} station={data.stations.find(s => s.id === selTask.stationId)} brand={brandOf(selTask.promotionId)}
+            tasks={data.tasks} demo={data.demo} onClose={() => setSel({ type: null, id: null })} onTask={goTask}
+            onAction={(a, model) => runTask(selTask, a, model)} />
+        )}
+        {selArmory && <ArmoryPanel item={selArmory} data={data} onClose={() => setSel({ type: null, id: null })} onStation={goStation} />}
+
+        {cc && ccPromotion && (
+          <ControlCenter key={cc.promo + cc.tab + (cc.hl ?? '')} p={ccPromotion} brand={brands.get(ccPromotion.brandId)} data={data}
+            initialTab={cc.tab} highlight={cc.hl} onClose={() => setCc(null)} onTask={goTask} />
+        )}
+        {toast && <div className="toast" role="status">{toast}</div>}
+      </main>
+    </>
+  );
+}
