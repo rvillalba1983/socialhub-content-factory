@@ -18,7 +18,7 @@ Estado: **plan aprobado por respuestas de Raúl** · 26 oct 2026
 | 10 | Recuperación | Crear un archivo vacío `reset-password` en la carpeta de datos y reiniciar |
 | 11 | Dirección | `http://localhost:8686`, configurable. PostgreSQL usa otro puerto interno |
 
-Pendiente: dónde se compila. La decisión es desbloquear Maven Central y la descarga de Java 25 en el entorno de Claude. Raúl lo hará desde el ordenador.
+Pendiente: compilar en el entorno de Claude. Hoy tiene cortado internet salvo GitHub (Maven Central, npm y la descarga de Java 25 incluidos). Raúl lo desbloqueará desde el ordenador; hasta entonces no se escribe código.
 
 ## Modelo de datos del incremento (Flyway `V1__…`)
 

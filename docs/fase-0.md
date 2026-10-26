@@ -2,7 +2,7 @@
 
 Estado: **aprobado por Raúl** · 25 oct 2026
 
-Este documento cierra la Fase 0 de la especificación maestra (`socialhub.txt`). Las decisiones marcadas «Decidido» ya las ha tomado Raúl. Las marcadas «Propuesta» esperan su aprobación.
+Este documento cierra la Fase 0 de la especificación maestra (`socialhub.txt`). Todas las decisiones están tomadas por Raúl. El documento fue aprobado el 25 oct 2026.
 
 ---
 

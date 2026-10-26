@@ -98,4 +98,4 @@
   - Actualización del anillo en directo (SSE).
   - Contraseña local, creada en el primer arranque y recuperable con un archivo `reset-password`.
   - Dirección `localhost:8686`.
-- Compilación: Raúl prefiere desbloquear Maven Central y la descarga de Java 25 en el entorno de Claude. Pendiente de que lo haga desde el ordenador.
+- Compilación: Raúl prefiere compilar en el entorno de Claude. Ese entorno tiene cortado el acceso a internet salvo GitHub, lo que incluye Maven Central, npm y la descarga de Java 25. Raúl lo desbloqueará desde el ordenador (acceso de red «Custom» con la lista por defecto más `api.adoptium.net`). Hasta entonces no se escribe código.
