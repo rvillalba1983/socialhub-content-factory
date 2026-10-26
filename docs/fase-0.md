@@ -43,7 +43,7 @@ Navegador (React)  ⇄  SocialHub en localhost (Spring Boot, monolito modular he
                           │
                           ├─ PostgreSQL incluido (estado operativo, auditoría)
                           ├─ Herramientas locales (promo.py, FFmpeg, ImageMagick) con operaciones validadas
-                          ├─ Google Drive: archivos, entregables y carpeta de intercambio con Claude
+                          ├─ Google Drive (carpeta sincronizada G:): archivos, entregables e intercambio con Claude
                           └─ Adaptadores de publicación (Publer vía Claude · API Instagram · API TikTok)
 
 Claude (tareas programadas con Claude Pro)  ⇄  Carpeta de intercambio en Drive

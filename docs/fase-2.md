@@ -20,6 +20,16 @@ Estado: **plan aprobado por respuestas de Raúl** · 26 oct 2026
 
 Pendiente: compilar en el entorno de Claude. Hoy tiene cortado internet salvo GitHub (Maven Central, npm y la descarga de Java 25 incluidos). Raúl lo desbloqueará desde el ordenador; hasta entonces no se escribe código.
 
+## Decisiones de la revisión del 26 oct
+
+| # | Tema | Decisión |
+|---|---|---|
+| 12 | Drive | Carpeta sincronizada `G:\` (Google Drive para escritorio); sin la API de Drive por ahora |
+| 13 | Transición | Las tareas programadas actuales siguen igual hasta validar SocialHub |
+| 14 | Fechas de los datos de ejemplo | Relativas al día actual |
+| 15 | Movimiento | Simulador de tareas solo en modo demo, indicado claramente |
+| 16 | Git | Rama y pull request por bloque; Actions compila y prueba; se fusiona a `main` con el OK de Raúl |
+
 ## Modelo de datos del incremento (Flyway `V1__…`)
 
 - `brand`, `brand_configuration`

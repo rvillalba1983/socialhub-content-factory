@@ -99,3 +99,10 @@
   - Contraseña local, creada en el primer arranque y recuperable con un archivo `reset-password`.
   - Dirección `localhost:8686`.
 - Compilación: Raúl prefiere compilar en el entorno de Claude. Ese entorno tiene cortado el acceso a internet salvo GitHub, lo que incluye Maven Central, npm y la descarga de Java 25. Raúl lo desbloqueará desde el ordenador (acceso de red «Custom» con la lista por defecto más `api.adoptium.net`). Hasta entonces no se escribe código.
+
+## 2026-10-26 · Dudas resueltas en la revisión general
+- **Google Drive:** SocialHub accede por la carpeta sincronizada de Google Drive para escritorio (`G:\Mi unidad\…`), como archivos normales. Esto incluye la carpeta de intercambio con Claude. Requiere el PC encendido y Drive sincronizando. La API oficial de Drive queda descartada por ahora.
+- **Transición:** las tareas programadas de Claude que llevan hoy las promociones no se tocan hasta que SocialHub funcione de punta a punta. Después se pasan una a una, con el OK de Raúl en cada paso.
+- **Fechas de los datos de ejemplo:** relativas al día actual al cargarse, para que el anillo y el calendario siempre muestren algo vivo.
+- **Movimiento en la Fase 2:** un simulador del backend hace avanzar las tareas de ejemplo en la base de datos. Solo existe en modo demo y lo indica claramente.
+- **Forma de trabajo con Git:** una rama y una pull request por bloque de trabajo. GitHub Actions compila y prueba cada pull request, y se fusiona a `main` solo con el OK de Raúl.
