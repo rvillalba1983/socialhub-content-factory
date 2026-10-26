@@ -86,3 +86,16 @@
   - pgAdmin y StackBuilder se pueden omitir.
   - Hay que comprobar antes que están los componentes de Visual C++.
 - Queda validado el riesgo de «PostgreSQL incluido en Windows» de la Fase 0. macOS se valida en la fase de distribución.
+
+## 2026-10-26 · Fase 2: decisiones de diseño
+- Las once decisiones de Raúl, tomadas una a una, están en `docs/fase-2.md`. Las principales:
+  - Un proyecto Maven con un paquete por dominio.
+  - Alcance: marcas, promociones, estaciones, tareas, publicaciones, auditoría, herramientas y agentes.
+  - Solo datos de ejemplo, marcados como tales.
+  - React desde ya.
+  - Gestor propio de PostgreSQL con `pg_ctl`.
+  - Carpeta de datos estándar del usuario.
+  - Actualización del anillo en directo (SSE).
+  - Contraseña local, creada en el primer arranque y recuperable con un archivo `reset-password`.
+  - Dirección `localhost:8686`.
+- Compilación: Raúl prefiere desbloquear Maven Central y la descarga de Java 25 en el entorno de Claude. Pendiente de que lo haga desde el ordenador.
