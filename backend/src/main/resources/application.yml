@@ -1,0 +1,35 @@
+spring:
+  application:
+    name: socialhub
+  threads:
+    virtual:
+      enabled: true
+  flyway:
+    locations: classpath:db/migration
+
+server:
+  # Solo se escucha dentro del propio ordenador
+  address: 127.0.0.1
+  port: 8686
+  error:
+    include-message: always
+
+socialhub:
+  # Vacío = carpeta estándar del usuario (%LOCALAPPDATA%\SocialHub, ~/Library/Application Support/SocialHub…)
+  data-dir: ""
+  postgres:
+    port: 54329
+    start-timeout-seconds: 90
+    # Vacío = binarios incluidos en la aplicación
+    binaries-dir: ""
+    runtime-dir: ""
+  demo:
+    # Fase 2: solo hay datos de ejemplo, marcados como tales
+    enabled: true
+    # Simulador: hace avanzar las tareas de ejemplo (solo en modo demo)
+    simulate: true
+    tick-millis: 1500
+
+logging:
+  level:
+    root: INFO

@@ -43,7 +43,7 @@ Pendiente: compilar en el entorno de Claude. Hoy tiene cortado internet salvo Gi
 - `app_user_credential`: el hash de la contraseña local, `app_session`
 - `demo_marker` o columna `is_demo`: todo dato de demostración queda identificado
 
-Los datos de ejemplo se cargan en una ubicación Flyway aparte (`db/demo`), que solo se activa con el perfil `demo`.
+Los datos de ejemplo están en `backend/src/main/resources/demo/demo-data.json`. Los carga `DemoDataLoader` solo si la base de datos está vacía, con las fechas colocadas alrededor del día de la carga. Se hace en Java y no como migración de Flyway porque las fechas son relativas y el calendario se genera como en el prototipo.
 
 ## Máquinas de estados (validadas en el backend)
 
