@@ -72,3 +72,17 @@
 - **Publicación en Instagram:** Publer es la vía principal y la API oficial, la de respaldo. Si fallan las dos, publicación manual con LEEME.
 - El detalle está en `claude/fase-0.md`, pendiente de la aprobación de Raúl.
 - **Métricas:** opcionales; se obtienen por API oficial o mediante tareas de Claude. No se usa Metricool en SocialHub.
+
+## 2026-10-26 · Prueba de PostgreSQL incluido en Windows: OK
+- La prueba se hizo en el PC de Raúl: Windows 10 (build 19045) y PowerShell 5.1.
+- Se usaron los binarios portables de PostgreSQL 18.6 de EDB, que necesitan los componentes de Visual C++ (ya estaban instalados).
+- Resultado, todo correcto:
+  - Creó la carpeta de datos (initdb) en 17 s.
+  - Arrancó en 6 s la primera vez y en menos de 1 s las siguientes.
+  - Escuchó solo en 127.0.0.1 y no saltó el cortafuegos.
+  - Creó la base de datos, escribió datos, paró, volvió a arrancar y los datos seguían ahí.
+- Aprendido para el empaquetado:
+  - Hay que descomprimir con `tar.exe`, no con `Expand-Archive`, que es muy lento.
+  - pgAdmin y StackBuilder se pueden omitir.
+  - Hay que comprobar antes que están los componentes de Visual C++.
+- Queda validado el riesgo de «PostgreSQL incluido en Windows» de la Fase 0. macOS se valida en la fase de distribución.

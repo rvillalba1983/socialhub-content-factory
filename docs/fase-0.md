@@ -147,7 +147,7 @@ Propuesta: usar binarios oficiales de PostgreSQL empaquetados para Windows (y lu
 | La API de Instagram pide cuenta profesional, app de Meta y medios en URL pública (o subida reanudable) | Trabajo inicial de configuración | Raúl crea la app; SocialHub usa la subida reanudable o enlaces de Drive válidos |
 | Límite de unas 100 publicaciones al día por API en Instagram | Ninguno con el ritmo actual | El motor de cuotas lo vigila |
 | Las métricas dependen de lo que exponga cada API (Instagram Insights, TikTok) | Datos incompletos o ausentes | Las métricas son opcionales: si no hay dato se muestra «Sin dato» y el análisis no se bloquea. Alternativa: tareas de Claude |
-| PostgreSQL embebido en Windows (permisos, antivirus, puertos) | Fallos de arranque | Prototipo de validación antes de la Fase 2 |
+| PostgreSQL embebido en Windows (permisos, antivirus, puertos) | Fallos de arranque | **Validado el 26 oct 2026** en el PC de Raúl con PostgreSQL 18.6 portable. Queda pendiente macOS |
 
 ---
 
