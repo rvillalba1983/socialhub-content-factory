@@ -19,7 +19,7 @@ public class LiveUpdates {
 
     private final List<SseEmitter> emitters = new CopyOnWriteArrayList<>();
 
-    @GetMapping("/api/v1/events")
+    @GetMapping("/api/events")
     public SseEmitter subscribe() {
         SseEmitter emitter = new SseEmitter(30 * 60 * 1000L);
         emitters.add(emitter);

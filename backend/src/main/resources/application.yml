@@ -6,6 +6,27 @@ spring:
       enabled: true
   flyway:
     locations: classpath:db/migration
+  jpa:
+    # Las consultas se hacen en los servicios; nunca al pintar la respuesta
+    open-in-view: false
+    hibernate:
+      # El esquema lo crea Flyway; Hibernate solo comprueba que coincide
+      ddl-auto: validate
+    properties:
+      hibernate:
+        # Carga por lotes de colecciones y relaciones (evita el problema N+1)
+        default_batch_fetch_size: 50
+        jdbc:
+          batch_size: 50
+          time_zone: UTC
+        order_inserts: true
+        order_updates: true
+        # Envers: tablas *_aud y revinfo
+        envers:
+          audit_table_suffix: _aud
+  mvc:
+    problemdetails:
+      enabled: true
 
 server:
   # Solo se escucha dentro del propio ordenador
@@ -30,6 +51,29 @@ socialhub:
     simulate: true
     tick-millis: 1500
 
+  operations:
+    # Cada cuánto se guardan en la base de datos las operaciones externas observadas
+    flush-millis: 2000
+    # Limpieza diaria de las de más de 30 días
+    purge-cron: "0 30 3 * * *"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  tracing:
+    sampling:
+      # Aplicación personal: se traza todo
+      probability: 1.0
+  # Sin exportar trazas a ningún servidor externo; solo identificadores en los registros
+  otlp:
+    tracing:
+      export:
+        enabled: false
+
 logging:
+  pattern:
+    correlation: "[%X{traceId:-},%X{spanId:-}] "
   level:
     root: INFO

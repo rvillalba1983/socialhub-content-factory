@@ -2,6 +2,7 @@ package com.socialhub.platform.postgres;
 
 import com.socialhub.platform.AppPaths;
 import com.socialhub.platform.SocialHubProperties;
+import com.socialhub.platform.observability.ExternalCalls;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import java.nio.file.Path;
@@ -13,11 +14,12 @@ import org.springframework.context.annotation.Configuration;
 class DatabaseConfiguration {
 
     @Bean(initMethod = "start", destroyMethod = "stop")
-    EmbeddedPostgres embeddedPostgres(AppPaths paths, SocialHubProperties properties) {
+    EmbeddedPostgres embeddedPostgres(AppPaths paths, SocialHubProperties properties, ExternalCalls calls) {
         SocialHubProperties.Postgres pg = properties.postgres();
         Path runtime = pg.runtimeDir() == null || pg.runtimeDir().isBlank() ? paths.runtime() : Path.of(pg.runtimeDir());
-        PostgresBinaries binaries = PostgresBinaries.resolve(pg.binariesDir(), runtime.toAbsolutePath());
-        return new EmbeddedPostgres(binaries, paths.postgresData(), paths.logs(), pg.port(), pg.startTimeoutSeconds());
+        PostgresBinaries binaries = calls.call("postgres", "extract-binaries", runtime.toString(),
+                () -> PostgresBinaries.resolve(pg.binariesDir(), runtime.toAbsolutePath()));
+        return new EmbeddedPostgres(binaries, paths.postgresData(), paths.logs(), pg.port(), pg.startTimeoutSeconds(), calls);
     }
 
     @Bean(destroyMethod = "close")

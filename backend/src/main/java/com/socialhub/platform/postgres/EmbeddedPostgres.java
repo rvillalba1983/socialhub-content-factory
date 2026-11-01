@@ -11,6 +11,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import com.socialhub.platform.observability.ExternalCalls;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,11 +30,14 @@ public class EmbeddedPostgres {
     private final Path logDir;
     private final int requestedPort;
     private final int timeoutSeconds;
+    private final ExternalCalls calls;
     private int port;
     private volatile boolean running;
 
-    public EmbeddedPostgres(PostgresBinaries binaries, Path dataDir, Path logDir, int port, int timeoutSeconds) {
+    public EmbeddedPostgres(PostgresBinaries binaries, Path dataDir, Path logDir, int port, int timeoutSeconds,
+                            ExternalCalls calls) {
         this.binaries = binaries;
+        this.calls = calls;
         this.dataDir = dataDir;
         this.logDir = logDir;
         this.requestedPort = port;
@@ -42,10 +46,14 @@ public class EmbeddedPostgres {
 
     public synchronized void start() {
         if (running) return;
+        calls.run("postgres", "start", dataDir.toString(), this::doStart);
+    }
+
+    private void doStart() {
         try {
             Files.createDirectories(logDir);
             if (!Files.exists(dataDir.resolve("PG_VERSION"))) {
-                initdb();
+                calls.run("postgres", "initdb", dataDir.toString(), this::initdb);
             }
             if (status()) {
                 log.warn("Había un PostgreSQL de una ejecución anterior en {}; se para antes de arrancar", dataDir);
@@ -67,7 +75,7 @@ public class EmbeddedPostgres {
 
     public synchronized void stop() {
         if (!running) return;
-        stopQuietly();
+        calls.run("postgres", "stop", dataDir.toString(), this::stopQuietly);
         running = false;
         log.info("PostgreSQL parado");
     }
@@ -79,11 +87,15 @@ public class EmbeddedPostgres {
         return "jdbc:postgresql://127.0.0.1:" + port + "/" + DATABASE;
     }
 
-    private void initdb() throws IOException {
+    private void initdb() {
         log.info("Creando la carpeta de datos de PostgreSQL en {}", dataDir);
-        Files.createDirectories(dataDir.getParent());
-        run(List.of(binaries.initdb().toString(), "-D", dataDir.toString(), "-U", USER,
-                "-A", "trust", "-E", "UTF8", "--no-locale"), 180);
+        try {
+            Files.createDirectories(dataDir.getParent());
+            run(List.of(binaries.initdb().toString(), "-D", dataDir.toString(), "-U", USER,
+                    "-A", "trust", "-E", "UTF8", "--no-locale"), 180);
+        } catch (IOException e) {
+            throw new UncheckedIOException("initdb falló", e);
+        }
     }
 
     private boolean status() {
