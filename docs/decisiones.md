@@ -106,3 +106,20 @@
 - **Fechas de los datos de ejemplo:** relativas al día actual al cargarse, para que el anillo y el calendario siempre muestren algo vivo.
 - **Movimiento en la Fase 2:** un simulador del backend hace avanzar las tareas de ejemplo en la base de datos. Solo existe en modo demo y lo indica claramente.
 - **Forma de trabajo con Git:** una rama y una pull request por bloque de trabajo. GitHub Actions compila y prueba cada pull request, y se fusiona a `main` solo con el OK de Raúl.
+
+## 2026-11-01 · Revisión de la PR #1: decisiones técnicas (respuestas de Raúl)
+- **Seguridad simple:** se quita la contraseña local. La app solo escucha en 127.0.0.1. Se mantiene la cabecera `X-SocialHub-Request` en las peticiones que cambian algo, para que otras webs abiertas en el navegador no puedan actuar.
+- **Persistencia:** Spring Data JPA. Los filtros dinámicos se hacen con Specifications de Spring Data, que funcionan sobre Criteria.
+- **Auditoría:** Hibernate Envers. Guarda el historial de versiones de las entidades auditadas, con quién y cuándo.
+- **API first:** el contrato OpenAPI es la fuente de la verdad. openapi-generator (generador `spring`, solo interfaces) genera los modelos y las interfaces de los controladores.
+- **Diseño REST según Zalando:**
+  - Propiedades JSON en snake_case.
+  - Las acciones sobre tareas son comandos: `POST /tasks/{task_id}/commands` con `{"type": "pause"}`.
+- **Mapeo entre API, dominio y JPA:** MapStruct.
+- **Código:** records siempre que se pueda. Lombok está permitido para no escribir constructores.
+- **Arquitectura hexagonal + DDD:** se marca con jMolecules (@AggregateRoot, @ValueObject, puertos y adaptadores) junto con Spring Modulith, con pruebas que verifican los límites.
+- **Observabilidad de operaciones externas:**
+  - Cada operación externa (Drive, Publer, APIs, herramientas locales, PostgreSQL…) pasa por la Observation API de Micrometer, con duración, resultado, error y un ID de traza en los logs.
+  - Además se guarda en una tabla y se muestra en SocialHub, en una pantalla «Operaciones externas».
+  - No hace falta ningún servidor extra.
+- **Base de datos:** revisar la optimización desde ya (consultas N+1, índices, paginación).
