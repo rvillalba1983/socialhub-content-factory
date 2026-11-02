@@ -6,6 +6,8 @@ import com.socialhub.api.model.BrandInputDto;
 import com.socialhub.api.model.BrandListDto;
 import com.socialhub.api.model.FolderListDto;
 import com.socialhub.api.model.FolderListInputDto;
+import com.socialhub.api.model.BrandIdentityDto;
+import com.socialhub.promotion.BrandIdentity;
 import com.socialhub.promotion.PromotionQueries;
 import com.socialhub.promotion.PromotionService;
 import lombok.RequiredArgsConstructor;
@@ -44,5 +46,24 @@ class BrandsController implements BrandsApi {
     @Override
     public ResponseEntity<FolderListDto> replaceBrandFolders(String brandId, String requestGuard, FolderListInputDto input) {
         return ResponseEntity.ok(mapper.toFolderList(service.replaceBrandFolders(brandId, mapper.toFolderMap(input))));
+    }
+
+    @Override
+    public ResponseEntity<BrandIdentityDto> getBrandIdentity(String brandId) {
+        return ResponseEntity.ok(toDto(queries.identity(brandId)));
+    }
+
+    @Override
+    public ResponseEntity<BrandIdentityDto> saveBrandIdentity(String brandId, String requestGuard, BrandIdentityDto in) {
+        BrandIdentity identity = new BrandIdentity(in.getTone(), in.getAudience(), in.getForbiddenTopics(),
+                in.getPreferredExpressions(), in.getForbiddenExpressions(), in.getColors(), in.getFont(), in.getLogo(),
+                in.getVisualStyle(), in.getPhotoStyle(), in.getCallToAction(), in.getFixedHashtags());
+        return ResponseEntity.ok(toDto(service.saveIdentity(brandId, identity)));
+    }
+
+    private static BrandIdentityDto toDto(BrandIdentity i) {
+        return new BrandIdentityDto(i.tone(), i.audience(), i.forbiddenTopics(), i.preferredExpressions(),
+                i.forbiddenExpressions(), i.colors(), i.font(), i.logo(), i.visualStyle(), i.photoStyle(),
+                i.callToAction(), i.fixedHashtags());
     }
 }

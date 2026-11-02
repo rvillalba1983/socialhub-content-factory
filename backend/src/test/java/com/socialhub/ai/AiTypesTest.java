@@ -82,6 +82,10 @@ class AiTypesTest {
         write(put("/api/brands/el-delito/folders"), """
                 {"items":[{"role":"ORDERS","location":%s},{"role":"REPORTS","location":%s},{"role":"MATERIAL","location":%s}]}"""
                 .formatted(q(orders), q(reports), q(material))).andExpect(status().isOk());
+        write(put("/api/brands/el-delito/identity"), """
+                {"tone":"Cercano","audience":"","forbidden_topics":[],"preferred_expressions":[],"forbidden_expressions":[],
+                 "colors":[],"font":"","logo":"","visual_style":"","photo_style":"","call_to_action":"","fixed_hashtags":""}""")
+                .andExpect(status().isOk());
         write(post("/api/promotions/poemario/publications"), """
                 {"platform":"INSTAGRAM","type":"Historia","title":"Pregunta grande","scheduled_on":"2030-11-12",
                  "scheduled_time":"13:00","initial_status":"IN_PRODUCTION"}""")
@@ -96,6 +100,8 @@ class AiTypesTest {
         String task = order("CAPTIONS", "Textos para la historia", "2030-11-12-instagram");
         JsonNode request = request(task);
         assertThat(request.get("inputs").get("publications").get(0).get("title").asString()).isEqualTo("Pregunta grande");
+        assertThat(request.get("inputs").get("brand_identity").get("tone").asString()).isEqualTo("Cercano");
+        assertThat(request.get("inputs").get("brand_identity").has("audience")).isFalse();
 
         result(task, completed(task, """
                 {"publications":[{"id":"2030-11-12-instagram","caption":"¿Y si el delito fuera leer?","hashtags":"#poesia #eldelito"}],

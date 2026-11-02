@@ -177,6 +177,42 @@ paths:
         "404": { $ref: "#/components/responses/Problem" }
         default: { $ref: "#/components/responses/Problem" }
 
+  /api/brands/{brand_id}/identity:
+    get:
+      tags: [Brands]
+      operationId: getBrandIdentity
+      summary: Identidad de la marca (la heredan sus promociones)
+      parameters:
+        - $ref: "#/components/parameters/BrandId"
+      responses:
+        "200":
+          description: Identidad; los campos sin rellenar van vacíos
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BrandIdentity" }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+    put:
+      tags: [Brands]
+      operationId: saveBrandIdentity
+      parameters:
+        - $ref: "#/components/parameters/BrandId"
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BrandIdentity" }
+      responses:
+        "200":
+          description: Identidad guardada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BrandIdentity" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
   /api/promotions:
     get:
       tags: [Promotions]
@@ -962,6 +998,31 @@ components:
         runtime: { type: string, description: "Agente que lo hizo, según el resultado" }
         result_model: { type: string, description: Modelo que dice haber usado }
         error: { type: string }
+
+    BrandIdentity:
+      type: object
+      required: [tone, audience, forbidden_topics, preferred_expressions, forbidden_expressions, colors, font, logo,
+                 visual_style, photo_style, call_to_action, fixed_hashtags]
+      properties:
+        tone: { type: string, maxLength: 2000, description: Tono de comunicación }
+        audience: { type: string, maxLength: 2000, description: Público objetivo }
+        forbidden_topics: { type: array, maxItems: 50, items: { type: string, maxLength: 200 }, description: Temas que no se tocan }
+        preferred_expressions: { type: array, maxItems: 100, items: { type: string, maxLength: 200 } }
+        forbidden_expressions:
+          type: array
+          maxItems: 100
+          items: { type: string, maxLength: 200 }
+          description: El control de calidad las busca en los textos (sin mayúsculas ni tildes)
+        colors: { type: array, maxItems: 20, items: { type: string, maxLength: 40 } }
+        font: { type: string, maxLength: 200 }
+        logo: { type: string, maxLength: 500, description: Ruta o descripción del logotipo }
+        visual_style: { type: string, maxLength: 2000 }
+        photo_style: { type: string, maxLength: 2000 }
+        call_to_action:
+          type: string
+          maxLength: 500
+          description: Frase que debe aparecer en el texto de las publicaciones (salvo historias)
+        fixed_hashtags: { type: string, maxLength: 1000, description: Hashtags que deben llevar todas las publicaciones }
 
     Brand:
       type: object

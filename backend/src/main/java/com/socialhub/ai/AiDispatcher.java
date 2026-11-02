@@ -141,6 +141,8 @@ class AiDispatcher {
             inputs.put("items", task.inputs());
             AiJob job = new AiJob(task.id(), type, java.util.Objects.requireNonNull(task.promotionId()), brandId,
                     task.title(), task.goal(), task.inputs());
+            Map<String, Object> identity = promotions.identityOf(task.promotionId()).forAi();
+            if (!identity.isEmpty()) inputs.put("brand_identity", identity);
             handlers.of(type).ifPresent(h -> inputs.putAll(h.inputs(job)));
             request.put("inputs", inputs);
             request.put("rules", promotions.rulesFor(task.promotionId()));

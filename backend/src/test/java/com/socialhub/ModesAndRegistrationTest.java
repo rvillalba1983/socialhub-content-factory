@@ -195,6 +195,25 @@ class ModesAndRegistrationTest {
                 .andExpect(jsonPath("$.total").value(2));
     }
 
+    @Test
+    @Order(6)
+    void theBrandIdentityIsSavedClean() throws Exception {
+        mvc.perform(get("/api/brands/el-delito/identity"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.tone").value(""))
+                .andExpect(jsonPath("$.forbidden_expressions.length()").value(0));
+        write(put("/api/brands/el-delito/identity"), """
+                {"tone":" Cercano y con humor ","audience":"Lectores de poesía","forbidden_topics":["política"],
+                 "preferred_expressions":["poemario-objeto"],"forbidden_expressions":["compra ya"," ","compra ya"],
+                 "colors":["#D23A2E"],"font":"DejaVu Serif","logo":"","visual_style":"","photo_style":"",
+                 "call_to_action":"Comenta DELITO y te mando el enlace","fixed_hashtags":"#eldelito"}""")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.tone").value("Cercano y con humor"))
+                .andExpect(jsonPath("$.forbidden_expressions.length()").value(1));
+        mvc.perform(get("/api/brands/el-delito/identity")).andExpect(jsonPath("$.fixed_hashtags").value("#eldelito"));
+        mvc.perform(get("/api/brands/no-existe/identity")).andExpect(status().isNotFound());
+    }
+
     private static String json(String text) { return text.replace("\\", "\\\\"); }
 
     private ResultActions write(MockHttpServletRequestBuilder request, String json) throws Exception {
