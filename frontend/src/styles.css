@@ -413,3 +413,5 @@ tr.op-detail td{background:var(--surface-2)}
 .file-add input{font:inherit;color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:8px 10px;min-width:0}
 .folder-row{margin-bottom:6px}
 .error-text{color:var(--err)}
+.quality-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:4px 0}
+.quality-row .file-add{grid-column:1/-1}

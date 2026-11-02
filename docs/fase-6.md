@@ -1,6 +1,6 @@
 # SocialHub · Fase 6: producción editorial
 
-Estado: **bloque 1 en marcha** · 2 nov 2026
+Estado: **bloque 1 hecho** (rama `fase-6/identidad-calidad`) · 2 nov 2026
 
 ## Respuestas de Raúl
 
@@ -43,3 +43,23 @@ Qué se comprueba:
 - **Archivos:**
   - Que tenga al menos uno, que existan y que su formato y tamaño valgan para la plataforma y el tipo.
   - Proporción de las imágenes y número de elementos del carrusel.
+
+## Bloque 1 · hecho
+
+- **Identidad:**
+  - `GET/PUT /api/brands/{id}/identity`. Se edita en «Marcas», al abrir una marca.
+  - Va en cada encargo a Claude como `inputs.brand_identity`, solo con los campos rellenos.
+- **Control de calidad:**
+  - `GET /api/publications/{id}/quality` devuelve los avisos del código (calculados en el momento) y los de la última revisión de Claude.
+  - `POST /api/publications/{id}/quality-acceptances` acepta un aviso con su motivo.
+  - Cada aviso tiene una clave estable (`TEXT_MISSING`, `FORBIDDEN:compra ya`, `FILE_SIZE:<ruta>`…), así que una aceptación sigue valiendo mientras el aviso no cambie.
+- **Bloqueo:**
+  - Con avisos abiertos, el paso a «Aprobada» o «Programada» responde 409 con cuántos quedan.
+  - Al aprobar la revisión, las publicaciones con avisos siguen en revisión con la marca «Control de calidad pendiente».
+- **Tipo de pieza:** se deduce del tipo libre de la publicación: carrusel, historia, reel, vídeo o clip y, si no, publicación. Las historias no necesitan texto, llamada a la acción ni hashtags fijos.
+- **Revisión de calidad con Claude:**
+  - Encargo `QUALITY_REVIEW`, Haiku por defecto. Lleva la publicación, sus archivos y los avisos del código.
+  - Claude devuelve `outputs.issues: [{message}]`. Cada revisión sustituye a la anterior.
+  - Botón «Revisar con Claude» en el editor de cada publicación, junto al panel de calidad.
+- **Pruebas:** 83 de backend y 19 de frontal.
+

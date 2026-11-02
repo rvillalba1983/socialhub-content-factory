@@ -97,6 +97,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/brands/{brand_id}/identity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Identidad de la marca (la heredan sus promociones) */
+        get: operations["getBrandIdentity"];
+        put: operations["saveBrandIdentity"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/promotions": {
         parameters: {
             query?: never;
@@ -254,6 +271,43 @@ export interface paths {
          * @description El archivo no se borra ni se mueve.
          */
         delete: operations["detachPublicationFile"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/publications/{publication_id}/quality": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Control de calidad de una publicación
+         * @description Avisos de las comprobaciones automáticas (en el momento) y de la última revisión de Claude, con las aceptaciones de Raúl. Mientras quede alguno abierto, no pasa a «Aprobada» ni a «Programada».
+         */
+        get: operations["getPublicationQuality"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/publications/{publication_id}/quality-acceptances": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Acepta un aviso concreto, con su motivo */
+        post: operations["acceptQualityIssue"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -564,7 +618,7 @@ export interface components {
          * @description Tipo de encargo a Claude
          * @enum {string}
          */
-        AiRequestType: "WEEKLY_SPEC" | "CAPTIONS" | "WEEKLY_BALANCE" | "RESEARCH";
+        AiRequestType: "WEEKLY_SPEC" | "CAPTIONS" | "WEEKLY_BALANCE" | "RESEARCH" | "QUALITY_REVIEW";
         AiTypeModel: {
             type: components["schemas"]["AiRequestType"];
             label: string;
@@ -631,6 +685,27 @@ export interface components {
             /** @description Modelo que dice haber usado */
             result_model?: string;
             error?: string;
+        };
+        BrandIdentity: {
+            /** @description Tono de comunicación */
+            tone: string;
+            /** @description Público objetivo */
+            audience: string;
+            /** @description Temas que no se tocan */
+            forbidden_topics: string[];
+            preferred_expressions: string[];
+            /** @description El control de calidad las busca en los textos (sin mayúsculas ni tildes) */
+            forbidden_expressions: string[];
+            colors: string[];
+            font: string;
+            /** @description Ruta o descripción del logotipo */
+            logo: string;
+            visual_style: string;
+            photo_style: string;
+            /** @description Frase que debe aparecer en el texto de las publicaciones (salvo historias) */
+            call_to_action: string;
+            /** @description Hashtags que deben llevar todas las publicaciones */
+            fixed_hashtags: string;
         };
         Brand: {
             id: string;
@@ -946,6 +1021,32 @@ export interface components {
             /** @description Ruta completa del archivo */
             path: string;
         };
+        QualityIssue: {
+            /** @description Identifica el aviso para aceptarlo (por ejemplo, FORBIDDEN:compra ya) */
+            key: string;
+            /**
+             * @description Comprobación automática o revisión de Claude
+             * @enum {string}
+             */
+            source: "CODE" | "CLAUDE";
+            message: string;
+            accepted: boolean;
+            accepted_reason?: string;
+            /** Format: date-time */
+            accepted_at?: string;
+        };
+        QualityReport: {
+            issues: components["schemas"]["QualityIssue"][];
+            /**
+             * Format: int32
+             * @description Avisos sin aceptar
+             */
+            open: number;
+        };
+        QualityAcceptance: {
+            key: string;
+            reason: string;
+        };
         PublicationStatusChange: {
             status: components["schemas"]["PublicationStatus"];
         };
@@ -1040,6 +1141,7 @@ export type AiOrderInput = components['schemas']['AiOrderInput'];
 export type AiOrder = components['schemas']['AiOrder'];
 export type AiRequestPage = components['schemas']['AiRequestPage'];
 export type AiRequest = components['schemas']['AiRequest'];
+export type BrandIdentity = components['schemas']['BrandIdentity'];
 export type Brand = components['schemas']['Brand'];
 export type AppMode = components['schemas']['AppMode'];
 export type AppModeState = components['schemas']['AppModeState'];
@@ -1077,6 +1179,9 @@ export type PublicationInput = components['schemas']['PublicationInput'];
 export type PublicationFile = components['schemas']['PublicationFile'];
 export type PublicationFileList = components['schemas']['PublicationFileList'];
 export type PublicationFileInput = components['schemas']['PublicationFileInput'];
+export type QualityIssue = components['schemas']['QualityIssue'];
+export type QualityReport = components['schemas']['QualityReport'];
+export type QualityAcceptance = components['schemas']['QualityAcceptance'];
 export type PublicationStatusChange = components['schemas']['PublicationStatusChange'];
 export type ArmoryItemList = components['schemas']['ArmoryItemList'];
 export type ArmoryItem = components['schemas']['ArmoryItem'];
@@ -1294,6 +1399,62 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FolderList"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    getBrandIdentity: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                brand_id: components["parameters"]["BrandId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Identidad; los campos sin rellenar van vacíos */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrandIdentity"];
+                };
+            };
+            404: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    saveBrandIdentity: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path: {
+                brand_id: components["parameters"]["BrandId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BrandIdentity"];
+            };
+        };
+        responses: {
+            /** @description Identidad guardada */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrandIdentity"];
                 };
             };
             400: components["responses"]["Problem"];
@@ -1699,6 +1860,62 @@ export interface operations {
                 };
                 content?: never;
             };
+            404: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    getPublicationQuality: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publication_id: components["parameters"]["PublicationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Avisos */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QualityReport"];
+                };
+            };
+            404: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    acceptQualityIssue: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path: {
+                publication_id: components["parameters"]["PublicationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QualityAcceptance"];
+            };
+        };
+        responses: {
+            /** @description Avisos después de aceptarlo */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QualityReport"];
+                };
+            };
+            400: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
             default: components["responses"]["Problem"];
         };

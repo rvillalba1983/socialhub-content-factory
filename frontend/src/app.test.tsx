@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, vi } from 'vitest';
+import { afterEach, beforeEach, vi } from 'vitest';
 import { api } from './api';
 import { Claude } from './Claude';
 import { ExternalOperations } from './ExternalOperations';
@@ -47,6 +47,8 @@ const snapshot: Snapshot = {
 };
 
 afterEach(() => vi.restoreAllMocks());
+// El panel de calidad de cada publicación pide sus avisos: por defecto, ninguno
+beforeEach(() => { vi.spyOn(api, 'publicationQuality').mockResolvedValue({ issues: [], open: 0 }); });
 
 describe('World', () => {
   it('pinta las 8 estaciones del anillo y marca la que tiene errores', () => {
@@ -311,5 +313,32 @@ describe('Textos de una publicación', () => {
     expect(screen.getByLabelText(/^Texto/)).toHaveValue('Hola');
     expect(screen.getByLabelText('Hashtags')).toHaveValue('#poesia');
     expect(screen.getByText('Texto (4 / 2200)')).toBeInTheDocument();
+  });
+});
+
+describe('Control de calidad', () => {
+  it('muestra los avisos y acepta uno con su motivo', async () => {
+    const publication: Publication = {
+      id: 'p-1', promotion_id: 'p', platform: 'INSTAGRAM', type: 'Carrusel', title: 'Poema 1',
+      scheduled_on: '2026-11-10', scheduled_time: '19:00', timezone: 'Europe/Madrid', status: 'IN_REVIEW', route: 'Publer', demo: false,
+    };
+    vi.spyOn(api, 'publicationFiles').mockResolvedValue({ items: [] });
+    vi.spyOn(api, 'publicationQuality').mockResolvedValue({ open: 2, issues: [
+      { key: 'FILES_MISSING', source: 'CODE', message: 'No tiene archivos asociados.', accepted: false },
+      { key: 'CLAUDE:abc', source: 'CLAUDE', message: 'El tono es demasiado serio.', accepted: false },
+    ] });
+    const accept = vi.spyOn(api, 'acceptQualityIssue').mockResolvedValue({ open: 1, issues: [
+      { key: 'FILES_MISSING', source: 'CODE', message: 'No tiene archivos asociados.', accepted: true, accepted_reason: 'Se sube en Publer' },
+      { key: 'CLAUDE:abc', source: 'CLAUDE', message: 'El tono es demasiado serio.', accepted: false },
+    ] });
+    render(<PublicationEditor promotionId="p" publication={publication} onClose={() => {}} onSaved={() => {}} />);
+    expect(await screen.findByText('El tono es demasiado serio.')).toBeInTheDocument();
+    expect(screen.getByText(/2 avisos abiertos/)).toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Aceptar' })[0]);
+    fireEvent.change(screen.getByLabelText('Por qué lo aceptas'), { target: { value: 'Se sube en Publer' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Aceptar aviso' }));
+    await waitFor(() => expect(accept).toHaveBeenCalledWith('p-1', 'FILES_MISSING', 'Se sube en Publer'));
+    expect(await screen.findByText(/Aceptado: Se sube en Publer/)).toBeInTheDocument();
+    expect(screen.getByText(/1 aviso abierto/)).toBeInTheDocument();
   });
 });

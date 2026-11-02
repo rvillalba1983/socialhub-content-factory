@@ -14,6 +14,7 @@ const INPUT_HINT: Record<AiRequestType, string> = {
   CAPTIONS: 'Los identificadores de las publicaciones (por ejemplo, 2026-11-10-instagram). También desde cada publicación.',
   WEEKLY_BALANCE: 'Opcional: un día de la semana. Sin fecha, la semana pasada. Sale solo cada lunes.',
   RESEARCH: 'Lo que Claude deba tener en cuenta: lugares, nombres, enlaces…',
+  QUALITY_REVIEW: 'El identificador de una publicación. También desde la propia publicación.',
 };
 
 const REQUEST_STATUS: Record<AiRequest['status'], { label: string; s: StatusCode }> = {
