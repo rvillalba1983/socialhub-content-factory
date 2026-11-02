@@ -1,17 +1,19 @@
 # SocialHub · estado actual (para retomar)
 
-Última actualización: 2 nov 2026, 18:15.
+Última actualización: 2 nov 2026, 20:20.
 
 ## Dónde estamos
 
 - **Fases 0, 1, 2 y 3:** terminadas y en `main`.
   - Fase 3: modos real y demo, alta de marcas y promociones, motor de tareas, herramientas locales (FFmpeg incluido y Java 2D) y piezas de promo.py en Java.
+- **Fases 4 y 5:** plan en `docs/fase-4-5.md`.
+  - **Bloque 1 (Fase 4, Google Drive): terminado y en `main` (PR #8).** Incluye papeles de carpeta en marca y promoción, alta y edición de publicaciones, archivos asociados a cada publicación y tareas que esperan bloqueadas si falta G:.
   - Probado en Linux y en Windows con GitHub Actions.
 - **Pendiente en el PC de Raúl:**
   - Arrancar SocialHub en Windows.
-  - Dar de alta sus promociones con sus carpetas reales de G:.
+  - Dar de alta sus promociones con sus carpetas reales de G:, incluidos los papeles de carpeta.
   - Encargar unas piezas de prueba.
-- **Siguiente:** elegir la siguiente fase de `docs/especificacion.md`: Fase 4 (Google Drive) o Fase 5 (orquestador de IA). Antes de empezar, preguntas a Raúl de una en una.
+- **Siguiente:** Fase 5, bloque 2, intercambio de encargos y resultados con Claude por Drive. Antes de empezar, hay que preguntar a Raúl en qué carpeta se hace el intercambio.
 
 ## Cómo se trabaja
 
