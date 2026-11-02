@@ -3,6 +3,7 @@ import { afterEach, vi } from 'vitest';
 import { api } from './api';
 import { ExternalOperations } from './ExternalOperations';
 import { BrandForm, PromotionForm } from './Registration';
+import { PieceOrders } from './PieceOrders';
 import type { ExternalOperationPage, Snapshot, Station, Task } from './model';
 import { TaskPanel } from './Panel';
 import { World } from './World';
@@ -159,5 +160,28 @@ describe('Altas', () => {
     expect(update).toHaveBeenCalledWith('p', expect.objectContaining({
       brand_id: 'b', name: 'Lanzamiento del poemario', milestones: [{ starts_on: '2026-10-27', label: 'Días gratis' }],
     }));
+  });
+});
+
+describe('Encargar piezas', () => {
+  it('lista los spec.json de la carpeta vigilada y encarga uno', async () => {
+    const promotion = { ...snapshot.promotions[0], resources: [{ kind: 'DRIVE' as const, location: 'G:/DeLito', description: '' }] };
+    vi.spyOn(api, 'pieceSpecs').mockResolvedValue({ folder: 'G:/DeLito/SocialHub/encargos', items: [
+      { path: 'G:/DeLito/SocialHub/encargos/semana2.json', name: 'semana2.json', modified_at: '2026-11-02T09:00:00Z' },
+      { path: 'G:/DeLito/SocialHub/encargos/semana1.json', name: 'semana1.json', modified_at: '2026-10-26T09:00:00Z', task_id: 't-1' },
+    ] });
+    const order = vi.spyOn(api, 'orderPieces').mockResolvedValue({ task_id: 't-2', spec_path: 'G:/DeLito/SocialHub/encargos/semana2.json' });
+    const onTask = vi.fn();
+    render(<PieceOrders promotions={[promotion]} onOrdered={() => {}} onTask={onTask} />);
+    expect(await screen.findByText('semana2.json')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Ver tarea' })).toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Encargar' })[0]);
+    await waitFor(() => expect(onTask).toHaveBeenCalledWith('t-2'));
+    expect(order).toHaveBeenCalledWith('p', 'G:/DeLito/SocialHub/encargos/semana2.json');
+  });
+
+  it('pide una carpeta si ninguna promoción la tiene', () => {
+    render(<PieceOrders promotions={snapshot.promotions} onOrdered={() => {}} onTask={() => {}} />);
+    expect(screen.getByText(/añade a una promoción una carpeta/)).toBeInTheDocument();
   });
 });

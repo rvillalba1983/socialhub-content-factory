@@ -108,6 +108,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/promotions/{promotion_id}/piece-specs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * spec.json de la carpeta vigilada de la promoción
+         * @description Busca en «SocialHub/encargos» dentro de la primera carpeta de la promoción.
+         */
+        get: operations["listPieceSpecs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/promotions/{promotion_id}/piece-orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Encarga las piezas de un spec.json
+         * @description Valida el spec (rutas dentro de las carpetas de la promoción, formatos y tamaños) y crea la tarea.
+         */
+        post: operations["createPieceOrder"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/promotions/{promotion_id}/publications": {
         parameters: {
             query?: never;
@@ -367,6 +407,27 @@ export interface components {
             automations?: components["schemas"]["Automation"][];
             routes?: components["schemas"]["PublishingRoute"][];
             settings?: components["schemas"]["Setting"][];
+        };
+        PieceSpecList: {
+            /** @description Carpeta vigilada; vacía si la promoción no tiene carpetas */
+            folder?: string;
+            items: components["schemas"]["PieceSpec"][];
+        };
+        PieceSpec: {
+            path: string;
+            name: string;
+            /** Format: date-time */
+            modified_at: string;
+            /** @description Tarea que lo generó, si ya se encargó */
+            task_id?: string;
+        };
+        PieceOrderInput: {
+            /** @description Ruta completa del spec.json */
+            spec_path: string;
+        };
+        PieceOrder: {
+            task_id: string;
+            spec_path: string;
         };
         PromotionList: {
             items: components["schemas"]["Promotion"][];
@@ -649,6 +710,10 @@ export type AppModeChange = components['schemas']['AppModeChange'];
 export type BrandList = components['schemas']['BrandList'];
 export type BrandInput = components['schemas']['BrandInput'];
 export type PromotionInput = components['schemas']['PromotionInput'];
+export type PieceSpecList = components['schemas']['PieceSpecList'];
+export type PieceSpec = components['schemas']['PieceSpec'];
+export type PieceOrderInput = components['schemas']['PieceOrderInput'];
+export type PieceOrder = components['schemas']['PieceOrder'];
 export type PromotionList = components['schemas']['PromotionList'];
 export type Promotion = components['schemas']['Promotion'];
 export type Milestone = components['schemas']['Milestone'];
@@ -936,6 +1001,62 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Promotion"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    listPieceSpecs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                promotion_id: components["parameters"]["PromotionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description spec.json encontrados */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PieceSpecList"];
+                };
+            };
+            404: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    createPieceOrder: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path: {
+                promotion_id: components["parameters"]["PromotionId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PieceOrderInput"];
+            };
+        };
+        responses: {
+            /** @description Tarea creada */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PieceOrder"];
                 };
             };
             400: components["responses"]["Problem"];

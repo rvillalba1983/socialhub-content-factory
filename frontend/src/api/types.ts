@@ -5,7 +5,7 @@ export type {
   OperationOutcome, Platform, Promotion, Publication, PublicationPage, PublicationStatus, Station,
   StationCommandType, StatusLevel, Task, TaskCommand, TaskCommandType, TaskCounts, TaskStatus, TaskStep,
   AiModel, AppMode, AppModeState, BrandInput, PromotionInput, Milestone, PromotionResource, Automation,
-  PublishingRoute, Setting,
+  PublishingRoute, Setting, PieceSpecList, PieceSpec, PieceOrder,
 } from './schema';
 
 import type { TaskStep } from './schema';

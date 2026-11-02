@@ -13,6 +13,8 @@ SocialHub en Spring Boot 4.1.2 con Java 25 LTS y Maven. Es un monolito modular c
 | `publishing` | Publicaciones y su ciclo de vida. Nunca pasan a «publicada» sin confirmación |
 | `promotion` | Marcas, promociones y reglas comunes |
 | `armory` | Agentes, herramientas locales, servicios y dispositivos |
+| `tools` | Herramientas locales (FFmpeg incluido, Java 2D) y su comprobación |
+| `pieces` | Piezas de promo.py en Java: carrusel, historia, reel, clip y comprimir |
 | `factory` | Vista completa del anillo (`/api/factory`) |
 | `demo` | Datos de ejemplo marcados como tales y simulador (solo en modo demo) |
 
@@ -138,6 +140,8 @@ El contrato completo está en `contracts/openapi.yaml`. Sigue las guías REST de
 | POST | `/api/tasks/{task_id}/commands` | Orden sobre una tarea: `{"type":"PAUSE"}`, `{"type":"CHANGE_AGENT","model":"OPUS"}`… |
 | GET | `/api/stations` | Estaciones con sus contadores |
 | POST | `/api/stations/{station_id}/commands` | `{"type":"PAUSE"}` o `{"type":"RESUME"}` |
+| GET | `/api/promotions/{promotion_id}/piece-specs` | spec.json de la carpeta vigilada de la promoción |
+| POST | `/api/promotions/{promotion_id}/piece-orders` | Encarga las piezas de un spec.json: `{"spec_path":"G:\\…\\spec.json"}` |
 | GET | `/api/armory-items` | Armería |
 | GET | `/api/external-operations` | Registro de operaciones externas, con filtros `system` y `outcome` |
 | GET | `/api/events` | Avisos en directo (SSE) |
