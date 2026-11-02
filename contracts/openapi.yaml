@@ -598,12 +598,37 @@ paths:
         "404": { $ref: "#/components/responses/Problem" }
         default: { $ref: "#/components/responses/Problem" }
 
+  /api/publications/{publication_id}/text-rejections:
+    post:
+      tags: [Publications]
+      operationId: rejectPublicationText
+      summary: Descarta el texto y los hashtags de la publicación, con su motivo
+      description: El texto descartado y el motivo quedan en la memoria editorial de la marca.
+      parameters:
+        - $ref: "#/components/parameters/PublicationId"
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TextRejection" }
+      responses:
+        "200":
+          description: Publicación sin texto
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Publication" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
   /api/publications/{publication_id}/status-changes:
     post:
       tags: [Publications]
       operationId: changePublicationStatus
       summary: Cambia el estado de una publicación
       description: >
+        Para cancelar hace falta «reason»: el rechazo queda en la memoria editorial de la marca.
         Solo transiciones permitidas por su ciclo de vida. «Publicando», «Publicada» y «Error de publicación» los
         pone SocialHub al publicar, nunca a mano. Para programarla, la hora debe quedar al menos a 6 horas de ahora.
       parameters:
@@ -1541,11 +1566,26 @@ components:
         key: { type: string, minLength: 1, maxLength: 1500 }
         reason: { type: string, minLength: 3, maxLength: 1000 }
 
+    RejectionReason:
+      type: string
+      enum: [TONE, REPEATED, OFF_BRAND, WRONG_DATA, FORMAT, OTHER]
+      description: Tono, repetido, fuera de la marca, error de datos, formato u otro
+
     PublicationStatusChange:
       type: object
       required: [status]
       properties:
         status: { $ref: "#/components/schemas/PublicationStatus" }
+        reason:
+          $ref: "#/components/schemas/RejectionReason"
+        note: { type: string, maxLength: 1000, description: "Nota del motivo (opcional)" }
+
+    TextRejection:
+      type: object
+      required: [reason]
+      properties:
+        reason: { $ref: "#/components/schemas/RejectionReason" }
+        note: { type: string, maxLength: 1000 }
 
     ArmoryItemList:
       type: object

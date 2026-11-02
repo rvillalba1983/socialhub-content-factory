@@ -35,6 +35,9 @@ public final class Publication {
     private @Nullable String note;
     private @Nullable String caption;
     private @Nullable String hashtags;
+    /** Última propuesta de Claude, hasta que Raúl la corrige o la descarta. */
+    private @Nullable String aiCaption;
+    private @Nullable String aiHashtags;
     private @Nullable String externalId;
     private @Nullable String confirmation;
     private @Nullable Instant publishedAt;
@@ -46,7 +49,8 @@ public final class Publication {
                        LocalDate scheduledOn, LocalTime scheduledTime, @Nullable String timezone,
                        PublicationStatus status, @Nullable String route, @Nullable String flag, @Nullable String note,
                        @Nullable String externalId, @Nullable String confirmation, @Nullable Instant publishedAt,
-                       boolean demo, long version, @Nullable String caption, @Nullable String hashtags) {
+                       boolean demo, long version, @Nullable String caption, @Nullable String hashtags,
+                       @Nullable String aiCaption, @Nullable String aiHashtags) {
         this.id = Objects.requireNonNull(id);
         this.promotionId = Objects.requireNonNull(promotionId);
         this.platform = Objects.requireNonNull(platform);
@@ -66,6 +70,8 @@ public final class Publication {
         this.version = version;
         this.caption = caption;
         this.hashtags = hashtags;
+        this.aiCaption = aiCaption;
+        this.aiHashtags = aiHashtags;
         if (status == PublicationStatus.PUBLISHED && (confirmation == null || confirmation.isBlank())) {
             throw new IllegalArgumentException("Una publicación publicada necesita confirmación");
         }
@@ -108,7 +114,7 @@ public final class Publication {
         return new Publication(id, promotionId, details.platform(), details.type().strip(), details.title().strip(),
                 details.scheduledOn(), details.scheduledTime(), details.timezone(), status, details.route().strip(), null,
                 blankToNull(details.note()), null, null, null, demo, 0, blankToNull(details.caption()),
-                blankToNull(details.hashtags()));
+                blankToNull(details.hashtags()), null, null);
     }
 
     /** Fecha y hora de publicación en su zona horaria. */
@@ -116,8 +122,16 @@ public final class Publication {
         return scheduledOn.atTime(scheduledTime).atZone(ZoneId.of(timezone)).toInstant();
     }
 
-    /** Edita los datos. No se puede una vez que se está publicando; si está programada, respeta el margen. */
-    public void edit(Details details, Instant now) {
+    /** Raúl cambió un texto que propuso Claude: lo que proponía y lo que quedó. */
+    public record TextCorrection(@Nullable String beforeCaption, @Nullable String afterCaption,
+                                 @Nullable String beforeHashtags, @Nullable String afterHashtags) {}
+
+    /**
+     * Edita los datos. No se puede una vez que se está publicando; si está programada, respeta el margen.
+     *
+     * @return la corrección, si Raúl ha cambiado el texto o los hashtags que propuso Claude
+     */
+    public @Nullable TextCorrection edit(Details details, Instant now) {
         if (status == PublicationStatus.PUBLISHING || status == PublicationStatus.PUBLISHED) {
             throw new DomainException("No se puede editar una publicación que se está publicando o ya está publicada.");
         }
@@ -131,8 +145,35 @@ public final class Publication {
         this.timezone = details.timezone();
         this.route = details.route().strip();
         this.note = blankToNull(details.note());
-        this.caption = blankToNull(details.caption());
-        this.hashtags = blankToNull(details.hashtags());
+        String newCaption = blankToNull(details.caption());
+        String newHashtags = blankToNull(details.hashtags());
+        TextCorrection correction = null;
+        boolean changed = !Objects.equals(newCaption, caption) || !Objects.equals(newHashtags, hashtags);
+        if ((aiCaption != null || aiHashtags != null) && changed) {
+            correction = new TextCorrection(aiCaption, newCaption, aiHashtags, newHashtags);
+            aiCaption = null;
+            aiHashtags = null;
+        }
+        this.caption = newCaption;
+        this.hashtags = newHashtags;
+        return correction;
+    }
+
+    /** Claude propone el texto y los hashtags: se guardan como propuesta para detectar las correcciones de Raúl. */
+    public void proposeTexts(@Nullable String caption, @Nullable String hashtags) {
+        setTexts(caption, hashtags);
+        this.aiCaption = this.caption;
+        this.aiHashtags = this.hashtags;
+    }
+
+    /** Raúl descarta el texto: se borran el texto, los hashtags y la propuesta de Claude. Devuelve lo descartado. */
+    public String discardTexts() {
+        if (caption == null && hashtags == null) throw new DomainException("No hay texto que descartar.");
+        String discarded = (caption == null ? "" : caption) + (hashtags == null ? "" : "\n" + hashtags);
+        setTexts(null, null);
+        aiCaption = null;
+        aiHashtags = null;
+        return discarded.strip();
     }
 
     /** Texto y hashtags propuestos (por Claude o por Raúl). No se cambian una vez que se está publicando. */

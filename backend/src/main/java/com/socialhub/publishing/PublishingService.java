@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import lombok.extern.slf4j.Slf4j;
 import org.jmolecules.architecture.hexagonal.PrimaryPort;
 import org.springframework.context.ApplicationEventPublisher;
@@ -44,6 +45,7 @@ public class PublishingService {
     private final Clock clock;
     private final PublicationFileRepository files;
     private final QualityService quality;
+    private final com.socialhub.publishing.domain.EditorialMemoryRepository memory;
 
     /** Alta desde el centro de control. El identificador es la fecha y la plataforma: «2026-11-10-instagram». */
     @Transactional
@@ -60,7 +62,13 @@ public class PublishingService {
     @Transactional
     public Publication update(String id, Publication.Details details) {
         Publication publication = find(id);
-        publication.edit(details, clock.instant());
+        Publication.TextCorrection correction = publication.edit(details, clock.instant());
+        if (correction != null) {
+            memory.add(new com.socialhub.publishing.domain.EditorialMemoryRepository.Correction(
+                    promotions.brandOf(publication.getPromotionId()), publication.getPromotionId(), id,
+                    correction.beforeCaption(), correction.afterCaption(), correction.beforeHashtags(),
+                    correction.afterHashtags(), clock.instant()));
+        }
         publications.save(publication);
         events.publishEvent(new FactoryChanged("publication", id));
         return publication;
@@ -68,7 +76,17 @@ public class PublishingService {
 
     @Transactional
     public Publication changeStatus(String id, PublicationStatus status) {
+        return changeStatus(id, status, null, null);
+    }
+
+    /** Cambio de estado. Para cancelar hace falta el motivo, que queda en la memoria editorial. */
+    @Transactional
+    public Publication changeStatus(String id, PublicationStatus status,
+                                    com.socialhub.publishing.domain.@Nullable RejectionReason reason, @Nullable String note) {
         Publication publication = find(id);
+        if (status == PublicationStatus.CANCELLED && reason == null) {
+            throw new IllegalArgumentException("Para cancelar una publicación indica el motivo");
+        }
         if (status == PublicationStatus.APPROVED || status == PublicationStatus.SCHEDULED) {
             long open = quality.openIssues(id);
             if (open > 0) {
@@ -78,6 +96,12 @@ public class PublishingService {
             }
         }
         publication.changeStatus(status, clock.instant());
+        if (status == PublicationStatus.CANCELLED) {
+            memory.add(new com.socialhub.publishing.domain.EditorialMemoryRepository.Rejection(
+                    promotions.brandOf(publication.getPromotionId()), publication.getPromotionId(), id,
+                    com.socialhub.publishing.domain.EditorialMemoryRepository.Kind.PUBLICATION, reason, blank(note),
+                    publication.getTitle(), publication.getCaption(), clock.instant()));
+        }
         publications.save(publication);
         events.publishEvent(new FactoryChanged("publication", id));
         return publication;
@@ -163,10 +187,28 @@ public class PublishingService {
             found.add(p);
         }
         for (int i = 0; i < texts.size(); i++) {
-            found.get(i).setTexts(texts.get(i).caption(), texts.get(i).hashtags());
+            found.get(i).proposeTexts(texts.get(i).caption(), texts.get(i).hashtags());
             publications.save(found.get(i));
             events.publishEvent(new FactoryChanged("publication", found.get(i).getId()));
         }
+    }
+
+    /** Raúl descarta el texto de la publicación con su motivo: queda en la memoria editorial. */
+    @Transactional
+    public Publication discardTexts(String id, com.socialhub.publishing.domain.RejectionReason reason, @Nullable String note) {
+        Publication publication = find(id);
+        String discarded = publication.discardTexts();
+        memory.add(new com.socialhub.publishing.domain.EditorialMemoryRepository.Rejection(
+                promotions.brandOf(publication.getPromotionId()), publication.getPromotionId(), id,
+                com.socialhub.publishing.domain.EditorialMemoryRepository.Kind.TEXT, reason, blank(note),
+                publication.getTitle(), discarded, clock.instant()));
+        publications.save(publication);
+        events.publishEvent(new FactoryChanged("publication", id));
+        return publication;
+    }
+
+    private static @Nullable String blank(@Nullable String text) {
+        return text == null || text.isBlank() ? null : text.strip();
     }
 
     private Publication find(String id) {

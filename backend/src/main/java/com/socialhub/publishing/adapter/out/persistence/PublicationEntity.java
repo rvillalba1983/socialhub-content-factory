@@ -51,6 +51,8 @@ class PublicationEntity {
     @NotAudited private @Nullable String note;
     @NotAudited private @Nullable String caption;
     @NotAudited private @Nullable String hashtags;
+    @NotAudited private @Nullable String aiCaption;
+    @NotAudited private @Nullable String aiHashtags;
     private @Nullable String externalId;
     private @Nullable String confirmation;
     private @Nullable Instant publishedAt;

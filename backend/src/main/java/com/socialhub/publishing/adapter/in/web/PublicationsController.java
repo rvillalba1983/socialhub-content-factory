@@ -71,7 +71,10 @@ class PublicationsController implements PublicationsApi {
     @Override
     public ResponseEntity<PublicationDto> changePublicationStatus(String publicationId, String requestGuard,
                                                                   PublicationStatusChangeDto change) {
-        return ResponseEntity.ok(mapper.toDto(service.changeStatus(publicationId, mapper.toDomain(change.getStatus()))));
+        var reason = change.getReason() == null ? null
+                : com.socialhub.publishing.domain.RejectionReason.valueOf(change.getReason().name());
+        return ResponseEntity.ok(mapper.toDto(service.changeStatus(publicationId, mapper.toDomain(change.getStatus()),
+                reason, change.getNote())));
     }
 
     @Override
@@ -112,5 +115,12 @@ class PublicationsController implements PublicationsApi {
             return dto;
         }).toList();
         return new QualityReportDto(dtos, (int) issues.stream().filter(QualityIssue::open).count());
+    }
+
+    @Override
+    public ResponseEntity<PublicationDto> rejectPublicationText(String publicationId, String requestGuard,
+                                                                com.socialhub.api.model.TextRejectionDto rejection) {
+        return ResponseEntity.ok(mapper.toDto(service.discardTexts(publicationId,
+                com.socialhub.publishing.domain.RejectionReason.valueOf(rejection.getReason().name()), rejection.getNote())));
     }
 }
