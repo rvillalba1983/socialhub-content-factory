@@ -412,6 +412,60 @@ paths:
         "409": { $ref: "#/components/responses/Problem" }
         default: { $ref: "#/components/responses/Problem" }
 
+  /api/publications/{publication_id}/files:
+    get:
+      tags: [Publications]
+      operationId: listPublicationFiles
+      summary: Archivos asociados a una publicación
+      parameters:
+        - $ref: "#/components/parameters/PublicationId"
+      responses:
+        "200":
+          description: Archivos, por orden de alta
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublicationFileList" }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+    post:
+      tags: [Publications]
+      operationId: attachPublicationFile
+      summary: Asocia a mano un archivo
+      description: El archivo debe existir y estar dentro de las carpetas de la promoción.
+      parameters:
+        - $ref: "#/components/parameters/PublicationId"
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PublicationFileInput" }
+      responses:
+        "201":
+          description: Archivo asociado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublicationFile" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+    delete:
+      tags: [Publications]
+      operationId: detachPublicationFile
+      summary: Quita la asociación de un archivo
+      description: El archivo no se borra ni se mueve.
+      parameters:
+        - $ref: "#/components/parameters/PublicationId"
+        - $ref: "#/components/parameters/RequestGuard"
+        - name: path
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        "204": { description: Asociación quitada }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
   /api/publications/{publication_id}/status-changes:
     post:
       tags: [Publications]
@@ -1095,6 +1149,30 @@ components:
           description: Solo al dar de alta (por defecto, idea). Al editar no se admite.
           type: string
           enum: [IDEA, PROPOSAL, IN_PRODUCTION, DRAFT]
+
+    PublicationFile:
+      type: object
+      required: [path, origin, added_at, available]
+      properties:
+        path: { type: string }
+        origin:
+          type: string
+          enum: [SPEC, MANUAL]
+          description: Lo asoció el spec.json al generar las piezas o Raúl a mano
+        added_at: { type: string, format: date-time }
+        available: { type: boolean, description: El archivo existe ahora en este ordenador }
+
+    PublicationFileList:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/PublicationFile" } }
+
+    PublicationFileInput:
+      type: object
+      required: [path]
+      properties:
+        path: { type: string, minLength: 1, maxLength: 1000, description: Ruta completa del archivo }
 
     PublicationStatusChange:
       type: object

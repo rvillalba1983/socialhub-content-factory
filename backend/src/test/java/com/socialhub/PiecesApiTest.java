@@ -1,6 +1,7 @@
 package com.socialhub;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -143,6 +144,60 @@ class PiecesApiTest {
         assertThat(taskId).as("tarea creada desde la carpeta vigilada").isNotNull();
         waitForTask(taskId, "COMPLETED");
         assertThat(promo.resolve("Semana 3/1_lunes_historia.jpg")).exists();
+    }
+
+    @Test
+    @Order(5)
+    void piecesAreAttachedToThePublicationTheSpecNames() throws Exception {
+        write(post("/api/promotions/poemario/publications"), """
+                {"platform":"INSTAGRAM","type":"Historia","title":"Pregunta grande","scheduled_on":"2030-11-03",
+                 "scheduled_time":"13:00","initial_status":"IN_PRODUCTION"}""")
+                .andExpect(jsonPath("$.id").value("2030-11-03-instagram"));
+        String withPublication = spec("2_martes_historia", "Semana 4", "../")
+                .replace("\"dia\"", "\"publicacion\": \"2030-11-03-instagram\", \"dia\"");
+        Files.writeString(promo.resolve("specs/semana4.json"), withPublication);
+        Files.writeString(promo.resolve("specs/mala.json"), withPublication.replace("2030-11-03-instagram", "no-existe"));
+
+        write(post("/api/promotions/poemario/piece-orders"),
+                "{\"spec_path\":" + json.writeValueAsString(promo.resolve("specs/mala.json").toString()) + "}")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("no existe en esta promoción")));
+
+        String body = write(post("/api/promotions/poemario/piece-orders"),
+                "{\"spec_path\":" + json.writeValueAsString(promo.resolve("specs/semana4.json").toString()) + "}")
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        waitForTask(json.readTree(body).get("task_id").asString(), "COMPLETED");
+
+        String generated = promo.resolve("Semana 4/2_martes_historia.jpg").toRealPath().toString();
+        mvc.perform(get("/api/publications/2030-11-03-instagram/files"))
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].path").value(generated))
+                .andExpect(jsonPath("$.items[0].origin").value("SPEC"))
+                .andExpect(jsonPath("$.items[0].available").value(true));
+
+        // A mano: solo archivos que existen dentro de las carpetas de la promoción, sin repetir
+        String image = promo.resolve("page 58.png").toRealPath().toString();
+        write(post("/api/publications/2030-11-03-instagram/files"), "{\"path\":" + json.writeValueAsString(image) + "}")
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.origin").value("MANUAL"));
+        write(post("/api/publications/2030-11-03-instagram/files"), "{\"path\":" + json.writeValueAsString(image) + "}")
+                .andExpect(status().isBadRequest());
+        write(post("/api/publications/2030-11-03-instagram/files"),
+                "{\"path\":" + json.writeValueAsString(drive.resolve("Otra/spec.json").toString()) + "}")
+                .andExpect(status().isBadRequest());
+        write(post("/api/publications/2030-11-03-instagram/files"),
+                "{\"path\":" + json.writeValueAsString(promo.resolve("SocialHub/../../Otra/spec.json").toString()) + "}")
+                .andExpect(status().isBadRequest());
+
+        mvc.perform(delete("/api/publications/2030-11-03-instagram/files").param("path", image)
+                        .header("X-SocialHub-Request", "1"))
+                .andExpect(status().isNoContent());
+        mvc.perform(delete("/api/publications/2030-11-03-instagram/files").param("path", image)
+                        .header("X-SocialHub-Request", "1"))
+                .andExpect(status().isNotFound());
+        assertThat(Path.of(image)).exists();
+        mvc.perform(get("/api/publications/2030-11-03-instagram/files")).andExpect(jsonPath("$.items.length()").value(1));
     }
 
     private JsonNode waitForTask(String id, String expected) throws Exception {

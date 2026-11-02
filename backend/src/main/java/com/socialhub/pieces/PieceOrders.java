@@ -38,6 +38,7 @@ public class PieceOrders {
     private final SpecReader reader;
     private final PieceOrderRepository orders;
     private final Clock clock;
+    private final PiecePublications publications;
 
     public record SpecFile(String path, String name, Instant modifiedAt, @Nullable String taskId) {}
 
@@ -69,6 +70,7 @@ public class PieceOrders {
     @Transactional
     public String order(String promotionId, String specPath) {
         SpecReader.Loaded loaded = reader.load(specPath, promotions.driveFolders(promotionId));
+        publications.check(promotionId, loaded.spec());
         return submit(promotionId, loaded.path(), loaded.spec().piezas().size() + " piezas");
     }
 

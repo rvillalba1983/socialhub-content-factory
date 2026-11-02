@@ -11,7 +11,7 @@ record PromoSpec(@Nullable String out, @Nullable String leeme,
                  @JsonProperty("titulo_leeme") @Nullable String tituloLeeme, List<Piece> piezas) {
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    record Piece(String tipo, String nombre, @Nullable String dia, @Nullable String caption, @Nullable String hashtags,
+    record Piece(String tipo, String nombre, @Nullable String dia, @Nullable String publicacion, @Nullable String caption, @Nullable String hashtags,
                  @Nullable List<Slide> slides, @Nullable Closing cierre, @Nullable String img, @Nullable String titulo,
                  @Nullable String texto, @Nullable String cta, @Nullable List<Double> crop, @Nullable String gancho,
                  @Nullable List<String> versos,

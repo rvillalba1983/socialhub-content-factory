@@ -20,6 +20,10 @@
           "tipo": { "enum": ["carrusel", "historia", "reel", "clip", "comprimir"] },
           "nombre": { "type": "string", "pattern": "^[\\p{L}\\p{N} _.-]{1,80}$" },
           "dia": { "type": "string" },
+          "publicacion": {
+            "type": "string",
+            "description": "Identificador de la publicación de SocialHub a la que se asocian los archivos de esta pieza"
+          },
           "caption": { "type": "string" },
           "hashtags": { "type": "string" },
           "slides": {

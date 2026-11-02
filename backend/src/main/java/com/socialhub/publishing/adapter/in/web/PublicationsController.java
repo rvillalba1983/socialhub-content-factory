@@ -3,6 +3,9 @@ package com.socialhub.publishing.adapter.in.web;
 import com.socialhub.api.PublicationsApi;
 import com.socialhub.api.model.PlatformDto;
 import com.socialhub.api.model.PublicationDto;
+import com.socialhub.api.model.PublicationFileDto;
+import com.socialhub.api.model.PublicationFileInputDto;
+import com.socialhub.api.model.PublicationFileListDto;
 import com.socialhub.api.model.PublicationInputDto;
 import com.socialhub.api.model.PublicationStatusChangeDto;
 import com.socialhub.api.model.PublicationPageDto;
@@ -62,5 +65,23 @@ class PublicationsController implements PublicationsApi {
     public ResponseEntity<PublicationDto> changePublicationStatus(String publicationId, String requestGuard,
                                                                   PublicationStatusChangeDto change) {
         return ResponseEntity.ok(mapper.toDto(service.changeStatus(publicationId, mapper.toDomain(change.getStatus()))));
+    }
+
+    @Override
+    public ResponseEntity<PublicationFileListDto> listPublicationFiles(String publicationId) {
+        return ResponseEntity.ok(new PublicationFileListDto(queries.files(publicationId).stream().map(mapper::toDto).toList()));
+    }
+
+    @Override
+    public ResponseEntity<PublicationFileDto> attachPublicationFile(String publicationId, String requestGuard,
+                                                                    PublicationFileInputDto input) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(mapper.toDto(service.attachManually(publicationId, input.getPath())));
+    }
+
+    @Override
+    public ResponseEntity<Void> detachPublicationFile(String publicationId, String requestGuard, String path) {
+        service.detach(publicationId, path);
+        return ResponseEntity.noContent().build();
     }
 }
