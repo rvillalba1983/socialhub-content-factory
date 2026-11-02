@@ -162,3 +162,15 @@ Detalles de implementación que no cambian ninguna respuesta de Raúl; se pueden
 - **Tarjeta «Necesita atención»:** muestra los 2 avisos más importantes (primero los errores) y resume el resto, para no tapar las estaciones de abajo. Lo mismo hace la barra de avisos con 3.
 - **Rama:** el trabajo del bloque 2 se ha rebasado sobre `main` y sigue en `fase-2/frontend`. La rama anterior, `fase-2/frontend-react`, queda sin usar, porque reescribirla necesitaba un push forzado.
 
+## 2026-11-02 · Fase 3: decisiones (respuestas de Raúl)
+- **promo.py:** se pasa a Java (Java 2D para las imágenes), con el mismo spec JSON y las mismas piezas.
+- **Tipografía:** DejaVu Serif, incluida en la app.
+- **FFmpeg:** librería `org.bytedeco:ffmpeg` 8.1.2, variante GPL, con el ejecutable de cada sistema.
+- **Cola:** sobre la tabla `task` (`SKIP LOCKED`), sin librería nueva.
+- **Archivos:** lee y escribe en G:, solo en las carpetas permitidas y sin sobrescribir nunca.
+- **Encargos de piezas:** botón en Generación de contenido y carpeta vigilada.
+- **Modos:** real y demo separados, cada uno con su base de datos. Se eligen con un selector en la cabecera.
+- **Modo real:** arranca con las 8 estaciones. Las marcas y las promociones se dan de alta desde la app.
+
+Detalle en `docs/fase-3.md`.
+
