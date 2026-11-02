@@ -33,6 +33,8 @@ public final class Publication {
     private String route;
     private @Nullable String flag;
     private @Nullable String note;
+    private @Nullable String caption;
+    private @Nullable String hashtags;
     private @Nullable String externalId;
     private @Nullable String confirmation;
     private @Nullable Instant publishedAt;
@@ -44,7 +46,7 @@ public final class Publication {
                        LocalDate scheduledOn, LocalTime scheduledTime, @Nullable String timezone,
                        PublicationStatus status, @Nullable String route, @Nullable String flag, @Nullable String note,
                        @Nullable String externalId, @Nullable String confirmation, @Nullable Instant publishedAt,
-                       boolean demo, long version) {
+                       boolean demo, long version, @Nullable String caption, @Nullable String hashtags) {
         this.id = Objects.requireNonNull(id);
         this.promotionId = Objects.requireNonNull(promotionId);
         this.platform = Objects.requireNonNull(platform);
@@ -62,6 +64,8 @@ public final class Publication {
         this.publishedAt = publishedAt;
         this.demo = demo;
         this.version = version;
+        this.caption = caption;
+        this.hashtags = hashtags;
         if (status == PublicationStatus.PUBLISHED && (confirmation == null || confirmation.isBlank())) {
             throw new IllegalArgumentException("Una publicación publicada necesita confirmación");
         }
@@ -80,7 +84,8 @@ public final class Publication {
 
     /** Datos editables de una publicación. */
     public record Details(Platform platform, String type, String title, LocalDate scheduledOn, LocalTime scheduledTime,
-                          String timezone, String route, @Nullable String note) {
+                          String timezone, String route, @Nullable String note, @Nullable String caption,
+                          @Nullable String hashtags) {
         public Details {
             Objects.requireNonNull(platform);
             if (type.isBlank()) throw new IllegalArgumentException("Falta el tipo de publicación");
@@ -102,7 +107,8 @@ public final class Publication {
         }
         return new Publication(id, promotionId, details.platform(), details.type().strip(), details.title().strip(),
                 details.scheduledOn(), details.scheduledTime(), details.timezone(), status, details.route().strip(), null,
-                blankToNull(details.note()), null, null, null, demo, 0);
+                blankToNull(details.note()), null, null, null, demo, 0, blankToNull(details.caption()),
+                blankToNull(details.hashtags()));
     }
 
     /** Fecha y hora de publicación en su zona horaria. */
@@ -125,6 +131,17 @@ public final class Publication {
         this.timezone = details.timezone();
         this.route = details.route().strip();
         this.note = blankToNull(details.note());
+        this.caption = blankToNull(details.caption());
+        this.hashtags = blankToNull(details.hashtags());
+    }
+
+    /** Texto y hashtags propuestos (por Claude o por Raúl). No se cambian una vez que se está publicando. */
+    public void setTexts(@Nullable String caption, @Nullable String hashtags) {
+        if (status == PublicationStatus.PUBLISHING || status == PublicationStatus.PUBLISHED) {
+            throw new DomainException("No se cambia el texto de una publicación que se está publicando o ya está publicada.");
+        }
+        this.caption = blankToNull(caption);
+        this.hashtags = blankToNull(hashtags);
     }
 
     /** Cambio de estado pedido por Raúl. Los estados de publicación los pone solo SocialHub. */

@@ -135,6 +135,30 @@ public class PublishingService {
         return real;
     }
 
+    /** Texto y hashtags de una publicación, para guardarlos juntos. */
+    public record Texts(String publicationId, String caption, String hashtags) {}
+
+    /** Guarda los textos propuestos. Comprueba todas las publicaciones antes de cambiar ninguna. */
+    @Transactional
+    public void applyTexts(String promotionId, List<Texts> texts) {
+        List<Publication> found = new ArrayList<>();
+        for (Texts t : texts) {
+            Publication p = find(t.publicationId());
+            if (!p.getPromotionId().equals(promotionId)) {
+                throw new IllegalArgumentException("La publicación " + t.publicationId() + " no es de esta promoción");
+            }
+            if (p.getStatus() == PublicationStatus.PUBLISHING || p.getStatus() == PublicationStatus.PUBLISHED) {
+                throw new IllegalArgumentException("La publicación " + t.publicationId() + " ya se está publicando o está publicada");
+            }
+            found.add(p);
+        }
+        for (int i = 0; i < texts.size(); i++) {
+            found.get(i).setTexts(texts.get(i).caption(), texts.get(i).hashtags());
+            publications.save(found.get(i));
+            events.publishEvent(new FactoryChanged("publication", found.get(i).getId()));
+        }
+    }
+
     private Publication find(String id) {
         return publications.findById(id).orElseThrow(() -> new NotFoundException("No existe la publicación " + id));
     }

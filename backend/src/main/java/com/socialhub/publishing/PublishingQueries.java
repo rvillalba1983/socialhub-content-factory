@@ -37,4 +37,12 @@ public class PublishingQueries {
         if (!publications.exists(publicationId)) throw new NotFoundException("No existe la publicación " + publicationId);
         return files.files(publicationId);
     }
+
+    public java.util.Optional<Publication> find(String id) { return publications.findById(id); }
+
+    /** Publicaciones de una promoción entre dos fechas (incluidas), por fecha y hora. */
+    public List<Publication> between(String promotionId, java.time.LocalDate from, java.time.LocalDate to) {
+        return publications.find(new com.socialhub.publishing.domain.PublicationFilter(promotionId, java.util.Set.of(), null,
+                from, to, null), 0, 500).items();
+    }
 }

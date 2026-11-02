@@ -40,6 +40,7 @@ class AiDispatcher {
     private final ObjectMapper json;
     private final Clock clock;
     private final TransactionTemplate transactions;
+    private final AiHandlers handlers;
 
     @Scheduled(initialDelayString = "${socialhub.ai.initial-delay-millis:10000}",
                fixedDelayString = "${socialhub.ai.dispatch-millis:30000}")
@@ -135,7 +136,13 @@ class AiDispatcher {
             request.put("promotion", task.promotionId());
             request.put("type", type.contractType());
             request.put("goal", task.goal());
-            request.put("inputs", Map.of("title", task.title(), "items", task.inputs()));
+            Map<String, Object> inputs = new LinkedHashMap<>();
+            inputs.put("title", task.title());
+            inputs.put("items", task.inputs());
+            AiJob job = new AiJob(task.id(), type, java.util.Objects.requireNonNull(task.promotionId()), brandId,
+                    task.title(), task.goal(), task.inputs());
+            handlers.of(type).ifPresent(h -> inputs.putAll(h.inputs(job)));
+            request.put("inputs", inputs);
             request.put("rules", promotions.rulesFor(task.promotionId()));
             request.put("model", model.name().toLowerCase(java.util.Locale.ROOT));
             request.put("idempotencyKey", requestId);

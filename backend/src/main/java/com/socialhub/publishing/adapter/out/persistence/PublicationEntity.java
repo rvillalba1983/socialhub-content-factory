@@ -49,6 +49,8 @@ class PublicationEntity {
     @NotAudited private String route;
     private @Nullable String flag;
     @NotAudited private @Nullable String note;
+    @NotAudited private @Nullable String caption;
+    @NotAudited private @Nullable String hashtags;
     private @Nullable String externalId;
     private @Nullable String confirmation;
     private @Nullable Instant publishedAt;
