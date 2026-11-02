@@ -92,7 +92,7 @@ final class PieceFiles {
 
     /** Carpeta de salida, que se crea si no existe. */
     Path outputDir(String path) throws IOException {
-        Path dir = resolve(path).toAbsolutePath().normalize();
+        Path dir = canonical(resolve(path));
         insideLexically(dir);
         Files.createDirectories(dir);
         return inside(dir, true);
@@ -122,7 +122,7 @@ final class PieceFiles {
     private Path inside(Path path, boolean mustExist) {
         Path real;
         try {
-            real = mustExist ? path.toRealPath() : path.toAbsolutePath().normalize();
+            real = mustExist ? path.toRealPath() : canonical(path);
         } catch (IOException e) {
             throw new IllegalArgumentException("No existe: " + path);
         }
