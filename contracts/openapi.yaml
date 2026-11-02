@@ -265,6 +265,22 @@ paths:
         "404": { $ref: "#/components/responses/Problem" }
         default: { $ref: "#/components/responses/Problem" }
 
+  /api/brands/{brand_id}/editorial-memory:
+    get:
+      tags: [Publications]
+      operationId: getEditorialMemory
+      summary: Memoria editorial de la marca (lo que va en cada encargo a Claude)
+      parameters:
+        - $ref: "#/components/parameters/BrandId"
+      responses:
+        "200":
+          description: Decisiones, rechazos, correcciones y lo publicado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EditorialMemory" }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
   /api/promotions:
     get:
       tags: [Promotions]
@@ -1162,6 +1178,43 @@ components:
       required: [text]
       properties:
         text: { type: string, minLength: 1, maxLength: 1000 }
+
+    EditorialMemory:
+      type: object
+      required: [decisions, rejections, corrections, published]
+      properties:
+        decisions: { type: array, items: { $ref: "#/components/schemas/EditorialDecision" } }
+        rejections:
+          type: array
+          description: Los 20 más recientes
+          items:
+            type: object
+            required: [kind, reason, title, created_at]
+            properties:
+              kind: { type: string, enum: [PUBLICATION, TEXT] }
+              reason: { $ref: "#/components/schemas/RejectionReason" }
+              note: { type: string }
+              title: { type: string }
+              content: { type: string }
+              publication_id: { type: string }
+              created_at: { type: string, format: date-time }
+        corrections:
+          type: array
+          description: Las 20 más recientes
+          items:
+            type: object
+            required: [created_at]
+            properties:
+              publication_id: { type: string }
+              before_caption: { type: string }
+              after_caption: { type: string }
+              before_hashtags: { type: string }
+              after_hashtags: { type: string }
+              created_at: { type: string, format: date-time }
+        published:
+          type: array
+          description: Aprobadas, programadas o publicadas de las últimas 8 semanas
+          items: { $ref: "#/components/schemas/Publication" }
 
     Brand:
       type: object

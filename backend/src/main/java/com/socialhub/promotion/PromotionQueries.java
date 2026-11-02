@@ -105,6 +105,11 @@ public class PromotionQueries {
         return decisions.decisions(brandId);
     }
 
+    /** Promociones de una marca. */
+    public List<String> promotionIdsOf(String brandId) {
+        return repository.promotions().stream().filter(p -> p.brandId().equals(brandId)).map(Promotion::id).toList();
+    }
+
     /** Marca de una promoción. */
     public String brandOf(String promotionId) { return promotion(promotionId).brandId(); }
 
