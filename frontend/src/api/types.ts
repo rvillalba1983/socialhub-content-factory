@@ -6,7 +6,8 @@ export type {
   StationCommandType, StatusLevel, Task, TaskCommand, TaskCommandType, TaskCounts, TaskStatus, TaskStep,
   AiModel, AppMode, AppModeState, BrandInput, PromotionInput, Milestone, PromotionResource, Automation,
   PublishingRoute, Setting, PieceSpecList, PieceSpec, PieceOrder, Folder, FolderList, FolderInput, FolderRole,
-  PublicationInput, PublicationFile, PublicationFileList,
+  PublicationInput, PublicationFile, PublicationFileList, AiRequestType, AiSettings, AiSettingsInput, AiRequest,
+  AiRequestPage, AiOrderInput, AiOrder,
 } from './schema';
 
 import type { TaskStep } from './schema';

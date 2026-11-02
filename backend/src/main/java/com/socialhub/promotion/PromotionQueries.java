@@ -80,6 +80,24 @@ public class PromotionQueries {
         return List.copyOf(all);
     }
 
+    /** Marca de una promoción. */
+    public String brandOf(String promotionId) { return promotion(promotionId).brandId(); }
+
+    /** Carpeta con el papel «Encargos» de la marca (sin las excepciones de sus promociones). */
+    public Optional<String> brandOrdersFolder(String brandId) {
+        return Optional.ofNullable(folderRepository.brandFolders(brandId).get(FolderRole.ORDERS));
+    }
+
+    /** Identificadores de todas las marcas. */
+    public List<String> brandIds() { return brands().stream().map(Brand::id).toList(); }
+
+    /** Reglas que se aplican a una promoción: las suyas y las comunes. */
+    public List<String> rulesFor(String promotionId) {
+        var all = new ArrayList<String>(promotion(promotionId).rules());
+        all.addAll(commonRules());
+        return List.copyOf(all);
+    }
+
     /** Carpeta con el papel «Encargos», si la promoción lo tiene. */
     public Optional<String> ordersFolder(String promotionId) {
         return folders(promotionId).stream()

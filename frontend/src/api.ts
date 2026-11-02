@@ -1,5 +1,5 @@
 import type {
-  AppMode, AppModeState, Brand, FolderInput, FolderList, Publication, PublicationFile, PublicationFileList, PublicationInput, PublicationStatus, PieceOrder, PieceSpecList, BrandInput, ExternalOperationPage, Promotion, PromotionInput, OperationOutcome, Snapshot, Station, StationCommandType, Task, TaskCommand,
+  AiOrder, AiOrderInput, AiRequestPage, AiSettings, AiSettingsInput, AppMode, AppModeState, Brand, FolderInput, FolderList, Publication, PublicationFile, PublicationFileList, PublicationInput, PublicationStatus, PieceOrder, PieceSpecList, BrandInput, ExternalOperationPage, Promotion, PromotionInput, OperationOutcome, Snapshot, Station, StationCommandType, Task, TaskCommand,
 } from './model';
 
 export class ApiError extends Error {
@@ -50,6 +50,11 @@ export const api = {
     post<PublicationFile>(`/api/publications/${encodeURIComponent(id)}/files`, { path }),
   detachPublicationFile: (id: string, path: string) =>
     call<void>(`/api/publications/${encodeURIComponent(id)}/files?${new URLSearchParams({ path })}`, { method: 'DELETE' }),
+  aiSettings: () => call<AiSettings>('/api/ai/settings'),
+  saveAiSettings: (input: AiSettingsInput) => putJson<AiSettings>('/api/ai/settings', input),
+  aiRequests: (offset = 0, limit = 50) => call<AiRequestPage>(`/api/ai/requests?offset=${offset}&limit=${limit}`),
+  orderFromClaude: (promotionId: string, input: AiOrderInput) =>
+    post<AiOrder>(`/api/promotions/${encodeURIComponent(promotionId)}/ai-orders`, input),
   taskCommand: (id: string, command: TaskCommand) =>
     post<Task>(`/api/tasks/${encodeURIComponent(id)}/commands`, command),
   stationCommand: (id: string, type: StationCommandType) =>

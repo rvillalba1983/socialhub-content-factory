@@ -146,6 +146,12 @@
       <artifactId>mapstruct</artifactId>
       <version>${mapstruct.version}</version>
     </dependency>
+    <!-- Valida los resultados de Claude contra contracts/task-result.v1.schema.json (Jackson 3) -->
+    <dependency>
+      <groupId>com.networknt</groupId>
+      <artifactId>json-schema-validator</artifactId>
+      <version>3.0.8</version>
+    </dependency>
 
     <!-- PostgreSQL incluido -->
     <dependency>
@@ -221,7 +227,7 @@
               <generateModelTests>false</generateModelTests>
               <generateApiDocumentation>false</generateApiDocumentation>
               <generateModelDocumentation>false</generateModelDocumentation>
-              <apisToGenerate>Factory,AppMode,Brands,Promotions,Pieces,Publications,Tasks,Stations,Armory,ExternalOperations</apisToGenerate>
+              <apisToGenerate>Factory,AppMode,Brands,Promotions,Pieces,Publications,Claude,Tasks,Stations,Armory,ExternalOperations</apisToGenerate>
               <configOptions>
                 <interfaceOnly>true</interfaceOnly>
                 <useSpringBoot3>true</useSpringBoot3>
@@ -279,6 +285,20 @@
               <outputDirectory>${project.build.outputDirectory}/static</outputDirectory>
               <resources>
                 <resource><directory>${project.basedir}/../frontend/dist</directory></resource>
+              </resources>
+            </configuration>
+          </execution>
+          <execution>
+            <id>copiar-contratos</id>
+            <phase>process-resources</phase>
+            <goals><goal>copy-resources</goal></goals>
+            <configuration>
+              <outputDirectory>${project.build.outputDirectory}/contracts</outputDirectory>
+              <resources>
+                <resource>
+                  <directory>${project.basedir}/../contracts</directory>
+                  <includes><include>*.schema.json</include></includes>
+                </resource>
               </resources>
             </configuration>
           </execution>
