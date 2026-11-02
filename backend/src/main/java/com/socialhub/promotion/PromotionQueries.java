@@ -27,4 +27,17 @@ public class PromotionQueries {
     }
 
     public List<String> commonRules() { return repository.commonRules(); }
+
+    /** Carpetas (recursos de tipo «Carpeta») de una promoción, en el orden en que se dieron de alta. */
+    public List<String> driveFolders(String promotionId) {
+        return promotion(promotionId).resources().stream()
+                .filter(r -> "DRIVE".equals(r.kind()))
+                .map(Promotion.Resource::location)
+                .toList();
+    }
+
+    /** Identificadores de todas las promociones. */
+    public List<String> promotionIds() {
+        return repository.promotions().stream().map(Promotion::id).toList();
+    }
 }

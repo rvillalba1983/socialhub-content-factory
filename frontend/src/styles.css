@@ -395,3 +395,10 @@ tr.op-detail td{background:var(--surface-2)}
 .form-actions .error{flex-basis:100%}
 .mode-seg button.on.demo{color:var(--block)}
 .welcome{display:grid;gap:12px;align-content:center;text-align:left}
+
+/* Encargar piezas */
+.pieces{display:grid;gap:10px}
+.spec-row{align-items:center}
+.spec-row>span{flex:1;min-width:0}
+.spec-path{display:grid;gap:8px}
+.spec-path .btn{justify-self:start}

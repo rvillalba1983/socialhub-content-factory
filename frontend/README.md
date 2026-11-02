@@ -9,6 +9,7 @@ El backend sirve la web compilada en http://localhost:8686. No hay pantalla de a
 - **Fábrica:** el anillo con las 8 estaciones, las promociones, los avisos y la armería. Tiene zoom semántico en tres niveles: Fábrica, Estación y Tarea.
 - **Paneles:** de estación, de tarea y de recurso de la armería. Las órdenes que se ofrecen son las que devuelve el backend en `available_commands`.
 - **Centro de control de cada promoción:** resumen, calendario, publicaciones, tareas, recursos, automatización, métricas y configuración.
+- **Encargar piezas:** en el panel de la estación Generación de contenido (modo real). Lista los spec.json de la carpeta vigilada de la promoción o acepta otra ruta.
 - **Operaciones externas:** botón «Operaciones» de la cabecera. Muestra las llamadas a PostgreSQL, Drive, Publer, etc., con su resultado, duración, error e identificador de traza.
 
 ## API first

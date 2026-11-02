@@ -1,5 +1,5 @@
 import type {
-  AppMode, AppModeState, Brand, BrandInput, ExternalOperationPage, Promotion, PromotionInput, OperationOutcome, Snapshot, Station, StationCommandType, Task, TaskCommand,
+  AppMode, AppModeState, Brand, PieceOrder, PieceSpecList, BrandInput, ExternalOperationPage, Promotion, PromotionInput, OperationOutcome, Snapshot, Station, StationCommandType, Task, TaskCommand,
 } from './model';
 
 export class ApiError extends Error {
@@ -31,6 +31,9 @@ export const api = {
   createBrand: (input: BrandInput) => post<Brand>('/api/brands', input),
   updateBrand: (id: string, input: BrandInput) => putJson<Brand>(`/api/brands/${encodeURIComponent(id)}`, input),
   createPromotion: (input: PromotionInput) => post<Promotion>('/api/promotions', input),
+  pieceSpecs: (promotionId: string) => call<PieceSpecList>(`/api/promotions/${encodeURIComponent(promotionId)}/piece-specs`),
+  orderPieces: (promotionId: string, specPath: string) =>
+    post<PieceOrder>(`/api/promotions/${encodeURIComponent(promotionId)}/piece-orders`, { spec_path: specPath }),
   updatePromotion: (id: string, input: PromotionInput) => putJson<Promotion>(`/api/promotions/${encodeURIComponent(id)}`, input),
   taskCommand: (id: string, command: TaskCommand) =>
     post<Task>(`/api/tasks/${encodeURIComponent(id)}/commands`, command),

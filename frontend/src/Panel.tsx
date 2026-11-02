@@ -4,6 +4,7 @@ import {
   AI_MODELS, agentLabel, clockTime, type AiModel, type ArmoryItem, type Brand, type Snapshot, type Station, type Task,
   type TaskCommandType,
 } from './model';
+import { PieceOrders } from './PieceOrders';
 import { AgentChip, BrandTag, Dot, Pill, StepState, stepClass } from './ui';
 
 function Header({ eyebrow, title, extra, onClose }: { eyebrow: string; title: string; extra?: React.ReactNode; onClose: () => void }) {
@@ -15,9 +16,10 @@ function Header({ eyebrow, title, extra, onClose }: { eyebrow: string; title: st
   );
 }
 
-export function StationPanel({ s, index, tasks, brandOf, onClose, onTask, onPause, onResume, onZoom }: {
+export function StationPanel({ s, index, tasks, brandOf, onClose, onTask, onPause, onResume, onZoom, data, onMessage }: {
   s: Station; index: number; tasks: Task[]; brandOf: (p?: string | null) => Brand | undefined; onClose: () => void;
   onTask: (id: string) => void; onPause: () => void; onResume: () => void; onZoom: () => void;
+  data: Snapshot; onMessage: (m: string) => void;
 }) {
   const c = s.counts;
   const errors = tasks.filter(t => t.status === 'FAILED');
@@ -47,6 +49,11 @@ export function StationPanel({ s, index, tasks, brandOf, onClose, onTask, onPaus
             </button>
           ))}
         </section>
+        {s.id === 'gen' && !data.demo && (
+          <section><h4>Encargar piezas</h4>
+            <PieceOrders promotions={data.promotions} onOrdered={onMessage} onTask={onTask} />
+          </section>
+        )}
         {errors.length > 0 && <section><h4>Errores recientes</h4>{errors.map(t => <p key={t.id} style={{ color: 'var(--err)' }}>{t.error}</p>)}</section>}
         <section><h4>Herramientas y agentes</h4>
           <div className="acts">{s.tools.map(x => <span key={x} className="agent">{x}</span>)}</div><p>{s.limit_note}</p>

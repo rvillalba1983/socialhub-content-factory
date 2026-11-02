@@ -1,6 +1,6 @@
 # SocialHub — Fase 3: motor de tareas y herramientas locales
 
-Estado: **en curso** · bloque 1 fusionado · bloque 2 (motor) en revisión · 2 nov 2026
+Estado: **en curso** · bloques 1 y 2 fusionados · bloque 3 (piezas) en revisión · 2 nov 2026
 
 ## Decisiones (respuestas de Raúl, una a una)
 
@@ -67,4 +67,21 @@ Estado: **en curso** · bloque 1 fusionado · bloque 2 (motor) en revisión · 2
   - Se comprueban al arrancar con la tarea «Comprobar herramientas locales» (Generación de contenido).
   - El resultado queda en la armería del modo real.
   - Se puede volver a ejecutar desde la tarea.
+
+## Piezas de promo.py en Java (bloque 3)
+
+- **Tarea `GENERATE_PIECES`:** genera las piezas de un spec.json con el mismo formato que promo.py (`contracts/promo-spec.v1.schema.json`).
+  - **Carrusel** (1080×1350) e **historia** (1080×1920): Java 2D con DejaVu Serif, incluida en la app.
+  - **Reel**, **clip** y **comprimir**: FFmpeg incluido. Todo vídeo sale en 1080×1920 y por debajo de 9,5 MB.
+  - **LEEME** con día, tipo, archivos, texto y hashtags.
+- **Comparado con promo.py:** con las mismas imágenes y el mismo spec, las piezas de Java coinciden con las de Pillow. La diferencia media es de menos de 1 nivel de color sobre 255.
+- **Carpetas permitidas:**
+  - Solo las de la promoción (recursos de tipo «Carpeta»), comprobando la ruta real, así que ni `..` ni enlaces llevan fuera.
+  - Solo formatos conocidos y con tamaño máximo.
+  - Las rutas del spec pueden ser relativas a la carpeta del spec.
+  - Nunca se sobrescribe: si existe, se usa `nombre_2`, `nombre_3`…
+- **Encargos:**
+  - **Botón** en el panel de la estación Generación de contenido (modo real): lista los spec.json de la carpeta vigilada y permite indicar cualquier otro de las carpetas de la promoción.
+  - **Carpeta vigilada** `SocialHub/encargos` dentro de la primera carpeta de la promoción. Cada 30 s, los spec.json nuevos o modificados se convierten en tareas. Si un spec no es válido, la tarea falla con el motivo a la vista.
+- **API:** `GET /api/promotions/{id}/piece-specs` y `POST /api/promotions/{id}/piece-orders`.
 

@@ -181,3 +181,9 @@ Detalle en `docs/fase-3.md`.
 - **Envers con dos bases de datos:** cada número de revisión se pide a la secuencia de su base de datos (migración `V3`), sin bloques en memoria compartidos.
 - **Entidades nuevas:** la versión es nula hasta guardarlas, para que se inserten en lugar de fusionarse.
 
+## 2026-11-02 · Fase 3, bloque 3: piezas
+- **Carpetas de una promoción:** son sus recursos de tipo «Carpeta». Solo ahí se lee y se escribe.
+- **Carpeta vigilada:** `SocialHub/encargos` dentro de la primera carpeta de la promoción.
+- **Volver a ejecutar** una tarea de piezas no pisa lo anterior: genera archivos numerados.
+- **Encargar desde el botón** se permite siempre, incluso para un spec ya encargado. La carpeta vigilada solo encarga lo nuevo o modificado.
+

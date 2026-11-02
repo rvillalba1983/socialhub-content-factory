@@ -373,7 +373,7 @@ export function Factory({ data, live, onRefresh }: {
           <StationPanel s={selStation} index={data.stations.indexOf(selStation)} tasks={data.tasks.filter(t => t.station_id === selStation.id)}
             brandOf={brandOf} onClose={() => setSel({ type: null, id: null })} onTask={goTask}
             onPause={() => runStation(selStation.id, 'PAUSE')} onResume={() => runStation(selStation.id, 'RESUME')}
-            onZoom={() => flyToStation(selStation.id, 1.7)} />
+            onZoom={() => flyToStation(selStation.id, 1.7)} data={data} onMessage={m => { say(m); onRefresh(); }} />
         )}
         {selTask && (
           <TaskPanel key={selTask.id} t={selTask} station={data.stations.find(s => s.id === selTask.station_id)} brand={brandOf(selTask.promotion_id)}

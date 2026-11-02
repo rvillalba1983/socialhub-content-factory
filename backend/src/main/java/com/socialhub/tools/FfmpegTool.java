@@ -50,10 +50,8 @@ public class FfmpegTool implements LocalTool {
                 File[] dirs = Loader.cacheResources(FfmpegTool.class, folder);
                 if (dirs.length == 0) throw new IllegalStateException("No hay FFmpeg incluido para " + Loader.getPlatform());
                 Path exe = dirs[0].toPath().resolve(name);
-                if (!Files.isRegularFile(exe)) throw new IllegalStateException("Falta " + exe);
-                if (!Files.isExecutable(exe) && !exe.toFile().setExecutable(true)) {
-                    throw new IllegalStateException("No se puede ejecutar " + exe);
-                }
+                makeExecutable(exe);
+                makeExecutable(exe.resolveSibling(name.replace("ffmpeg", "ffprobe")));
                 executable = exe;
             } catch (IOException e) {
                 throw new UncheckedIOException("No se pudo extraer FFmpeg", e);
@@ -66,6 +64,31 @@ public class FfmpegTool implements LocalTool {
     /** Ejecuta FFmpeg con argumentos ya validados por quien lo llama. */
     public SafeProcess.Result run(String operation, List<String> arguments, Duration timeout) throws InterruptedException {
         return process.run("ffmpeg", operation, executable(), arguments, null, timeout);
+    }
+
+    private static void makeExecutable(Path file) {
+        if (!Files.isRegularFile(file)) throw new IllegalStateException("Falta " + file);
+        if (!Files.isExecutable(file) && !file.toFile().setExecutable(true)) {
+            throw new IllegalStateException("No se puede ejecutar " + file);
+        }
+    }
+
+    /** Ruta de ffprobe, que va junto a ffmpeg. */
+    public Path ffprobe() {
+        Path exe = executable();
+        return exe.resolveSibling(exe.getFileName().toString().replace("ffmpeg", "ffprobe"));
+    }
+
+    /** Duración en segundos de un audio o vídeo, con ffprobe. */
+    public double probeDuration(Path media) throws InterruptedException {
+        String out = process.run("ffprobe", "duration", ffprobe(),
+                List.of("-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", media.toString()),
+                null, Duration.ofSeconds(60)).output().strip();
+        try {
+            return out.isEmpty() ? 0 : Double.parseDouble(out.lines().findFirst().orElse("0"));
+        } catch (NumberFormatException e) {
+            return 0;
+        }
     }
 
     @Override

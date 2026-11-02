@@ -29,6 +29,8 @@ tags:
   - name: Brands
   - name: Promotions
   - name: Publications
+  - name: Pieces
+    description: Piezas de Instagram a partir de un spec.json (lo que hacía promo.py)
   - name: Tasks
   - name: Stations
   - name: Armory
@@ -196,6 +198,47 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Promotion" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/promotions/{promotion_id}/piece-specs:
+    get:
+      tags: [Pieces]
+      operationId: listPieceSpecs
+      summary: spec.json de la carpeta vigilada de la promoción
+      description: Busca en «SocialHub/encargos» dentro de la primera carpeta de la promoción.
+      parameters:
+        - $ref: "#/components/parameters/PromotionId"
+      responses:
+        "200":
+          description: spec.json encontrados
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PieceSpecList" }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/promotions/{promotion_id}/piece-orders:
+    post:
+      tags: [Pieces]
+      operationId: createPieceOrder
+      summary: Encarga las piezas de un spec.json
+      description: Valida el spec (rutas dentro de las carpetas de la promoción, formatos y tamaños) y crea la tarea.
+      parameters:
+        - $ref: "#/components/parameters/PromotionId"
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PieceOrderInput" }
+      responses:
+        "201":
+          description: Tarea creada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PieceOrder" }
         "400": { $ref: "#/components/responses/Problem" }
         "404": { $ref: "#/components/responses/Problem" }
         default: { $ref: "#/components/responses/Problem" }
@@ -574,6 +617,37 @@ components:
         automations: { type: array, maxItems: 50, items: { $ref: "#/components/schemas/Automation" } }
         routes: { type: array, maxItems: 20, items: { $ref: "#/components/schemas/PublishingRoute" } }
         settings: { type: array, maxItems: 100, items: { $ref: "#/components/schemas/Setting" } }
+
+    PieceSpecList:
+      type: object
+      required: [items]
+      properties:
+        folder: { type: string, description: Carpeta vigilada; vacía si la promoción no tiene carpetas }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/PieceSpec" }
+
+    PieceSpec:
+      type: object
+      required: [path, name, modified_at]
+      properties:
+        path: { type: string }
+        name: { type: string }
+        modified_at: { type: string, format: date-time }
+        task_id: { type: string, description: "Tarea que lo generó, si ya se encargó" }
+
+    PieceOrderInput:
+      type: object
+      required: [spec_path]
+      properties:
+        spec_path: { type: string, minLength: 1, maxLength: 1000, description: Ruta completa del spec.json }
+
+    PieceOrder:
+      type: object
+      required: [task_id, spec_path]
+      properties:
+        task_id: { type: string }
+        spec_path: { type: string }
 
     PromotionList:
       type: object
