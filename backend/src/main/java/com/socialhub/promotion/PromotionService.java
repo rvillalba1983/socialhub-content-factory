@@ -35,6 +35,7 @@ public class PromotionService {
     private final ApplicationEventPublisher events;
     private final FolderRepository folders;
     private final PromotionQueries queries;
+    private final com.socialhub.promotion.domain.IdentityRepository identities;
 
     public Brand createBrand(BrandDraft draft) {
         String id = Slugs.of(draft.name(), repository::brandIdTaken);
@@ -109,5 +110,13 @@ public class PromotionService {
             clean.put(role, value);
         });
         return clean;
+    }
+
+    /** Guarda la identidad de la marca. Sus promociones la heredan. */
+    public BrandIdentity saveIdentity(String brandId, BrandIdentity identity) {
+        if (repository.brand(brandId).isEmpty()) throw new NotFoundException("No existe la marca " + brandId);
+        identities.save(brandId, identity);
+        events.publishEvent(new FactoryChanged("brand", brandId));
+        return queries.identity(brandId);
     }
 }

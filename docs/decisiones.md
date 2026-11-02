@@ -240,3 +240,11 @@ Detalle en `docs/fase-4-5.md`.
   - Cada encargo lo hace un subagente con el modelo del encargo.
   - La sesión principal quedó en Opus porque al crearla no se puede elegir su modelo; se puede bajar a Haiku en sus ajustes.
 
+## 2026-11-02 · Fase 6: decisiones (respuestas de Raúl)
+- **Orden:** primero identidad y calidad; después memoria editorial y propuestas.
+- **Identidad de la marca:** tono, público, temas vetados, expresiones preferidas y prohibidas, estilo visual, llamada a la acción y hashtags fijos. Se fija en la marca y las promociones la heredan.
+- **Control de calidad:** bloquea «Aprobada» y «Programada» mientras haya fallos sin aceptar. Cada aceptación queda anotada con su motivo.
+- **Revisión con criterio:** la hace Claude a petición, con el encargo «Revisión de calidad» (Haiku por defecto).
+
+Detalle en `docs/fase-6.md`.
+

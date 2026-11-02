@@ -8,13 +8,15 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
 /** El gestor propio arranca, para y vuelve a arrancar PostgreSQL sin perder datos. */
 class EmbeddedPostgresTest {
 
-    @TempDir
-    Path dir;
+    /**
+     * Bajo target/ y no en una carpeta temporal de JUnit: en Windows, PostgreSQL tarda un momento en soltar sus logs
+     * tras pararse y JUnit fallaba al borrar la carpeta (el servidor ya estaba parado y los datos, bien).
+     */
+    private final Path dir = Path.of("target", "it", "pg-" + java.util.UUID.randomUUID()).toAbsolutePath();
 
     @Test
     void dataSurvivesARestart() throws Exception {

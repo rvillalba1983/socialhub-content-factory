@@ -1,5 +1,5 @@
 import type {
-  AiOrder, AiOrderInput, AiRequestPage, AiSettings, AiSettingsInput, AppMode, AppModeState, Brand, FolderInput, FolderList, Publication, PublicationFile, PublicationFileList, PublicationInput, PublicationStatus, PieceOrder, PieceSpecList, BrandInput, ExternalOperationPage, Promotion, PromotionInput, OperationOutcome, Snapshot, Station, StationCommandType, Task, TaskCommand,
+  AiOrder, AiOrderInput, BrandIdentity, QualityReport, AiRequestPage, AiSettings, AiSettingsInput, AppMode, AppModeState, Brand, FolderInput, FolderList, Publication, PublicationFile, PublicationFileList, PublicationInput, PublicationStatus, PieceOrder, PieceSpecList, BrandInput, ExternalOperationPage, Promotion, PromotionInput, OperationOutcome, Snapshot, Station, StationCommandType, Task, TaskCommand,
 } from './model';
 
 export class ApiError extends Error {
@@ -55,6 +55,12 @@ export const api = {
   aiRequests: (offset = 0, limit = 50) => call<AiRequestPage>(`/api/ai/requests?offset=${offset}&limit=${limit}`),
   orderFromClaude: (promotionId: string, input: AiOrderInput) =>
     post<AiOrder>(`/api/promotions/${encodeURIComponent(promotionId)}/ai-orders`, input),
+  brandIdentity: (id: string) => call<BrandIdentity>(`/api/brands/${encodeURIComponent(id)}/identity`),
+  saveBrandIdentity: (id: string, identity: BrandIdentity) =>
+    putJson<BrandIdentity>(`/api/brands/${encodeURIComponent(id)}/identity`, identity),
+  publicationQuality: (id: string) => call<QualityReport>(`/api/publications/${encodeURIComponent(id)}/quality`),
+  acceptQualityIssue: (id: string, key: string, reason: string) =>
+    post<QualityReport>(`/api/publications/${encodeURIComponent(id)}/quality-acceptances`, { key, reason }),
   taskCommand: (id: string, command: TaskCommand) =>
     post<Task>(`/api/tasks/${encodeURIComponent(id)}/commands`, command),
   stationCommand: (id: string, type: StationCommandType) =>

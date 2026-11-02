@@ -7,7 +7,7 @@ export type {
   AiModel, AppMode, AppModeState, BrandInput, PromotionInput, Milestone, PromotionResource, Automation,
   PublishingRoute, Setting, PieceSpecList, PieceSpec, PieceOrder, Folder, FolderList, FolderInput, FolderRole,
   PublicationInput, PublicationFile, PublicationFileList, AiRequestType, AiSettings, AiSettingsInput, AiRequest,
-  AiRequestPage, AiOrderInput, AiOrder,
+  AiRequestPage, AiOrderInput, AiOrder, BrandIdentity, QualityIssue, QualityReport,
 } from './schema';
 
 import type { TaskStep } from './schema';

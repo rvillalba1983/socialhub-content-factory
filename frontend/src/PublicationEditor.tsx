@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from './api';
 import { Icon } from './icons';
 import {
-  PUBLICATION_NEXT, PUBLICATION_STATUS, dateTime, type Publication, type PublicationFile, type PublicationInput,
+  PUBLICATION_NEXT, PUBLICATION_STATUS, dateTime, type Publication, type QualityReport, type PublicationFile, type PublicationInput,
   type PublicationStatus,
 } from './model';
 import { Pill } from './ui';
@@ -122,6 +122,7 @@ export function PublicationEditor({ promotionId, publication, onClose, onSaved }
             ))}
           </div>
           <p className="src">Programar exige al menos 6 horas de margen. «Publicada» solo llega con la confirmación de la plataforma.</p>
+          <QualityPanel publication={publication} promotionId={promotionId} />
           <PublicationFiles id={publication.id} />
         </>
       )}
@@ -158,6 +159,67 @@ function PublicationFiles({ id }: { id: string }) {
         <input aria-label="Ruta del archivo" placeholder="G:\Mi unidad\…\pieza.jpg" value={path} onChange={e => setPath(e.target.value)} />
         <button className="btn" disabled={!path.trim()}>Añadir archivo</button>
       </form>
+      {error && <p className="error" role="alert">{error}</p>}
+    </fieldset>
+  );
+}
+
+/** Control de calidad: avisos del código y de Claude. Cada uno se corrige o se acepta con su motivo. */
+function QualityPanel({ publication, promotionId }: { publication: Publication; promotionId: string }) {
+  const [report, setReport] = useState<QualityReport | null>(null);
+  const [accepting, setAccepting] = useState<string | null>(null);
+  const [reason, setReason] = useState('');
+  const [note, setNote] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const load = () => api.publicationQuality(publication.id).then(setReport).catch(e => setError(e instanceof Error ? e.message : String(e)));
+  // Se vuelve a comprobar cuando cambia la publicación (texto, estado…)
+  useEffect(() => { void load(); }, [publication]);
+
+  const accept = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!accepting) return;
+    setError(null);
+    try { setReport(await api.acceptQualityIssue(publication.id, accepting, reason.trim())); setAccepting(null); setReason(''); }
+    catch (err) { setError(err instanceof Error ? err.message : String(err)); }
+  };
+  const review = async () => {
+    setError(null);
+    try {
+      await api.orderFromClaude(promotionId, {
+        type: 'QUALITY_REVIEW', title: `Revisión · ${publication.title}`, inputs: [publication.id],
+        goal: `Revisa la calidad de «${publication.title}»: coherencia, tono de la marca, ortografía y afirmaciones sin fuente.`,
+      });
+      setNote('Revisión pedida a Claude: sus avisos aparecerán aquí.');
+    } catch (err) { setError(err instanceof Error ? err.message : String(err)); }
+  };
+
+  return (
+    <fieldset className="rows" aria-label="Control de calidad">
+      <legend>Control de calidad</legend>
+      {report && report.issues.length === 0 && <p className="src">Sin avisos.</p>}
+      {report?.issues.map(i => (
+        <div key={i.key} className="quality-row">
+          <span className={`pill ${i.accepted ? 's-ok' : 's-block'}`}>{i.source === 'CLAUDE' ? 'Claude' : 'Comprobación'}</span>
+          <span>{i.message}{i.accepted && <small className="src"> · Aceptado: {i.accepted_reason}</small>}</span>
+          {!i.accepted && accepting !== i.key && (
+            <button type="button" className="btn" onClick={() => { setAccepting(i.key); setReason(''); }}>Aceptar</button>
+          )}
+          {accepting === i.key && (
+            <form className="file-add" onSubmit={accept}>
+              <input aria-label="Por qué lo aceptas" placeholder="Por qué lo aceptas" value={reason} onChange={e => setReason(e.target.value)} />
+              <button className="btn" disabled={reason.trim().length < 3}>Aceptar aviso</button>
+            </form>
+          )}
+        </div>
+      ))}
+      {report && report.open > 0 && (
+        <p className="src">{report.open === 1 ? '1 aviso abierto' : `${report.open} avisos abiertos`}: no puede pasar a «Aprobada» ni a «Programada» hasta corregirlos o aceptarlos.</p>
+      )}
+      <p className="src">
+        <button type="button" className="btn" onClick={() => void load()}>Comprobar de nuevo</button>{' '}
+        <button type="button" className="btn" onClick={() => void review()}>Revisar con Claude</button>
+        {note && <> {note}</>}
+      </p>
       {error && <p className="error" role="alert">{error}</p>}
     </fieldset>
   );

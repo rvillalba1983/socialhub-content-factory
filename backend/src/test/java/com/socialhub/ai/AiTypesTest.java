@@ -82,6 +82,10 @@ class AiTypesTest {
         write(put("/api/brands/el-delito/folders"), """
                 {"items":[{"role":"ORDERS","location":%s},{"role":"REPORTS","location":%s},{"role":"MATERIAL","location":%s}]}"""
                 .formatted(q(orders), q(reports), q(material))).andExpect(status().isOk());
+        write(put("/api/brands/el-delito/identity"), """
+                {"tone":"Cercano","audience":"","forbidden_topics":[],"preferred_expressions":[],"forbidden_expressions":[],
+                 "colors":[],"font":"","logo":"","visual_style":"","photo_style":"","call_to_action":"","fixed_hashtags":""}""")
+                .andExpect(status().isOk());
         write(post("/api/promotions/poemario/publications"), """
                 {"platform":"INSTAGRAM","type":"Historia","title":"Pregunta grande","scheduled_on":"2030-11-12",
                  "scheduled_time":"13:00","initial_status":"IN_PRODUCTION"}""")
@@ -96,6 +100,8 @@ class AiTypesTest {
         String task = order("CAPTIONS", "Textos para la historia", "2030-11-12-instagram");
         JsonNode request = request(task);
         assertThat(request.get("inputs").get("publications").get(0).get("title").asString()).isEqualTo("Pregunta grande");
+        assertThat(request.get("inputs").get("brand_identity").get("tone").asString()).isEqualTo("Cercano");
+        assertThat(request.get("inputs").get("brand_identity").has("audience")).isFalse();
 
         result(task, completed(task, """
                 {"publications":[{"id":"2030-11-12-instagram","caption":"¿Y si el delito fuera leer?","hashtags":"#poesia #eldelito"}],
@@ -168,6 +174,37 @@ class AiTypesTest {
         mvc.perform(get("/api/publications/2030-11-12-instagram/files"))
                 .andExpect(jsonPath("$.items.length()").value(1))
                 .andExpect(jsonPath("$.items[0].origin").value("SPEC"));
+    }
+
+    @Test
+    @Order(5)
+    void theQualityReviewAddsClaudesIssuesToThePublication() throws Exception {
+        mvc.perform(get("/api/ai/settings")).andExpect(jsonPath("$.models[?(@.type == 'QUALITY_REVIEW')].model").value("HAIKU"));
+        String task = order("QUALITY_REVIEW", "Revisa la publicación", "2030-11-12-instagram");
+        JsonNode request = request(task);
+        assertThat(request.get("model").asString()).isEqualTo("haiku");
+        assertThat(request.get("type").asString()).isEqualTo("socialhub.quality-review");
+        assertThat(request.get("inputs").get("publication").get("caption").asString()).isEqualTo("¿Y si el delito fuera leer?");
+        assertThat(request.get("inputs").get("files").size()).isEqualTo(1);
+
+        result(task, completed(task, "{\"issues\":[{\"message\":\"«leer» no concuerda con el tono\"}],\"summary\":\"Casi\"}"));
+        waitFor(() -> "COMPLETED".equals(task(task).get("status").asString()), "revisión aplicada");
+        assertThat(task(task).get("result").asString()).isEqualTo("1 aviso de Claude · Casi");
+        JsonNode report = json.readTree(mvc.perform(get("/api/publications/2030-11-12-instagram/quality"))
+                .andReturn().getResponse().getContentAsString());
+        JsonNode claude = null;
+        for (JsonNode issue : report.get("issues")) if (issue.get("source").asString().equals("CLAUDE")) claude = issue;
+        assertThat(claude).isNotNull();
+        assertThat(claude.get("message").asString()).isEqualTo("«leer» no concuerda con el tono");
+        assertThat(claude.get("key").asString()).startsWith("CLAUDE:");
+
+        // Una revisión nueva sustituye a la anterior
+        String again = order("QUALITY_REVIEW", "Revisa otra vez", "2030-11-12-instagram");
+        result(again, completed(again, "{\"issues\":[]}"));
+        waitFor(() -> "COMPLETED".equals(task(again).get("status").asString()), "segunda revisión");
+        assertThat(task(again).get("result").asString()).isEqualTo("Revisión sin avisos");
+        assertThat(mvc.perform(get("/api/publications/2030-11-12-instagram/quality")).andReturn().getResponse()
+                .getContentAsString()).doesNotContain("CLAUDE:");
     }
 
     // ---------------------------------------------------------------- utilidades

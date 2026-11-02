@@ -177,6 +177,42 @@ paths:
         "404": { $ref: "#/components/responses/Problem" }
         default: { $ref: "#/components/responses/Problem" }
 
+  /api/brands/{brand_id}/identity:
+    get:
+      tags: [Brands]
+      operationId: getBrandIdentity
+      summary: Identidad de la marca (la heredan sus promociones)
+      parameters:
+        - $ref: "#/components/parameters/BrandId"
+      responses:
+        "200":
+          description: Identidad; los campos sin rellenar van vacíos
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BrandIdentity" }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+    put:
+      tags: [Brands]
+      operationId: saveBrandIdentity
+      parameters:
+        - $ref: "#/components/parameters/BrandId"
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BrandIdentity" }
+      responses:
+        "200":
+          description: Identidad guardada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BrandIdentity" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
   /api/promotions:
     get:
       tags: [Promotions]
@@ -465,6 +501,48 @@ paths:
           schema: { type: string }
       responses:
         "204": { description: Asociación quitada }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/publications/{publication_id}/quality:
+    get:
+      tags: [Publications]
+      operationId: getPublicationQuality
+      summary: Control de calidad de una publicación
+      description: >
+        Avisos de las comprobaciones automáticas (en el momento) y de la última revisión de Claude, con las
+        aceptaciones de Raúl. Mientras quede alguno abierto, no pasa a «Aprobada» ni a «Programada».
+      parameters:
+        - $ref: "#/components/parameters/PublicationId"
+      responses:
+        "200":
+          description: Avisos
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/QualityReport" }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/publications/{publication_id}/quality-acceptances:
+    post:
+      tags: [Publications]
+      operationId: acceptQualityIssue
+      summary: Acepta un aviso concreto, con su motivo
+      parameters:
+        - $ref: "#/components/parameters/PublicationId"
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/QualityAcceptance" }
+      responses:
+        "200":
+          description: Avisos después de aceptarlo
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/QualityReport" }
+        "400": { $ref: "#/components/responses/Problem" }
         "404": { $ref: "#/components/responses/Problem" }
         default: { $ref: "#/components/responses/Problem" }
 
@@ -885,7 +963,7 @@ components:
     AiRequestType:
       description: Tipo de encargo a Claude
       type: string
-      enum: [WEEKLY_SPEC, CAPTIONS, WEEKLY_BALANCE, RESEARCH]
+      enum: [WEEKLY_SPEC, CAPTIONS, WEEKLY_BALANCE, RESEARCH, QUALITY_REVIEW]
 
     AiTypeModel:
       type: object
@@ -962,6 +1040,31 @@ components:
         runtime: { type: string, description: "Agente que lo hizo, según el resultado" }
         result_model: { type: string, description: Modelo que dice haber usado }
         error: { type: string }
+
+    BrandIdentity:
+      type: object
+      required: [tone, audience, forbidden_topics, preferred_expressions, forbidden_expressions, colors, font, logo,
+                 visual_style, photo_style, call_to_action, fixed_hashtags]
+      properties:
+        tone: { type: string, maxLength: 2000, description: Tono de comunicación }
+        audience: { type: string, maxLength: 2000, description: Público objetivo }
+        forbidden_topics: { type: array, maxItems: 50, items: { type: string, maxLength: 200 }, description: Temas que no se tocan }
+        preferred_expressions: { type: array, maxItems: 100, items: { type: string, maxLength: 200 } }
+        forbidden_expressions:
+          type: array
+          maxItems: 100
+          items: { type: string, maxLength: 200 }
+          description: El control de calidad las busca en los textos (sin mayúsculas ni tildes)
+        colors: { type: array, maxItems: 20, items: { type: string, maxLength: 40 } }
+        font: { type: string, maxLength: 200 }
+        logo: { type: string, maxLength: 500, description: Ruta o descripción del logotipo }
+        visual_style: { type: string, maxLength: 2000 }
+        photo_style: { type: string, maxLength: 2000 }
+        call_to_action:
+          type: string
+          maxLength: 500
+          description: Frase que debe aparecer en el texto de las publicaciones (salvo historias)
+        fixed_hashtags: { type: string, maxLength: 1000, description: Hashtags que deben llevar todas las publicaciones }
 
     Brand:
       type: object
@@ -1340,6 +1443,31 @@ components:
       required: [path]
       properties:
         path: { type: string, minLength: 1, maxLength: 1000, description: Ruta completa del archivo }
+
+    QualityIssue:
+      type: object
+      required: [key, source, message, accepted]
+      properties:
+        key: { type: string, description: "Identifica el aviso para aceptarlo (por ejemplo, FORBIDDEN:compra ya)" }
+        source: { type: string, enum: [CODE, CLAUDE], description: Comprobación automática o revisión de Claude }
+        message: { type: string }
+        accepted: { type: boolean }
+        accepted_reason: { type: string }
+        accepted_at: { type: string, format: date-time }
+
+    QualityReport:
+      type: object
+      required: [issues, open]
+      properties:
+        issues: { type: array, items: { $ref: "#/components/schemas/QualityIssue" } }
+        open: { type: integer, format: int32, description: Avisos sin aceptar }
+
+    QualityAcceptance:
+      type: object
+      required: [key, reason]
+      properties:
+        key: { type: string, minLength: 1, maxLength: 1500 }
+        reason: { type: string, minLength: 3, maxLength: 1000 }
 
     PublicationStatusChange:
       type: object
