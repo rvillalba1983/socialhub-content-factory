@@ -2,6 +2,10 @@ package com.socialhub.tools;
 
 import com.socialhub.platform.AppPaths;
 import com.socialhub.platform.process.SafeProcess;
+import java.io.File;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
@@ -33,11 +37,27 @@ public class FfmpegTool implements LocalTool {
     @Override public String license() { return "GPL (incluido con la aplicación)"; }
     @Override public List<String> capabilities() { return List.of("reel", "clip", "comprimir"); }
 
-    /** Ruta del ejecutable incluido. */
+    /**
+     * Ruta del ejecutable incluido. Solo se extrae la carpeta con el programa y sus bibliotecas; no se cargan las
+     * bibliotecas JNI en la JVM (no hacen falta y pueden fallar si al sistema le faltan dependencias de dispositivos).
+     */
     public synchronized Path executable() {
         if (executable == null) {
             System.setProperty("org.bytedeco.javacpp.cachedir", cacheDir.toString());
-            executable = Path.of(Loader.load(org.bytedeco.ffmpeg.ffmpeg.class));
+            String folder = "/org/bytedeco/ffmpeg/" + Loader.getPlatform() + "-gpl/";
+            String name = Loader.getPlatform().startsWith("windows") ? "ffmpeg.exe" : "ffmpeg";
+            try {
+                File[] dirs = Loader.cacheResources(FfmpegTool.class, folder);
+                if (dirs.length == 0) throw new IllegalStateException("No hay FFmpeg incluido para " + Loader.getPlatform());
+                Path exe = dirs[0].toPath().resolve(name);
+                if (!Files.isRegularFile(exe)) throw new IllegalStateException("Falta " + exe);
+                if (!Files.isExecutable(exe) && !exe.toFile().setExecutable(true)) {
+                    throw new IllegalStateException("No se puede ejecutar " + exe);
+                }
+                executable = exe;
+            } catch (IOException e) {
+                throw new UncheckedIOException("No se pudo extraer FFmpeg", e);
+            }
             log.info("FFmpeg incluido en {}", executable);
         }
         return executable;
@@ -57,7 +77,7 @@ public class FfmpegTool implements LocalTool {
             return new Check(h264, h264 ? first : first + " · sin H.264");
         } catch (InterruptedException e) {
             throw e;
-        } catch (RuntimeException | UnsatisfiedLinkError e) {
+        } catch (RuntimeException | LinkageError e) {
             return new Check(false, "No funciona: " + e.getMessage());
         }
     }

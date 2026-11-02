@@ -106,7 +106,7 @@ public class TaskEngine {
                     production.failRun(id, "Tiempo agotado: más de " + executor.timeout().toSeconds() + " s");
                 }
                 // Si no, la pausó o canceló Raúl: el estado ya está guardado
-            } catch (Exception e) {
+            } catch (Exception | Error e) {
                 if (timedOut.contains(id)) {
                     production.failRun(id, "Tiempo agotado: más de " + executor.timeout().toSeconds() + " s");
                 } else {
