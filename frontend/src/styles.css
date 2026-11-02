@@ -369,3 +369,7 @@ body{margin:0;display:block}
 .ops-filters label{margin-left:8px}
 tr.op-fail td{background:color-mix(in srgb,var(--err) 6%,transparent)}
 tr.op-detail td{background:var(--surface-2)}
+
+/* La tarjeta de avisos no debe tapar las estaciones de abajo: textos recortados */
+.aitem b{display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+.aitem>span:not(.dot){display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}

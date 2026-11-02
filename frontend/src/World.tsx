@@ -1,6 +1,6 @@
 import { Icon, StationIcon } from './icons';
 import {
-  PUBLICATION_STATUS, STATUS, alertTone, isoDay, parseDay, shortDate, hhmm, statusClass,
+  PUBLICATION_STATUS, STATUS, alertTone, byPriority, isoDay, parseDay, shortDate, hhmm, statusClass,
   type Brand, type Promotion, type PublicationStatus, type Snapshot, type Station, type Task, type TaskCommandType, type TaskStatus,
 } from './model';
 import { AgentChip, BrandTag, Dot, Pill, StepState, prefersReducedMotion, stepClass } from './ui';
@@ -182,6 +182,9 @@ function PromotionCard({ p, brand, data, onOpen }: { p: Promotion; brand?: Brand
   );
 }
 
+/** Cuántos avisos caben en la tarjeta sin tapar las estaciones de abajo. */
+const ATTENTION_MAX = 2;
+
 export function AttentionCard({ data, onStation, onTask }: { data: Snapshot; onStation: (id: string) => void; onTask: (id: string) => void }) {
   const blockedByDeps = data.tasks.filter(t => t.status === 'BLOCKED').length;
   const waitingRaul = data.tasks.filter(t => t.human && t.status !== 'COMPLETED' && t.status !== 'CANCELLED').length;
@@ -189,12 +192,12 @@ export function AttentionCard({ data, onStation, onTask }: { data: Snapshot; onS
     <section className="attn-card" aria-label="Necesita tu atención">
       <h2>Necesita atención {data.alerts.length > 0 && <span className="count">{data.alerts.length}</span>}</h2>
       {data.alerts.length === 0 && <p className="src">Todo en orden.</p>}
-      {data.alerts.map(a => (
+      {byPriority(data.alerts).slice(0, ATTENTION_MAX).map(a => (
         <button key={a.kind + a.target_id} className={`aitem s-${alertTone(a.kind)}`} onClick={() => (a.target_type === 'TASK' ? onTask(a.target_id) : onStation(a.target_id))}>
           <Dot s={a.kind} /><span><b>{a.title}</b>{a.detail}</span>
         </button>
       ))}
-      <p className="src">{blockedByDeps} tareas bloqueadas · {waitingRaul} esperan a Raúl</p>
+      <p className="src">{data.alerts.length > ATTENTION_MAX ? `Y ${data.alerts.length - ATTENTION_MAX} más en las estaciones marcadas · ` : ''}{blockedByDeps} tareas bloqueadas · {waitingRaul} esperan a Raúl</p>
     </section>
   );
 }

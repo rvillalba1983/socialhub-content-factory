@@ -59,6 +59,10 @@ export const statusClass = (s: StatusCode) => (STATUS[s] ?? STATUS.IDLE).cls;
 /** Token visual de un aviso (err o block) para las clases CSS. */
 export const alertTone = (kind: 'FAILED' | 'BLOCKED') => (kind === 'FAILED' ? 'err' : 'block');
 
+/** Avisos por prioridad: primero los errores, luego los bloqueos. */
+export const byPriority = <T extends { kind: 'FAILED' | 'BLOCKED' }>(alerts: T[]) =>
+  [...alerts].sort((a, b) => (a.kind === b.kind ? 0 : a.kind === 'FAILED' ? -1 : 1));
+
 export const isDone = (s: TaskStepState) => s === 'DONE';
 
 const DAYS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];

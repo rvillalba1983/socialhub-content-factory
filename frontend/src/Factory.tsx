@@ -4,7 +4,7 @@ import { ControlCenter } from './ControlCenter';
 import { ExternalOperations } from './ExternalOperations';
 import { Icon } from './icons';
 import {
-  AI_MODELS, STATUS, alertTone, normalize, shortDate, type AiModel, type Snapshot, type StationCommandType, type StatusCode,
+  AI_MODELS, STATUS, alertTone, byPriority, normalize, shortDate, type AiModel, type Snapshot, type StationCommandType, type StatusCode,
   type Task, type TaskCommandType,
 } from './model';
 import { ArmoryPanel, StationPanel, TaskPanel } from './Panel';
@@ -334,12 +334,13 @@ export function Factory({ data, live, onRefresh }: {
         {data.alerts.length > 0 && (
           <div className="float avisos" aria-label="Avisos">
             <h4>Atención</h4>
-            {data.alerts.map(a => (
+            {byPriority(data.alerts).slice(0, 3).map(a => (
               <button key={a.kind + a.target_id} className={`aviso s-${alertTone(a.kind)}`} title={a.detail}
                 onClick={() => (a.target_type === 'TASK' ? goTask(a.target_id) : goStation(a.target_id))}>
                 <Dot s={a.kind} /><span><b>{a.title}</b> · {a.detail}</span>
               </button>
             ))}
+            {data.alerts.length > 3 && <span className="src">+{data.alerts.length - 3}</span>}
           </div>
         )}
         <div className="float legend" aria-label="Leyenda de estados">
