@@ -1,15 +1,25 @@
 package com.socialhub.platform.postgres;
 
+import com.socialhub.platform.AppMode;
+import com.socialhub.platform.AppModeHolder;
 import com.socialhub.platform.AppPaths;
 import com.socialhub.platform.SocialHubProperties;
 import com.socialhub.platform.observability.ExternalCalls;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import java.nio.file.Path;
+import java.util.EnumMap;
+import java.util.Map;
 import javax.sql.DataSource;
+import org.flywaydb.core.Flyway;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 
+/**
+ * PostgreSQL incluido con una base de datos por modo (real y demo). La aplicación usa un único {@link DataSource}
+ * que, en cada conexión, apunta a la base de datos del modo actual. Flyway migra las dos al arrancar.
+ */
 @Configuration(proxyBeanMethods = false)
 class DatabaseConfiguration {
 
@@ -23,13 +33,29 @@ class DatabaseConfiguration {
     }
 
     @Bean(destroyMethod = "close")
-    DataSource dataSource(EmbeddedPostgres postgres) {
-        HikariConfig config = new HikariConfig();
-        config.setJdbcUrl(postgres.jdbcUrl());
-        config.setUsername(EmbeddedPostgres.USER);
-        config.setPassword("");
-        config.setMaximumPoolSize(8);
-        config.setPoolName("socialhub");
-        return new HikariDataSource(config);
+    ModeDataSources modeDataSources(EmbeddedPostgres postgres, ExternalCalls calls) {
+        Map<AppMode, HikariDataSource> pools = new EnumMap<>(AppMode.class);
+        for (AppMode mode : AppMode.values()) {
+            HikariConfig config = new HikariConfig();
+            config.setJdbcUrl(postgres.jdbcUrl(mode.database()));
+            config.setUsername(EmbeddedPostgres.USER);
+            config.setPassword("");
+            config.setMaximumPoolSize(mode == AppMode.REAL ? 8 : 4);
+            config.setPoolName("socialhub-" + mode.name().toLowerCase());
+            HikariDataSource pool = new HikariDataSource(config);
+            calls.run("postgres", "migrate", mode.database(), () -> Flyway.configure()
+                    .dataSource(pool)
+                    .locations("classpath:db/migration")
+                    .load()
+                    .migrate());
+            pools.put(mode, pool);
+        }
+        return new ModeDataSources(pools);
+    }
+
+    @Bean
+    @Primary
+    DataSource dataSource(ModeDataSources pools, AppModeHolder mode) {
+        return new ModeRoutingDataSource(pools, mode);
     }
 }

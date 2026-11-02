@@ -1,0 +1,11 @@
+-- Las 8 estaciones del anillo son estructura de SocialHub: existen en los dos modos (real y demo).
+-- Empiezan inactivas; su estado cambia con el trabajo real (o, en modo demo, con los datos de ejemplo).
+insert into station (id, position, name, description, status, limit_note, tools) values
+    ('inv', 0, 'Investigación', 'Busca perfiles, contactos y oportunidades para cada promoción.', 'IDLE', 'Pausa de 1 s entre peticiones: Instagram responde 429 si se abusa.', array['Claude Sonnet','Búsqueda de Instagram','Gmail · borradores']::text[]),
+    ('est', 1, 'Selección y estrategia', 'Decide qué piezas tocan cada semana, con qué ángulo y a qué hora.', 'IDLE', 'Opus solo para estrategia, balances y los días gratis.', array['Claude Opus','Claude Sonnet','Planes en Claude Docs']::text[]),
+    ('gen', 2, 'Generación de contenido', 'Prepara imágenes, vídeos, textos y hashtags. Primero herramientas locales.', 'IDLE', 'Piezas en tamaño Instagram y por debajo de 9,5 MB.', array['promo.py','FFmpeg','Claude Sonnet']::text[]),
+    ('rev', 3, 'Revisión y calidad', 'Comprobaciones automáticas y, en modo supervisado, la revisión de Raúl.', 'IDLE', 'Modo supervisado: nada se programa sin aprobación.', array['Comprobaciones locales','Raúl']::text[]),
+    ('prog', 4, 'Programación', 'Programa en Publer con 6 h de margen como mínimo; la API oficial queda de respaldo.', 'IDLE', 'Publer necesita el PC encendido, la pantalla activa y Chrome sin minimizar.', array['Publer · Chrome','API oficial (respaldo)','Manual con LEEME']::text[]),
+    ('pub', 5, 'Publicación', 'Confirma lo publicado y deja listo lo que Raúl envía a mano.', 'IDLE', 'Claude no envía mensajes directos ni correos.', array['Publer','Instagram · Raúl','Gmail · Raúl']::text[]),
+    ('ana', 6, 'Análisis de resultados', 'Lee las métricas disponibles. Son opcionales: si no hay dato, se muestra «Sin dato».', 'IDLE', 'Una cifra aislada no cambia la estrategia.', array['API de Instagram (opcional)','Claude Haiku','Historico_promociones.xlsx']::text[]),
+    ('ret', 7, 'Retroalimentación', 'Respuestas, balances y propuestas que vuelven a la investigación.', 'IDLE', 'Los cambios de estrategia quedan registrados.', array['Claude Haiku','Claude Opus']::text[]);

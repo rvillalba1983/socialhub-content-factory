@@ -4,7 +4,7 @@ import com.socialhub.api.FactoryApi;
 import com.socialhub.api.model.FactoryDto;
 import com.socialhub.armory.ArmoryQueries;
 import com.socialhub.armory.adapter.in.web.ArmoryWebMapper;
-import com.socialhub.platform.SocialHubProperties;
+import com.socialhub.platform.AppModeHolder;
 import com.socialhub.production.adapter.in.web.ProductionView;
 import com.socialhub.promotion.PromotionQueries;
 import com.socialhub.promotion.adapter.in.web.PromotionWebMapper;
@@ -28,7 +28,7 @@ class FactoryController implements FactoryApi {
     private final PublicationWebMapper publicationMapper;
     private final ArmoryQueries armory;
     private final ArmoryWebMapper armoryMapper;
-    private final SocialHubProperties properties;
+    private final AppModeHolder mode;
     private final Clock clock;
 
     @Override
@@ -37,7 +37,7 @@ class FactoryController implements FactoryApi {
         var snapshot = production.snapshot();
         return ResponseEntity.ok(new FactoryDto(
                 OffsetDateTime.now(clock),
-                properties.demo().enabled(),
+                mode.isDemo(),
                 promotionMapper.toBrandDtos(promotions.brands()),
                 promotionMapper.toPromotionDtos(promotions.promotions()),
                 snapshot.stations(),
