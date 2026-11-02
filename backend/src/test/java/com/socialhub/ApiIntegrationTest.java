@@ -8,6 +8,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import jakarta.persistence.EntityManagerFactory;
+import org.hibernate.SessionFactory;
+import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
@@ -26,7 +29,8 @@ import org.springframework.test.web.servlet.ResultActions;
         "socialhub.postgres.port=0",
         "socialhub.postgres.runtime-dir=target/pg-runtime",
         "socialhub.demo.simulate=false",
-        "socialhub.operations.flush-millis=200"
+        "socialhub.operations.flush-millis=200",
+        "spring.jpa.properties.hibernate.generate_statistics=true"
 })
 @AutoConfigureMockMvc
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
@@ -36,6 +40,7 @@ class ApiIntegrationTest {
 
     @Autowired MockMvc mvc;
     @Autowired JdbcClient jdbc;
+    @Autowired EntityManagerFactory entityManagerFactory;
 
     @Test
     @Order(1)
@@ -67,6 +72,16 @@ class ApiIntegrationTest {
                 .andExpect(jsonPath("$.tasks[?(@.id == 't11')].available_commands[*].type").value(hasItem("APPROVE")))
                 .andExpect(jsonPath("$.armory_items").isNotEmpty());
         assertThat(count("select count(*) from publication where status = 'PUBLISHED' and confirmation is null")).isZero();
+    }
+
+    @Test
+    @Order(2)
+    void theWholeRingIsReadWithAFewQueries() throws Exception {
+        Statistics stats = entityManagerFactory.unwrap(SessionFactory.class).getStatistics();
+        stats.clear();
+        mvc.perform(get("/api/factory")).andExpect(status().isOk());
+        // Sin N+1: las colecciones se cargan por lotes, no una consulta por tarea o promoción
+        assertThat(stats.getPrepareStatementCount()).isLessThanOrEqualTo(20);
     }
 
     @Test
