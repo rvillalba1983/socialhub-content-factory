@@ -24,6 +24,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/app-mode": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getAppMode"];
+        /**
+         * Cambia de modo
+         * @description Las peticiones siguientes usan la base de datos del nuevo modo. Se recuerda al reiniciar.
+         */
+        put: operations["changeAppMode"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/brands": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listBrands"];
+        put?: never;
+        post: operations["createBrand"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/brands/{brand_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["updateBrand"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/promotions": {
         parameters: {
             query?: never;
@@ -33,7 +85,7 @@ export interface paths {
         };
         get: operations["listPromotions"];
         put?: never;
-        post?: never;
+        post: operations["createPromotion"];
         delete?: never;
         options?: never;
         head?: never;
@@ -48,7 +100,7 @@ export interface paths {
             cookie?: never;
         };
         get: operations["getPromotion"];
-        put?: never;
+        put: operations["updatePromotion"];
         post?: never;
         delete?: never;
         options?: never;
@@ -273,6 +325,48 @@ export interface components {
             handle: string;
             color: string;
             demo: boolean;
+        };
+        /** @enum {string} */
+        AppMode: "REAL" | "DEMO";
+        AppModeState: {
+            mode: components["schemas"]["AppMode"];
+            /** @description El modo demo está permitido en esta instalación */
+            demo_available: boolean;
+        };
+        AppModeChange: {
+            mode: components["schemas"]["AppMode"];
+        };
+        BrandList: {
+            items: components["schemas"]["Brand"][];
+        };
+        BrandInput: {
+            name: string;
+            /** @example @elde_lito */
+            handle: string;
+            color: string;
+        };
+        /** @description Datos de una promoción al darla de alta o editarla. El identificador lo asigna SocialHub. */
+        PromotionInput: {
+            brand_id: string;
+            name: string;
+            description?: string;
+            scope?: string;
+            cadence?: string;
+            /** Format: date */
+            starts_on: string;
+            /** Format: date */
+            ends_on: string;
+            /** @enum {string} */
+            status: "PLANNED" | "ACTIVE" | "PAUSED" | "FINISHED";
+            metrics_source?: string;
+            goals?: string[];
+            rules?: string[];
+            human_todos?: string[];
+            milestones?: components["schemas"]["Milestone"][];
+            resources?: components["schemas"]["PromotionResource"][];
+            automations?: components["schemas"]["Automation"][];
+            routes?: components["schemas"]["PublishingRoute"][];
+            settings?: components["schemas"]["Setting"][];
         };
         PromotionList: {
             items: components["schemas"]["Promotion"][];
@@ -529,6 +623,7 @@ export interface components {
         TaskId: string;
         Offset: number;
         Limit: number;
+        BrandId: string;
         /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
         RequestGuard: "1";
     };
@@ -548,6 +643,12 @@ export type OperationOutcome = components['schemas']['OperationOutcome'];
 export type Factory = components['schemas']['Factory'];
 export type Alert = components['schemas']['Alert'];
 export type Brand = components['schemas']['Brand'];
+export type AppMode = components['schemas']['AppMode'];
+export type AppModeState = components['schemas']['AppModeState'];
+export type AppModeChange = components['schemas']['AppModeChange'];
+export type BrandList = components['schemas']['BrandList'];
+export type BrandInput = components['schemas']['BrandInput'];
+export type PromotionInput = components['schemas']['PromotionInput'];
 export type PromotionList = components['schemas']['PromotionList'];
 export type Promotion = components['schemas']['Promotion'];
 export type Milestone = components['schemas']['Milestone'];
@@ -579,6 +680,7 @@ export type ParameterPromotionId = components['parameters']['PromotionId'];
 export type ParameterTaskId = components['parameters']['TaskId'];
 export type ParameterOffset = components['parameters']['Offset'];
 export type ParameterLimit = components['parameters']['Limit'];
+export type ParameterBrandId = components['parameters']['BrandId'];
 export type ParameterRequestGuard = components['parameters']['RequestGuard'];
 export type $defs = Record<string, never>;
 export interface operations {
@@ -603,6 +705,138 @@ export interface operations {
             default: components["responses"]["Problem"];
         };
     };
+    getAppMode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Modo actual */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppModeState"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    changeAppMode: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppModeChange"];
+            };
+        };
+        responses: {
+            /** @description Modo después del cambio */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppModeState"];
+                };
+            };
+            409: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    listBrands: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Marcas */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrandList"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    createBrand: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BrandInput"];
+            };
+        };
+        responses: {
+            /** @description Marca creada */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Brand"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    updateBrand: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path: {
+                brand_id: components["parameters"]["BrandId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BrandInput"];
+            };
+        };
+        responses: {
+            /** @description Marca actualizada */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Brand"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
     listPromotions: {
         parameters: {
             query?: never;
@@ -621,6 +855,35 @@ export interface operations {
                     "application/json": components["schemas"]["PromotionList"];
                 };
             };
+            default: components["responses"]["Problem"];
+        };
+    };
+    createPromotion: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PromotionInput"];
+            };
+        };
+        responses: {
+            /** @description Promoción creada */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Promotion"];
+                };
+            };
+            400: components["responses"]["Problem"];
             default: components["responses"]["Problem"];
         };
     };
@@ -644,6 +907,38 @@ export interface operations {
                     "application/json": components["schemas"]["Promotion"];
                 };
             };
+            404: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    updatePromotion: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path: {
+                promotion_id: components["parameters"]["PromotionId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PromotionInput"];
+            };
+        };
+        responses: {
+            /** @description Promoción actualizada */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Promotion"];
+                };
+            };
+            400: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
             default: components["responses"]["Problem"];
         };

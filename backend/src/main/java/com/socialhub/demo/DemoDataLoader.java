@@ -1,6 +1,8 @@
 package com.socialhub.demo;
 
+import com.socialhub.platform.AppMode;
 import com.socialhub.platform.SocialHubProperties;
+import com.socialhub.platform.postgres.ModeDataSources;
 import java.io.IOException;
 import java.io.InputStream;
 import java.sql.Timestamp;
@@ -19,13 +21,13 @@ import org.springframework.core.annotation.Order;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * Carga los datos de ejemplo (marcados con is_demo) la primera vez que arranca SocialHub con la base de
- * datos vacía. Las fechas se colocan alrededor del día de la carga.
+ * Carga los datos de ejemplo (marcados con is_demo) en la base de datos del modo demo, la primera vez que está vacía.
+ * Nunca toca la base de datos del modo real. Las fechas se colocan alrededor del día de la carga.
  */
 @Component
 @Order(0)
@@ -40,10 +42,10 @@ class DemoDataLoader implements ApplicationRunner {
     private final Clock clock;
     private final TransactionTemplate tx;
 
-    DemoDataLoader(JdbcClient jdbc, ObjectMapper mapper, SocialHubProperties properties, Clock clock,
-                   PlatformTransactionManager transactions) {
-        this.tx = new TransactionTemplate(transactions);
-        this.jdbc = jdbc;
+    DemoDataLoader(ModeDataSources databases, ObjectMapper mapper, SocialHubProperties properties, Clock clock) {
+        var demo = databases.of(AppMode.DEMO);
+        this.tx = new TransactionTemplate(new DataSourceTransactionManager(demo));
+        this.jdbc = JdbcClient.create(demo);
         this.mapper = mapper;
         this.properties = properties;
         this.clock = clock;
@@ -77,11 +79,8 @@ class DemoDataLoader implements ApplicationRunner {
         }
         for (int i = 0; i < data.stations().size(); i++) {
             var s = data.stations().get(i);
-            jdbc.sql("""
-                    insert into station (id, position, name, description, status, note, limit_note, tools)
-                    values (?, ?, ?, ?, ?, ?, ?, ?)
-                    """).params(s.id(), i, s.name(), s.description(), s.status(), s.note(), s.limit(),
-                    array(s.tools())).update();
+            // Las estaciones ya existen (migración V2): se les pone el estado del ejemplo
+            jdbc.sql("update station set status = ?, note = ? where id = ?").params(s.status(), s.note(), s.id()).update();
         }
         for (var t : data.tasks()) {
             insertTask(t, now);

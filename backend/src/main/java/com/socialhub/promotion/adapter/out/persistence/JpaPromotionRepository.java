@@ -33,6 +33,43 @@ class JpaPromotionRepository implements PromotionRepository {
     }
 
     @Override
+    public Optional<Brand> brand(String id) {
+        return brands.findById(id).map(mapper::toDomain);
+    }
+
+    @Override
+    public boolean brandIdTaken(String id) { return brands.existsById(id); }
+
+    @Override
+    public boolean promotionIdTaken(String id) { return promotions.existsById(id); }
+
+    @Override
+    public Brand save(Brand brand) {
+        var existing = brands.findById(brand.id());
+        BrandEntity entity = existing.orElseGet(() -> {
+            BrandEntity created = new BrandEntity();
+            created.setPosition(brands.nextPosition());
+            return created;
+        });
+        mapper.update(brand, entity);
+        if (existing.isEmpty()) brands.save(entity);
+        return brand;
+    }
+
+    @Override
+    public Promotion save(Promotion promotion) {
+        var existing = promotions.findById(promotion.id());
+        PromotionEntity entity = existing.orElseGet(() -> {
+            PromotionEntity created = new PromotionEntity();
+            created.setPosition(promotions.nextPosition());
+            return created;
+        });
+        mapper.update(promotion, entity);
+        if (existing.isEmpty()) promotions.save(entity);
+        return promotion;
+    }
+
+    @Override
     public List<String> commonRules() {
         return rules.findAllByOrderByPosition().stream().map(CommonRuleEntity::getText).toList();
     }

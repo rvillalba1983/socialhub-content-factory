@@ -49,7 +49,16 @@ Se abre en http://localhost:8686. Al arrancar:
 1. Descomprime PostgreSQL 18.6 incluido. Los binarios de desarrollo vienen de `io.zonky.test.postgres`; el instalador traerá los suyos.
 2. Crea la base de datos en la carpeta de datos y la arranca con `pg_ctl`, escuchando solo en `127.0.0.1`.
 3. Aplica las migraciones de Flyway. Hibernate solo valida que el esquema coincide.
-4. Si la base de datos está vacía, carga los datos de ejemplo.
+4. Si la base de datos del modo demo está vacía, carga en ella los datos de ejemplo.
+
+## Modos real y demo
+
+- Cada modo tiene su propia base de datos en el mismo PostgreSQL incluido: `socialhub` (real) y `socialhub_demo` (demo). Nunca se mezclan.
+- Flyway migra las dos al arrancar.
+- El modo se elige desde la cabecera de la app (`PUT /api/app-mode`) y se recuerda en el archivo `mode` de la carpeta de datos.
+- La primera vez se usa `socialhub.default-mode`, que por defecto es `REAL`.
+- En modo real solo existen las 8 estaciones (migración `V2`). Las marcas y las promociones se dan de alta desde la app.
+- El simulador solo mueve las tareas en modo demo.
 
 Al parar SocialHub, también se para PostgreSQL.
 
@@ -118,6 +127,9 @@ El contrato completo está en `contracts/openapi.yaml`. Sigue las guías REST de
 | Método | Ruta | Uso |
 |---|---|---|
 | GET | `/api/factory` | Todo el anillo: estaciones, tareas, promociones, publicaciones, armería y avisos |
+| GET · PUT | `/api/app-mode` | Modo real o demo: `{"mode":"DEMO"}` |
+| GET · POST | `/api/brands` · PUT `/api/brands/{brand_id}` | Marcas: alta y edición |
+| POST | `/api/promotions` · PUT `/api/promotions/{promotion_id}` | Promociones: alta y edición |
 | GET | `/api/promotions` · `/api/promotions/{promotion_id}` | Promociones |
 | GET | `/api/promotions/{promotion_id}/publications` | Calendario, con filtros `status`, `platform`, `from`, `to`, `flagged` y paginación |
 | GET | `/api/tasks` · `/api/tasks/{task_id}` | Tareas, con filtros `station_id`, `promotion_id`, `status` y `human` |

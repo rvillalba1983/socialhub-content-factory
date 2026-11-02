@@ -1,6 +1,6 @@
 import { Icon, StationIcon } from './icons';
 import {
-  PUBLICATION_STATUS, STATUS, alertTone, byPriority, isoDay, parseDay, shortDate, hhmm, statusClass,
+  PROMOTION_STATUS, PUBLICATION_STATUS, STATUS, alertTone, byPriority, isoDay, parseDay, shortDate, hhmm, statusClass,
   type Brand, type Promotion, type PublicationStatus, type Snapshot, type Station, type Task, type TaskCommandType, type TaskStatus,
 } from './model';
 import { AgentChip, BrandTag, Dot, Pill, StepState, prefersReducedMotion, stepClass } from './ui';
@@ -42,6 +42,7 @@ export interface WorldProps {
   onTaskAction: (task: Task, command: TaskCommandType) => void;
   onArmory: (id: string) => void;
   onPromotion: (id: string) => void;
+  onRegister: () => void;
 }
 
 /** Vista de una estación: si alguna tarea tiene error o la estación está bloqueada, pide atención. */
@@ -50,7 +51,7 @@ export function stationVisual(s: Station) {
   return { alert, running: s.counts.running > 0 && !s.paused } as const;
 }
 
-export function World({ data, sel, onStation, onTask, onTaskAction, onArmory, onPromotion }: WorldProps) {
+export function World({ data, sel, onStation, onTask, onTaskAction, onArmory, onPromotion, onRegister }: WorldProps) {
   const brands = new Map(data.brands.map(b => [b.id, b]));
   const brandOfPromotion = (pid?: string | null) => {
     const p = data.promotions.find(x => x.id === pid);
@@ -73,12 +74,21 @@ export function World({ data, sel, onStation, onTask, onTaskAction, onArmory, on
         {data.promotions.map(p => (
           <PromotionCard key={p.id} p={p} brand={brands.get(p.brand_id)} data={data} onOpen={() => onPromotion(p.id)} />
         ))}
+        {data.promotions.length === 0 && (
+          <article className="promo welcome">
+            <span className="eyebrow">Empieza aquí</span>
+            <h2>{data.brands.length === 0 ? 'Da de alta tu primera marca' : 'Da de alta tu primera promoción'}</h2>
+            <p className="src">Cada promoción tendrá aquí su tarjeta y su centro de control. Las estaciones del anillo ya están listas.</p>
+            <button className="open-cc" onClick={e => { e.stopPropagation(); onRegister(); }}>Marcas y promociones →</button>
+          </article>
+        )}
         <AttentionCard data={data} onStation={onStation} onTask={onTask} />
       </div>
       <section className="res" style={{ left: TR.x1 + 140, top: TR.y0 - 300, width: 380 }} aria-label="Agentes y herramientas">
         <h2>Agentes y herramientas</h2>
         <span className="sub">Local primero · solo gratuitas · 0 € de gasto</span>
         <div className="res-grid">
+          {data.armory_items.length === 0 && <p className="src">Todavía no hay herramientas registradas. Llegan con el motor de tareas.</p>}
           {data.armory_items.map(r => (
             <button key={r.id} className="rc" onClick={() => onArmory(r.id)}>
               <Dot s={r.status} /><b>{r.name}</b>
@@ -155,7 +165,7 @@ function PromotionCard({ p, brand, data, onOpen }: { p: Promotion; brand?: Brand
   return (
     <article className="promo" style={{ ['--pc' as string]: brand?.color }} tabIndex={0} onClick={onOpen}
       onKeyDown={e => e.key === 'Enter' && onOpen()} aria-label={`Abrir el centro de control de ${p.name}`}>
-      <div className="p-top"><span className="eyebrow">{brand?.name} · {brand?.handle}</span><Pill s="OK" label="Activa" /></div>
+      <div className="p-top"><span className="eyebrow">{brand?.name} · {brand?.handle}</span><Pill s={PROMOTION_STATUS[p.status].s} label={PROMOTION_STATUS[p.status].label} /></div>
       <h2>{p.name}</h2>
       <div className="sub">{phase}<span className="min-2"> · {shortDate(p.starts_on)} – {shortDate(p.ends_on)}</span></div>
       <div className="timeline" aria-hidden="true">

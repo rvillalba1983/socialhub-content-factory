@@ -1,5 +1,6 @@
 package com.socialhub.platform.postgres;
 
+import com.socialhub.platform.AppMode;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.ServerSocket;
@@ -9,6 +10,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import com.socialhub.platform.observability.ExternalCalls;
@@ -23,7 +25,9 @@ public class EmbeddedPostgres {
 
     private static final Logger log = LoggerFactory.getLogger(EmbeddedPostgres.class);
     public static final String USER = "socialhub";
-    public static final String DATABASE = "socialhub";
+    /** Una base de datos por modo (real y demo), en el mismo servidor. */
+    public static final List<String> DATABASES = Arrays.stream(AppMode.values())
+            .map(AppMode::database).toList();
 
     private final PostgresBinaries binaries;
     private final Path dataDir;
@@ -83,8 +87,13 @@ public class EmbeddedPostgres {
     public boolean isRunning() { return running; }
     public int port() { return port; }
 
+    public String jdbcUrl(String database) {
+        return "jdbc:postgresql://127.0.0.1:" + port + "/" + database;
+    }
+
+    /** Base de datos del modo real. */
     public String jdbcUrl() {
-        return "jdbc:postgresql://127.0.0.1:" + port + "/" + DATABASE;
+        return jdbcUrl(AppMode.REAL.database());
     }
 
     private void initdb() {
@@ -119,10 +128,12 @@ public class EmbeddedPostgres {
         String url = "jdbc:postgresql://127.0.0.1:" + port + "/postgres";
         try (Connection c = DriverManager.getConnection(url, USER, "");
              var check = c.prepareStatement("select 1 from pg_database where datname = ?")) {
-            check.setString(1, DATABASE);
-            if (!check.executeQuery().next()) {
-                try (var create = c.createStatement()) {
-                    create.execute("create database " + DATABASE);
+            for (String database : DATABASES) {
+                check.setString(1, database);
+                if (!check.executeQuery().next()) {
+                    try (var create = c.createStatement()) {
+                        create.execute("create database " + database);
+                    }
                 }
             }
         } catch (SQLException e) {

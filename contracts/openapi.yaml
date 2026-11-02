@@ -24,6 +24,9 @@ servers:
 tags:
   - name: Factory
     description: Vista completa del anillo de producción
+  - name: AppMode
+    description: Modo real o demo. Cada modo tiene su propia base de datos
+  - name: Brands
   - name: Promotions
   - name: Publications
   - name: Tasks
@@ -48,6 +51,90 @@ paths:
               schema: { $ref: "#/components/schemas/Factory" }
         default: { $ref: "#/components/responses/Problem" }
 
+  /api/app-mode:
+    get:
+      tags: [AppMode]
+      operationId: getAppMode
+      responses:
+        "200":
+          description: Modo actual
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AppModeState" }
+        default: { $ref: "#/components/responses/Problem" }
+    put:
+      tags: [AppMode]
+      operationId: changeAppMode
+      summary: Cambia de modo
+      description: Las peticiones siguientes usan la base de datos del nuevo modo. Se recuerda al reiniciar.
+      parameters:
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AppModeChange" }
+      responses:
+        "200":
+          description: Modo después del cambio
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AppModeState" }
+        "409": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/brands:
+    get:
+      tags: [Brands]
+      operationId: listBrands
+      responses:
+        "200":
+          description: Marcas
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BrandList" }
+        default: { $ref: "#/components/responses/Problem" }
+    post:
+      tags: [Brands]
+      operationId: createBrand
+      parameters:
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BrandInput" }
+      responses:
+        "201":
+          description: Marca creada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Brand" }
+        "400": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/brands/{brand_id}:
+    put:
+      tags: [Brands]
+      operationId: updateBrand
+      parameters:
+        - $ref: "#/components/parameters/BrandId"
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BrandInput" }
+      responses:
+        "200":
+          description: Marca actualizada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Brand" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
   /api/promotions:
     get:
       tags: [Promotions]
@@ -58,6 +145,24 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PromotionList" }
+        default: { $ref: "#/components/responses/Problem" }
+    post:
+      tags: [Promotions]
+      operationId: createPromotion
+      parameters:
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PromotionInput" }
+      responses:
+        "201":
+          description: Promoción creada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Promotion" }
+        "400": { $ref: "#/components/responses/Problem" }
         default: { $ref: "#/components/responses/Problem" }
 
   /api/promotions/{promotion_id}:
@@ -72,6 +177,26 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Promotion" }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+    put:
+      tags: [Promotions]
+      operationId: updatePromotion
+      parameters:
+        - $ref: "#/components/parameters/PromotionId"
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PromotionInput" }
+      responses:
+        "200":
+          description: Promoción actualizada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Promotion" }
+        "400": { $ref: "#/components/responses/Problem" }
         "404": { $ref: "#/components/responses/Problem" }
         default: { $ref: "#/components/responses/Problem" }
 
@@ -294,6 +419,11 @@ components:
       name: limit
       in: query
       schema: { type: integer, format: int32, minimum: 1, maximum: 500, default: 100 }
+    BrandId:
+      name: brand_id
+      in: path
+      required: true
+      schema: { type: string }
     RequestGuard:
       name: X-SocialHub-Request
       in: header
@@ -390,6 +520,60 @@ components:
         handle: { type: string }
         color: { type: string, pattern: "^#[0-9A-Fa-f]{6}$" }
         demo: { type: boolean }
+
+    AppMode:
+      type: string
+      enum: [REAL, DEMO]
+
+    AppModeState:
+      type: object
+      required: [mode, demo_available]
+      properties:
+        mode: { $ref: "#/components/schemas/AppMode" }
+        demo_available: { type: boolean, description: El modo demo está permitido en esta instalación }
+
+    AppModeChange:
+      type: object
+      required: [mode]
+      properties:
+        mode: { $ref: "#/components/schemas/AppMode" }
+
+    BrandList:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/Brand" } }
+
+    BrandInput:
+      type: object
+      required: [name, handle, color]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+        handle: { type: string, minLength: 1, maxLength: 80, example: "@elde_lito" }
+        color: { type: string, pattern: "^#[0-9A-Fa-f]{6}$" }
+
+    PromotionInput:
+      type: object
+      description: Datos de una promoción al darla de alta o editarla. El identificador lo asigna SocialHub.
+      required: [brand_id, name, starts_on, ends_on, status]
+      properties:
+        brand_id: { type: string }
+        name: { type: string, minLength: 1, maxLength: 120 }
+        description: { type: string, maxLength: 2000 }
+        scope: { type: string, maxLength: 2000 }
+        cadence: { type: string, maxLength: 500 }
+        starts_on: { type: string, format: date }
+        ends_on: { type: string, format: date }
+        status: { type: string, enum: [PLANNED, ACTIVE, PAUSED, FINISHED] }
+        metrics_source: { type: string, maxLength: 500 }
+        goals: { type: array, maxItems: 50, items: { type: string, maxLength: 500 } }
+        rules: { type: array, maxItems: 50, items: { type: string, maxLength: 500 } }
+        human_todos: { type: array, maxItems: 50, items: { type: string, maxLength: 500 } }
+        milestones: { type: array, maxItems: 100, items: { $ref: "#/components/schemas/Milestone" } }
+        resources: { type: array, maxItems: 100, items: { $ref: "#/components/schemas/PromotionResource" } }
+        automations: { type: array, maxItems: 50, items: { $ref: "#/components/schemas/Automation" } }
+        routes: { type: array, maxItems: 20, items: { $ref: "#/components/schemas/PublishingRoute" } }
+        settings: { type: array, maxItems: 100, items: { $ref: "#/components/schemas/Setting" } }
 
     PromotionList:
       type: object

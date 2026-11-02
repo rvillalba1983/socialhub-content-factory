@@ -5,7 +5,8 @@ spring:
     virtual:
       enabled: true
   flyway:
-    locations: classpath:db/migration
+    # Las migraciones las aplica SocialHub a las dos bases de datos (real y demo); ver DatabaseConfiguration
+    enabled: false
   jpa:
     # Las consultas se hacen en los servicios; nunca al pintar la respuesta
     open-in-view: false
@@ -35,6 +36,8 @@ server:
     include-message: always
 
 socialhub:
+  # Modo con el que arranca la primera vez; después se recuerda el último elegido (archivo «mode»)
+  default-mode: REAL
   # Vacío = carpeta estándar del usuario (%LOCALAPPDATA%\SocialHub, ~/Library/Application Support/SocialHub…)
   data-dir: ""
   postgres:
