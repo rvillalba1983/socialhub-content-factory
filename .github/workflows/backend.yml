@@ -31,6 +31,10 @@ jobs:
           distribution: temurin
           java-version: "25"
           cache: maven
+      # En Linux, el FFmpeg incluido usa bibliotecas del sistema (dispositivos de audio y vídeo).
+      # En Windows y macOS no hace falta instalar nada.
+      - name: Bibliotecas del sistema para FFmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq libxcb1 libxcb-shm0 libasound2t64 libpulse0 libva2 libva-drm2
       - run: mvn -B verify
       - name: Informes de pruebas
         if: failure()
