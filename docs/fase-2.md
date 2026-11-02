@@ -13,9 +13,9 @@ Estado: **plan aprobado por respuestas de Raúl** · 26 oct 2026
 | 5 | PostgreSQL | Gestor propio: SocialHub arranca y para PostgreSQL con `pg_ctl`, como en la prueba validada. Los binarios vienen con el instalador; en desarrollo y CI se descargan automáticamente según el sistema |
 | 6 | Carpeta de datos | `%LOCALAPPDATA%\SocialHub` (Windows) y `~/Library/Application Support/SocialHub` (macOS). Configurable |
 | 7 | Tiempo real | Server-Sent Events: el anillo se actualiza solo |
-| 8 | Acceso | Contraseña local, aunque solo se escuche en `127.0.0.1` |
-| 9 | Creación de la contraseña | Se crea al abrir la app la primera vez. Se guarda como hash y la sesión dura 30 días en ese navegador |
-| 10 | Recuperación | Crear un archivo vacío `reset-password` en la carpeta de datos y reiniciar |
+| 8 | Acceso | ~~Contraseña local~~ → **sin contraseña** desde el 1 nov: solo `127.0.0.1`, comprobación de Host y cabecera `X-SocialHub-Request` |
+| 9 | Creación de la contraseña | ~~Anulada el 1 nov~~ |
+| 10 | Recuperación | ~~Anulada el 1 nov~~ |
 | 11 | Dirección | `http://localhost:8686`, configurable. PostgreSQL usa otro puerto interno |
 
 Pendiente: compilar en el entorno de Claude. Hoy tiene cortado internet salvo GitHub (Maven Central, npm y la descarga de Java 25 incluidos). Raúl lo desbloqueará desde el ordenador; hasta entonces no se escribe código.
@@ -30,20 +30,20 @@ Pendiente: compilar en el entorno de Claude. Hoy tiene cortado internet salvo Gi
 | 15 | Movimiento | Simulador de tareas solo en modo demo, indicado claramente |
 | 16 | Git | Rama y pull request por bloque; Actions compila y prueba; se fusiona a `main` con el OK de Raúl |
 
-## Modelo de datos del incremento (Flyway `V1__…`)
+## Modelo de datos del incremento (Flyway `V1__core_model.sql`)
 
-- `brand`, `brand_configuration`
-- `promotion`, `promotion_goal`, `promotion_policy`, `promotion_milestone`
-- `station`: las 8 estaciones, con estado propio, independiente del de sus tareas
-- `task`, `task_dependency`, `task_event`, `task_step`, `task_check`
-- `publication`, `publication_attempt`
-- `local_tool`, `local_tool_capability`
-- `ai_provider`, `ai_model`, `ai_agent`
-- `audit_event`
-- `app_user_credential`: el hash de la contraseña local, `app_session`
-- `demo_marker` o columna `is_demo`: todo dato de demostración queda identificado
+Rehecho tras la revisión de la PR #1 (ver `decisiones.md`, 1 y 2 de noviembre):
 
-Los datos de ejemplo están en `backend/src/main/resources/demo/demo-data.json`. Los carga `DemoDataLoader` solo si la base de datos está vacía, con las fechas colocadas alrededor del día de la carga. Se hace en Java y no como migración de Flyway porque las fechas son relativas y el calendario se genera como en el prototipo.
+- `brand`, `promotion` (objetivos, normas y tareas de Raúl en columnas `text[]`) y `common_rule`.
+- Colecciones de la promoción: `promotion_milestone`, `promotion_resource`, `promotion_automation`, `promotion_route` y `promotion_setting`.
+- `station`: las 8 estaciones, con estado propio, independiente del de sus tareas.
+- `task` (entradas en `text[]`), `task_step`, `task_check`, `task_dependency` y `task_event` (historial, solo se añade).
+- `publication`. Una restricción impide que esté «publicada» sin confirmación.
+- `armory_item`: agentes, herramientas, servicios y dispositivos en una sola tabla.
+- `external_operation`: registro de operaciones externas.
+- Auditoría de Hibernate Envers: `revinfo`, `task_aud`, `station_aud` y `publication_aud`.
+- Los datos de ejemplo llevan `is_demo = true`.
+- La contraseña y las sesiones se han quitado (decisión del 1 de noviembre).
 
 ## Máquinas de estados (validadas en el backend)
 
@@ -54,14 +54,9 @@ Los datos de ejemplo están en `backend/src/main/resources/demo/demo-data.json`.
 - **Publicación:** idea → propuesta → en producción → borrador → pendiente de revisión → aprobada → programada → publicando → publicada | error de publicación | cancelada.
   - No pasa a «publicada» sin confirmación externa.
 
-## API (v1, JSON)
+## API
 
-- `GET /api/v1/factory`: estado del anillo (estaciones, contadores, avisos).
-- `GET /api/v1/stations/{id}`, `GET /api/v1/tasks/{id}`, `POST /api/v1/tasks/{id}/actions/{action}`. Solo se aceptan las acciones válidas para el estado actual.
-- `GET /api/v1/promotions/{id}` con calendario, publicaciones, recursos, automatización y configuración.
-- `GET /api/v1/tools`, `GET /api/v1/agents`.
-- `GET /api/v1/events`: flujo SSE de cambios.
-- `POST /api/v1/auth/setup`, `POST /api/v1/auth/login`, `POST /api/v1/auth/logout`.
+API first: `contracts/openapi.yaml` es la fuente de la verdad, según las guías REST de Zalando. La tabla de rutas está en `backend/README.md`.
 
 ## Entregables y criterios de aceptación
 
@@ -72,7 +67,6 @@ Los datos de ejemplo están en `backend/src/main/resources/demo/demo-data.json`.
    - Migraciones.
 2. SocialHub arranca en Windows:
    - Inicia PostgreSQL, aplica las migraciones y sirve la web en `localhost:8686`.
-   - Pide crear la contraseña.
 3. El anillo en React se ve como la propuesta moderna, con los datos de la base de datos marcados como ejemplo.
 4. Las acciones cambian el estado en la base de datos y el anillo se actualiza solo.
 5. Al reiniciar SocialHub, los estados se conservan.
