@@ -10,6 +10,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 /** Comprueba un resultado de Claude contra {@code contracts/task-result.v1.schema.json} (copiado al classpath). */
 @Component
@@ -20,8 +22,11 @@ class ResultValidator {
     ResultValidator() throws IOException {
         try (InputStream in = getClass().getResourceAsStream("/contracts/task-result.v1.schema.json")) {
             if (in == null) throw new IllegalStateException("Falta contracts/task-result.v1.schema.json en el classpath");
-            String text = new String(in.readAllBytes(), StandardCharsets.UTF_8);
-            this.schema = SchemaRegistry.withDefaultDialect(SpecificationVersion.DRAFT_2020_12).getSchema(text);
+            // El «$id» del contrato («socialhub.task-result.v1») es un nombre, no una URI: la librería lo rechaza como
+            // identificador, así que se quita al cargarlo (no cambia ninguna regla de validación)
+            ObjectNode node = (ObjectNode) JsonMapper.builder().build().readTree(new String(in.readAllBytes(), StandardCharsets.UTF_8));
+            node.remove("$id");
+            this.schema = SchemaRegistry.withDefaultDialect(SpecificationVersion.DRAFT_2020_12).getSchema(node.toString());
         }
     }
 

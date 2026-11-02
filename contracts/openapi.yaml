@@ -29,6 +29,8 @@ tags:
   - name: Brands
   - name: Promotions
   - name: Publications
+  - name: Claude
+    description: Encargos a Claude por la carpeta de Drive de cada marca (SocialHub no llama a la API de Claude)
   - name: Pieces
     description: Piezas de Instagram a partir de un spec.json (lo que hacía promo.py)
   - name: Tasks
@@ -492,6 +494,80 @@ paths:
         "409": { $ref: "#/components/responses/Problem" }
         default: { $ref: "#/components/responses/Problem" }
 
+  /api/ai/settings:
+    get:
+      tags: [Claude]
+      operationId: getAiSettings
+      summary: Límite diario y modelo de cada tipo de encargo
+      responses:
+        "200":
+          description: Ajustes y encargos enviados hoy
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AiSettings" }
+        default: { $ref: "#/components/responses/Problem" }
+    put:
+      tags: [Claude]
+      operationId: updateAiSettings
+      parameters:
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AiSettingsInput" }
+      responses:
+        "200":
+          description: Ajustes guardados
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AiSettings" }
+        "400": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/ai/requests:
+    get:
+      tags: [Claude]
+      operationId: listAiRequests
+      summary: Registro de envíos a Claude, del más reciente al más antiguo
+      description: Tokens y coste no figuran porque Claude Pro no los expone (se muestran como desconocidos).
+      parameters:
+        - $ref: "#/components/parameters/Offset"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Página de envíos
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AiRequestPage" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/promotions/{promotion_id}/ai-orders:
+    post:
+      tags: [Claude]
+      operationId: createAiOrder
+      summary: Encarga un trabajo a Claude
+      description: >
+        Crea la tarea en cola. Sale hacia «<Encargos de la marca>/para-claude» en el siguiente envío (cada 30 s), si no
+        se ha llegado al límite diario. La tarea programada «Encargos de SocialHub» deja el resultado en «de-claude».
+      parameters:
+        - $ref: "#/components/parameters/PromotionId"
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AiOrderInput" }
+      responses:
+        "201":
+          description: Encargo en cola
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AiOrder" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
   /api/tasks:
     get:
       tags: [Tasks]
@@ -805,6 +881,87 @@ components:
       required: [items]
       properties:
         items: { type: array, maxItems: 7, items: { $ref: "#/components/schemas/FolderInput" } }
+
+    AiRequestType:
+      description: Tipo de encargo a Claude
+      type: string
+      enum: [WEEKLY_SPEC, CAPTIONS, WEEKLY_BALANCE, RESEARCH]
+
+    AiTypeModel:
+      type: object
+      required: [type, label, model]
+      properties:
+        type: { $ref: "#/components/schemas/AiRequestType" }
+        label: { type: string }
+        model: { $ref: "#/components/schemas/AiModel" }
+
+    AiSettings:
+      type: object
+      required: [daily_limit, used_today, models]
+      properties:
+        daily_limit: { type: integer, format: int32 }
+        used_today: { type: integer, format: int64, description: "Encargos enviados hoy (día de España)" }
+        models: { type: array, items: { $ref: "#/components/schemas/AiTypeModel" } }
+
+    AiSettingsInput:
+      type: object
+      required: [daily_limit, models]
+      properties:
+        daily_limit: { type: integer, format: int32, minimum: 0, maximum: 100 }
+        models:
+          type: array
+          maxItems: 10
+          items:
+            type: object
+            required: [type, model]
+            properties:
+              type: { $ref: "#/components/schemas/AiRequestType" }
+              model: { $ref: "#/components/schemas/AiModel" }
+
+    AiOrderInput:
+      type: object
+      required: [type, goal]
+      properties:
+        type: { $ref: "#/components/schemas/AiRequestType" }
+        title: { type: string, maxLength: 120 }
+        goal: { type: string, minLength: 1, maxLength: 4000 }
+        inputs: { type: array, maxItems: 50, items: { type: string, maxLength: 2000 } }
+
+    AiOrder:
+      type: object
+      required: [task_id]
+      properties:
+        task_id: { type: string }
+
+    AiRequestPage:
+      type: object
+      required: [items, offset, limit, total]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/AiRequest" } }
+        offset: { type: integer, format: int32 }
+        limit: { type: integer, format: int32 }
+        total: { type: integer, format: int64 }
+
+    AiRequest:
+      type: object
+      required: [id, task_id, brand_id, type, model, attempt, status, request_path, sent_at]
+      properties:
+        id: { type: string, description: idempotencyKey del encargo }
+        task_id: { type: string }
+        brand_id: { type: string }
+        promotion_id: { type: string }
+        type: { $ref: "#/components/schemas/AiRequestType" }
+        model: { $ref: "#/components/schemas/AiModel" }
+        attempt: { type: integer, format: int32 }
+        status: { type: string, enum: [SENT, COMPLETED, FAILED, NEEDS_HUMAN, INVALID] }
+        request_path: { type: string }
+        result_path: { type: string }
+        sent_at: { type: string, format: date-time }
+        finished_at: { type: string, format: date-time }
+        duration_ms: { type: integer, format: int64 }
+        runtime: { type: string, description: "Agente que lo hizo, según el resultado" }
+        result_model: { type: string, description: Modelo que dice haber usado }
+        error: { type: string }
 
     Brand:
       type: object
