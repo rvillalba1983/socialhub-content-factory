@@ -10,7 +10,7 @@ import {
 } from './model';
 import { ArmoryPanel, StationPanel, TaskPanel } from './Panel';
 import { Dot, Pill, prefersReducedMotion } from './ui';
-import { World, type Selection } from './World';
+import { World, openAlert, type Selection } from './World';
 
 interface View { s: number; tx: number; ty: number }
 const clampS = (s: number) => Math.max(0.08, Math.min(3.5, s));
@@ -357,7 +357,7 @@ export function Factory({ data, live, onRefresh }: {
             <h4>Atención</h4>
             {byPriority(data.alerts).slice(0, 3).map(a => (
               <button key={a.kind + a.target_id} className={`aviso s-${alertTone(a.kind)}`} title={a.detail}
-                onClick={() => (a.target_type === 'TASK' ? goTask(a.target_id) : goStation(a.target_id))}>
+                onClick={() => openAlert(a, { onTask: goTask, onStation: goStation, onArmory: id => { setCc(null); setSel({ type: 'armory', id }); } })}>
                 <Dot s={a.kind} /><span><b>{a.title}</b> · {a.detail}</span>
               </button>
             ))}
@@ -385,7 +385,7 @@ export function Factory({ data, live, onRefresh }: {
         {cc && ccPromotion && (
           <ControlCenter key={cc.promo + cc.tab + (cc.hl ?? '')} p={ccPromotion} brand={brands.get(ccPromotion.brand_id)} data={data}
             initialTab={cc.tab} highlight={cc.hl} onClose={() => setCc(null)} onTask={goTask}
-            onEdit={() => { const id = cc.promo; setCc(null); setReg({ kind: 'promotion', id }); }} />
+            onEdit={() => { const id = cc.promo; setCc(null); setReg({ kind: 'promotion', id }); }} onMessage={say} />
         )}
         {ops && <ExternalOperations onClose={() => setOps(false)} />}
         {reg !== false && (

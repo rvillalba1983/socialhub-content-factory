@@ -200,3 +200,19 @@ Detalle en `docs/fase-3.md`.
 
 Detalle en `docs/fase-4-5.md`.
 
+## 2026-11-02 · Fase 4, bloque 1: carpetas, publicaciones y G: no disponible
+- **Permisos de las piezas:** los dan las carpetas con papel y las de «Recursos» de tipo Carpeta (Raúl: «Papeles y Recursos»).
+- **Carpeta vigilada:** la del papel «Encargos». Sin ese papel, se mantiene `SocialHub/encargos` dentro de la primera carpeta.
+- **Publicaciones nuevas:**
+  - Empiezan antes de la revisión: idea, propuesta, en producción o borrador.
+  - Su identificador es `<fecha>-<plataforma>`, numerado si se repite.
+- **Cambios de estado a mano:**
+  - Siguen el ciclo de vida.
+  - Programar exige al menos 6 horas de margen.
+  - Los estados de publicación (publicando, publicada, error) solo los pone SocialHub.
+- **Carpeta que falta:**
+  - Bloquea la tarea sin gastar intento.
+  - Cada 30 s se comprueba y la tarea vuelve sola a la cola.
+  - Drive aparece en la armería y, si falta algo, en los avisos (tipo `ARMORY`).
+- **Módulo `drive`:** comprueba las carpetas de Drive. No llama a la API de Google: solo mira las carpetas sincronizadas en el ordenador.
+

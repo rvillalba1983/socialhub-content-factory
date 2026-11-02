@@ -5,6 +5,8 @@ import {
   type Brand, type Promotion, type Publication, type PublicationStatus, type Snapshot,
 } from './model';
 import { AgentChip, Dot, Pill } from './ui';
+import { FolderRoles } from './Folders';
+import { PublicationEditor } from './PublicationEditor';
 
 const TABS: [string, string][] = [
   ['resumen', 'Resumen'], ['calendario', 'Calendario'], ['publicaciones', 'Publicaciones'], ['tareas', 'Tareas'],
@@ -16,10 +18,12 @@ const FILTERS: [string, string][] = [
   ['PUBLISHED', 'Publicadas'], ['issues', 'Con incidencia'],
 ];
 
-export function ControlCenter({ p, brand, data, initialTab, highlight, onClose, onTask, onEdit }: {
+export function ControlCenter({ p, brand, data, initialTab, highlight, onClose, onTask, onEdit, onMessage }: {
   p: Promotion; brand?: Brand; data: Snapshot; initialTab: string; highlight: string | null;
-  onClose: () => void; onTask: (id: string) => void; onEdit: () => void;
+  onClose: () => void; onTask: (id: string) => void; onEdit: () => void; onMessage?: (message: string) => void;
 }) {
+  /** Publicación abierta en el editor: su id, «new» para una nueva o null. */
+  const [editing, setEditing] = useState<string | null>(null);
   const [tab, setTab] = useState(initialTab);
   const [filter, setFilter] = useState('all');
   const [hl, setHl] = useState<string | null>(highlight);
@@ -125,9 +129,18 @@ export function ControlCenter({ p, brand, data, initialTab, highlight, onClose, 
             || x.status === filter);
           return (
             <>
-              <div className="filters">{FILTERS.map(([k, l]) => <button key={k} className={`chip${filter === k ? ' on' : ''}`} onClick={() => setFilter(k)}>{l}</button>)}</div>
+              <div className="row-between">
+                <div className="filters">{FILTERS.map(([k, l]) => <button key={k} className={`chip${filter === k ? ' on' : ''}`} onClick={() => setFilter(k)}>{l}</button>)}</div>
+                <button className="btn primary" onClick={() => setEditing('new')}>Nueva publicación</button>
+              </div>
+              {editing && (
+                <PublicationEditor key={editing} promotionId={p.id}
+                  publication={editing === 'new' ? undefined : pubs.find(x => x.id === editing)}
+                  onClose={() => setEditing(null)}
+                  onSaved={(saved, message) => { setEditing(saved.id); setHl(saved.id); onMessage?.(message); }} />
+              )}
               <div className="tbl-wrap"><table>
-                <thead><tr><th>Fecha</th><th>Plataforma</th><th>Tipo</th><th>Pieza</th><th>Estado</th><th>Vía</th><th>Observaciones</th></tr></thead>
+                <thead><tr><th>Fecha</th><th>Plataforma</th><th>Tipo</th><th>Pieza</th><th>Estado</th><th>Vía</th><th>Observaciones</th><th /></tr></thead>
                 <tbody>
                   {list.map(x => {
                     const st = PUBLICATION_STATUS[x.status];
@@ -137,10 +150,11 @@ export function ControlCenter({ p, brand, data, initialTab, highlight, onClose, 
                         <td>{x.platform === 'TIKTOK' ? 'TikTok' : 'Instagram'}</td><td>{x.type}</td><td>{x.title}</td>
                         <td><Pill s={st.s} label={st.label} /></td><td>{x.route}</td>
                         <td>{x.flag ?? x.note ?? ''}</td>
+                        <td><button className="btn" aria-label={`Editar ${x.title}`} onClick={() => setEditing(x.id)}>Editar</button></td>
                       </tr>
                     );
                   })}
-                  {list.length === 0 && <tr><td colSpan={7}>Ninguna publicación con este filtro.</td></tr>}
+                  {list.length === 0 && <tr><td colSpan={8}>Ninguna publicación con este filtro.</td></tr>}
                 </tbody>
               </table></div>
               <p className="src">Una publicación solo pasa a «Publicada» cuando se confirma en la plataforma o en la vista semanal de Publer, nunca porque se haya generado el archivo.</p>
@@ -164,7 +178,8 @@ export function ControlCenter({ p, brand, data, initialTab, highlight, onClose, 
           </table></div>
         )}
 
-        {tab === 'recursos' && (
+        {tab === 'recursos' && (<>
+          <FolderRoles owner="promotion" id={p.id} onSaved={onMessage} />
           <div className="grid2">
             <div className="card"><h3>Google Drive · cositas artisticas</h3>
               <div className="tbl-wrap"><table><tbody>
@@ -176,7 +191,7 @@ export function ControlCenter({ p, brand, data, initialTab, highlight, onClose, 
               {p.resources.filter(r => r.kind === 'DOC').map((r, i) => <div key={i}><b>{r.location}</b><p>{r.description}</p></div>)}
             </div>
           </div>
-        )}
+        </>)}
 
         {tab === 'automatizacion' && (
           <>

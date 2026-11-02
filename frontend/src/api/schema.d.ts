@@ -76,6 +76,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/brands/{brand_id}/folders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Papeles de carpeta de la marca */
+        get: operations["listBrandFolders"];
+        /**
+         * Sustituye los papeles de carpeta de la marca
+         * @description Las promociones de la marca los heredan, salvo los que cada una cambie.
+         */
+        put: operations["replaceBrandFolders"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/promotions": {
         parameters: {
             query?: never;
@@ -108,6 +129,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/promotions/{promotion_id}/folders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Papeles de carpeta en vigor de la promoción
+         * @description Los de la marca, salvo los que la promoción cambia. Indica si cada carpeta está accesible ahora.
+         */
+        get: operations["listPromotionFolders"];
+        /**
+         * Sustituye las excepciones de la promoción
+         * @description Solo los papeles que la promoción cambia respecto a su marca.
+         */
+        put: operations["replacePromotionFolders"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/promotions/{promotion_id}/piece-specs": {
         parameters: {
             query?: never;
@@ -117,7 +162,7 @@ export interface paths {
         };
         /**
          * spec.json de la carpeta vigilada de la promoción
-         * @description Busca en «SocialHub/encargos» dentro de la primera carpeta de la promoción.
+         * @description Busca en la carpeta con el papel «Encargos». Si la promoción no tiene ese papel, en «SocialHub/encargos» dentro de su primera carpeta.
          */
         get: operations["listPieceSpecs"];
         put?: never;
@@ -158,7 +203,76 @@ export interface paths {
         /** Publicaciones de una promoción, con filtros */
         get: operations["listPublications"];
         put?: never;
+        /**
+         * Da de alta una publicación
+         * @description Empieza como idea, propuesta, en producción o borrador. El identificador lo asigna SocialHub.
+         */
+        post: operations["createPublication"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/publications/{publication_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Edita los datos de una publicación
+         * @description No cambia el estado. No se puede editar una publicación que se está publicando o ya publicada; si está programada, la nueva hora debe quedar al menos a 6 horas de ahora.
+         */
+        put: operations["updatePublication"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/publications/{publication_id}/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Archivos asociados a una publicación */
+        get: operations["listPublicationFiles"];
+        put?: never;
+        /**
+         * Asocia a mano un archivo
+         * @description El archivo debe existir y estar dentro de las carpetas de la promoción.
+         */
+        post: operations["attachPublicationFile"];
+        /**
+         * Quita la asociación de un archivo
+         * @description El archivo no se borra ni se mueve.
+         */
+        delete: operations["detachPublicationFile"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/publications/{publication_id}/status-changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cambia el estado de una publicación
+         * @description Solo transiciones permitidas por su ciclo de vida. «Publicando», «Publicada» y «Error de publicación» los pone SocialHub al publicar, nunca a mano. Para programarla, la hora debe quedar al menos a 6 horas de ahora.
+         */
+        post: operations["changePublicationStatus"];
         delete?: never;
         options?: never;
         head?: never;
@@ -352,12 +466,42 @@ export interface components {
         Alert: {
             /** @enum {string} */
             kind: "FAILED" | "BLOCKED";
-            /** @enum {string} */
-            target_type: "TASK" | "STATION";
+            /**
+             * @description En avisos de la armería (por ejemplo, Drive no disponible), target_id es el elemento de la armería
+             * @enum {string}
+             */
+            target_type: "TASK" | "STATION" | "ARMORY";
             target_id: string;
             station_id: string;
             title: string;
             detail: string;
+        };
+        /**
+         * @description Papel de una carpeta de Drive
+         * @enum {string}
+         */
+        FolderRole: "MATERIAL" | "DRAFTS" | "GENERATED" | "APPROVED" | "PUBLISHED" | "REPORTS" | "ORDERS";
+        Folder: {
+            role: components["schemas"]["FolderRole"];
+            /** @description Ruta completa en este ordenador */
+            location: string;
+            /**
+             * @description Si el papel viene de la marca o lo cambia la promoción
+             * @enum {string}
+             */
+            origin: "BRAND" | "PROMOTION";
+            /** @description La carpeta existe ahora en este ordenador */
+            available: boolean;
+        };
+        FolderList: {
+            items: components["schemas"]["Folder"][];
+        };
+        FolderInput: {
+            role: components["schemas"]["FolderRole"];
+            location: string;
+        };
+        FolderListInput: {
+            items: components["schemas"]["FolderInput"][];
         };
         Brand: {
             id: string;
@@ -551,6 +695,8 @@ export interface components {
             /** @description Por qué se usa ese agente o herramienta */
             why?: string;
             reason?: string;
+            /** @description Carpeta que falta. La tarea vuelve sola a la cola cuando aparece. */
+            waiting_for?: string;
             error?: string;
             result?: string;
             /** @description Espera una acción de Raúl */
@@ -626,6 +772,48 @@ export interface components {
             confirmation?: string;
             demo: boolean;
         };
+        PublicationInput: {
+            platform: components["schemas"]["Platform"];
+            /** @example Carrusel */
+            type: string;
+            title: string;
+            /** Format: date */
+            scheduled_on: string;
+            /** @example 19:00 */
+            scheduled_time: string;
+            /** @default Europe/Madrid */
+            timezone: string;
+            /** @default Publer */
+            route: string;
+            note?: string;
+            /**
+             * @description Solo al dar de alta (por defecto, idea). Al editar no se admite.
+             * @enum {string}
+             */
+            initial_status?: "IDEA" | "PROPOSAL" | "IN_PRODUCTION" | "DRAFT";
+        };
+        PublicationFile: {
+            path: string;
+            /**
+             * @description Lo asoció el spec.json al generar las piezas o Raúl a mano
+             * @enum {string}
+             */
+            origin: "SPEC" | "MANUAL";
+            /** Format: date-time */
+            added_at: string;
+            /** @description El archivo existe ahora en este ordenador */
+            available: boolean;
+        };
+        PublicationFileList: {
+            items: components["schemas"]["PublicationFile"][];
+        };
+        PublicationFileInput: {
+            /** @description Ruta completa del archivo */
+            path: string;
+        };
+        PublicationStatusChange: {
+            status: components["schemas"]["PublicationStatus"];
+        };
         ArmoryItemList: {
             items: components["schemas"]["ArmoryItem"][];
         };
@@ -684,6 +872,7 @@ export interface components {
         TaskId: string;
         Offset: number;
         Limit: number;
+        PublicationId: string;
         BrandId: string;
         /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
         RequestGuard: "1";
@@ -703,6 +892,11 @@ export type Platform = components['schemas']['Platform'];
 export type OperationOutcome = components['schemas']['OperationOutcome'];
 export type Factory = components['schemas']['Factory'];
 export type Alert = components['schemas']['Alert'];
+export type FolderRole = components['schemas']['FolderRole'];
+export type Folder = components['schemas']['Folder'];
+export type FolderList = components['schemas']['FolderList'];
+export type FolderInput = components['schemas']['FolderInput'];
+export type FolderListInput = components['schemas']['FolderListInput'];
 export type Brand = components['schemas']['Brand'];
 export type AppMode = components['schemas']['AppMode'];
 export type AppModeState = components['schemas']['AppModeState'];
@@ -736,6 +930,11 @@ export type AvailableCommand = components['schemas']['AvailableCommand'];
 export type TaskCommand = components['schemas']['TaskCommand'];
 export type PublicationPage = components['schemas']['PublicationPage'];
 export type Publication = components['schemas']['Publication'];
+export type PublicationInput = components['schemas']['PublicationInput'];
+export type PublicationFile = components['schemas']['PublicationFile'];
+export type PublicationFileList = components['schemas']['PublicationFileList'];
+export type PublicationFileInput = components['schemas']['PublicationFileInput'];
+export type PublicationStatusChange = components['schemas']['PublicationStatusChange'];
 export type ArmoryItemList = components['schemas']['ArmoryItemList'];
 export type ArmoryItem = components['schemas']['ArmoryItem'];
 export type ExternalOperationPage = components['schemas']['ExternalOperationPage'];
@@ -745,6 +944,7 @@ export type ParameterPromotionId = components['parameters']['PromotionId'];
 export type ParameterTaskId = components['parameters']['TaskId'];
 export type ParameterOffset = components['parameters']['Offset'];
 export type ParameterLimit = components['parameters']['Limit'];
+export type ParameterPublicationId = components['parameters']['PublicationId'];
 export type ParameterBrandId = components['parameters']['BrandId'];
 export type ParameterRequestGuard = components['parameters']['RequestGuard'];
 export type $defs = Record<string, never>;
@@ -902,6 +1102,62 @@ export interface operations {
             default: components["responses"]["Problem"];
         };
     };
+    listBrandFolders: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                brand_id: components["parameters"]["BrandId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Carpeta de cada papel */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FolderList"];
+                };
+            };
+            404: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    replaceBrandFolders: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path: {
+                brand_id: components["parameters"]["BrandId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FolderListInput"];
+            };
+        };
+        responses: {
+            /** @description Papeles guardados */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FolderList"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
     listPromotions: {
         parameters: {
             query?: never;
@@ -1008,6 +1264,62 @@ export interface operations {
             default: components["responses"]["Problem"];
         };
     };
+    listPromotionFolders: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                promotion_id: components["parameters"]["PromotionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Carpeta de cada papel */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FolderList"];
+                };
+            };
+            404: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    replacePromotionFolders: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path: {
+                promotion_id: components["parameters"]["PromotionId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FolderListInput"];
+            };
+        };
+        responses: {
+            /** @description Papeles en vigor después del cambio */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FolderList"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
     listPieceSpecs: {
         parameters: {
             query?: never;
@@ -1097,6 +1409,186 @@ export interface operations {
                 };
             };
             404: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    createPublication: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path: {
+                promotion_id: components["parameters"]["PromotionId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PublicationInput"];
+            };
+        };
+        responses: {
+            /** @description Publicación creada */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Publication"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    updatePublication: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path: {
+                publication_id: components["parameters"]["PublicationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PublicationInput"];
+            };
+        };
+        responses: {
+            /** @description Publicación actualizada */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Publication"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    listPublicationFiles: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publication_id: components["parameters"]["PublicationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Archivos, por orden de alta */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicationFileList"];
+                };
+            };
+            404: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    attachPublicationFile: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path: {
+                publication_id: components["parameters"]["PublicationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PublicationFileInput"];
+            };
+        };
+        responses: {
+            /** @description Archivo asociado */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicationFile"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    detachPublicationFile: {
+        parameters: {
+            query: {
+                path: string;
+            };
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path: {
+                publication_id: components["parameters"]["PublicationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Asociación quitada */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    changePublicationStatus: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path: {
+                publication_id: components["parameters"]["PublicationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PublicationStatusChange"];
+            };
+        };
+        responses: {
+            /** @description Publicación con su nuevo estado */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Publication"];
+                };
+            };
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
             default: components["responses"]["Problem"];
         };
     };

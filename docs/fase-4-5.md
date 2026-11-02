@@ -48,3 +48,26 @@ Estado: **plan aprobado por respuestas de Raúl** · 2 nov 2026
    - Balance semanal.
    - Investigación.
    - La tarea programada «Encargos de SocialHub».
+
+## Bloque 1 · hecho (rama `fase-4/carpetas`)
+
+- **Papeles de carpeta:**
+  - `GET/PUT /api/brands/{id}/folders` y `GET/PUT /api/promotions/{id}/folders`. En la promoción solo se guardan las excepciones; la lectura devuelve los papeles en vigor, con su origen y si la carpeta está accesible.
+  - Se editan en «Marcas» (marca y promoción) y en la pestaña «Recursos» del centro de control.
+  - Las rutas deben ser completas. No se exige que existan al guardarlas, porque G: puede no estar montada en ese momento.
+- **Permisos de las piezas:** dan permiso las carpetas con papel y las de «Recursos» de tipo Carpeta (respuesta de Raúl: «Papeles y Recursos»).
+- **Carpeta vigilada:** la del papel «Encargos». Si la promoción no lo tiene, sigue siendo `<primera carpeta>/SocialHub/encargos`.
+- **Publicaciones:**
+  - Alta (`POST /api/promotions/{id}/publications`) y edición (`PUT /api/publications/{id}`). Cambio de estado con `POST /api/publications/{id}/status-changes`.
+  - Una publicación nueva empieza como idea, propuesta, en producción o borrador. El identificador es la fecha y la plataforma: `2026-11-10-instagram`.
+  - Programar exige al menos 6 horas de margen, y también al cambiar la hora de una publicación ya programada.
+  - «Publicando», «Publicada» y «Error de publicación» nunca se ponen a mano. No se edita una publicación que se está publicando o ya publicada.
+- **Archivos de cada publicación:**
+  - Campo `publicacion` en cada pieza del spec.json. Si la publicación no existe en la promoción, el spec se rechaza antes de generar nada.
+  - Asociación a mano: `GET/POST/DELETE /api/publications/{id}/files`. Solo archivos que existen dentro de las carpetas de la promoción, comprobando la ruta real. Quitar la asociación no borra el archivo.
+- **G: no disponible:**
+  - Si la carpeta de la promoción que contiene el spec no está, la tarea queda bloqueada con el motivo y la carpeta que espera (`waiting_for`), sin gastar intento.
+  - Cada 30 s vuelven a la cola las tareas cuya carpeta ya está. «Comprobar de nuevo» la pone en cola al momento.
+  - El servicio «Google Drive (carpetas)» de la armería se comprueba cada 30 s. Si falta alguna carpeta, sale en «Necesita atención» (aviso de tipo `ARMORY`) y lleva a la armería.
+- **Pruebas:** 60 de backend (incluidas las de extremo a extremo de carpetas, publicaciones, archivos y carpeta desmontada) y 16 de frontal.
+
