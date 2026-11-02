@@ -71,7 +71,23 @@ final class PieceFiles {
 
     /** Comprueba, sin crear nada, que la carpeta de salida queda dentro de las carpetas de la promoción. */
     void checkOutputDir(String path) {
-        insideLexically(resolve(path).toAbsolutePath().normalize());
+        insideLexically(canonical(resolve(path)));
+    }
+
+    /**
+     * Ruta comparable aunque no exista: la parte que existe se pasa a su ruta real y se le añade el resto. Así,
+     * en Windows, nombres cortos y largos («RUNNER~1» y «runneradmin») acaban igual.
+     */
+    static Path canonical(Path path) {
+        Path absolute = path.toAbsolutePath().normalize();
+        Path existing = absolute;
+        while (existing != null && !Files.exists(existing)) existing = existing.getParent();
+        if (existing == null) return absolute;
+        try {
+            return existing.toRealPath().resolve(existing.relativize(absolute)).normalize();
+        } catch (IOException e) {
+            return absolute;
+        }
     }
 
     /** Carpeta de salida, que se crea si no existe. */
