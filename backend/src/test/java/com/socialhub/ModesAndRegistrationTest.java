@@ -112,6 +112,91 @@ class ModesAndRegistrationTest {
                 .andExpect(jsonPath("$.promotions[0].id").value("lanzamiento-del-poemario"));
     }
 
+    @Test
+    @Order(4)
+    void folderRolesComeFromTheBrandWithPromotionExceptions() throws Exception {
+        String material = Files.createDirectories(paths.dataDir().resolve("drive/material")).toAbsolutePath().toString();
+        String orders = paths.dataDir().resolve("drive/encargos").toAbsolutePath().toString();
+        String own = Files.createDirectories(paths.dataDir().resolve("drive/encargos-poemario")).toAbsolutePath().toString();
+
+        write(put("/api/brands/el-delito/folders"), """
+                {"items":[{"role":"MATERIAL","location":"%s"},{"role":"ORDERS","location":"%s"}]}"""
+                .formatted(json(material), json(orders)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(2))
+                .andExpect(jsonPath("$.items[0].role").value("MATERIAL"))
+                .andExpect(jsonPath("$.items[0].available").value(true))
+                .andExpect(jsonPath("$.items[1].available").value(false));
+
+        mvc.perform(get("/api/promotions/lanzamiento-del-poemario/folders"))
+                .andExpect(jsonPath("$.items.length()").value(2))
+                .andExpect(jsonPath("$.items[1].role").value("ORDERS"))
+                .andExpect(jsonPath("$.items[1].origin").value("BRAND"));
+
+        write(put("/api/promotions/lanzamiento-del-poemario/folders"), """
+                {"items":[{"role":"ORDERS","location":"  %s  "}]}""".formatted(json(own)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].origin").value("BRAND"))
+                .andExpect(jsonPath("$.items[1].location").value(own))
+                .andExpect(jsonPath("$.items[1].origin").value("PROMOTION"))
+                .andExpect(jsonPath("$.items[1].available").value(true));
+
+        // La carpeta de encargos de la promoción es la que vigila SocialHub
+        mvc.perform(get("/api/promotions/lanzamiento-del-poemario/piece-specs"))
+                .andExpect(jsonPath("$.folder").value(own));
+
+        write(put("/api/brands/el-delito/folders"), "{\"items\":[{\"role\":\"DRAFTS\",\"location\":\"relativa\"}]}")
+                .andExpect(status().isBadRequest());
+        write(put("/api/brands/el-delito/folders"), """
+                {"items":[{"role":"DRAFTS","location":"%1$s"},{"role":"DRAFTS","location":"%1$s"}]}""".formatted(json(material)))
+                .andExpect(status().isBadRequest());
+        write(put("/api/brands/no-existe/folders"), "{\"items\":[]}").andExpect(status().isNotFound());
+    }
+
+    @Test
+    @Order(5)
+    void publicationsAreCreatedAndEditedRespectingTheirLifecycle() throws Exception {
+        String publication = """
+                {"platform":"INSTAGRAM","type":"Carrusel","title":"Poema 1","scheduled_on":"2030-01-10",
+                 "scheduled_time":"19:00","initial_status":"DRAFT"}""";
+        write(post("/api/promotions/lanzamiento-del-poemario/publications"), publication)
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value("2030-01-10-instagram"))
+                .andExpect(jsonPath("$.status").value("DRAFT"))
+                .andExpect(jsonPath("$.route").value("Publer"))
+                .andExpect(jsonPath("$.timezone").value("Europe/Madrid"))
+                .andExpect(jsonPath("$.demo").value(false));
+        write(post("/api/promotions/lanzamiento-del-poemario/publications"), publication)
+                .andExpect(jsonPath("$.id").value("2030-01-10-instagram-2"));
+        write(post("/api/promotions/no-existe/publications"), publication).andExpect(status().isNotFound());
+        write(post("/api/promotions/lanzamiento-del-poemario/publications"),
+                publication.replace("DRAFT", "SCHEDULED")).andExpect(status().isBadRequest());
+        write(post("/api/promotions/lanzamiento-del-poemario/publications"),
+                publication.replace("19:00", "25:00")).andExpect(status().isBadRequest());
+
+        String edited = publication.replace(",\"initial_status\":\"DRAFT\"", "").replace("Poema 1", "Poema uno");
+        write(put("/api/publications/2030-01-10-instagram"), edited)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("Poema uno"))
+                .andExpect(jsonPath("$.status").value("DRAFT"));
+        write(put("/api/publications/2030-01-10-instagram"), publication).andExpect(status().isBadRequest());
+        write(put("/api/publications/no-existe"), edited).andExpect(status().isNotFound());
+
+        for (String next : new String[] {"IN_REVIEW", "APPROVED", "SCHEDULED"}) {
+            write(post("/api/publications/2030-01-10-instagram/status-changes"), "{\"status\":\"" + next + "\"}")
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value(next));
+        }
+        write(post("/api/publications/2030-01-10-instagram/status-changes"), "{\"status\":\"PUBLISHED\"}")
+                .andExpect(status().isConflict());
+        write(post("/api/publications/2030-01-10-instagram-2/status-changes"), "{\"status\":\"SCHEDULED\"}")
+                .andExpect(status().isConflict());
+        mvc.perform(get("/api/promotions/lanzamiento-del-poemario/publications"))
+                .andExpect(jsonPath("$.total").value(2));
+    }
+
+    private static String json(String text) { return text.replace("\\", "\\\\"); }
+
     private ResultActions write(MockHttpServletRequestBuilder request, String json) throws Exception {
         return mvc.perform(request.header("X-SocialHub-Request", "1").contentType(MediaType.APPLICATION_JSON).content(json));
     }

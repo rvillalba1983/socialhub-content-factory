@@ -50,6 +50,8 @@ public final class Task {
     private double progress;
     private Agent agent;
     private @Nullable String reason;
+    /** Carpeta que falta para poder seguir. Solo en tareas bloqueadas por eso. */
+    private @Nullable String waitingFor;
     private @Nullable String error;
     private @Nullable String result;
     private boolean human;
@@ -74,7 +76,7 @@ public final class Task {
                 boolean paused, double progress, Agent agent, @Nullable String reason, @Nullable String error,
                 @Nullable String result, boolean human, int attempts, int maxAttempts, @Nullable Instant startedAt,
                 @Nullable List<TaskStep> steps, @Nullable List<TaskCheck> checks, @Nullable Set<String> dependsOn,
-                @Nullable List<TaskHistoryEntry> history, boolean demo, long version) {
+                @Nullable List<TaskHistoryEntry> history, boolean demo, long version, @Nullable String waitingFor) {
         this.id = Objects.requireNonNull(id);
         this.stationId = Objects.requireNonNull(stationId);
         this.promotionId = promotionId;
@@ -100,6 +102,7 @@ public final class Task {
         this.history = history == null ? new ArrayList<>() : new ArrayList<>(history);
         this.demo = demo;
         this.version = version;
+        this.waitingFor = status == BLOCKED ? waitingFor : null;
         if (paused && status != WAITING) {
             throw new IllegalArgumentException("Solo una tarea en espera puede estar pausada");
         }
@@ -226,7 +229,17 @@ public final class Task {
                 record(now, "Marcada como hecha");
             }
             case RESCHEDULE -> record(now, "Reprogramada un día después");
-            case RECHECK -> record(now, "Comprobado: la dependencia sigue pendiente");
+            case RECHECK -> {
+                if (waitingFor != null) {
+                    // Se vuelve a intentar: si la carpeta sigue sin estar, se bloquea otra vez sin gastar intento
+                    status = QUEUED;
+                    reason = "Comprobando de nuevo: en cola.";
+                    waitingFor = null;
+                    record(now, "Comprobación pedida por Raúl: en cola");
+                } else {
+                    record(now, "Comprobado: la dependencia sigue pendiente");
+                }
+            }
             case REMIND -> record(now, "Aviso preparado para Raúl");
             case CHANGE_AGENT -> {
                 if (model == null) throw new IllegalArgumentException("Falta el modelo para cambiar de agente");
@@ -235,6 +248,7 @@ public final class Task {
                 agent = next;
             }
         }
+        if (status != BLOCKED) waitingFor = null;
     }
 
     /** Las dependencias ya están completadas: la tarea bloqueada pasa a la cola. */
@@ -270,6 +284,27 @@ public final class Task {
         reason = null;
         steps.replaceAll(s -> s.state() == StepState.IN_PROGRESS ? s.with(StepState.FAILED) : s);
         record(now, "Error: " + errorText);
+    }
+
+    /** Falta una carpeta: la tarea se bloquea sin gastar intento y espera a que aparezca. */
+    public void blockRun(String reasonText, String path, Instant now) {
+        if (status != RUNNING) throw new DomainException("Solo se bloquea una tarea en progreso");
+        status = BLOCKED;
+        reason = reasonText;
+        waitingFor = path;
+        progress = 0;
+        steps.replaceAll(s -> s.state() == StepState.IN_PROGRESS ? s.with(StepState.PENDING) : s);
+        record(now, "Bloqueada: " + reasonText);
+    }
+
+    /** La carpeta que faltaba ya está: la tarea vuelve a la cola. */
+    public boolean resourceAvailable(Instant now) {
+        if (status != BLOCKED || waitingFor == null) return false;
+        record(now, "Carpeta disponible de nuevo: " + waitingFor);
+        status = QUEUED;
+        reason = "Carpeta disponible de nuevo: en cola.";
+        waitingFor = null;
+        return true;
     }
 
     /** Progreso informado por el motor (0–100). No completa la tarea: eso lo hace {@link #finishRun}. */

@@ -137,6 +137,44 @@ paths:
         "404": { $ref: "#/components/responses/Problem" }
         default: { $ref: "#/components/responses/Problem" }
 
+  /api/brands/{brand_id}/folders:
+    get:
+      tags: [Brands]
+      operationId: listBrandFolders
+      summary: Papeles de carpeta de la marca
+      parameters:
+        - $ref: "#/components/parameters/BrandId"
+      responses:
+        "200":
+          description: Carpeta de cada papel
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FolderList" }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+    put:
+      tags: [Brands]
+      operationId: replaceBrandFolders
+      summary: Sustituye los papeles de carpeta de la marca
+      description: Las promociones de la marca los heredan, salvo los que cada una cambie.
+      parameters:
+        - $ref: "#/components/parameters/BrandId"
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FolderListInput" }
+      responses:
+        "200":
+          description: Papeles guardados
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FolderList" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
   /api/promotions:
     get:
       tags: [Promotions]
@@ -202,12 +240,53 @@ paths:
         "404": { $ref: "#/components/responses/Problem" }
         default: { $ref: "#/components/responses/Problem" }
 
+  /api/promotions/{promotion_id}/folders:
+    get:
+      tags: [Promotions]
+      operationId: listPromotionFolders
+      summary: Papeles de carpeta en vigor de la promoción
+      description: Los de la marca, salvo los que la promoción cambia. Indica si cada carpeta está accesible ahora.
+      parameters:
+        - $ref: "#/components/parameters/PromotionId"
+      responses:
+        "200":
+          description: Carpeta de cada papel
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FolderList" }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+    put:
+      tags: [Promotions]
+      operationId: replacePromotionFolders
+      summary: Sustituye las excepciones de la promoción
+      description: Solo los papeles que la promoción cambia respecto a su marca.
+      parameters:
+        - $ref: "#/components/parameters/PromotionId"
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FolderListInput" }
+      responses:
+        "200":
+          description: Papeles en vigor después del cambio
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FolderList" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
   /api/promotions/{promotion_id}/piece-specs:
     get:
       tags: [Pieces]
       operationId: listPieceSpecs
       summary: spec.json de la carpeta vigilada de la promoción
-      description: Busca en «SocialHub/encargos» dentro de la primera carpeta de la promoción.
+      description: >
+        Busca en la carpeta con el papel «Encargos». Si la promoción no tiene ese papel, en «SocialHub/encargos»
+        dentro de su primera carpeta.
       parameters:
         - $ref: "#/components/parameters/PromotionId"
       responses:
@@ -282,6 +361,135 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/PublicationPage" }
         "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+    post:
+      tags: [Publications]
+      operationId: createPublication
+      summary: Da de alta una publicación
+      description: Empieza como idea, propuesta, en producción o borrador. El identificador lo asigna SocialHub.
+      parameters:
+        - $ref: "#/components/parameters/PromotionId"
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PublicationInput" }
+      responses:
+        "201":
+          description: Publicación creada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Publication" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/publications/{publication_id}:
+    put:
+      tags: [Publications]
+      operationId: updatePublication
+      summary: Edita los datos de una publicación
+      description: >
+        No cambia el estado. No se puede editar una publicación que se está publicando o ya publicada; si está
+        programada, la nueva hora debe quedar al menos a 6 horas de ahora.
+      parameters:
+        - $ref: "#/components/parameters/PublicationId"
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PublicationInput" }
+      responses:
+        "200":
+          description: Publicación actualizada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Publication" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/publications/{publication_id}/files:
+    get:
+      tags: [Publications]
+      operationId: listPublicationFiles
+      summary: Archivos asociados a una publicación
+      parameters:
+        - $ref: "#/components/parameters/PublicationId"
+      responses:
+        "200":
+          description: Archivos, por orden de alta
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublicationFileList" }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+    post:
+      tags: [Publications]
+      operationId: attachPublicationFile
+      summary: Asocia a mano un archivo
+      description: El archivo debe existir y estar dentro de las carpetas de la promoción.
+      parameters:
+        - $ref: "#/components/parameters/PublicationId"
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PublicationFileInput" }
+      responses:
+        "201":
+          description: Archivo asociado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublicationFile" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+    delete:
+      tags: [Publications]
+      operationId: detachPublicationFile
+      summary: Quita la asociación de un archivo
+      description: El archivo no se borra ni se mueve.
+      parameters:
+        - $ref: "#/components/parameters/PublicationId"
+        - $ref: "#/components/parameters/RequestGuard"
+        - name: path
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        "204": { description: Asociación quitada }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/publications/{publication_id}/status-changes:
+    post:
+      tags: [Publications]
+      operationId: changePublicationStatus
+      summary: Cambia el estado de una publicación
+      description: >
+        Solo transiciones permitidas por su ciclo de vida. «Publicando», «Publicada» y «Error de publicación» los
+        pone SocialHub al publicar, nunca a mano. Para programarla, la hora debe quedar al menos a 6 horas de ahora.
+      parameters:
+        - $ref: "#/components/parameters/PublicationId"
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PublicationStatusChange" }
+      responses:
+        "200":
+          description: Publicación con su nuevo estado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Publication" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
         default: { $ref: "#/components/responses/Problem" }
 
   /api/tasks:
@@ -462,6 +670,11 @@ components:
       name: limit
       in: query
       schema: { type: integer, format: int32, minimum: 1, maximum: 500, default: 100 }
+    PublicationId:
+      name: publication_id
+      in: path
+      required: true
+      schema: { type: string }
     BrandId:
       name: brand_id
       in: path
@@ -548,11 +761,50 @@ components:
       required: [kind, target_type, target_id, station_id, title, detail]
       properties:
         kind: { type: string, enum: [FAILED, BLOCKED] }
-        target_type: { type: string, enum: [TASK, STATION] }
+        target_type:
+          type: string
+          enum: [TASK, STATION, ARMORY]
+          description: En avisos de la armería (por ejemplo, Drive no disponible), target_id es el elemento de la armería
         target_id: { type: string }
         station_id: { type: string }
         title: { type: string }
         detail: { type: string }
+
+    FolderRole:
+      description: Papel de una carpeta de Drive
+      type: string
+      enum: [MATERIAL, DRAFTS, GENERATED, APPROVED, PUBLISHED, REPORTS, ORDERS]
+
+    Folder:
+      type: object
+      required: [role, location, origin, available]
+      properties:
+        role: { $ref: "#/components/schemas/FolderRole" }
+        location: { type: string, description: Ruta completa en este ordenador }
+        origin:
+          type: string
+          enum: [BRAND, PROMOTION]
+          description: Si el papel viene de la marca o lo cambia la promoción
+        available: { type: boolean, description: La carpeta existe ahora en este ordenador }
+
+    FolderList:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/Folder" } }
+
+    FolderInput:
+      type: object
+      required: [role, location]
+      properties:
+        role: { $ref: "#/components/schemas/FolderRole" }
+        location: { type: string, minLength: 1, maxLength: 500 }
+
+    FolderListInput:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, maxItems: 7, items: { $ref: "#/components/schemas/FolderInput" } }
 
     Brand:
       type: object
@@ -793,6 +1045,9 @@ components:
         agent: { $ref: "#/components/schemas/Agent" }
         why: { type: string, description: Por qué se usa ese agente o herramienta }
         reason: { type: string }
+        waiting_for:
+          type: string
+          description: Carpeta que falta. La tarea vuelve sola a la cola cuando aparece.
         error: { type: string }
         result: { type: string }
         human: { type: boolean, description: Espera una acción de Raúl }
@@ -883,6 +1138,53 @@ components:
         note: { type: string }
         confirmation: { type: string, description: Prueba de que se ha publicado de verdad }
         demo: { type: boolean }
+
+    PublicationInput:
+      type: object
+      required: [platform, type, title, scheduled_on, scheduled_time]
+      properties:
+        platform: { $ref: "#/components/schemas/Platform" }
+        type: { type: string, minLength: 1, maxLength: 40, example: Carrusel }
+        title: { type: string, minLength: 1, maxLength: 200 }
+        scheduled_on: { type: string, format: date }
+        scheduled_time: { type: string, pattern: "^([01]\\d|2[0-3]):[0-5]\\d$", example: "19:00" }
+        timezone: { type: string, maxLength: 60, default: Europe/Madrid }
+        route: { type: string, minLength: 1, maxLength: 40, default: Publer }
+        note: { type: string, maxLength: 2000 }
+        initial_status:
+          description: Solo al dar de alta (por defecto, idea). Al editar no se admite.
+          type: string
+          enum: [IDEA, PROPOSAL, IN_PRODUCTION, DRAFT]
+
+    PublicationFile:
+      type: object
+      required: [path, origin, added_at, available]
+      properties:
+        path: { type: string }
+        origin:
+          type: string
+          enum: [SPEC, MANUAL]
+          description: Lo asoció el spec.json al generar las piezas o Raúl a mano
+        added_at: { type: string, format: date-time }
+        available: { type: boolean, description: El archivo existe ahora en este ordenador }
+
+    PublicationFileList:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/PublicationFile" } }
+
+    PublicationFileInput:
+      type: object
+      required: [path]
+      properties:
+        path: { type: string, minLength: 1, maxLength: 1000, description: Ruta completa del archivo }
+
+    PublicationStatusChange:
+      type: object
+      required: [status]
+      properties:
+        status: { $ref: "#/components/schemas/PublicationStatus" }
 
     ArmoryItemList:
       type: object

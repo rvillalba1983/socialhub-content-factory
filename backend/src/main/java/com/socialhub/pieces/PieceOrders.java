@@ -22,8 +22,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Encargos de piezas: desde el botón de la estación o desde la carpeta vigilada
- * {@code <primera carpeta de la promoción>/SocialHub/encargos}.
+ * Encargos de piezas: desde el botón de la estación o desde la carpeta vigilada. La carpeta vigilada es la que tiene el
+ * papel «Encargos»; si la promoción no tiene ese papel, {@code <primera carpeta de la promoción>/SocialHub/encargos}.
  */
 @Slf4j
 @PrimaryPort
@@ -38,6 +38,7 @@ public class PieceOrders {
     private final SpecReader reader;
     private final PieceOrderRepository orders;
     private final Clock clock;
+    private final PiecePublications publications;
 
     public record SpecFile(String path, String name, Instant modifiedAt, @Nullable String taskId) {}
 
@@ -69,6 +70,7 @@ public class PieceOrders {
     @Transactional
     public String order(String promotionId, String specPath) {
         SpecReader.Loaded loaded = reader.load(specPath, promotions.driveFolders(promotionId));
+        publications.check(promotionId, loaded.spec());
         return submit(promotionId, loaded.path(), loaded.spec().piezas().size() + " piezas");
     }
 
@@ -109,6 +111,8 @@ public class PieceOrders {
     }
 
     private @Nullable Path watchedFolder(String promotionId) {
+        var orders = promotions.ordersFolder(promotionId);
+        if (orders.isPresent()) return Path.of(orders.get());
         List<String> folders = promotions.driveFolders(promotionId);
         return folders.isEmpty() ? null : Path.of(folders.getFirst()).resolve(WATCHED);
     }

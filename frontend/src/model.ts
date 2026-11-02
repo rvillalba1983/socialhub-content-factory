@@ -1,6 +1,6 @@
 // Tipos de la API (generados desde contracts/openapi.yaml) y utilidades de presentación.
 import type {
-  ArmoryItem, Factory, Promotion, PublicationStatus, StatusLevel, Task, TaskStatus, TaskStepState,
+  ArmoryItem, Factory, FolderRole, Promotion, PublicationStatus, StatusLevel, Task, TaskStatus, TaskStepState,
 } from './api/types';
 
 export type * from './api/types';
@@ -36,6 +36,32 @@ export const PUBLICATION_STATUS: Record<PublicationStatus, { label: string; s: S
   PUBLISH_ERROR: { label: 'Error de publicación', s: 'FAILED' },
   CANCELLED: { label: 'Cancelada', s: 'CANCELLED' },
 };
+
+/** Transiciones que Raúl puede pedir a mano (las de publicación las pone SocialHub). Igual que el backend. */
+export const PUBLICATION_NEXT: Record<PublicationStatus, PublicationStatus[]> = {
+  IDEA: ['PROPOSAL', 'CANCELLED'],
+  PROPOSAL: ['IN_PRODUCTION', 'IDEA', 'CANCELLED'],
+  IN_PRODUCTION: ['DRAFT', 'CANCELLED'],
+  DRAFT: ['IN_REVIEW', 'IN_PRODUCTION', 'CANCELLED'],
+  IN_REVIEW: ['APPROVED', 'DRAFT', 'CANCELLED'],
+  APPROVED: ['SCHEDULED', 'IN_REVIEW', 'CANCELLED'],
+  SCHEDULED: ['APPROVED', 'CANCELLED'],
+  PUBLISHING: [],
+  PUBLISHED: [],
+  PUBLISH_ERROR: ['SCHEDULED', 'APPROVED', 'CANCELLED'],
+  CANCELLED: ['IDEA'],
+};
+
+/** Papeles de carpeta, en el orden en que se muestran. */
+export const FOLDER_ROLES: [FolderRole, string, string][] = [
+  ['MATERIAL', 'Material', 'Fotos, audios y vídeos de partida'],
+  ['DRAFTS', 'Borradores', 'Piezas a medio hacer'],
+  ['GENERATED', 'Generados', 'Lo que crea SocialHub'],
+  ['APPROVED', 'Aprobados', 'Listo para programar'],
+  ['PUBLISHED', 'Publicados', 'Lo que ya salió'],
+  ['REPORTS', 'Informes', 'Balances y métricas'],
+  ['ORDERS', 'Encargos', 'spec.json y encargos que vigila SocialHub'],
+];
 
 export const ARMORY_KIND: Record<ArmoryItem['kind'], string> = {
   AGENT: 'Agentes', TOOL: 'Herramientas locales', SERVICE: 'Servicios', DEVICE: 'Dispositivos',

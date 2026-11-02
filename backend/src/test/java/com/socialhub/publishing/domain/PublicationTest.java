@@ -60,4 +60,48 @@ class PublicationTest {
                 .status(PublicationStatus.PUBLISHED).build())
                 .isInstanceOf(IllegalArgumentException.class);
     }
+
+    // 2 nov 2026, 12:00 en Madrid (UTC+1): la publicación de prueba es a las 19:00, 7 horas después
+    private static final Instant NOON = Instant.parse("2026-11-02T11:00:00Z");
+
+    private static Publication.Details details(LocalTime time) {
+        return new Publication.Details(Platform.TIKTOK, "Reel", "Nuevo", LocalDate.of(2026, 11, 2), time,
+                "Europe/Madrid", "Publer", " ");
+    }
+
+    @Test
+    void schedulingNeedsSixHoursOfMargin() {
+        Publication p = at(PublicationStatus.APPROVED);
+        p.changeStatus(PublicationStatus.SCHEDULED, NOON);
+        assertThat(p.getStatus()).isEqualTo(PublicationStatus.SCHEDULED);
+
+        Publication late = at(PublicationStatus.APPROVED);
+        assertThatThrownBy(() -> late.changeStatus(PublicationStatus.SCHEDULED, NOON.plusSeconds(3600 + 1)))
+                .isInstanceOf(DomainException.class).hasMessageContaining("6 horas");
+        // Ya programada: no se puede acercar la hora a menos de 6 horas
+        assertThatThrownBy(() -> p.edit(details(LocalTime.of(17, 0)), NOON)).isInstanceOf(DomainException.class);
+        p.edit(details(LocalTime.of(20, 0)), NOON);
+        assertThat(p.getPlatform()).isEqualTo(Platform.TIKTOK);
+        assertThat(p.getNote()).isNull();
+    }
+
+    @Test
+    void publishingStatesAreNeverSetByHand() {
+        assertThatThrownBy(() -> at(PublicationStatus.SCHEDULED).changeStatus(PublicationStatus.PUBLISHING, NOON))
+                .isInstanceOf(DomainException.class);
+        assertThatThrownBy(() -> at(PublicationStatus.PUBLISHING).changeStatus(PublicationStatus.PUBLISHED, NOON))
+                .isInstanceOf(DomainException.class);
+        assertThatThrownBy(() -> at(PublicationStatus.PUBLISHED).edit(details(LocalTime.NOON), NOON))
+                .isInstanceOf(DomainException.class);
+    }
+
+    @Test
+    void newPublicationsStartBeforeReview() {
+        assertThat(Publication.create("x", "promo", details(LocalTime.NOON), PublicationStatus.DRAFT, false).getStatus())
+                .isEqualTo(PublicationStatus.DRAFT);
+        assertThatThrownBy(() -> Publication.create("x", "promo", details(LocalTime.NOON), PublicationStatus.SCHEDULED, false))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new Publication.Details(Platform.TIKTOK, "Reel", "T", LocalDate.of(2026, 11, 2),
+                LocalTime.NOON, "Marte/Olympus", "Publer", null)).isInstanceOf(IllegalArgumentException.class);
+    }
 }

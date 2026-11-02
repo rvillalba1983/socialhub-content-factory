@@ -187,3 +187,32 @@ Detalle en `docs/fase-3.md`.
 - **Volver a ejecutar** una tarea de piezas no pisa lo anterior: genera archivos numerados.
 - **Encargar desde el botón** se permite siempre, incluso para un spec ya encargado. La carpeta vigilada solo encarga lo nuevo o modificado.
 
+## 2026-11-02 · Fases 4 y 5: decisiones (respuestas de Raúl)
+- **Carpetas:** Raúl indica qué carpeta de G: hace cada papel. Se mapea en la marca y la promoción puede cambiar el papel que necesite. No se crea ni se mueve nada.
+- **Archivos y publicaciones:** campo `publicacion` en cada pieza del spec. Si no lo lleva, la asociación se hace a mano en la app.
+- **Publicaciones en modo real:** alta y edición desde el centro de control.
+- **Sin G::** la tarea se bloquea sin gastar intentos y vuelve a la cola sola cuando la carpeta aparece.
+- **Encargos a Claude:**
+  - Los recoge una tarea programada nueva, «Encargos de SocialHub», 3 veces al día.
+  - Los primeros tipos son spec semanal, textos y hashtags, balance semanal e investigación.
+  - El modelo va por tipo de encargo y sube un nivel tras dos fallos.
+  - Como mucho 10 encargos al día, configurable.
+
+Detalle en `docs/fase-4-5.md`.
+
+## 2026-11-02 · Fase 4, bloque 1: carpetas, publicaciones y G: no disponible
+- **Permisos de las piezas:** los dan las carpetas con papel y las de «Recursos» de tipo Carpeta (Raúl: «Papeles y Recursos»).
+- **Carpeta vigilada:** la del papel «Encargos». Sin ese papel, se mantiene `SocialHub/encargos` dentro de la primera carpeta.
+- **Publicaciones nuevas:**
+  - Empiezan antes de la revisión: idea, propuesta, en producción o borrador.
+  - Su identificador es `<fecha>-<plataforma>`, numerado si se repite.
+- **Cambios de estado a mano:**
+  - Siguen el ciclo de vida.
+  - Programar exige al menos 6 horas de margen.
+  - Los estados de publicación (publicando, publicada, error) solo los pone SocialHub.
+- **Carpeta que falta:**
+  - Bloquea la tarea sin gastar intento.
+  - Cada 30 s se comprueba y la tarea vuelve sola a la cola.
+  - Drive aparece en la armería y, si falta algo, en los avisos (tipo `ARMORY`).
+- **Módulo `drive`:** comprueba las carpetas de Drive. No llama a la API de Google: solo mira las carpetas sincronizadas en el ordenador.
+

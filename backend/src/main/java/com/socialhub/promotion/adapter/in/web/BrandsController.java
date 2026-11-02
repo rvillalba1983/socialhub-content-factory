@@ -4,6 +4,8 @@ import com.socialhub.api.BrandsApi;
 import com.socialhub.api.model.BrandDto;
 import com.socialhub.api.model.BrandInputDto;
 import com.socialhub.api.model.BrandListDto;
+import com.socialhub.api.model.FolderListDto;
+import com.socialhub.api.model.FolderListInputDto;
 import com.socialhub.promotion.PromotionQueries;
 import com.socialhub.promotion.PromotionService;
 import lombok.RequiredArgsConstructor;
@@ -32,5 +34,15 @@ class BrandsController implements BrandsApi {
     @Override
     public ResponseEntity<BrandDto> updateBrand(String brandId, String requestGuard, BrandInputDto input) {
         return ResponseEntity.ok(mapper.toDto(service.updateBrand(brandId, mapper.toDraft(input))));
+    }
+
+    @Override
+    public ResponseEntity<FolderListDto> listBrandFolders(String brandId) {
+        return ResponseEntity.ok(mapper.toFolderList(queries.brandFolders(brandId)));
+    }
+
+    @Override
+    public ResponseEntity<FolderListDto> replaceBrandFolders(String brandId, String requestGuard, FolderListInputDto input) {
+        return ResponseEntity.ok(mapper.toFolderList(service.replaceBrandFolders(brandId, mapper.toFolderMap(input))));
     }
 }

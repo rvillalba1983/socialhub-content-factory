@@ -2,11 +2,14 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, vi } from 'vitest';
 import { api } from './api';
 import { ExternalOperations } from './ExternalOperations';
+import { FolderRoles } from './Folders';
+import { PublicationEditor } from './PublicationEditor';
 import { BrandForm, PromotionForm } from './Registration';
 import { PieceOrders } from './PieceOrders';
 import type { ExternalOperationPage, Snapshot, Station, Task } from './model';
 import { TaskPanel } from './Panel';
-import { World } from './World';
+import { World, openAlert } from './World';
+import type { Publication } from './model';
 
 const counts = (o: Partial<Station['counts']> = {}): Station['counts'] =>
   ({ total: 0, running: 0, waiting: 0, blocked: 0, failed: 0, completed: 0, idle: 0, cancelled: 0, ...o });
@@ -183,5 +186,72 @@ describe('Encargar piezas', () => {
   it('pide una carpeta si ninguna promoción la tiene', () => {
     render(<PieceOrders promotions={snapshot.promotions} onOrdered={() => {}} onTask={() => {}} />);
     expect(screen.getByText(/añade a una promoción una carpeta/)).toBeInTheDocument();
+  });
+});
+
+describe('Carpetas de Drive', () => {
+  it('en la promoción solo guarda las excepciones y muestra lo heredado de la marca', async () => {
+    vi.spyOn(api, 'promotionFolders').mockResolvedValue({ items: [
+      { role: 'MATERIAL', location: 'G:/DeLito/material', origin: 'BRAND', available: true },
+      { role: 'ORDERS', location: 'G:/DeLito/encargos', origin: 'PROMOTION', available: false },
+    ] });
+    const save = vi.spyOn(api, 'savePromotionFolders').mockResolvedValue({ items: [] });
+    render(<FolderRoles owner="promotion" id="p" />);
+    const material = await screen.findByLabelText('Carpeta de Material');
+    expect(material).toHaveValue('');
+    expect(material).toHaveAttribute('placeholder', 'G:/DeLito/material');
+    expect(screen.getByLabelText('Carpeta de Encargos')).toHaveValue('G:/DeLito/encargos');
+    expect(screen.getByText('No disponible')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Carpeta de Informes'), { target: { value: '  G:/DeLito/informes ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar carpetas' }));
+    await waitFor(() => expect(save).toHaveBeenCalledWith('p', [
+      { role: 'REPORTS', location: 'G:/DeLito/informes' }, { role: 'ORDERS', location: 'G:/DeLito/encargos' },
+    ]));
+  });
+});
+
+describe('Publicaciones', () => {
+  const publication: Publication = {
+    id: '2026-11-10-instagram', promotion_id: 'p', platform: 'INSTAGRAM', type: 'Carrusel', title: 'Poema 1',
+    scheduled_on: '2026-11-10', scheduled_time: '19:00', timezone: 'Europe/Madrid', status: 'APPROVED', route: 'Publer', demo: false,
+  };
+
+  it('da de alta una publicación con el estado inicial elegido', async () => {
+    const create = vi.spyOn(api, 'createPublication').mockResolvedValue({ ...publication, status: 'DRAFT' });
+    const onSaved = vi.fn();
+    render(<PublicationEditor promotionId="p" onClose={() => {}} onSaved={onSaved} />);
+    fireEvent.change(screen.getByLabelText('Tipo'), { target: { value: 'Carrusel' } });
+    fireEvent.change(screen.getByLabelText('Título'), { target: { value: 'Poema 1' } });
+    fireEvent.change(screen.getByLabelText('Día'), { target: { value: '2026-11-10' } });
+    fireEvent.change(screen.getByLabelText('Empieza como'), { target: { value: 'DRAFT' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+    await waitFor(() => expect(onSaved).toHaveBeenCalled());
+    expect(create).toHaveBeenCalledWith('p', expect.objectContaining({
+      platform: 'INSTAGRAM', type: 'Carrusel', title: 'Poema 1', scheduled_on: '2026-11-10', scheduled_time: '19:00',
+      initial_status: 'DRAFT', note: undefined,
+    }));
+  });
+
+  it('solo ofrece los cambios de estado permitidos y nunca «Publicada»', async () => {
+    vi.spyOn(api, 'publicationFiles').mockResolvedValue({ items: [
+      { path: 'G:/DeLito/Semana 2/poema_1.jpg', origin: 'SPEC', added_at: '2026-11-02T09:00:00Z', available: true },
+    ] });
+    const change = vi.spyOn(api, 'changePublicationStatus').mockRejectedValue(new Error('al menos a 6 horas de ahora'));
+    render(<PublicationEditor promotionId="p" publication={publication} onClose={() => {}} onSaved={() => {}} />);
+    expect(await screen.findByText('G:/DeLito/Semana 2/poema_1.jpg')).toBeInTheDocument();
+    expect(screen.getByText(/Del spec/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Publicada/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Pasar a «Programada»' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('6 horas');
+    expect(change).toHaveBeenCalledWith('2026-11-10-instagram', 'SCHEDULED');
+  });
+});
+
+describe('Avisos', () => {
+  it('un aviso de Drive abre la armería', () => {
+    const go = { onTask: vi.fn(), onStation: vi.fn(), onArmory: vi.fn() };
+    openAlert({ kind: 'BLOCKED', target_type: 'ARMORY', target_id: 'google-drive', station_id: 'gen', title: 'Drive', detail: 'No disponible' }, go);
+    expect(go.onArmory).toHaveBeenCalledWith('google-drive');
+    expect(go.onStation).not.toHaveBeenCalled();
   });
 });

@@ -101,6 +101,9 @@ public class TaskEngine {
                 String result = executor.run(new EngineRun(claimed));
                 if (Thread.interrupted()) throw new InterruptedException();
                 production.finishRun(id, result);
+            } catch (ResourceUnavailableException e) {
+                log.info("La tarea {} espera a la carpeta {}: {}", id, e.path(), e.getMessage());
+                production.blockRun(id, e.getMessage(), e.path());
             } catch (InterruptedException e) {
                 if (timedOut.contains(id)) {
                     production.failRun(id, "Tiempo agotado: más de " + executor.timeout().toSeconds() + " s");
@@ -128,6 +131,28 @@ public class TaskEngine {
         int n = AppModeHolder.callIn(AppMode.REAL, () -> production.recoverAfterRestart(Set.copyOf(running.keySet())));
         if (n > 0) log.info("{} tareas recuperadas tras reiniciar", n);
         return n;
+    }
+
+    /** Cada 30 s: las tareas que esperaban una carpeta vuelven a la cola cuando aparece. */
+    @Scheduled(initialDelayString = "${socialhub.engine.initial-delay-millis:2000}",
+               fixedDelayString = "${socialhub.engine.folder-check-millis:30000}")
+    void requeueWhenFoldersAppear() {
+        AppModeHolder.runIn(AppMode.REAL, () -> {
+            try {
+                int n = production.requeueWhenAvailable(TaskEngine::exists);
+                if (n > 0) log.info("{} tareas vuelven a la cola: su carpeta ya está disponible", n);
+            } catch (RuntimeException e) {
+                log.warn("Comprobación de carpetas omitida: {}", e.toString());
+            }
+        });
+    }
+
+    private static boolean exists(String path) {
+        try {
+            return java.nio.file.Files.exists(java.nio.file.Path.of(path));
+        } catch (java.nio.file.InvalidPathException e) {
+            return false;
+        }
     }
 
     /** Raúl pausa o cancela una tarea en curso: se interrumpe su ejecución. */

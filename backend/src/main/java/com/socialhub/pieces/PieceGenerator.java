@@ -39,7 +39,8 @@ class PieceGenerator {
         this.ffmpeg = ffmpeg;
     }
 
-    record PieceResult(String name, String type, List<Path> files) {}
+    /** @param publication publicación de SocialHub a la que van sus archivos, si el spec la indica */
+    record PieceResult(String name, String type, @Nullable String publication, List<Path> files) {}
 
     record Batch(Path outputDir, List<PieceResult> pieces, @Nullable Path readme) {}
 
@@ -70,6 +71,10 @@ class PieceGenerator {
         }
     }
 
+    private static @Nullable String blankToNull(@Nullable String text) {
+        return text == null || text.isBlank() ? null : text.strip();
+    }
+
     Batch generate(PromoSpec spec, PieceFiles files, Consumer<String> log, Consumer<Double> progress)
             throws IOException, InterruptedException {
         validate(spec, files);
@@ -86,7 +91,7 @@ class PieceGenerator {
                 case "comprimir" -> compress(p, files, out);
                 default -> throw bad(p, "tipo desconocido");
             };
-            results.add(new PieceResult(p.nombre(), p.tipo(), made));
+            results.add(new PieceResult(p.nombre(), p.tipo(), blankToNull(p.publicacion()), made));
             log.accept(p.tipo() + " · " + p.nombre() + ": " + describe(made));
             progress.accept(100.0 * ++i / spec.piezas().size());
         }

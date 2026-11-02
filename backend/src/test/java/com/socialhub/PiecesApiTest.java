@@ -1,8 +1,10 @@
 package com.socialhub;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -37,7 +39,10 @@ import tools.jackson.databind.json.JsonMapper;
         "socialhub.engine.poll-millis=200",
         "socialhub.engine.initial-delay-millis=200",
         "socialhub.pieces.watch-millis=500",
-        "socialhub.pieces.watch-initial-delay-millis=500"
+        "socialhub.pieces.watch-initial-delay-millis=500",
+        "socialhub.engine.folder-check-millis=500",
+        "socialhub.drive.check-millis=500",
+        "socialhub.drive.check-initial-delay-millis=500"
 })
 @AutoConfigureMockMvc
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
@@ -143,6 +148,108 @@ class PiecesApiTest {
         assertThat(taskId).as("tarea creada desde la carpeta vigilada").isNotNull();
         waitForTask(taskId, "COMPLETED");
         assertThat(promo.resolve("Semana 3/1_lunes_historia.jpg")).exists();
+    }
+
+    @Test
+    @Order(5)
+    void piecesAreAttachedToThePublicationTheSpecNames() throws Exception {
+        write(post("/api/promotions/poemario/publications"), """
+                {"platform":"INSTAGRAM","type":"Historia","title":"Pregunta grande","scheduled_on":"2030-11-03",
+                 "scheduled_time":"13:00","initial_status":"IN_PRODUCTION"}""")
+                .andExpect(jsonPath("$.id").value("2030-11-03-instagram"));
+        String withPublication = spec("2_martes_historia", "Semana 4", "../")
+                .replace("\"dia\"", "\"publicacion\": \"2030-11-03-instagram\", \"dia\"");
+        Files.writeString(promo.resolve("specs/semana4.json"), withPublication);
+        Files.writeString(promo.resolve("specs/mala.json"), withPublication.replace("2030-11-03-instagram", "no-existe"));
+
+        write(post("/api/promotions/poemario/piece-orders"),
+                "{\"spec_path\":" + json.writeValueAsString(promo.resolve("specs/mala.json").toString()) + "}")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("no existe en esta promoción")));
+
+        String body = write(post("/api/promotions/poemario/piece-orders"),
+                "{\"spec_path\":" + json.writeValueAsString(promo.resolve("specs/semana4.json").toString()) + "}")
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        waitForTask(json.readTree(body).get("task_id").asString(), "COMPLETED");
+
+        String generated = promo.resolve("Semana 4/2_martes_historia.jpg").toRealPath().toString();
+        mvc.perform(get("/api/publications/2030-11-03-instagram/files"))
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].path").value(generated))
+                .andExpect(jsonPath("$.items[0].origin").value("SPEC"))
+                .andExpect(jsonPath("$.items[0].available").value(true));
+
+        // A mano: solo archivos que existen dentro de las carpetas de la promoción, sin repetir
+        String image = promo.resolve("page 58.png").toRealPath().toString();
+        write(post("/api/publications/2030-11-03-instagram/files"), "{\"path\":" + json.writeValueAsString(image) + "}")
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.origin").value("MANUAL"));
+        write(post("/api/publications/2030-11-03-instagram/files"), "{\"path\":" + json.writeValueAsString(image) + "}")
+                .andExpect(status().isBadRequest());
+        write(post("/api/publications/2030-11-03-instagram/files"),
+                "{\"path\":" + json.writeValueAsString(drive.resolve("Otra/spec.json").toString()) + "}")
+                .andExpect(status().isBadRequest());
+        write(post("/api/publications/2030-11-03-instagram/files"),
+                "{\"path\":" + json.writeValueAsString(promo.resolve("SocialHub/../../Otra/spec.json").toString()) + "}")
+                .andExpect(status().isBadRequest());
+
+        mvc.perform(delete("/api/publications/2030-11-03-instagram/files").param("path", image)
+                        .header("X-SocialHub-Request", "1"))
+                .andExpect(status().isNoContent());
+        mvc.perform(delete("/api/publications/2030-11-03-instagram/files").param("path", image)
+                        .header("X-SocialHub-Request", "1"))
+                .andExpect(status().isNotFound());
+        assertThat(Path.of(image)).exists();
+        mvc.perform(get("/api/publications/2030-11-03-instagram/files")).andExpect(jsonPath("$.items.length()").value(1));
+    }
+
+    @Test
+    @Order(6)
+    void whenTheFolderDisappearsTheTaskWaitsAndContinuesWhenItComesBack() throws Exception {
+        Path folder = Files.createDirectories(drive.resolve("Montada"));
+        Files.copy(promo.resolve("page 58.png"), folder.resolve("page 58.png"));
+        Files.writeString(folder.resolve("spec.json"), spec("5_historia", "Semana 5", ""));
+        write(put("/api/promotions/poemario/folders"), "{\"items\":[{\"role\":\"MATERIAL\",\"location\":"
+                + json.writeValueAsString(folder.toString()) + "}]}").andExpect(status().isOk());
+
+        // Con la estación en pausa, el encargo se queda en cola; mientras, «se desmonta» la carpeta
+        write(post("/api/stations/gen/commands"), "{\"type\":\"PAUSE\"}").andExpect(status().isOk());
+        String body = write(post("/api/promotions/poemario/piece-orders"),
+                "{\"spec_path\":" + json.writeValueAsString(folder.resolve("spec.json").toString()) + "}")
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String taskId = json.readTree(body).get("task_id").asString();
+        Path unmounted = drive.resolve("Desmontada");
+        Files.move(folder, unmounted);
+        write(post("/api/stations/gen/commands"), "{\"type\":\"RESUME\"}").andExpect(status().isOk());
+
+        JsonNode blocked = waitForTask(taskId, "BLOCKED");
+        assertThat(blocked.get("waiting_for").asString()).isEqualTo(folder.toString());
+        assertThat(blocked.get("attempts").asInt()).isEqualTo(1);
+        waitFor(() -> factoryAlert("ARMORY") != null, "aviso de Drive no disponible");
+        assertThat(factoryAlert("ARMORY").get("detail").asString()).contains(folder.toString());
+        assertThat(factoryAlert("TASK").get("detail").asString()).contains("no está disponible");
+
+        Files.move(unmounted, folder);
+        waitForTask(taskId, "COMPLETED");
+        assertThat(folder.resolve("Semana 5/5_historia.jpg")).exists();
+        waitFor(() -> factoryAlert("ARMORY") == null, "Drive disponible de nuevo");
+    }
+
+    private @org.jspecify.annotations.Nullable JsonNode factoryAlert(String targetType) throws Exception {
+        JsonNode factory = json.readTree(mvc.perform(get("/api/factory")).andReturn().getResponse().getContentAsString());
+        for (JsonNode alert : factory.get("alerts")) {
+            if (alert.get("target_type").asString().equals(targetType)) return alert;
+        }
+        return null;
+    }
+
+    private void waitFor(java.util.concurrent.Callable<Boolean> condition, String what) throws Exception {
+        long deadline = System.currentTimeMillis() + 20_000;
+        while (!condition.call()) {
+            assertThat(System.currentTimeMillis()).as(what).isLessThan(deadline);
+            Thread.sleep(200);
+        }
     }
 
     private JsonNode waitForTask(String id, String expected) throws Exception {

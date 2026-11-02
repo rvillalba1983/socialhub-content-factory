@@ -1,5 +1,5 @@
 import type {
-  AppMode, AppModeState, Brand, PieceOrder, PieceSpecList, BrandInput, ExternalOperationPage, Promotion, PromotionInput, OperationOutcome, Snapshot, Station, StationCommandType, Task, TaskCommand,
+  AppMode, AppModeState, Brand, FolderInput, FolderList, Publication, PublicationFile, PublicationFileList, PublicationInput, PublicationStatus, PieceOrder, PieceSpecList, BrandInput, ExternalOperationPage, Promotion, PromotionInput, OperationOutcome, Snapshot, Station, StationCommandType, Task, TaskCommand,
 } from './model';
 
 export class ApiError extends Error {
@@ -35,6 +35,21 @@ export const api = {
   orderPieces: (promotionId: string, specPath: string) =>
     post<PieceOrder>(`/api/promotions/${encodeURIComponent(promotionId)}/piece-orders`, { spec_path: specPath }),
   updatePromotion: (id: string, input: PromotionInput) => putJson<Promotion>(`/api/promotions/${encodeURIComponent(id)}`, input),
+  brandFolders: (id: string) => call<FolderList>(`/api/brands/${encodeURIComponent(id)}/folders`),
+  saveBrandFolders: (id: string, items: FolderInput[]) => putJson<FolderList>(`/api/brands/${encodeURIComponent(id)}/folders`, { items }),
+  promotionFolders: (id: string) => call<FolderList>(`/api/promotions/${encodeURIComponent(id)}/folders`),
+  savePromotionFolders: (id: string, items: FolderInput[]) =>
+    putJson<FolderList>(`/api/promotions/${encodeURIComponent(id)}/folders`, { items }),
+  createPublication: (promotionId: string, input: PublicationInput) =>
+    post<Publication>(`/api/promotions/${encodeURIComponent(promotionId)}/publications`, input),
+  updatePublication: (id: string, input: PublicationInput) => putJson<Publication>(`/api/publications/${encodeURIComponent(id)}`, input),
+  changePublicationStatus: (id: string, status: PublicationStatus) =>
+    post<Publication>(`/api/publications/${encodeURIComponent(id)}/status-changes`, { status }),
+  publicationFiles: (id: string) => call<PublicationFileList>(`/api/publications/${encodeURIComponent(id)}/files`),
+  attachPublicationFile: (id: string, path: string) =>
+    post<PublicationFile>(`/api/publications/${encodeURIComponent(id)}/files`, { path }),
+  detachPublicationFile: (id: string, path: string) =>
+    call<void>(`/api/publications/${encodeURIComponent(id)}/files?${new URLSearchParams({ path })}`, { method: 'DELETE' }),
   taskCommand: (id: string, command: TaskCommand) =>
     post<Task>(`/api/tasks/${encodeURIComponent(id)}/commands`, command),
   stationCommand: (id: string, type: StationCommandType) =>

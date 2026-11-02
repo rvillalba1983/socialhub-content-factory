@@ -69,6 +69,7 @@ class TaskEntity {
     private AgentEmbeddable agent;
 
     private @Nullable String reason;
+    @NotAudited private @Nullable String waitingFor;
     private @Nullable String error;
     private @Nullable String result;
     private boolean human;

@@ -7,6 +7,7 @@ import com.socialhub.publishing.domain.PublicationPage;
 import com.socialhub.publishing.domain.PublicationRepository;
 import com.socialhub.publishing.domain.PublicationStatus;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Repository;
@@ -56,6 +57,12 @@ class JpaPublicationRepository implements PublicationRepository {
     public List<Publication> findFlagged(String promotionId) {
         return jpa.findByPromotionIdAndFlagIsNotNull(promotionId).stream().map(mapper::toDomain).toList();
     }
+
+    @Override
+    public Optional<Publication> findById(String id) { return jpa.findById(id).map(mapper::toDomain); }
+
+    @Override
+    public boolean exists(String id) { return jpa.existsById(id); }
 
     @Override
     public Publication save(Publication publication) {
