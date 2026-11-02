@@ -1,0 +1,670 @@
+openapi: 3.0.3
+info:
+  title: SocialHub API
+  version: 1.0.0
+  description: |
+    API de SocialHub, la fábrica de contenido. Es la fuente de la verdad: el backend genera a partir de
+    este contrato las interfaces de los controladores y los modelos.
+
+    Sigue las guías REST de Zalando:
+    - Propiedades en snake_case.
+    - Rutas en kebab-case y en plural.
+    - Valores de enumerados en UPPER_SNAKE_CASE.
+    - Errores como application/problem+json.
+    - Las acciones se modelan como comandos.
+
+    Solo se sirve en 127.0.0.1. Las peticiones que cambian algo deben llevar la cabecera
+    `X-SocialHub-Request: 1`, para que otras webs abiertas en el navegador no puedan actuar en nombre del usuario.
+  x-api-id: a4dbd2e7-a299-4144-a36d-ada7464d7ea9
+  x-audience: component-internal
+  contact:
+    name: Raúl Villalba
+servers:
+  - url: http://127.0.0.1:8686
+tags:
+  - name: Factory
+    description: Vista completa del anillo de producción
+  - name: Promotions
+  - name: Publications
+  - name: Tasks
+  - name: Stations
+  - name: Armory
+    description: Agentes, herramientas locales y servicios
+  - name: ExternalOperations
+    description: Seguimiento de las operaciones con sistemas externos
+
+paths:
+  /api/factory:
+    get:
+      tags: [Factory]
+      operationId: getFactory
+      summary: Estado completo del anillo
+      description: Estaciones, tareas, promociones, publicaciones, armería y avisos, leídos de la base de datos.
+      responses:
+        "200":
+          description: Estado del anillo
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Factory" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/promotions:
+    get:
+      tags: [Promotions]
+      operationId: listPromotions
+      responses:
+        "200":
+          description: Promociones
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PromotionList" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/promotions/{promotion_id}:
+    get:
+      tags: [Promotions]
+      operationId: getPromotion
+      parameters:
+        - $ref: "#/components/parameters/PromotionId"
+      responses:
+        "200":
+          description: Promoción con todo lo que muestra su centro de control
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Promotion" }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/promotions/{promotion_id}/publications:
+    get:
+      tags: [Publications]
+      operationId: listPublications
+      summary: Publicaciones de una promoción, con filtros
+      parameters:
+        - $ref: "#/components/parameters/PromotionId"
+        - name: status
+          in: query
+          description: Uno o varios estados
+          schema:
+            type: array
+            items: { $ref: "#/components/schemas/PublicationStatus" }
+          style: form
+          explode: false
+        - name: platform
+          in: query
+          schema: { $ref: "#/components/schemas/Platform" }
+        - name: from
+          in: query
+          description: Desde esta fecha (incluida)
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          description: Hasta esta fecha (incluida)
+          schema: { type: string, format: date }
+        - name: flagged
+          in: query
+          description: Solo las que tienen una incidencia anotada
+          schema: { type: boolean }
+        - $ref: "#/components/parameters/Offset"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Página de publicaciones
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublicationPage" }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/tasks:
+    get:
+      tags: [Tasks]
+      operationId: listTasks
+      parameters:
+        - name: station_id
+          in: query
+          schema: { type: string }
+        - name: promotion_id
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema:
+            type: array
+            items: { $ref: "#/components/schemas/TaskStatus" }
+          style: form
+          explode: false
+        - name: human
+          in: query
+          description: Solo las que esperan a Raúl
+          schema: { type: boolean }
+      responses:
+        "200":
+          description: Tareas
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TaskList" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/tasks/{task_id}:
+    get:
+      tags: [Tasks]
+      operationId: getTask
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      responses:
+        "200":
+          description: Tarea
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Task" }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/tasks/{task_id}/commands:
+    post:
+      tags: [Tasks]
+      operationId: executeTaskCommand
+      summary: Ejecuta un comando sobre la tarea
+      description: |
+        Solo se aceptan los comandos que la tarea ofrece en `available_commands`. Si no, responde 409.
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TaskCommand" }
+      responses:
+        "200":
+          description: Tarea tras aplicar el comando
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Task" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/stations:
+    get:
+      tags: [Stations]
+      operationId: listStations
+      responses:
+        "200":
+          description: Estaciones del anillo, en orden
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StationList" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/stations/{station_id}/commands:
+    post:
+      tags: [Stations]
+      operationId: executeStationCommand
+      parameters:
+        - name: station_id
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StationCommand" }
+      responses:
+        "200":
+          description: Estación tras aplicar el comando
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Station" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/armory-items:
+    get:
+      tags: [Armory]
+      operationId: listArmoryItems
+      responses:
+        "200":
+          description: Agentes, herramientas y servicios
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ArmoryItemList" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/external-operations:
+    get:
+      tags: [ExternalOperations]
+      operationId: listExternalOperations
+      summary: Operaciones con sistemas externos, las más recientes primero
+      parameters:
+        - name: system
+          in: query
+          schema: { type: string }
+          description: Sistema externo (postgres, google-drive, publer, instagram-api…)
+        - name: outcome
+          in: query
+          schema: { $ref: "#/components/schemas/OperationOutcome" }
+        - $ref: "#/components/parameters/Offset"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Página de operaciones
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ExternalOperationPage" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  # Avisos en directo. Se implementa a mano (Server-Sent Events): no se generan interfaces para este tag.
+  /api/events:
+    get:
+      tags: [Events]
+      operationId: streamEvents
+      summary: Avisos en directo (Server-Sent Events)
+      description: |
+        Eventos `factory-changed` con `{"kind": "TASK", "id": "…"}` cada vez que algo cambia, y `ping` cada 25 s.
+      responses:
+        "200":
+          description: Flujo de eventos
+          content:
+            text/event-stream:
+              schema: { type: string }
+
+components:
+  parameters:
+    PromotionId:
+      name: promotion_id
+      in: path
+      required: true
+      schema: { type: string }
+    TaskId:
+      name: task_id
+      in: path
+      required: true
+      schema: { type: string }
+    Offset:
+      name: offset
+      in: query
+      schema: { type: integer, format: int32, minimum: 0, default: 0 }
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, format: int32, minimum: 1, maximum: 500, default: 100 }
+    RequestGuard:
+      name: X-SocialHub-Request
+      in: header
+      required: true
+      description: Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario.
+      schema: { type: string, enum: ["1"] }
+
+  responses:
+    Problem:
+      description: Error
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+
+  schemas:
+    Problem:
+      type: object
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer, format: int32 }
+        detail: { type: string }
+        instance: { type: string, format: uri }
+
+    StatusLevel:
+      description: Estado visual común (estaciones, servicios, rutas)
+      type: string
+      enum: [OK, RUNNING, WAITING, BLOCKED, FAILED, IDLE, CANCELLED]
+
+    TaskStatus:
+      type: string
+      enum: [IDLE, QUEUED, RUNNING, WAITING, BLOCKED, FAILED, COMPLETED, CANCELLED]
+
+    TaskCommandType:
+      type: string
+      enum: [PAUSE, RESUME, CANCEL, DISCARD, RETRY, SWITCH_TO_MANUAL, RUN_NOW, RESCHEDULE, RECHECK, START, RERUN,
+             REOPEN, APPROVE, MARK_DONE, REMIND, CHANGE_AGENT]
+
+    AgentKind:
+      type: string
+      enum: [AI, LOCAL, HUMAN, BROWSER, CONNECTOR]
+
+    AiModel:
+      type: string
+      enum: [HAIKU, SONNET, OPUS]
+
+    PublicationStatus:
+      type: string
+      enum: [IDEA, PROPOSAL, IN_PRODUCTION, DRAFT, IN_REVIEW, APPROVED, SCHEDULED, PUBLISHING, PUBLISHED,
+             PUBLISH_ERROR, CANCELLED]
+
+    Platform:
+      type: string
+      enum: [INSTAGRAM, TIKTOK]
+
+    OperationOutcome:
+      type: string
+      enum: [SUCCESS, FAILURE]
+
+    Factory:
+      type: object
+      required: [now, demo, brands, promotions, stations, tasks, publications, armory_items, common_rules, alerts]
+      properties:
+        now: { type: string, format: date-time }
+        demo:
+          type: boolean
+          description: Los datos son de ejemplo
+        brands: { type: array, items: { $ref: "#/components/schemas/Brand" } }
+        promotions: { type: array, items: { $ref: "#/components/schemas/Promotion" } }
+        stations: { type: array, items: { $ref: "#/components/schemas/Station" } }
+        tasks: { type: array, items: { $ref: "#/components/schemas/Task" } }
+        publications: { type: array, items: { $ref: "#/components/schemas/Publication" } }
+        armory_items: { type: array, items: { $ref: "#/components/schemas/ArmoryItem" } }
+        common_rules: { type: array, items: { type: string } }
+        alerts: { type: array, items: { $ref: "#/components/schemas/Alert" } }
+
+    Alert:
+      type: object
+      required: [kind, target_type, target_id, station_id, title, detail]
+      properties:
+        kind: { type: string, enum: [FAILED, BLOCKED] }
+        target_type: { type: string, enum: [TASK, STATION] }
+        target_id: { type: string }
+        station_id: { type: string }
+        title: { type: string }
+        detail: { type: string }
+
+    Brand:
+      type: object
+      required: [id, name, handle, color, demo]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        handle: { type: string }
+        color: { type: string, pattern: "^#[0-9A-Fa-f]{6}$" }
+        demo: { type: boolean }
+
+    PromotionList:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/Promotion" } }
+
+    Promotion:
+      type: object
+      required: [id, brand_id, name, description, scope, cadence, starts_on, ends_on, status, metrics_source, goals,
+                 rules, human_todos, milestones, resources, automations, routes, settings, demo]
+      properties:
+        id: { type: string }
+        brand_id: { type: string }
+        name: { type: string }
+        description: { type: string }
+        scope: { type: string }
+        cadence: { type: string }
+        starts_on: { type: string, format: date }
+        ends_on: { type: string, format: date }
+        status: { type: string, enum: [PLANNED, ACTIVE, PAUSED, FINISHED] }
+        metrics_source: { type: string }
+        goals: { type: array, items: { type: string } }
+        rules: { type: array, items: { type: string } }
+        human_todos: { type: array, items: { type: string } }
+        milestones: { type: array, items: { $ref: "#/components/schemas/Milestone" } }
+        resources: { type: array, items: { $ref: "#/components/schemas/PromotionResource" } }
+        automations: { type: array, items: { $ref: "#/components/schemas/Automation" } }
+        routes: { type: array, items: { $ref: "#/components/schemas/PublishingRoute" } }
+        settings: { type: array, items: { $ref: "#/components/schemas/Setting" } }
+        demo: { type: boolean }
+
+    Milestone:
+      type: object
+      required: [starts_on, label]
+      properties:
+        starts_on: { type: string, format: date }
+        ends_on: { type: string, format: date }
+        label: { type: string }
+
+    PromotionResource:
+      type: object
+      required: [kind, location, description]
+      properties:
+        kind: { type: string, enum: [DRIVE, DOC] }
+        location: { type: string }
+        description: { type: string }
+
+    Automation:
+      type: object
+      required: [name, schedule, model, runs_on, status]
+      properties:
+        name: { type: string }
+        schedule: { type: string }
+        model: { $ref: "#/components/schemas/AiModel" }
+        runs_on: { type: string, enum: [PC, CLOUD] }
+        status: { $ref: "#/components/schemas/StatusLevel" }
+
+    PublishingRoute:
+      type: object
+      required: [name, status, label, notes]
+      properties:
+        name: { type: string }
+        status: { $ref: "#/components/schemas/StatusLevel" }
+        label: { type: string }
+        notes: { type: string }
+
+    Setting:
+      type: object
+      required: [label, value, origin]
+      properties:
+        label: { type: string }
+        value: { type: string }
+        origin: { type: string, enum: [BRAND, PROMOTION] }
+
+    StationList:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/Station" } }
+
+    Station:
+      type: object
+      required: [id, position, name, description, status, paused, limit_note, tools, counts, available_commands]
+      properties:
+        id: { type: string }
+        position: { type: integer, format: int32 }
+        name: { type: string }
+        description: { type: string }
+        status: { $ref: "#/components/schemas/StatusLevel" }
+        paused: { type: boolean }
+        note: { type: string }
+        limit_note: { type: string }
+        tools: { type: array, items: { type: string } }
+        counts: { $ref: "#/components/schemas/TaskCounts" }
+        available_commands:
+          type: array
+          items: { $ref: "#/components/schemas/StationCommandType" }
+
+    TaskCounts:
+      type: object
+      required: [total, running, waiting, blocked, failed, completed, idle, cancelled]
+      properties:
+        total: { type: integer, format: int32 }
+        running: { type: integer, format: int32 }
+        waiting: { type: integer, format: int32, description: En espera o en cola }
+        blocked: { type: integer, format: int32 }
+        failed: { type: integer, format: int32 }
+        completed: { type: integer, format: int32 }
+        idle: { type: integer, format: int32 }
+        cancelled: { type: integer, format: int32 }
+
+    StationCommandType:
+      type: string
+      enum: [PAUSE, RESUME]
+
+    StationCommand:
+      type: object
+      required: [type]
+      properties:
+        type: { $ref: "#/components/schemas/StationCommandType" }
+
+    TaskList:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/Task" } }
+
+    Task:
+      type: object
+      required: [id, station_id, type, title, goal, status, paused, progress, agent, human, attempts, max_attempts,
+                 inputs, steps, checks, depends_on, events, available_commands, demo]
+      properties:
+        id: { type: string }
+        station_id: { type: string }
+        promotion_id: { type: string, description: Vacío si es común a todas las promociones }
+        type: { type: string }
+        title: { type: string }
+        goal: { type: string }
+        status: { $ref: "#/components/schemas/TaskStatus" }
+        paused: { type: boolean }
+        progress: { type: number, format: double, minimum: 0, maximum: 100 }
+        agent: { $ref: "#/components/schemas/Agent" }
+        why: { type: string, description: Por qué se usa ese agente o herramienta }
+        reason: { type: string }
+        error: { type: string }
+        result: { type: string }
+        human: { type: boolean, description: Espera una acción de Raúl }
+        attempts: { type: integer, format: int32 }
+        max_attempts: { type: integer, format: int32 }
+        started_at: { type: string, format: date-time }
+        inputs: { type: array, items: { type: string } }
+        steps: { type: array, items: { $ref: "#/components/schemas/TaskStep" } }
+        checks: { type: array, items: { $ref: "#/components/schemas/TaskCheck" } }
+        depends_on: { type: array, items: { type: string } }
+        events: { type: array, items: { $ref: "#/components/schemas/TaskEvent" } }
+        available_commands:
+          type: array
+          items: { $ref: "#/components/schemas/AvailableCommand" }
+        demo: { type: boolean }
+
+    Agent:
+      type: object
+      required: [kind, name]
+      properties:
+        kind: { $ref: "#/components/schemas/AgentKind" }
+        name: { type: string }
+
+    TaskStep:
+      type: object
+      required: [label, state]
+      properties:
+        label: { type: string }
+        state:
+          type: string
+          enum: [PENDING, IN_PROGRESS, DONE, FAILED]
+
+    TaskCheck:
+      type: object
+      required: [label, passed]
+      properties:
+        label: { type: string }
+        passed: { type: boolean }
+
+    TaskEvent:
+      type: object
+      required: [at, message]
+      properties:
+        at: { type: string, format: date-time }
+        message: { type: string }
+
+    AvailableCommand:
+      type: object
+      required: [type, label, needs_confirmation]
+      properties:
+        type: { $ref: "#/components/schemas/TaskCommandType" }
+        label: { type: string }
+        needs_confirmation: { type: boolean }
+
+    TaskCommand:
+      type: object
+      required: [type]
+      properties:
+        type: { $ref: "#/components/schemas/TaskCommandType" }
+        model:
+          $ref: "#/components/schemas/AiModel"
+        # Solo para CHANGE_AGENT
+
+    PublicationPage:
+      type: object
+      required: [items, offset, limit, total]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/Publication" } }
+        offset: { type: integer, format: int32 }
+        limit: { type: integer, format: int32 }
+        total: { type: integer, format: int64 }
+
+    Publication:
+      type: object
+      required: [id, promotion_id, platform, type, title, scheduled_on, scheduled_time, timezone, status, route, demo]
+      properties:
+        id: { type: string }
+        promotion_id: { type: string }
+        platform: { $ref: "#/components/schemas/Platform" }
+        type: { type: string }
+        title: { type: string }
+        scheduled_on: { type: string, format: date }
+        scheduled_time: { type: string, pattern: "^\\d{2}:\\d{2}$", example: "19:00" }
+        timezone: { type: string, example: Europe/Madrid }
+        status: { $ref: "#/components/schemas/PublicationStatus" }
+        route: { type: string }
+        flag: { type: string, description: Incidencia anotada }
+        note: { type: string }
+        confirmation: { type: string, description: Prueba de que se ha publicado de verdad }
+        demo: { type: boolean }
+
+    ArmoryItemList:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/ArmoryItem" } }
+
+    ArmoryItem:
+      type: object
+      required: [id, kind, name, description, status, note, capabilities, demo]
+      properties:
+        id: { type: string }
+        kind: { type: string, enum: [AGENT, TOOL, SERVICE, DEVICE] }
+        name: { type: string }
+        description: { type: string }
+        status: { $ref: "#/components/schemas/StatusLevel" }
+        note: { type: string }
+        capabilities: { type: array, items: { type: string } }
+        demo: { type: boolean }
+
+    ExternalOperationPage:
+      type: object
+      required: [items, offset, limit, total]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/ExternalOperation" } }
+        offset: { type: integer, format: int32 }
+        limit: { type: integer, format: int32 }
+        total: { type: integer, format: int64 }
+
+    ExternalOperation:
+      type: object
+      required: [id, system, operation, outcome, started_at, duration_ms]
+      properties:
+        id: { type: integer, format: int64 }
+        system: { type: string, example: postgres }
+        operation: { type: string, example: start }
+        outcome: { $ref: "#/components/schemas/OperationOutcome" }
+        started_at: { type: string, format: date-time }
+        duration_ms: { type: integer, format: int64 }
+        trace_id: { type: string, description: Para buscar la operación en los registros }
+        error_type: { type: string }
+        error_message: { type: string }
+        detail: { type: string }

@@ -106,3 +106,49 @@
 - **Fechas de los datos de ejemplo:** relativas al día actual al cargarse, para que el anillo y el calendario siempre muestren algo vivo.
 - **Movimiento en la Fase 2:** un simulador del backend hace avanzar las tareas de ejemplo en la base de datos. Solo existe en modo demo y lo indica claramente.
 - **Forma de trabajo con Git:** una rama y una pull request por bloque de trabajo. GitHub Actions compila y prueba cada pull request, y se fusiona a `main` solo con el OK de Raúl.
+
+## 2026-11-01 · Revisión de la PR #1: decisiones técnicas (respuestas de Raúl)
+- **Seguridad simple:** se quita la contraseña local. La app solo escucha en 127.0.0.1. Se mantiene la cabecera `X-SocialHub-Request` en las peticiones que cambian algo, para que otras webs abiertas en el navegador no puedan actuar.
+- **Persistencia:** Spring Data JPA. Los filtros dinámicos se hacen con Specifications de Spring Data, que funcionan sobre Criteria.
+- **Auditoría:** Hibernate Envers. Guarda el historial de versiones de las entidades auditadas, con quién y cuándo.
+- **API first:** el contrato OpenAPI es la fuente de la verdad. openapi-generator (generador `spring`, solo interfaces) genera los modelos y las interfaces de los controladores.
+- **Diseño REST según Zalando:**
+  - Propiedades JSON en snake_case.
+  - Las acciones sobre tareas son comandos: `POST /api/tasks/{task_id}/commands` con `{"type": "PAUSE"}`. Los valores fijos (estados, tipos) van en MAYÚSCULAS.
+- **Mapeo entre API, dominio y JPA:** MapStruct.
+- **Código:** records siempre que se pueda. Lombok está permitido para no escribir constructores.
+- **Arquitectura hexagonal + DDD:** se marca con jMolecules (@AggregateRoot, @ValueObject, puertos y adaptadores) junto con Spring Modulith, con pruebas que verifican los límites.
+- **Observabilidad de operaciones externas:**
+  - Cada operación externa (Drive, Publer, APIs, herramientas locales, PostgreSQL…) pasa por la Observation API de Micrometer, con duración, resultado, error y un ID de traza en los logs.
+  - Además se guarda en una tabla y se muestra en SocialHub, en una pantalla «Operaciones externas».
+  - No hace falta ningún servidor extra.
+- **Base de datos:** revisar la optimización desde ya (consultas N+1, índices, paginación).
+
+## 2026-11-02 · Revisión de la PR #1: cómo se ha aplicado
+Detalles de implementación que no cambian ninguna respuesta de Raúl; se pueden revisar en la PR.
+- **Hexagonal:** cada módulo (`production`, `publishing`, `promotion`, `armory`) tiene:
+  - `domain`: agregados y puertos, sin Spring ni JPA.
+  - Raíz del módulo: casos de uso y eventos de dominio.
+  - `adapter/in/web`: controladores que implementan las interfaces generadas.
+  - `adapter/out/persistence`: entidades JPA, repositorios Spring Data y mapeadores MapStruct.
+  - El dominio no es la entidad JPA. Cuesta un mapeador más por módulo, pero el dominio no depende de la base de datos.
+- **Eventos entre módulos:** se atienden en la misma transacción, como antes. Por ejemplo, al aprobar la revisión se aprueban las publicaciones en revisión de esa promoción.
+- **Envers:**
+  - Solo audita los campos que importan: estado, pausa, agente, motivo, error, resultado e intentos de las tareas; estado, pausa y nota de las estaciones; estado, incidencia y confirmación de las publicaciones.
+  - El avance y los pasos no se auditan, porque cambian a cada momento.
+  - Como solo hay un usuario, se guarda cuándo cambió algo, no quién.
+- **Operaciones externas:**
+  - `ExternalCalls` (en `platform`) envuelve cada llamada con la Observation API de Micrometer.
+  - El módulo `operations` las acumula en memoria y las guarda por lotes cada 2 s. Así queda registrado incluso el arranque de PostgreSQL, que ocurre antes de que haya base de datos.
+  - Se borran a los 30 días.
+  - Hoy se observan la extracción de binarios, `initdb`, el arranque y la parada de PostgreSQL. Drive, Publer y las APIs pasarán por el mismo punto cuando existan.
+- **Base de datos:**
+  - Los enumerados se guardan con su nombre, en MAYÚSCULAS.
+  - Las listas de textos simples se guardan en columnas `text[]`.
+  - Las colecciones se cargan por lotes (`default_batch_fetch_size: 50`). La vista completa del anillo hace 16 consultas, y una prueba vigila que no pase de 20.
+  - Hay índices en todas las claves foráneas, más índices parciales para las tareas activas y para las operaciones fallidas.
+  - Bloqueo optimista con `@Version`.
+  - Hibernate valida el esquema contra Flyway al arrancar.
+- **Corrección:** la hora de las publicaciones se desplazaba una hora por la zona horaria de JDBC. Ahora se guarda tal cual, en hora de España (columna `timezone`).
+- **Promociones y armería:** de momento solo lectura. Los valores fijos (estado de una automatización, tipo de recurso…) los valida la base de datos.
+
