@@ -29,6 +29,7 @@ import org.springframework.test.web.servlet.ResultActions;
         "socialhub.postgres.port=0",
         "socialhub.postgres.runtime-dir=target/pg-runtime",
         "socialhub.demo.simulate=false",
+        "socialhub.default-mode=DEMO",
         "socialhub.operations.flush-millis=200",
         "spring.jpa.properties.hibernate.generate_statistics=true"
 })
