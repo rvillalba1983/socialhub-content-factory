@@ -36,6 +36,8 @@ public class PromotionService {
     private final FolderRepository folders;
     private final PromotionQueries queries;
     private final com.socialhub.promotion.domain.IdentityRepository identities;
+    private final com.socialhub.promotion.domain.DecisionRepository decisions;
+    private final java.time.Clock clock;
 
     public Brand createBrand(BrandDraft draft) {
         String id = Slugs.of(draft.name(), repository::brandIdTaken);
@@ -118,5 +120,19 @@ public class PromotionService {
         identities.save(brandId, identity);
         events.publishEvent(new FactoryChanged("brand", brandId));
         return queries.identity(brandId);
+    }
+
+    public EditorialDecision addDecision(String brandId, String text) {
+        if (repository.brand(brandId).isEmpty()) throw new NotFoundException("No existe la marca " + brandId);
+        String clean = text == null ? "" : text.strip();
+        if (clean.isEmpty()) throw new IllegalArgumentException("Escribe la decisión");
+        EditorialDecision decision = decisions.add(brandId, clean, clock.instant());
+        events.publishEvent(new FactoryChanged("brand", brandId));
+        return decision;
+    }
+
+    public void deleteDecision(String brandId, long id) {
+        if (!decisions.delete(brandId, id)) throw new NotFoundException("No existe esa decisión en la marca " + brandId);
+        events.publishEvent(new FactoryChanged("brand", brandId));
     }
 }
