@@ -897,6 +897,9 @@ export interface components {
             /** @description Incidencia anotada */
             flag?: string;
             note?: string;
+            /** @description Texto de la publicación */
+            caption?: string;
+            hashtags?: string;
             /** @description Prueba de que se ha publicado de verdad */
             confirmation?: string;
             demo: boolean;
@@ -915,6 +918,9 @@ export interface components {
             /** @default Publer */
             route: string;
             note?: string;
+            /** @description Texto de la publicación (Instagram admite 2.200 caracteres) */
+            caption?: string;
+            hashtags?: string;
             /**
              * @description Solo al dar de alta (por defecto, idea). Al editar no se admite.
              * @enum {string}

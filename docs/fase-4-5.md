@@ -100,3 +100,27 @@ Estado: **plan aprobado por respuestas de Raúl** · 2 nov 2026
 - **Para el bloque 3:** al completarse un encargo se publica el evento `AiResultApplied` con sus `outputs`. Los tipos concretos lo usarán (por ejemplo, el spec semanal creará la tarea de piezas).
 - **Pruebas:** 67 de backend y 17 de frontal. La prueba de extremo a extremo hace de Claude escribiendo resultados: límite diario, contrato, reintentos con subida a Opus, `needs_human` y carpeta no disponible.
 
+## Bloque 3 · hecho (rama `fase-5/encargos`)
+
+Respuestas de Raúl: el spec va dentro del resultado; los textos se guardan en la publicación; los informes, en Drive; algunos encargos salen solos.
+
+- **Manejadores por tipo:** cada tipo de encargo añade sus datos al encargo y aplica su resultado. Lo comprueban todo antes de cambiar nada; si el resultado no sirve, la tarea queda con error y el motivo.
+- **spec.json de la semana:**
+  - El encargo lleva la semana (lunes a domingo), las carpetas por papel y las publicaciones de esa semana.
+  - Claude devuelve `outputs.spec`. Se valida con `promo-spec.v1` y con las mismas comprobaciones que un encargo a mano: rutas dentro de las carpetas (también la de salida), formatos y publicaciones.
+  - El spec se guarda en `<Encargos de la promoción>/specs-de-claude` (no vigilada, para no encargarlo dos veces) y SocialHub encarga las piezas.
+  - Un spec que no se puede encargar se queda como `.rechazado` para revisarlo.
+- **Textos y hashtags:**
+  - Los datos de entrada son los identificadores de las publicaciones (no pueden estar publicándose ni publicadas). El encargo lleva sus datos.
+  - Claude devuelve `outputs.publications: [{id, caption, hashtags}]`. Se guardan en la publicación, en los campos nuevos «Texto» y «Hashtags».
+  - En el editor de cada publicación: botón «Pedir textos a Claude». Los textos que llegan se ven al momento si no los estás editando.
+- **Balance semanal e investigación:**
+  - Claude devuelve `outputs.report` en Markdown y `outputs.summary`. Se guarda como `<fecha>-<nombre>.md` en la carpeta de Informes, con las fuentes al final.
+  - Sin carpeta de Informes, la tarea se completa avisando de que el informe está en el resultado de Claude.
+  - El balance lleva las publicaciones de la semana con su estado. No se inventan cifras.
+- **Encargos que salen solos** (cada 10 min se comprueba, hora de España, para cada promoción activa en esa semana):
+  - **Spec:** el domingo desde las 9:00, el de la semana que empieza. Si SocialHub estaba cerrado, el lunes o el martes, el de la semana en curso.
+  - **Balance:** el lunes desde las 9:00, el de la semana pasada. Si estaba cerrado, el martes o el miércoles.
+  - Cada uno se crea una sola vez por promoción y semana (tabla `ai_auto_order`).
+- **Pruebas:** 73 de backend y 18 de frontal. Hay pruebas de extremo a extremo de cada tipo; en la del spec, Claude devuelve el spec, se generan las piezas y quedan asociadas a la publicación.
+

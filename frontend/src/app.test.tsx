@@ -292,3 +292,24 @@ describe('Encargos a Claude', () => {
     expect(order).toHaveBeenCalledWith('p', { type: 'RESEARCH', title: undefined, goal: 'Salas de poesía', inputs: ['Granada', 'Jaén'] });
   });
 });
+
+describe('Textos de una publicación', () => {
+  it('muestra los textos que llegan de Claude y los pide para esa publicación', async () => {
+    const publication: Publication = {
+      id: '2026-11-10-instagram', promotion_id: 'p', platform: 'INSTAGRAM', type: 'Carrusel', title: 'Poema 1',
+      scheduled_on: '2026-11-10', scheduled_time: '19:00', timezone: 'Europe/Madrid', status: 'DRAFT', route: 'Publer', demo: false,
+    };
+    vi.spyOn(api, 'publicationFiles').mockResolvedValue({ items: [] });
+    const order = vi.spyOn(api, 'orderFromClaude').mockResolvedValue({ task_id: 't-1' });
+    const { rerender } = render(<PublicationEditor promotionId="p" publication={publication} onClose={() => {}} onSaved={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Pedir textos a Claude' }));
+    await waitFor(() => expect(order).toHaveBeenCalledWith('p', expect.objectContaining({ type: 'CAPTIONS', inputs: ['2026-11-10-instagram'] })));
+    expect(await screen.findByText(/llegarán aquí/)).toBeInTheDocument();
+
+    rerender(<PublicationEditor promotionId="p" publication={{ ...publication, caption: 'Hola', hashtags: '#poesia' }}
+      onClose={() => {}} onSaved={() => {}} />);
+    expect(screen.getByLabelText(/^Texto/)).toHaveValue('Hola');
+    expect(screen.getByLabelText('Hashtags')).toHaveValue('#poesia');
+    expect(screen.getByText('Texto (4 / 2200)')).toBeInTheDocument();
+  });
+});
