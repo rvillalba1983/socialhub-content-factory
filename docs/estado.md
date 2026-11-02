@@ -1,13 +1,17 @@
 # SocialHub · estado actual (para retomar)
 
-Última actualización: 2 nov 2026, 10:00.
+Última actualización: 2 nov 2026, 18:15.
 
 ## Dónde estamos
 
-- **Fases 0, 1 y 2:** terminadas. El backend y el frontal están en `main`.
-  - Arranque comprobado en Windows y macOS con GitHub Actions.
-  - Falta probarlo en el PC de Raúl.
-- **Siguiente:** Fase 3, motor de tareas y herramientas locales (`docs/especificacion.md`). Antes de empezar hay que plantear las preguntas a Raúl, de una en una.
+- **Fases 0, 1, 2 y 3:** terminadas y en `main`.
+  - Fase 3: modos real y demo, alta de marcas y promociones, motor de tareas, herramientas locales (FFmpeg incluido y Java 2D) y piezas de promo.py en Java.
+  - Probado en Linux y en Windows con GitHub Actions.
+- **Pendiente en el PC de Raúl:**
+  - Arrancar SocialHub en Windows.
+  - Dar de alta sus promociones con sus carpetas reales de G:.
+  - Encargar unas piezas de prueba.
+- **Siguiente:** elegir la siguiente fase de `docs/especificacion.md`: Fase 4 (Google Drive) o Fase 5 (orquestador de IA). Antes de empezar, preguntas a Raúl de una en una.
 
 ## Cómo se trabaja
 

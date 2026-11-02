@@ -1,6 +1,6 @@
 # SocialHub — Fase 3: motor de tareas y herramientas locales
 
-Estado: **en curso** · bloques 1 y 2 fusionados · bloque 3 (piezas) en revisión · 2 nov 2026
+Estado: **terminada** (2 nov 2026). Bloques 1, 2 y 3 fusionados en `main`. Falta probarla en el PC de Raúl con su carpeta real de G:.
 
 ## Decisiones (respuestas de Raúl, una a una)
 
