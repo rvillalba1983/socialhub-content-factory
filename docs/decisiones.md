@@ -152,3 +152,13 @@ Detalles de implementación que no cambian ninguna respuesta de Raúl; se pueden
 - **Corrección:** la hora de las publicaciones se desplazaba una hora por la zona horaria de JDBC. Ahora se guarda tal cual, en hora de España (columna `timezone`).
 - **Promociones y armería:** de momento solo lectura. Los valores fijos (estado de una automatización, tipo de recurso…) los valida la base de datos.
 
+## 2026-11-02 · Frontal adaptado a la nueva API
+- **Tipos generados (respuesta de Raúl):** openapi-typescript genera los tipos TypeScript desde `contracts/openapi.yaml`.
+  - openapi-typescript 7.13 todavía no funciona con TypeScript 7.
+  - Por eso va aislado en `frontend/tools/openapi`, con su propio TypeScript 5.9 y solo para generar.
+  - CI comprueba que los tipos coinciden con el contrato.
+- **Sin pantalla de acceso,** como el backend.
+- **Pantalla «Operaciones externas»** en la cabecera, con filtros por resultado y sistema, paginación y detalle del error y de la traza.
+- **Tarjeta «Necesita atención»:** muestra los 2 avisos más importantes (primero los errores) y resume el resto, para no tapar las estaciones de abajo. Lo mismo hace la barra de avisos con 3.
+- **Rama:** el trabajo del bloque 2 se ha rebasado sobre `main` y sigue en `fase-2/frontend`. La rama anterior, `fase-2/frontend-react`, queda sin usar, porque reescribirla necesitaba un push forzado.
+
