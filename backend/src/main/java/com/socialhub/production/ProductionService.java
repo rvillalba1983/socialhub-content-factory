@@ -115,6 +115,22 @@ public class ProductionService {
     /** Crea una tarea. Si depende de otras sin terminar, queda bloqueada hasta que terminen. */
     @Transactional
     public Task submit(TaskRequest request, String agentName) {
+        return submit(UUID.randomUUID().toString(), request, agentName);
+    }
+
+    /**
+     * Tarea de identificador fijo (por ejemplo, una comprobación periódica): si ya existe y no está en marcha,
+     * vuelve a la cola; si no existe, se crea.
+     */
+    @Transactional
+    public Task submitOrRequeue(String id, TaskRequest request, String agentName) {
+        return tasks.findById(id).map(task -> {
+            if (task.requeue(clock.instant())) persist(task);
+            return task;
+        }).orElseGet(() -> submit(id, request, agentName));
+    }
+
+    private Task submit(String id, TaskRequest request, String agentName) {
         stations.findById(request.stationId())
                 .orElseThrow(() -> new IllegalArgumentException("No existe la estación " + request.stationId()));
         Set<String> completed = tasks.completedIds();
@@ -123,7 +139,7 @@ public class ProductionService {
         }
         boolean blocked = !completed.containsAll(request.dependsOn());
         Task task = Task.builder()
-                .id(UUID.randomUUID().toString())
+                .id(id)
                 .stationId(request.stationId())
                 .promotionId(request.promotionId())
                 .type(request.type())
@@ -187,12 +203,12 @@ public class ProductionService {
         });
     }
 
-    /** Al arrancar: lo que quedó «en progreso» vuelve a la cola. */
+    /** Lo que quedó «en progreso» sin ejecutarse de verdad (un cierre de SocialHub) vuelve a la cola. */
     @Transactional
-    public int recoverAfterRestart() {
+    public int recoverAfterRestart(Set<String> reallyRunning) {
         int n = 0;
         for (Task task : tasks.findByStatusIn(List.of(TaskStatus.RUNNING))) {
-            if (task.recoverAfterRestart(clock.instant())) {
+            if (!reallyRunning.contains(task.getId()) && task.recoverAfterRestart(clock.instant())) {
                 persist(task);
                 n++;
             }

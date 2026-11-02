@@ -282,6 +282,21 @@ public final class Task {
         record(now, message);
     }
 
+    /** Vuelve a poner en cola una tarea que no está en marcha (comprobaciones que se repiten). */
+    public boolean requeue(Instant now) {
+        if (status == RUNNING || status == QUEUED) return false;
+        status = QUEUED;
+        paused = false;
+        progress = 0;
+        error = null;
+        result = null;
+        reason = "En cola.";
+        attempts = 1;
+        steps.replaceAll(s -> s.with(StepState.PENDING));
+        record(now, "En cola de nuevo");
+        return true;
+    }
+
     /**
      * SocialHub se cerró con la tarea en ejecución: vuelve a la cola sin gastar un intento, porque el fallo no
      * fue suyo.

@@ -17,4 +17,17 @@ class JpaArmoryRepository implements ArmoryRepository {
     public List<ArmoryItem> findAll() {
         return jpa.findAllByOrderByPosition().stream().map(mapper::toDomain).toList();
     }
+
+    @Override
+    public ArmoryItem save(ArmoryItem item) {
+        var existing = jpa.findById(item.id());
+        ArmoryItemEntity entity = existing.orElseGet(() -> {
+            ArmoryItemEntity created = new ArmoryItemEntity();
+            created.setPosition(jpa.nextPosition());
+            return created;
+        });
+        mapper.update(item, entity);
+        if (existing.isEmpty()) jpa.save(entity);
+        return item;
+    }
 }

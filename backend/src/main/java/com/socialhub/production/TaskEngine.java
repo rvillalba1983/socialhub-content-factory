@@ -66,8 +66,7 @@ public class TaskEngine {
         AppModeHolder.runIn(AppMode.REAL, () -> {
             try {
                 if (!recovered) {
-                    int n = production.recoverAfterRestart();
-                    if (n > 0) log.info("{} tareas recuperadas tras reiniciar", n);
+                    recoverStale();
                     recovered = true;
                 }
                 int free = maxParallel - running.size();
@@ -119,6 +118,16 @@ public class TaskEngine {
                 timedOut.remove(id);
             }
         });
+    }
+
+    /**
+     * Devuelve a la cola las tareas «en progreso» que este motor no está ejecutando (se quedaron así al cerrar
+     * SocialHub). Se hace al arrancar.
+     */
+    public int recoverStale() {
+        int n = AppModeHolder.callIn(AppMode.REAL, () -> production.recoverAfterRestart(Set.copyOf(running.keySet())));
+        if (n > 0) log.info("{} tareas recuperadas tras reiniciar", n);
+        return n;
     }
 
     /** Raúl pausa o cancela una tarea en curso: se interrumpe su ejecución. */

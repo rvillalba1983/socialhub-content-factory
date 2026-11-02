@@ -52,6 +52,7 @@ class StationEntity {
     @Column(columnDefinition = "text[]")
     private List<String> tools = new ArrayList<>();
 
+    /** Nula hasta guardarla: así Spring Data sabe que es nueva y la inserta (persist) en lugar de fusionarla. */
     @Version
-    private long version;
+    private @Nullable Long version;
 }
