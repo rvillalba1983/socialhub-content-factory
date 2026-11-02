@@ -9,7 +9,7 @@ Creada el 2 nov 2026 con el OK de Raúl. No se ha tocado ninguna de las tareas p
   - La sesión principal solo reparte el trabajo. La herramienta de creación no permite elegir su modelo, así que se creó con Opus. Raúl puede cambiarlo a Haiku en los ajustes de la tarea programada para gastar menos.
 - **Aprobaciones:** se ejecuta sin pedirlas (aprobación automática).
 - **Avisos:** notificación en el móvil al terminar, solo si hubo encargos.
-- **Actualizada el 3 nov 2026** (con el OK de Raúl): revisión de calidad, identidad de la marca y memoria editorial. El texto de abajo resume las instrucciones; el texto completo vigente está en la propia tarea programada.
+- **Actualizada el 3 nov 2026** (con el OK de Raúl): revisión de calidad, identidad de la marca, memoria editorial y propuestas de la semana. El texto de abajo resume las instrucciones; el texto completo vigente está en la propia tarea programada.
 
 ## Instrucciones de la tarea
 
@@ -63,4 +63,7 @@ REGLAS PARA CADA ENCARGO
   · socialhub.quality-review → outputs.issues: [{message}] (lista vacía si está bien) y outputs.summary.
     Revisa coherencia, tono e identidad de la marca, ortografía, afirmaciones sin fuente y restricciones de la marca,
     sin repetir inputs.automatic_checks.
+  · socialhub.weekly-proposals → outputs.proposals: [{scheduled_on, scheduled_time, platform, type, title, idea, why}]
+    (máximo 21, dentro de inputs.week, siguiendo la cadencia y la memoria editorial, sin repetir
+    inputs.already_planned) y outputs.summary.
 ```
