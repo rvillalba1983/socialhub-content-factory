@@ -6,6 +6,7 @@ import com.socialhub.platform.DomainException;
 import com.socialhub.production.ProductionEvents.ReviewApproved;
 import com.socialhub.production.ProductionEvents.SwitchedToManual;
 import com.socialhub.production.ProductionEvents.TaskCompleted;
+import com.socialhub.production.ProductionEvents.TaskInterrupted;
 import com.socialhub.production.ProductionEvents.TaskNotice;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -155,18 +156,21 @@ public final class Task {
         }
         switch (command) {
             case PAUSE -> {
+                pendingNotices.add(new TaskInterrupted(id));
                 status = WAITING;
                 paused = true;
                 reason = "Pausada por ti.";
                 record(now, "Pausada");
             }
             case RESUME -> {
-                status = RUNNING;
+                // Vuelve a la cola: el motor (o el simulador) la retoma cuando la estación acepte trabajo
+                status = QUEUED;
                 paused = false;
-                reason = null;
+                reason = "Reanudada: en cola.";
                 record(now, "Reanudada");
             }
             case CANCEL, DISCARD -> {
+                if (status == RUNNING) pendingNotices.add(new TaskInterrupted(id));
                 status = CANCELLED;
                 paused = false;
                 reason = command == TaskCommandType.DISCARD ? "Descartada por ti." : "Cancelada por ti.";
@@ -249,6 +253,45 @@ public final class Task {
         if (status != QUEUED) throw new DomainException("Solo se puede arrancar una tarea en cola");
         startRunning(now, progress >= 100 ? 0 : progress);
         record(now, "En ejecución");
+    }
+
+    /** El motor termina la ejecución con éxito. */
+    public void finishRun(String resultText, Instant now) {
+        if (status != RUNNING) throw new DomainException("Solo termina una tarea en progreso");
+        complete(resultText);
+        record(now, "Completada");
+    }
+
+    /** El motor termina la ejecución con error. Raúl puede reintentar mientras queden intentos. */
+    public void failRun(String errorText, Instant now) {
+        if (status != RUNNING) throw new DomainException("Solo falla una tarea en progreso");
+        status = FAILED;
+        error = errorText;
+        reason = null;
+        steps.replaceAll(s -> s.state() == StepState.IN_PROGRESS ? s.with(StepState.FAILED) : s);
+        record(now, "Error: " + errorText);
+    }
+
+    /** Progreso informado por el motor (0–100). No completa la tarea: eso lo hace {@link #finishRun}. */
+    public void reportProgress(double value) {
+        if (status == RUNNING) progress = Math.max(0, Math.min(99, value));
+    }
+
+    /** Línea del registro de ejecución. */
+    public void log(String message, Instant now) {
+        record(now, message);
+    }
+
+    /**
+     * SocialHub se cerró con la tarea en ejecución: vuelve a la cola sin gastar un intento, porque el fallo no
+     * fue suyo.
+     */
+    public boolean recoverAfterRestart(Instant now) {
+        if (status != RUNNING) return false;
+        status = QUEUED;
+        reason = "Recuperada tras reiniciar SocialHub: en cola.";
+        record(now, "Recuperada tras reiniciar SocialHub");
+        return true;
     }
 
     /** Avance del trabajo en curso. Al llegar al 100 % la tarea se completa. */

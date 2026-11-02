@@ -2,6 +2,8 @@ package com.socialhub.production;
 
 import com.socialhub.platform.NotFoundException;
 import com.socialhub.platform.live.FactoryChanged;
+import com.socialhub.production.domain.Agent;
+import com.socialhub.production.domain.AgentKind;
 import com.socialhub.production.domain.AiModel;
 import com.socialhub.production.domain.Station;
 import com.socialhub.production.domain.StationCommandType;
@@ -11,10 +13,12 @@ import com.socialhub.production.domain.TaskCommandType;
 import com.socialhub.production.domain.TaskRepository;
 import com.socialhub.production.domain.TaskStatus;
 import java.time.Clock;
+import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.random.RandomGenerator;
 import java.util.stream.Collectors;
@@ -101,6 +105,99 @@ public class ProductionService {
             }
         }
         return count;
+    }
+
+    // ---------------------------------------------------------------- motor de tareas (modo real)
+
+    /** Tarea tomada de la cola por el motor. */
+    public record Claimed(String id, String type, @Nullable String promotionId, List<String> inputs) {}
+
+    /** Crea una tarea. Si depende de otras sin terminar, queda bloqueada hasta que terminen. */
+    @Transactional
+    public Task submit(TaskRequest request, String agentName) {
+        stations.findById(request.stationId())
+                .orElseThrow(() -> new IllegalArgumentException("No existe la estación " + request.stationId()));
+        Set<String> completed = tasks.completedIds();
+        for (String dependency : request.dependsOn()) {
+            if (tasks.findById(dependency).isEmpty()) throw new IllegalArgumentException("No existe la tarea " + dependency);
+        }
+        boolean blocked = !completed.containsAll(request.dependsOn());
+        Task task = Task.builder()
+                .id(UUID.randomUUID().toString())
+                .stationId(request.stationId())
+                .promotionId(request.promotionId())
+                .type(request.type())
+                .title(request.title())
+                .goal(request.goal())
+                .inputs(request.inputs())
+                .status(blocked ? TaskStatus.BLOCKED : TaskStatus.QUEUED)
+                .reason(blocked ? "Espera a que terminen sus dependencias." : "En cola.")
+                .agent(new Agent(AgentKind.LOCAL, agentName))
+                .attempts(1)
+                .maxAttempts(2)
+                .dependsOn(Set.copyOf(request.dependsOn()))
+                .demo(false)
+                .build();
+        task.log("Creada", clock.instant());
+        return persist(task);
+    }
+
+    /** Toma de la cola hasta {@code limit} tareas de esos tipos en estaciones que aceptan trabajo y las pone en marcha. */
+    @Transactional
+    public List<Claimed> claim(Set<String> types, int limit) {
+        List<Claimed> claimed = new ArrayList<>();
+        for (Task task : tasks.claimQueued(types, limit)) {
+            task.startFromQueue(clock.instant());
+            persist(task);
+            claimed.add(new Claimed(task.getId(), task.getType(), task.getPromotionId(), task.getInputs()));
+        }
+        return claimed;
+    }
+
+    @Transactional
+    public void finishRun(String taskId, String result) {
+        tasks.findById(taskId).filter(t -> t.getStatus() == TaskStatus.RUNNING).ifPresent(t -> {
+            t.finishRun(result, clock.instant());
+            persist(t);
+            unblockReadyTasks();
+        });
+    }
+
+    @Transactional
+    public void failRun(String taskId, String error) {
+        tasks.findById(taskId).filter(t -> t.getStatus() == TaskStatus.RUNNING).ifPresent(t -> {
+            t.failRun(error, clock.instant());
+            persist(t);
+        });
+    }
+
+    @Transactional
+    public void logRun(String taskId, String message) {
+        tasks.findById(taskId).ifPresent(t -> {
+            t.log(message, clock.instant());
+            persist(t);
+        });
+    }
+
+    @Transactional
+    public void reportProgress(String taskId, double percent) {
+        tasks.findById(taskId).ifPresent(t -> {
+            t.reportProgress(percent);
+            persist(t);
+        });
+    }
+
+    /** Al arrancar: lo que quedó «en progreso» vuelve a la cola. */
+    @Transactional
+    public int recoverAfterRestart() {
+        int n = 0;
+        for (Task task : tasks.findByStatusIn(List.of(TaskStatus.RUNNING))) {
+            if (task.recoverAfterRestart(clock.instant())) {
+                persist(task);
+                n++;
+            }
+        }
+        return n;
     }
 
     private Task persist(Task task) {

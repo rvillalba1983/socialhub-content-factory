@@ -1,5 +1,6 @@
 package com.socialhub.platform.live;
 
+import com.socialhub.platform.AppModeHolder;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -18,6 +19,11 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 public class LiveUpdates {
 
     private final List<SseEmitter> emitters = new CopyOnWriteArrayList<>();
+    private final AppModeHolder mode;
+
+    public LiveUpdates(AppModeHolder mode) {
+        this.mode = mode;
+    }
 
     @GetMapping("/api/events")
     public SseEmitter subscribe() {
@@ -32,6 +38,8 @@ public class LiveUpdates {
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void on(FactoryChanged change) {
+        // Un cambio en la base de datos del otro modo (el motor real o el simulador demo) no afecta a lo que se ve
+        if (mode.current() != mode.selected() && !"mode".equals(change.kind())) return;
         Map<String, String> payload = change.id() == null
                 ? Map.of("kind", change.kind())
                 : Map.of("kind", change.kind(), "id", change.id());

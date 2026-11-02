@@ -26,6 +26,10 @@
     <!-- Binarios de PostgreSQL usados en desarrollo y pruebas (el instalador trae los suyos) -->
     <postgres.binaries.version>18.6.0</postgres.binaries.version>
     <postgres.binaries.artifact>embedded-postgres-binaries-linux-amd64</postgres.binaries.artifact>
+    <!-- FFmpeg incluido (bytedeco, variante GPL con H.264): el ejecutable del sistema en el que se compila -->
+    <javacpp.version>1.5.14</javacpp.version>
+    <ffmpeg.version>8.1.2-${javacpp.version}</ffmpeg.version>
+    <javacpp.platform>linux-x86_64</javacpp.platform>
   </properties>
 
   <dependencyManagement>
@@ -110,6 +114,28 @@
     </dependency>
 
     <!-- Menos código repetitivo: Lombok y MapStruct -->
+    <dependency>
+      <groupId>org.bytedeco</groupId>
+      <artifactId>javacpp</artifactId>
+      <version>${javacpp.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.bytedeco</groupId>
+      <artifactId>javacpp</artifactId>
+      <version>${javacpp.version}</version>
+      <classifier>${javacpp.platform}</classifier>
+    </dependency>
+    <dependency>
+      <groupId>org.bytedeco</groupId>
+      <artifactId>ffmpeg</artifactId>
+      <version>${ffmpeg.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.bytedeco</groupId>
+      <artifactId>ffmpeg</artifactId>
+      <version>${ffmpeg.version}</version>
+      <classifier>${javacpp.platform}-gpl</classifier>
+    </dependency>
     <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>
@@ -266,22 +292,34 @@
     <profile>
       <id>pg-windows</id>
       <activation><os><family>windows</family></os></activation>
-      <properties><postgres.binaries.artifact>embedded-postgres-binaries-windows-amd64</postgres.binaries.artifact></properties>
+      <properties>
+        <postgres.binaries.artifact>embedded-postgres-binaries-windows-amd64</postgres.binaries.artifact>
+        <javacpp.platform>windows-x86_64</javacpp.platform>
+      </properties>
     </profile>
     <profile>
       <id>pg-mac-arm</id>
       <activation><os><family>mac</family><arch>aarch64</arch></os></activation>
-      <properties><postgres.binaries.artifact>embedded-postgres-binaries-darwin-arm64v8</postgres.binaries.artifact></properties>
+      <properties>
+        <postgres.binaries.artifact>embedded-postgres-binaries-darwin-arm64v8</postgres.binaries.artifact>
+        <javacpp.platform>macosx-arm64</javacpp.platform>
+      </properties>
     </profile>
     <profile>
       <id>pg-mac-intel</id>
       <activation><os><family>mac</family><arch>x86_64</arch></os></activation>
-      <properties><postgres.binaries.artifact>embedded-postgres-binaries-darwin-amd64</postgres.binaries.artifact></properties>
+      <properties>
+        <postgres.binaries.artifact>embedded-postgres-binaries-darwin-amd64</postgres.binaries.artifact>
+        <javacpp.platform>macosx-x86_64</javacpp.platform>
+      </properties>
     </profile>
     <profile>
       <id>pg-linux-arm</id>
       <activation><os><name>linux</name><arch>aarch64</arch></os></activation>
-      <properties><postgres.binaries.artifact>embedded-postgres-binaries-linux-arm64v8</postgres.binaries.artifact></properties>
+      <properties>
+        <postgres.binaries.artifact>embedded-postgres-binaries-linux-arm64v8</postgres.binaries.artifact>
+        <javacpp.platform>linux-arm64</javacpp.platform>
+      </properties>
     </profile>
   </profiles>
 </project>
