@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from './api';
 import { Icon } from './icons';
 import {
-  PUBLICATION_NEXT, PUBLICATION_STATUS, dateTime, type Publication, type QualityReport, type PublicationFile, type PublicationInput,
+  PUBLICATION_NEXT, PUBLICATION_STATUS, REJECTION_REASONS, dateTime, type RejectionReason, type Publication, type QualityReport, type PublicationFile, type PublicationInput,
   type PublicationStatus,
 } from './model';
 import { Pill } from './ui';
@@ -27,6 +27,8 @@ export function PublicationEditor({ promotionId, publication, onClose, onSaved }
   const [error, setError] = useState<string | null>(null);
   const [asked, setAsked] = useState<string | null>(null);
   const [textsTouched, setTextsTouched] = useState(false);
+  /** Pide el motivo antes de cancelar la publicación o descartar el texto (memoria editorial). */
+  const [rejecting, setRejecting] = useState<'CANCEL' | 'TEXT' | null>(null);
   // Si Claude deja textos nuevos mientras el editor está abierto y Raúl no ha tocado los suyos, se ven al momento
   useEffect(() => {
     if (!textsTouched) setForm(f => ({ ...f, caption: publication?.caption ?? '', hashtags: publication?.hashtags ?? '' }));
@@ -98,7 +100,10 @@ export function PublicationEditor({ promotionId, publication, onClose, onSaved }
             onChange={e => { setTextsTouched(true); set('hashtags', e.target.value); }} /></label>
         {publication && !locked && (
           <p className="src">
-            <button type="button" className="btn" onClick={() => void askClaude()}>Pedir textos a Claude</button>
+            <button type="button" className="btn" onClick={() => void askClaude()}>Pedir textos a Claude</button>{' '}
+            {(publication.caption || publication.hashtags) && (
+              <button type="button" className="btn" onClick={() => setRejecting('TEXT')}>Descartar texto</button>
+            )}
             {asked && <> {asked}</>}
           </p>
         )}
@@ -117,10 +122,24 @@ export function PublicationEditor({ promotionId, publication, onClose, onSaved }
             <span>Estado</span><Pill s={PUBLICATION_STATUS[publication.status].s} label={PUBLICATION_STATUS[publication.status].label} />
             {PUBLICATION_NEXT[publication.status].map(next => (
               <button key={next} type="button" className="btn" disabled={busy}
-                onClick={() => void run(() => api.changePublicationStatus(publication.id, next), `Estado: ${PUBLICATION_STATUS[next].label}`)}>
+                onClick={() => (next === 'CANCELLED' ? setRejecting('CANCEL')
+                  : void run(() => api.changePublicationStatus(publication.id, next), `Estado: ${PUBLICATION_STATUS[next].label}`))}>
                 Pasar a «{PUBLICATION_STATUS[next].label}»</button>
             ))}
           </div>
+          {rejecting && (
+            <ReasonForm title={rejecting === 'CANCEL' ? 'Por qué la cancelas' : 'Por qué descartas el texto'}
+              action={rejecting === 'CANCEL' ? 'Cancelar publicación' : 'Descartar texto'}
+              onCancel={() => setRejecting(null)}
+              onSubmit={(reason, note) => {
+                setRejecting(null);
+                void run(() => (rejecting === 'CANCEL'
+                  ? api.changePublicationStatus(publication.id, 'CANCELLED', reason, note)
+                  : api.rejectPublicationText(publication.id, reason, note)),
+                rejecting === 'CANCEL' ? 'Publicación cancelada' : 'Texto descartado');
+                if (rejecting === 'TEXT') setTextsTouched(false);
+              }} />
+          )}
           <p className="src">Programar exige al menos 6 horas de margen. «Publicada» solo llega con la confirmación de la plataforma.</p>
           <QualityPanel publication={publication} promotionId={promotionId} />
           <PublicationFiles id={publication.id} />
@@ -222,5 +241,28 @@ function QualityPanel({ publication, promotionId }: { publication: Publication; 
       </p>
       {error && <p className="error" role="alert">{error}</p>}
     </fieldset>
+  );
+}
+
+/** Motivo fijo y nota: queda en la memoria editorial de la marca. */
+function ReasonForm({ title, action, onSubmit, onCancel }: {
+  title: string; action: string; onSubmit: (reason: RejectionReason, note?: string) => void; onCancel: () => void;
+}) {
+  const [reason, setReason] = useState<RejectionReason>('TONE');
+  const [note, setNote] = useState('');
+  return (
+    <div className="card form reason-form" role="group" aria-label={title}>
+      <b>{title}</b>
+      <label className="field"><span>Motivo</span>
+        <select value={reason} onChange={e => setReason(e.target.value as RejectionReason)}>
+          {REJECTION_REASONS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
+      <label className="field"><span>Nota (opcional)</span>
+        <input maxLength={1000} value={note} onChange={e => setNote(e.target.value)} /></label>
+      <p className="src">Queda en la memoria editorial: Claude lo tendrá en cuenta en los próximos encargos.</p>
+      <div className="form-actions">
+        <button type="button" className="btn primary" onClick={() => onSubmit(reason, note.trim() || undefined)}>{action}</button>
+        <button type="button" className="btn" onClick={onCancel}>Volver</button>
+      </div>
+    </div>
   );
 }

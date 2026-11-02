@@ -41,6 +41,7 @@ class AiDispatcher {
     private final Clock clock;
     private final TransactionTemplate transactions;
     private final AiHandlers handlers;
+    private final java.util.List<AiContextProvider> contexts;
 
     @Scheduled(initialDelayString = "${socialhub.ai.initial-delay-millis:10000}",
                fixedDelayString = "${socialhub.ai.dispatch-millis:30000}")
@@ -143,6 +144,7 @@ class AiDispatcher {
                     task.title(), task.goal(), task.inputs());
             Map<String, Object> identity = promotions.identityOf(task.promotionId()).forAi();
             if (!identity.isEmpty()) inputs.put("brand_identity", identity);
+            contexts.forEach(c -> inputs.putAll(c.context(task.promotionId(), brandId)));
             handlers.of(type).ifPresent(h -> inputs.putAll(h.inputs(job)));
             request.put("inputs", inputs);
             request.put("rules", promotions.rulesFor(task.promotionId()));

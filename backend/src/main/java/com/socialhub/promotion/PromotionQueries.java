@@ -27,6 +27,7 @@ public class PromotionQueries {
     private final PromotionRepository repository;
     private final FolderRepository folderRepository;
     private final com.socialhub.promotion.domain.IdentityRepository identities;
+    private final com.socialhub.promotion.domain.DecisionRepository decisions;
 
     public List<Brand> brands() { return repository.brands(); }
 
@@ -97,6 +98,17 @@ public class PromotionQueries {
 
     /** Identidad que se aplica a una promoción: la de su marca. */
     public BrandIdentity identityOf(String promotionId) { return identity(brandOf(promotionId)); }
+
+    /** Decisiones editoriales de la marca, por orden de alta. */
+    public List<EditorialDecision> decisions(String brandId) {
+        if (repository.brand(brandId).isEmpty()) throw new NotFoundException("No existe la marca " + brandId);
+        return decisions.decisions(brandId);
+    }
+
+    /** Promociones de una marca. */
+    public List<String> promotionIdsOf(String brandId) {
+        return repository.promotions().stream().filter(p -> p.brandId().equals(brandId)).map(Promotion::id).toList();
+    }
 
     /** Marca de una promoción. */
     public String brandOf(String promotionId) { return promotion(promotionId).brandId(); }

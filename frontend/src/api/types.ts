@@ -8,6 +8,7 @@ export type {
   PublishingRoute, Setting, PieceSpecList, PieceSpec, PieceOrder, Folder, FolderList, FolderInput, FolderRole,
   PublicationInput, PublicationFile, PublicationFileList, AiRequestType, AiSettings, AiSettingsInput, AiRequest,
   AiRequestPage, AiOrderInput, AiOrder, BrandIdentity, QualityIssue, QualityReport,
+  RejectionReason, EditorialDecision, EditorialMemory,
 } from './schema';
 
 import type { TaskStep } from './schema';

@@ -7,6 +7,11 @@ import com.socialhub.api.model.BrandListDto;
 import com.socialhub.api.model.FolderListDto;
 import com.socialhub.api.model.FolderListInputDto;
 import com.socialhub.api.model.BrandIdentityDto;
+import com.socialhub.api.model.EditorialDecisionDto;
+import com.socialhub.api.model.EditorialDecisionInputDto;
+import com.socialhub.api.model.EditorialDecisionListDto;
+import com.socialhub.promotion.EditorialDecision;
+import java.time.ZoneOffset;
 import com.socialhub.promotion.BrandIdentity;
 import com.socialhub.promotion.PromotionQueries;
 import com.socialhub.promotion.PromotionService;
@@ -65,5 +70,25 @@ class BrandsController implements BrandsApi {
         return new BrandIdentityDto(i.tone(), i.audience(), i.forbiddenTopics(), i.preferredExpressions(),
                 i.forbiddenExpressions(), i.colors(), i.font(), i.logo(), i.visualStyle(), i.photoStyle(),
                 i.callToAction(), i.fixedHashtags());
+    }
+
+    @Override
+    public ResponseEntity<EditorialDecisionListDto> listBrandDecisions(String brandId) {
+        return ResponseEntity.ok(new EditorialDecisionListDto(queries.decisions(brandId).stream().map(BrandsController::toDto).toList()));
+    }
+
+    @Override
+    public ResponseEntity<EditorialDecisionDto> addBrandDecision(String brandId, String requestGuard, EditorialDecisionInputDto input) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(toDto(service.addDecision(brandId, input.getText())));
+    }
+
+    @Override
+    public ResponseEntity<Void> deleteBrandDecision(String brandId, Long decisionId, String requestGuard) {
+        service.deleteDecision(brandId, decisionId);
+        return ResponseEntity.noContent().build();
+    }
+
+    private static EditorialDecisionDto toDto(EditorialDecision d) {
+        return new EditorialDecisionDto(d.id(), d.text(), d.createdAt().atOffset(ZoneOffset.UTC));
     }
 }

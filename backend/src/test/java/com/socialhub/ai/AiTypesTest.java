@@ -207,6 +207,49 @@ class AiTypesTest {
                 .getContentAsString()).doesNotContain("CLAUDE:");
     }
 
+    @Test
+    @Order(6)
+    void theEditorialMemoryGoesInEveryOrder() throws Exception {
+        // Raúl corrige el texto que propuso Claude: queda el antes y el después
+        write(put("/api/publications/2030-11-12-instagram"), """
+                {"platform":"INSTAGRAM","type":"Historia","title":"Pregunta grande","scheduled_on":"2030-11-12",
+                 "scheduled_time":"13:00","caption":"¿Y si leer fuera el delito?","hashtags":"#poesia #eldelito"}""")
+                .andExpect(status().isOk());
+        // Y descarta el texto con su motivo
+        write(post("/api/publications/2030-11-12-instagram/text-rejections"), "{\"reason\":\"TONE\",\"note\":\"Demasiado serio\"}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.caption").doesNotExist());
+        write(post("/api/publications/2030-11-12-instagram/text-rejections"), "{\"reason\":\"TONE\"}")
+                .andExpect(status().isConflict());
+        // Cancelar exige el motivo
+        write(post("/api/promotions/poemario/publications"), """
+                {"platform":"TIKTOK","type":"Reel","title":"Reel sobrante","scheduled_on":"2030-11-13","scheduled_time":"19:00"}""")
+                .andExpect(status().isCreated());
+        write(post("/api/publications/2030-11-13-tiktok/status-changes"), "{\"status\":\"CANCELLED\"}")
+                .andExpect(status().isBadRequest());
+        write(post("/api/publications/2030-11-13-tiktok/status-changes"), "{\"status\":\"CANCELLED\",\"reason\":\"REPEATED\"}")
+                .andExpect(status().isOk());
+        write(post("/api/brands/el-delito/decisions"), "{\"text\":\"Nada de precios\"}").andExpect(status().isCreated());
+
+        mvc.perform(get("/api/brands/el-delito/editorial-memory"))
+                .andExpect(jsonPath("$.decisions[0].text").value("Nada de precios"))
+                .andExpect(jsonPath("$.rejections.length()").value(2))
+                .andExpect(jsonPath("$.rejections[0].kind").value("PUBLICATION"))
+                .andExpect(jsonPath("$.rejections[0].reason").value("REPEATED"))
+                .andExpect(jsonPath("$.rejections[1].kind").value("TEXT"))
+                .andExpect(jsonPath("$.rejections[1].note").value("Demasiado serio"))
+                .andExpect(jsonPath("$.corrections.length()").value(1))
+                .andExpect(jsonPath("$.corrections[0].before_caption").value("¿Y si el delito fuera leer?"))
+                .andExpect(jsonPath("$.corrections[0].after_caption").value("¿Y si leer fuera el delito?"));
+
+        String task = order("RESEARCH", "Ideas nuevas", "Granada");
+        JsonNode memory = request(task).get("inputs").get("editorial_memory");
+        assertThat(memory.get("decisions").get(0).asString()).isEqualTo("Nada de precios");
+        assertThat(memory.get("rejections").get(1).get("reason").asString()).isEqualTo("Tono");
+        assertThat(memory.get("corrections").get(0).get("raul_caption").asString()).isEqualTo("¿Y si leer fuera el delito?");
+        assertThat(memory.get("published_last_8_weeks").size()).isZero();
+    }
+
     // ---------------------------------------------------------------- utilidades
 
     private String order(String type, String goal, String input) throws Exception {

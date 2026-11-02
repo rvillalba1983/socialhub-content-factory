@@ -114,6 +114,56 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/brands/{brand_id}/decisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Decisiones editoriales de la marca */
+        get: operations["listBrandDecisions"];
+        put?: never;
+        post: operations["addBrandDecision"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/brands/{brand_id}/decisions/{decision_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["deleteBrandDecision"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/brands/{brand_id}/editorial-memory": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Memoria editorial de la marca (lo que va en cada encargo a Claude) */
+        get: operations["getEditorialMemory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/promotions": {
         parameters: {
             query?: never;
@@ -313,6 +363,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/publications/{publication_id}/text-rejections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Descarta el texto y los hashtags de la publicación, con su motivo
+         * @description El texto descartado y el motivo quedan en la memoria editorial de la marca.
+         */
+        post: operations["rejectPublicationText"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/publications/{publication_id}/status-changes": {
         parameters: {
             query?: never;
@@ -324,7 +394,7 @@ export interface paths {
         put?: never;
         /**
          * Cambia el estado de una publicación
-         * @description Solo transiciones permitidas por su ciclo de vida. «Publicando», «Publicada» y «Error de publicación» los pone SocialHub al publicar, nunca a mano. Para programarla, la hora debe quedar al menos a 6 horas de ahora.
+         * @description Para cancelar hace falta «reason»: el rechazo queda en la memoria editorial de la marca. Solo transiciones permitidas por su ciclo de vida. «Publicando», «Publicada» y «Error de publicación» los pone SocialHub al publicar, nunca a mano. Para programarla, la hora debe quedar al menos a 6 horas de ahora.
          */
         post: operations["changePublicationStatus"];
         delete?: never;
@@ -707,6 +777,46 @@ export interface components {
             /** @description Hashtags que deben llevar todas las publicaciones */
             fixed_hashtags: string;
         };
+        EditorialDecision: {
+            /** Format: int64 */
+            id: number;
+            text: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        EditorialDecisionList: {
+            items: components["schemas"]["EditorialDecision"][];
+        };
+        EditorialDecisionInput: {
+            text: string;
+        };
+        EditorialMemory: {
+            decisions: components["schemas"]["EditorialDecision"][];
+            /** @description Los 20 más recientes */
+            rejections: {
+                /** @enum {string} */
+                kind: "PUBLICATION" | "TEXT";
+                reason: components["schemas"]["RejectionReason"];
+                note?: string;
+                title: string;
+                content?: string;
+                publication_id?: string;
+                /** Format: date-time */
+                created_at: string;
+            }[];
+            /** @description Las 20 más recientes */
+            corrections: {
+                publication_id?: string;
+                before_caption?: string;
+                after_caption?: string;
+                before_hashtags?: string;
+                after_hashtags?: string;
+                /** Format: date-time */
+                created_at: string;
+            }[];
+            /** @description Aprobadas, programadas o publicadas de las últimas 8 semanas */
+            published: components["schemas"]["Publication"][];
+        };
         Brand: {
             id: string;
             name: string;
@@ -1047,8 +1157,20 @@ export interface components {
             key: string;
             reason: string;
         };
+        /**
+         * @description Tono, repetido, fuera de la marca, error de datos, formato u otro
+         * @enum {string}
+         */
+        RejectionReason: "TONE" | "REPEATED" | "OFF_BRAND" | "WRONG_DATA" | "FORMAT" | "OTHER";
         PublicationStatusChange: {
             status: components["schemas"]["PublicationStatus"];
+            reason?: components["schemas"]["RejectionReason"];
+            /** @description Nota del motivo (opcional) */
+            note?: string;
+        };
+        TextRejection: {
+            reason: components["schemas"]["RejectionReason"];
+            note?: string;
         };
         ArmoryItemList: {
             items: components["schemas"]["ArmoryItem"][];
@@ -1142,6 +1264,10 @@ export type AiOrder = components['schemas']['AiOrder'];
 export type AiRequestPage = components['schemas']['AiRequestPage'];
 export type AiRequest = components['schemas']['AiRequest'];
 export type BrandIdentity = components['schemas']['BrandIdentity'];
+export type EditorialDecision = components['schemas']['EditorialDecision'];
+export type EditorialDecisionList = components['schemas']['EditorialDecisionList'];
+export type EditorialDecisionInput = components['schemas']['EditorialDecisionInput'];
+export type EditorialMemory = components['schemas']['EditorialMemory'];
 export type Brand = components['schemas']['Brand'];
 export type AppMode = components['schemas']['AppMode'];
 export type AppModeState = components['schemas']['AppModeState'];
@@ -1182,7 +1308,9 @@ export type PublicationFileInput = components['schemas']['PublicationFileInput']
 export type QualityIssue = components['schemas']['QualityIssue'];
 export type QualityReport = components['schemas']['QualityReport'];
 export type QualityAcceptance = components['schemas']['QualityAcceptance'];
+export type RejectionReason = components['schemas']['RejectionReason'];
 export type PublicationStatusChange = components['schemas']['PublicationStatusChange'];
+export type TextRejection = components['schemas']['TextRejection'];
 export type ArmoryItemList = components['schemas']['ArmoryItemList'];
 export type ArmoryItem = components['schemas']['ArmoryItem'];
 export type ExternalOperationPage = components['schemas']['ExternalOperationPage'];
@@ -1458,6 +1586,112 @@ export interface operations {
                 };
             };
             400: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    listBrandDecisions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                brand_id: components["parameters"]["BrandId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Por orden de alta */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EditorialDecisionList"];
+                };
+            };
+            404: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    addBrandDecision: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path: {
+                brand_id: components["parameters"]["BrandId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EditorialDecisionInput"];
+            };
+        };
+        responses: {
+            /** @description Decisión añadida */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EditorialDecision"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    deleteBrandDecision: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path: {
+                brand_id: components["parameters"]["BrandId"];
+                decision_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Decisión borrada */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    getEditorialMemory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                brand_id: components["parameters"]["BrandId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Decisiones, rechazos, correcciones y lo publicado */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EditorialMemory"];
+                };
+            };
             404: components["responses"]["Problem"];
             default: components["responses"]["Problem"];
         };
@@ -1917,6 +2151,38 @@ export interface operations {
             };
             400: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    rejectPublicationText: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path: {
+                publication_id: components["parameters"]["PublicationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TextRejection"];
+            };
+        };
+        responses: {
+            /** @description Publicación sin texto */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Publication"];
+                };
+            };
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
             default: components["responses"]["Problem"];
         };
     };

@@ -1,5 +1,5 @@
 import type {
-  AiOrder, AiOrderInput, BrandIdentity, QualityReport, AiRequestPage, AiSettings, AiSettingsInput, AppMode, AppModeState, Brand, FolderInput, FolderList, Publication, PublicationFile, PublicationFileList, PublicationInput, PublicationStatus, PieceOrder, PieceSpecList, BrandInput, ExternalOperationPage, Promotion, PromotionInput, OperationOutcome, Snapshot, Station, StationCommandType, Task, TaskCommand,
+  AiOrder, AiOrderInput, BrandIdentity, QualityReport, RejectionReason, EditorialDecision, EditorialMemory, AiRequestPage, AiSettings, AiSettingsInput, AppMode, AppModeState, Brand, FolderInput, FolderList, Publication, PublicationFile, PublicationFileList, PublicationInput, PublicationStatus, PieceOrder, PieceSpecList, BrandInput, ExternalOperationPage, Promotion, PromotionInput, OperationOutcome, Snapshot, Station, StationCommandType, Task, TaskCommand,
 } from './model';
 
 export class ApiError extends Error {
@@ -43,8 +43,15 @@ export const api = {
   createPublication: (promotionId: string, input: PublicationInput) =>
     post<Publication>(`/api/promotions/${encodeURIComponent(promotionId)}/publications`, input),
   updatePublication: (id: string, input: PublicationInput) => putJson<Publication>(`/api/publications/${encodeURIComponent(id)}`, input),
-  changePublicationStatus: (id: string, status: PublicationStatus) =>
-    post<Publication>(`/api/publications/${encodeURIComponent(id)}/status-changes`, { status }),
+  changePublicationStatus: (id: string, status: PublicationStatus, reason?: RejectionReason, note?: string) =>
+    post<Publication>(`/api/publications/${encodeURIComponent(id)}/status-changes`, { status, reason, note }),
+  rejectPublicationText: (id: string, reason: RejectionReason, note?: string) =>
+    post<Publication>(`/api/publications/${encodeURIComponent(id)}/text-rejections`, { reason, note }),
+  editorialMemory: (brandId: string) => call<EditorialMemory>(`/api/brands/${encodeURIComponent(brandId)}/editorial-memory`),
+  addDecision: (brandId: string, text: string) =>
+    post<EditorialDecision>(`/api/brands/${encodeURIComponent(brandId)}/decisions`, { text }),
+  deleteDecision: (brandId: string, id: number) =>
+    call<void>(`/api/brands/${encodeURIComponent(brandId)}/decisions/${id}`, { method: 'DELETE' }),
   publicationFiles: (id: string) => call<PublicationFileList>(`/api/publications/${encodeURIComponent(id)}/files`),
   attachPublicationFile: (id: string, path: string) =>
     post<PublicationFile>(`/api/publications/${encodeURIComponent(id)}/files`, { path }),

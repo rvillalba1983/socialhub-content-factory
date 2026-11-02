@@ -4,6 +4,7 @@ import { api } from './api';
 import { Claude } from './Claude';
 import { ExternalOperations } from './ExternalOperations';
 import { FolderRoles } from './Folders';
+import { MemoryCard } from './Memory';
 import { PublicationEditor } from './PublicationEditor';
 import { BrandForm, PromotionForm } from './Registration';
 import { PieceOrders } from './PieceOrders';
@@ -340,5 +341,49 @@ describe('Control de calidad', () => {
     await waitFor(() => expect(accept).toHaveBeenCalledWith('p-1', 'FILES_MISSING', 'Se sube en Publer'));
     expect(await screen.findByText(/Aceptado: Se sube en Publer/)).toBeInTheDocument();
     expect(screen.getByText(/1 aviso abierto/)).toBeInTheDocument();
+  });
+});
+
+describe('Memoria editorial', () => {
+  const publication: Publication = {
+    id: 'p-2', promotion_id: 'p', platform: 'INSTAGRAM', type: 'Reel', title: 'Reel sobrante',
+    scheduled_on: '2026-11-10', scheduled_time: '19:00', timezone: 'Europe/Madrid', status: 'DRAFT', route: 'Publer',
+    caption: 'Texto de Claude', demo: false,
+  };
+
+  it('pide el motivo al cancelar y al descartar el texto', async () => {
+    vi.spyOn(api, 'publicationFiles').mockResolvedValue({ items: [] });
+    const change = vi.spyOn(api, 'changePublicationStatus').mockResolvedValue({ ...publication, status: 'CANCELLED' });
+    const discard = vi.spyOn(api, 'rejectPublicationText').mockResolvedValue({ ...publication, caption: undefined });
+    render(<PublicationEditor promotionId="p" publication={publication} onClose={() => {}} onSaved={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Pasar a «Cancelada»' }));
+    expect(change).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText('Motivo'), { target: { value: 'REPEATED' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar publicación' }));
+    await waitFor(() => expect(change).toHaveBeenCalledWith('p-2', 'CANCELLED', 'REPEATED', undefined));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Descartar texto' }));
+    fireEvent.change(screen.getByLabelText('Nota (opcional)'), { target: { value: 'Muy serio' } });
+    // El primero abre el formulario; el último es el del formulario
+    fireEvent.click(screen.getAllByRole('button', { name: 'Descartar texto' }).at(-1)!);
+    await waitFor(() => expect(discard).toHaveBeenCalledWith('p-2', 'TONE', 'Muy serio'));
+  });
+
+  it('muestra la memoria de la marca y añade decisiones', async () => {
+    const memory = {
+      decisions: [{ id: 1, text: 'Nada de precios', created_at: '2026-11-03T09:00:00Z' }],
+      rejections: [{ kind: 'TEXT' as const, reason: 'TONE' as const, title: 'Poema 1', note: 'Muy serio', created_at: '2026-11-03T09:00:00Z' }],
+      corrections: [{ before_caption: 'Antes', after_caption: 'Después', created_at: '2026-11-03T09:00:00Z' }],
+      published: [],
+    };
+    vi.spyOn(api, 'editorialMemory').mockResolvedValue(memory);
+    const add = vi.spyOn(api, 'addDecision').mockResolvedValue({ id: 2, text: 'Máximo 2 reels', created_at: '2026-11-03T10:00:00Z' });
+    render(<MemoryCard brandId="b" />);
+    expect(await screen.findByText('Nada de precios')).toBeInTheDocument();
+    expect(screen.getByText(/«Muy serio»/)).toBeInTheDocument();
+    expect(screen.getByText(/Después/)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Nueva decisión'), { target: { value: 'Máximo 2 reels' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Añadir' }));
+    await waitFor(() => expect(add).toHaveBeenCalledWith('b', 'Máximo 2 reels'));
   });
 });

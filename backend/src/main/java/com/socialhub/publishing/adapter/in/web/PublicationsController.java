@@ -36,6 +36,7 @@ class PublicationsController implements PublicationsApi {
     private final PublishingQueries queries;
     private final PublishingService service;
     private final QualityService quality;
+    private final com.socialhub.publishing.EditorialMemory memory;
     private final PublicationWebMapper mapper;
 
     @Override
@@ -71,7 +72,10 @@ class PublicationsController implements PublicationsApi {
     @Override
     public ResponseEntity<PublicationDto> changePublicationStatus(String publicationId, String requestGuard,
                                                                   PublicationStatusChangeDto change) {
-        return ResponseEntity.ok(mapper.toDto(service.changeStatus(publicationId, mapper.toDomain(change.getStatus()))));
+        var reason = change.getReason() == null ? null
+                : com.socialhub.publishing.domain.RejectionReason.valueOf(change.getReason().name());
+        return ResponseEntity.ok(mapper.toDto(service.changeStatus(publicationId, mapper.toDomain(change.getStatus()),
+                reason, change.getNote())));
     }
 
     @Override
@@ -112,5 +116,39 @@ class PublicationsController implements PublicationsApi {
             return dto;
         }).toList();
         return new QualityReportDto(dtos, (int) issues.stream().filter(QualityIssue::open).count());
+    }
+
+    @Override
+    public ResponseEntity<PublicationDto> rejectPublicationText(String publicationId, String requestGuard,
+                                                                com.socialhub.api.model.TextRejectionDto rejection) {
+        return ResponseEntity.ok(mapper.toDto(service.discardTexts(publicationId,
+                com.socialhub.publishing.domain.RejectionReason.valueOf(rejection.getReason().name()), rejection.getNote())));
+    }
+
+    @Override
+    public ResponseEntity<com.socialhub.api.model.EditorialMemoryDto> getEditorialMemory(String brandId) {
+        var s = memory.snapshot(brandId);
+        var decisions = s.decisions().stream().map(d -> new com.socialhub.api.model.EditorialDecisionDto(d.id(), d.text(),
+                d.createdAt().atOffset(ZoneOffset.UTC))).toList();
+        var rejections = s.rejections().stream().map(r -> {
+            var dto = new com.socialhub.api.model.EditorialMemoryRejectionsInnerDto(
+                    com.socialhub.api.model.EditorialMemoryRejectionsInnerDto.KindEnum.valueOf(r.kind().name()),
+                    com.socialhub.api.model.RejectionReasonDto.valueOf(r.reason().name()), r.title(), r.at().atOffset(ZoneOffset.UTC));
+            dto.setNote(r.note());
+            dto.setContent(r.content());
+            dto.setPublicationId(r.publicationId());
+            return dto;
+        }).toList();
+        var corrections = s.corrections().stream().map(c -> {
+            var dto = new com.socialhub.api.model.EditorialMemoryCorrectionsInnerDto(c.at().atOffset(ZoneOffset.UTC));
+            dto.setPublicationId(c.publicationId());
+            dto.setBeforeCaption(c.beforeCaption());
+            dto.setAfterCaption(c.afterCaption());
+            dto.setBeforeHashtags(c.beforeHashtags());
+            dto.setAfterHashtags(c.afterHashtags());
+            return dto;
+        }).toList();
+        return ResponseEntity.ok(new com.socialhub.api.model.EditorialMemoryDto(decisions, rejections, corrections,
+                mapper.toDtos(s.published())));
     }
 }
