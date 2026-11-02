@@ -248,3 +248,8 @@ Detalle en `docs/fase-4-5.md`.
 
 Detalle en `docs/fase-6.md`.
 
+## 2026-11-03 · Fase 6, bloque 2: memoria editorial (respuestas de Raúl)
+- **Qué se recuerda:** lo publicado, los rechazos con su motivo, las correcciones a textos de Claude y las decisiones editoriales por marca.
+- **Cuánto va a Claude:** 8 semanas de lo publicado, 20 rechazos, 20 correcciones y todas las decisiones, solo de la misma marca.
+- **Motivo:** fijo más una nota opcional. Es obligatorio al cancelar una publicación o descartar un texto de Claude.
+

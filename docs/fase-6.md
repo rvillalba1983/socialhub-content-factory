@@ -1,6 +1,6 @@
 # SocialHub · Fase 6: producción editorial
 
-Estado: **bloque 1 hecho** (rama `fase-6/identidad-calidad`) · 2 nov 2026
+Estado: **bloque 1 en `main`; bloque 2 en marcha** (rama `fase-6/memoria`) · 3 nov 2026
 
 ## Respuestas de Raúl
 
@@ -62,4 +62,20 @@ Qué se comprueba:
   - Claude devuelve `outputs.issues: [{message}]`. Cada revisión sustituye a la anterior.
   - Botón «Revisar con Claude» en el editor de cada publicación, junto al panel de calidad.
 - **Pruebas:** 79 de backend y 19 de frontal.
+
+## Bloque 2 · memoria editorial (respuestas de Raúl)
+
+| # | Tema | Decisión |
+|---|---|---|
+| 1 | Qué se recuerda | Lo publicado, lo rechazado y por qué, las correcciones de Raúl a los textos de Claude y las decisiones editoriales que escribe Raúl por marca |
+| 2 | Cuánto va a Claude | Lo publicado de las últimas 8 semanas, los últimos 20 rechazos y las últimas 20 correcciones, y todas las decisiones. Solo de la misma marca |
+| 3 | Motivo de un rechazo | Motivo fijo (tono, repetido, fuera de la marca, error de datos, formato u otro) más una nota opcional. Es obligatorio al cancelar una publicación o al descartar un texto de Claude |
+
+Cómo se aplica:
+- **Rechazos:**
+  - Al cancelar una publicación se pide el motivo, y queda con su título y su texto.
+  - «Descartar texto» en el editor borra el texto y los hashtags que propuso Claude y guarda el motivo y lo descartado.
+- **Correcciones:** SocialHub guarda la última propuesta de Claude en cada publicación. Si Raúl guarda un texto distinto, se apunta el antes y el después.
+- **Decisiones editoriales:** notas por marca que Raúl añade o borra en «Marcas».
+- **En los encargos:** todo va en `inputs.editorial_memory`.
 
