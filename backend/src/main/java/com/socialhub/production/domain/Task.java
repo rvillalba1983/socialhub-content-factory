@@ -113,7 +113,11 @@ public final class Task {
         Set<TaskCommandType> commands = EnumSet.noneOf(TaskCommandType.class);
         switch (status) {
             case RUNNING -> commands.addAll(List.of(TaskCommandType.PAUSE, TaskCommandType.CANCEL));
-            case QUEUED -> commands.addAll(List.of(TaskCommandType.RUN_NOW, TaskCommandType.CANCEL));
+            case QUEUED -> {
+                // Un encargo a Claude no se «adelanta»: sale en el siguiente envío a la carpeta de Drive
+                if (!isAiRequest()) commands.add(TaskCommandType.RUN_NOW);
+                commands.add(TaskCommandType.CANCEL);
+            }
             case WAITING -> {
                 if (paused) {
                     commands.add(TaskCommandType.RESUME);
@@ -121,6 +125,8 @@ public final class Task {
                     commands.addAll(List.of(TaskCommandType.APPROVE, TaskCommandType.REMIND));
                 } else if (human) {
                     commands.addAll(List.of(TaskCommandType.REMIND, TaskCommandType.MARK_DONE));
+                } else if (isAiRequest()) {
+                    // Espera el resultado de Claude: solo se puede cancelar
                 } else {
                     commands.addAll(List.of(TaskCommandType.RUN_NOW, TaskCommandType.RESCHEDULE));
                 }
@@ -129,7 +135,7 @@ public final class Task {
             case BLOCKED -> commands.addAll(List.of(TaskCommandType.RECHECK, TaskCommandType.CANCEL));
             case FAILED -> {
                 if (attempts < maxAttempts) commands.add(TaskCommandType.RETRY);
-                commands.add(TaskCommandType.SWITCH_TO_MANUAL);
+                if (!isAiRequest()) commands.add(TaskCommandType.SWITCH_TO_MANUAL);
                 commands.add(TaskCommandType.CANCEL);
             }
             case COMPLETED -> commands.add(TaskCommandType.RERUN);
@@ -286,9 +292,66 @@ public final class Task {
         record(now, "Error: " + errorText);
     }
 
+    /** Prefijo de los tipos de tarea que son encargos a Claude (se resuelven por la carpeta de Drive). */
+    public static final String AI_PREFIX = "AI_";
+
+    public boolean isAiRequest() { return type.startsWith(AI_PREFIX); }
+
+    /** El encargo sale hacia Claude: queda en espera de su resultado. */
+    public void delegateToAi(AiModel model, String reasonText, Instant now) {
+        if (status != QUEUED || !isAiRequest()) throw new DomainException("Solo se encarga a Claude un encargo en cola");
+        Agent next = Agent.ai(model);
+        if (!next.equals(agent)) record(now, "Modelo para este intento: " + next.label());
+        agent = next;
+        status = WAITING;
+        human = false;
+        startedAt = now;
+        reason = reasonText;
+        record(now, reasonText);
+    }
+
+    /** El encargo sigue en cola por un motivo visible (por ejemplo, el límite diario). Solo deja historial si cambia. */
+    public boolean keepQueued(String reasonText, Instant now) {
+        if (status != QUEUED || reasonText.equals(reason)) return false;
+        reason = reasonText;
+        record(now, reasonText);
+        return true;
+    }
+
+    /** Claude devolvió el resultado. */
+    public void aiCompleted(String resultText, Instant now) {
+        requireWaitingForAi();
+        complete(resultText);
+        record(now, "Resultado de Claude recibido");
+    }
+
+    /** Claude devolvió un error, o un resultado que no cumple el contrato. Raúl puede reintentar si quedan intentos. */
+    public void aiFailed(String errorText, Instant now) {
+        requireWaitingForAi();
+        status = FAILED;
+        error = errorText;
+        reason = null;
+        record(now, "Error de Claude: " + errorText);
+    }
+
+    /** Claude necesita que Raúl decida algo. */
+    public void aiNeedsHuman(String reasonText, Instant now) {
+        requireWaitingForAi();
+        human = true;
+        reason = reasonText;
+        record(now, "Claude pide a Raúl: " + reasonText);
+    }
+
+    /** Está esperando el resultado de Claude (y no lo está mirando Raúl). */
+    public boolean isWaitingForAi() { return status == WAITING && isAiRequest() && !human && !paused; }
+
+    private void requireWaitingForAi() {
+        if (!isWaitingForAi()) throw new DomainException("La tarea no está esperando un resultado de Claude");
+    }
+
     /** Falta una carpeta: la tarea se bloquea sin gastar intento y espera a que aparezca. */
     public void blockRun(String reasonText, String path, Instant now) {
-        if (status != RUNNING) throw new DomainException("Solo se bloquea una tarea en progreso");
+        if (status != RUNNING && status != QUEUED) throw new DomainException("Solo se bloquea una tarea en progreso o en cola");
         status = BLOCKED;
         reason = reasonText;
         waitingFor = path;

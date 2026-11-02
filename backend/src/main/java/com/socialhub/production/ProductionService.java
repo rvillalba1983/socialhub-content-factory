@@ -13,6 +13,7 @@ import com.socialhub.production.domain.TaskCommandType;
 import com.socialhub.production.domain.TaskRepository;
 import com.socialhub.production.domain.TaskStatus;
 import java.time.Clock;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
@@ -137,6 +138,10 @@ public class ProductionService {
     }
 
     private Task submit(String id, TaskRequest request, String agentName) {
+        return submit(id, request, new Agent(AgentKind.LOCAL, agentName), 2);
+    }
+
+    private Task submit(String id, TaskRequest request, Agent agent, int maxAttempts) {
         stations.findById(request.stationId())
                 .orElseThrow(() -> new IllegalArgumentException("No existe la estación " + request.stationId()));
         Set<String> completed = tasks.completedIds();
@@ -154,14 +159,94 @@ public class ProductionService {
                 .inputs(request.inputs())
                 .status(blocked ? TaskStatus.BLOCKED : TaskStatus.QUEUED)
                 .reason(blocked ? "Espera a que terminen sus dependencias." : "En cola.")
-                .agent(new Agent(AgentKind.LOCAL, agentName))
+                .agent(agent)
                 .attempts(1)
-                .maxAttempts(2)
+                .maxAttempts(maxAttempts)
                 .dependsOn(Set.copyOf(request.dependsOn()))
                 .demo(false)
                 .build();
         task.log("Creada", clock.instant());
         return persist(task);
+    }
+
+    /** Crea un encargo a Claude: tiene 3 intentos (el tercero sube un nivel de modelo). */
+    @Transactional
+    public String submitAi(TaskRequest request, String model) {
+        if (!request.type().startsWith(Task.AI_PREFIX)) {
+            throw new IllegalArgumentException("Un encargo a Claude debe tener un tipo " + Task.AI_PREFIX + "…");
+        }
+        return submit(UUID.randomUUID().toString(), request, Agent.ai(AiModel.valueOf(model)), 3).getId();
+    }
+
+    /** Encargos a Claude en cola, por orden de llegada. */
+    @Transactional(readOnly = true)
+    public List<AiTask> queuedAiTasks() {
+        return tasks.findByStatusIn(List.of(TaskStatus.QUEUED)).stream()
+                .filter(Task::isAiRequest)
+                .map(ProductionService::toAiTask)
+                .sorted(java.util.Comparator.comparing(AiTask::createdAt).thenComparing(AiTask::id))
+                .toList();
+    }
+
+    /** El encargo que espera un resultado de Claude, si lo hay con ese identificador. */
+    @Transactional(readOnly = true)
+    public java.util.Optional<AiTask> waitingAiTask(String taskId) {
+        return tasks.findById(taskId).filter(Task::isWaitingForAi).map(ProductionService::toAiTask);
+    }
+
+    @Transactional
+    public void delegateToAi(String taskId, String model, String reason) {
+        Task task = task(taskId);
+        task.delegateToAi(AiModel.valueOf(model), reason, clock.instant());
+        persist(task);
+    }
+
+    @Transactional
+    public void keepQueued(String taskId, String reason) {
+        tasks.findById(taskId).ifPresent(t -> {
+            if (t.keepQueued(reason, clock.instant())) persist(t);
+        });
+    }
+
+    /** Un encargo en cola no puede salir porque falta su carpeta: se bloquea sin gastar intento. */
+    @Transactional
+    public void blockQueued(String taskId, String reason, String path) {
+        tasks.findById(taskId).filter(t -> t.getStatus() == TaskStatus.QUEUED).ifPresent(t -> {
+            t.blockRun(reason, path, clock.instant());
+            persist(t);
+        });
+    }
+
+    @Transactional
+    public void aiCompleted(String taskId, String result) {
+        Task task = task(taskId);
+        task.aiCompleted(result, clock.instant());
+        persist(task);
+        unblockReadyTasks();
+    }
+
+    @Transactional
+    public void aiFailed(String taskId, String error) {
+        Task task = task(taskId);
+        task.aiFailed(error, clock.instant());
+        persist(task);
+    }
+
+    @Transactional
+    public void aiNeedsHuman(String taskId, String reason) {
+        Task task = task(taskId);
+        task.aiNeedsHuman(reason, clock.instant());
+        persist(task);
+    }
+
+    private static AiTask toAiTask(Task t) {
+        String model = t.getAgent().isAi()
+                ? java.util.Arrays.stream(AiModel.values()).filter(m -> m.label().equals(t.getAgent().name()))
+                        .findFirst().orElse(AiModel.SONNET).name()
+                : AiModel.SONNET.name();
+        Instant created = t.getHistory().isEmpty() ? Instant.EPOCH : t.getHistory().getFirst().at();
+        return new AiTask(t.getId(), t.getType(), t.getPromotionId(), t.getTitle(), t.getGoal(), t.getInputs(),
+                t.getAttempts(), model, created);
     }
 
     /** Toma de la cola hasta {@code limit} tareas de esos tipos en estaciones que aceptan trabajo y las pone en marcha. */
