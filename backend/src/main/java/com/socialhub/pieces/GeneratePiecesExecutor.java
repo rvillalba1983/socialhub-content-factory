@@ -57,14 +57,14 @@ class GeneratePiecesExecutor implements TaskExecutor {
     static void requireFolderOf(String specPath, List<String> folders) {
         Path spec;
         try {
-            spec = Path.of(specPath).toAbsolutePath().normalize();
+            spec = canonical(Path.of(specPath));
         } catch (InvalidPathException e) {
             return;
         }
         for (String folder : folders) {
             Path root;
             try {
-                root = Path.of(folder).toAbsolutePath().normalize();
+                root = canonical(Path.of(folder));
             } catch (InvalidPathException e) {
                 continue;
             }
@@ -72,6 +72,22 @@ class GeneratePiecesExecutor implements TaskExecutor {
                 throw new ResourceUnavailableException(folder, "La carpeta «" + folder + "» no está disponible en este "
                         + "ordenador. ¿Está abierto Google Drive para ordenador? La tarea seguirá sola cuando aparezca.");
             }
+        }
+    }
+
+    /**
+     * Ruta comparable aunque no exista: la parte que existe se pasa a su ruta real y se le añade el resto. Así,
+     * en Windows, «RUNNER~1» y «runneradmin» (nombres cortos y largos) acaban igual.
+     */
+    static Path canonical(Path path) {
+        Path absolute = path.toAbsolutePath().normalize();
+        Path existing = absolute;
+        while (existing != null && !Files.exists(existing)) existing = existing.getParent();
+        if (existing == null) return absolute;
+        try {
+            return existing.toRealPath().resolve(existing.relativize(absolute)).normalize();
+        } catch (java.io.IOException e) {
+            return absolute;
         }
     }
 }
