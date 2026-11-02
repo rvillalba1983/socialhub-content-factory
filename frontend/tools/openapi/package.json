@@ -1,0 +1,13 @@
+{
+  "name": "socialhub-openapi-types",
+  "private": true,
+  "description": "Genera src/api/schema.d.ts desde contracts/openapi.yaml. Va aparte porque openapi-typescript necesita TypeScript 5 y el frontal usa TypeScript 7.",
+  "type": "module",
+  "scripts": {
+    "generate": "openapi-typescript ../../../contracts/openapi.yaml -o ../../src/api/schema.d.ts --root-types --root-types-no-schema-prefix"
+  },
+  "devDependencies": {
+    "openapi-typescript": "7.13.0",
+    "typescript": "5.9.3"
+  }
+}
