@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "socialhub.promo-spec.v1",
+  "title": "Encargo de piezas de Instagram (compatible con el spec.json de promo.py)",
+  "description": "Las rutas pueden ser absolutas o relativas a la carpeta del spec. Todas deben estar dentro de las carpetas de la promoción. Nunca se sobrescribe un archivo: si existe, se usa otro nombre.",
+  "type": "object",
+  "required": ["piezas"],
+  "properties": {
+    "out": { "type": "string", "description": "Carpeta de salida. Por defecto, «salida» junto al spec" },
+    "leeme": { "type": "string", "description": "Nombre del LEEME con los textos, por ejemplo 0_LEEME_semana_2.txt" },
+    "titulo_leeme": { "type": "string" },
+    "piezas": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 60,
+      "items": {
+        "type": "object",
+        "required": ["tipo", "nombre"],
+        "properties": {
+          "tipo": { "enum": ["carrusel", "historia", "reel", "clip", "comprimir"] },
+          "nombre": { "type": "string", "pattern": "^[\\p{L}\\p{N} _.-]{1,80}$" },
+          "dia": { "type": "string" },
+          "caption": { "type": "string" },
+          "hashtags": { "type": "string" },
+          "slides": {
+            "type": "array",
+            "maxItems": 10,
+            "items": {
+              "type": "object",
+              "required": ["img", "texto"],
+              "properties": {
+                "img": { "type": "string" },
+                "texto": { "type": "string" },
+                "titulo": { "type": "string" },
+                "crop": { "$ref": "#/$defs/crop" }
+              }
+            }
+          },
+          "cierre": {
+            "type": "object",
+            "required": ["img", "lineas"],
+            "properties": { "img": { "type": "string" }, "lineas": { "type": "array", "items": { "type": "string" } } }
+          },
+          "img": { "type": "string" },
+          "titulo": { "type": "string" },
+          "texto": { "type": "string" },
+          "cta": { "type": "string" },
+          "crop": { "$ref": "#/$defs/crop" },
+          "gancho": { "type": "string" },
+          "versos": { "type": "array", "maxItems": 20, "items": { "type": "string" } },
+          "final": { "type": "array", "maxItems": 8, "items": { "type": "string" } },
+          "audio": { "type": "string" },
+          "audio_inicio": { "type": "number", "minimum": 0 },
+          "video": { "type": "string" },
+          "inicio": { "type": "number", "minimum": 0 },
+          "duracion": { "type": "number", "exclusiveMinimum": 0, "maximum": 90 }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "crop": {
+      "description": "Punto de encuadre horizontal y vertical, de 0 a 1",
+      "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "number", "minimum": 0, "maximum": 1 }
+    }
+  }
+}

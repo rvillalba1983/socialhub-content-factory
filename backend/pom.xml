@@ -221,7 +221,7 @@
               <generateModelTests>false</generateModelTests>
               <generateApiDocumentation>false</generateApiDocumentation>
               <generateModelDocumentation>false</generateModelDocumentation>
-              <apisToGenerate>Factory,AppMode,Brands,Promotions,Publications,Tasks,Stations,Armory,ExternalOperations</apisToGenerate>
+              <apisToGenerate>Factory,AppMode,Brands,Promotions,Pieces,Publications,Tasks,Stations,Armory,ExternalOperations</apisToGenerate>
               <configOptions>
                 <interfaceOnly>true</interfaceOnly>
                 <useSpringBoot3>true</useSpringBoot3>

@@ -68,6 +68,19 @@ public class FfmpegTool implements LocalTool {
         return process.run("ffmpeg", operation, executable(), arguments, null, timeout);
     }
 
+    /** Duración en segundos de un audio o vídeo, con ffprobe. */
+    public double probeDuration(Path media) throws InterruptedException {
+        Path ffprobe = executable().resolveSibling(executable().getFileName().toString().replace("ffmpeg", "ffprobe"));
+        String out = process.run("ffprobe", "duration", ffprobe,
+                List.of("-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", media.toString()),
+                null, Duration.ofSeconds(60)).output().strip();
+        try {
+            return out.isEmpty() ? 0 : Double.parseDouble(out.lines().findFirst().orElse("0"));
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
     @Override
     public Check check() throws InterruptedException {
         try {

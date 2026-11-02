@@ -118,6 +118,12 @@ public class ProductionService {
         return submit(UUID.randomUUID().toString(), request, agentName);
     }
 
+    /** Como {@link #submit(TaskRequest, String)}, para otros módulos: devuelve solo el identificador. */
+    @Transactional
+    public String submitTask(TaskRequest request, String agentName) {
+        return submit(request, agentName).getId();
+    }
+
     /**
      * Tarea de identificador fijo (por ejemplo, una comprobación periódica): si ya existe y no está en marcha,
      * vuelve a la cola; si no existe, se crea.
