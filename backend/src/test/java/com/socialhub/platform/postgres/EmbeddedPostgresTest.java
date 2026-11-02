@@ -2,6 +2,7 @@ package com.socialhub.platform.postgres;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.socialhub.platform.observability.ExternalCalls;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -18,7 +19,8 @@ class EmbeddedPostgresTest {
     @Test
     void dataSurvivesARestart() throws Exception {
         PostgresBinaries binaries = PostgresBinaries.resolve("", Path.of("target", "pg-runtime").toAbsolutePath());
-        EmbeddedPostgres pg = new EmbeddedPostgres(binaries, dir.resolve("pgdata"), dir.resolve("logs"), 0, 60);
+        EmbeddedPostgres pg = new EmbeddedPostgres(binaries, dir.resolve("pgdata"), dir.resolve("logs"), 0, 60,
+                ExternalCalls.unobserved());
         pg.start();
         try {
             try (Connection c = DriverManager.getConnection(pg.jdbcUrl(), EmbeddedPostgres.USER, "")) {

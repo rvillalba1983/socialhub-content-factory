@@ -24,7 +24,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 class RequestGuardFilter extends OncePerRequestFilter {
 
     static final String HEADER = "X-SocialHub-Request";
-    private static final Set<String> LOCAL_HOSTS = Set.of("localhost", "127.0.0.1", "[::1]");
+    private static final Set<String> LOCAL_HOSTS = Set.of("localhost", "127.0.0.1", "[::1]", "::1");
     private static final Set<String> SAFE_METHODS = Set.of("GET", "HEAD", "OPTIONS");
 
     @Override
@@ -43,17 +43,10 @@ class RequestGuardFilter extends OncePerRequestFilter {
         chain.doFilter(request, response);
     }
 
-    /** Nombre del servidor de la cabecera Host, sin el puerto. */
+    /** Nombre del servidor al que va dirigida la petición (de la cabecera Host), sin el puerto. */
     static String host(HttpServletRequest request) {
-        String host = request.getHeader("Host");
-        if (host == null || host.isBlank()) return "";
-        host = host.trim().toLowerCase();
-        if (host.startsWith("[")) {
-            int end = host.indexOf(']');
-            return end < 0 ? host : host.substring(0, end + 1);
-        }
-        int colon = host.indexOf(':');
-        return colon < 0 ? host : host.substring(0, colon);
+        String name = request.getServerName();
+        return name == null ? "" : name.toLowerCase();
     }
 
     private static void reject(HttpServletResponse response, String detail) throws IOException {

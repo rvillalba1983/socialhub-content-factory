@@ -102,7 +102,7 @@ create table station (
     note             text,
     limit_note       text not null default '',
     tools            text[] not null default '{}',
-    version          int not null default 0
+    version          bigint not null default 0
 );
 
 create table task (
@@ -127,7 +127,7 @@ create table task (
     max_attempts  int not null default 2 check (max_attempts >= 1),
     started_at    timestamptz,
     updated_at    timestamptz not null default now(),
-    version       int not null default 0,
+    version       bigint not null default 0,
     is_demo       boolean not null default false,
     check (not paused or status = 'WAITING')
 );
@@ -187,7 +187,7 @@ create table publication (
     external_id    text,
     confirmation   text,
     published_at   timestamptz,
-    version        int not null default 0,
+    version        bigint not null default 0,
     is_demo        boolean not null default false,
     -- Nunca «publicada» sin confirmación de la plataforma o de la vista de Publer
     check (status <> 'PUBLISHED' or confirmation is not null)

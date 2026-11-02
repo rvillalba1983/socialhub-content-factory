@@ -2,6 +2,7 @@ package com.socialhub.platform.web;
 
 import com.socialhub.platform.DomainException;
 import com.socialhub.platform.NotFoundException;
+import jakarta.validation.ConstraintViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -27,6 +28,12 @@ class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(NotFoundException.class)
     ProblemDetail notFound(NotFoundException e) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.getMessage());
+    }
+
+    /** Parámetros fuera de los límites del contrato OpenAPI (por ejemplo, {@code limit} mayor que 500). */
+    @ExceptionHandler(ConstraintViolationException.class)
+    ProblemDetail invalid(ConstraintViolationException e) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage());
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

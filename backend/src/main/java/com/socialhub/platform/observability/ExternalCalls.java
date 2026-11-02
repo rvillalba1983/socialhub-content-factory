@@ -8,6 +8,7 @@ import java.time.Clock;
 import java.util.function.Supplier;
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
@@ -26,6 +27,7 @@ public class ExternalCalls {
     private final @Nullable Tracer tracer;
     private final Clock clock;
 
+    @Autowired
     public ExternalCalls(ObservationRegistry registry, ObjectProvider<Tracer> tracer, Clock clock) {
         this(registry, tracer.getIfAvailable(), clock);
     }

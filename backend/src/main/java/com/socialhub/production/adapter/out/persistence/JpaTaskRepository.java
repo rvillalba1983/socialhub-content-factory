@@ -60,10 +60,12 @@ class JpaTaskRepository implements TaskRepository {
 
     @Override
     public Task save(Task task) {
-        TaskEntity entity = jpa.findById(task.getId()).orElseGet(() -> new TaskEntity(task.getId()));
+        var existing = jpa.findById(task.getId());
+        TaskEntity entity = existing.orElseGet(() -> new TaskEntity(task.getId()));
         mapper.update(task, entity);
         task.newHistory().forEach(h -> entity.getEvents().add(new TaskEventEntity(entity, h.at(), h.message())));
-        jpa.save(entity);
+        // Una entidad ya cargada se guarda sola al confirmar la transacción (sin merge)
+        if (existing.isEmpty()) jpa.save(entity);
         task.clearPending();
         return task;
     }

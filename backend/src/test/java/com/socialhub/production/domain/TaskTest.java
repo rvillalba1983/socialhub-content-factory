@@ -16,128 +16,140 @@ class TaskTest {
 
     private static final Instant NOW = Instant.parse("2026-10-26T10:00:00Z");
 
-    private static Task task(TaskStatus status, Agent agent, boolean human, String type, int attempts, List<String> deps) {
-        return new Task("t", "gen", "promo", type, "Tarea", status, false, status == TaskStatus.RUNNING ? 50 : 0, agent,
-                null, status == TaskStatus.ERROR ? "falló" : null, null, human, attempts, 2, null,
-                List.of(new Task.Step("Uno", 1), new Task.Step("Dos", status == TaskStatus.ERROR ? -1 : 0)),
-                List.of(new Task.Check("Comprobación", false)), deps, 0);
+    private static Task task(TaskStatus status, Agent agent, boolean human, String type, int attempts, Set<String> deps) {
+        return Task.builder()
+                .id("t").stationId("gen").promotionId("promo").type(type).title("Tarea").status(status)
+                .progress(status == TaskStatus.RUNNING ? 50 : 0).agent(agent)
+                .error(status == TaskStatus.FAILED ? "falló" : null).human(human).attempts(attempts).maxAttempts(2)
+                .steps(List.of(new TaskStep("Uno", StepState.DONE),
+                        new TaskStep("Dos", status == TaskStatus.FAILED ? StepState.FAILED : StepState.PENDING)))
+                .checks(List.of(new TaskCheck("Comprobación", false)))
+                .dependsOn(deps)
+                .build();
     }
 
     private static Task task(TaskStatus status) {
-        return task(status, Agent.ai("Sonnet"), false, "generic", 1, List.of());
+        return task(status, Agent.ai(AiModel.SONNET), false, "GENERIC", 1, Set.of());
     }
 
     @Test
     void runningTaskCanBePausedAndResumed() {
         Task t = task(TaskStatus.RUNNING);
-        t.apply(TaskAction.PAUSE, null, NOW);
-        assertThat(t.status()).isEqualTo(TaskStatus.WAITING);
-        assertThat(t.paused()).isTrue();
-        assertThat(t.allowedActions()).contains(TaskAction.RESUME).doesNotContain(TaskAction.PAUSE);
+        t.execute(TaskCommandType.PAUSE, null, NOW);
+        assertThat(t.getStatus()).isEqualTo(TaskStatus.WAITING);
+        assertThat(t.isPaused()).isTrue();
+        assertThat(t.allowedCommands()).contains(TaskCommandType.RESUME).doesNotContain(TaskCommandType.PAUSE);
 
-        t.apply(TaskAction.RESUME, null, NOW);
-        assertThat(t.status()).isEqualTo(TaskStatus.RUNNING);
-        assertThat(t.paused()).isFalse();
-        assertThat(t.pendingEvents()).containsExactly("Pausada", "Reanudada");
+        t.execute(TaskCommandType.RESUME, null, NOW);
+        assertThat(t.getStatus()).isEqualTo(TaskStatus.RUNNING);
+        assertThat(t.isPaused()).isFalse();
+        assertThat(t.newHistory()).extracting(TaskHistoryEntry::message).containsExactly("Pausada", "Reanudada");
+        assertThat(t.getHistory()).hasSize(2);
     }
 
     @Test
-    void actionsNotAllowedInTheCurrentStateAreRejected() {
+    void commandsNotAllowedInTheCurrentStateAreRejected() {
         Task completed = task(TaskStatus.COMPLETED);
-        assertThatThrownBy(() -> completed.apply(TaskAction.PAUSE, null, NOW))
+        assertThatThrownBy(() -> completed.execute(TaskCommandType.PAUSE, null, NOW))
                 .isInstanceOf(DomainException.class)
                 .hasMessageContaining("Completada");
         Task blocked = task(TaskStatus.BLOCKED);
-        assertThatThrownBy(() -> blocked.apply(TaskAction.RUN_NOW, null, NOW)).isInstanceOf(DomainException.class);
+        assertThatThrownBy(() -> blocked.execute(TaskCommandType.RUN_NOW, null, NOW)).isInstanceOf(DomainException.class);
         Task cancelled = task(TaskStatus.CANCELLED);
-        assertThatThrownBy(() -> cancelled.apply(TaskAction.CHANGE_AGENT, "Opus", NOW)).isInstanceOf(DomainException.class);
+        assertThatThrownBy(() -> cancelled.execute(TaskCommandType.CHANGE_AGENT, AiModel.OPUS, NOW))
+                .isInstanceOf(DomainException.class);
     }
 
     @Test
     void retriesAreLimited() {
-        Task t = task(TaskStatus.ERROR);
-        assertThat(t.allowedActions()).contains(TaskAction.RETRY);
-        t.apply(TaskAction.RETRY, null, NOW);
-        assertThat(t.status()).isEqualTo(TaskStatus.QUEUED);
-        assertThat(t.attempts()).isEqualTo(2);
-        assertThat(t.error()).isNull();
-        assertThat(t.steps().get(1).state()).isZero();
+        Task t = task(TaskStatus.FAILED);
+        assertThat(t.allowedCommands()).contains(TaskCommandType.RETRY);
+        t.execute(TaskCommandType.RETRY, null, NOW);
+        assertThat(t.getStatus()).isEqualTo(TaskStatus.QUEUED);
+        assertThat(t.getAttempts()).isEqualTo(2);
+        assertThat(t.getError()).isNull();
+        assertThat(t.getSteps().get(1).state()).isEqualTo(StepState.PENDING);
 
-        Task exhausted = task(TaskStatus.ERROR, Agent.ai("Sonnet"), false, "generic", 2, List.of());
-        assertThat(exhausted.allowedActions()).doesNotContain(TaskAction.RETRY).contains(TaskAction.SWITCH_TO_MANUAL);
-        assertThatThrownBy(() -> exhausted.apply(TaskAction.RETRY, null, NOW)).isInstanceOf(DomainException.class);
+        Task exhausted = task(TaskStatus.FAILED, Agent.ai(AiModel.SONNET), false, "GENERIC", 2, Set.of());
+        assertThat(exhausted.allowedCommands()).doesNotContain(TaskCommandType.RETRY)
+                .contains(TaskCommandType.SWITCH_TO_MANUAL);
+        assertThatThrownBy(() -> exhausted.execute(TaskCommandType.RETRY, null, NOW)).isInstanceOf(DomainException.class);
     }
 
     @Test
     void switchingToManualHandsTheTaskToRaul() {
-        Task t = task(TaskStatus.ERROR, new Agent("browser", "Publer · Chrome"), false, "generic", 1, List.of());
-        t.apply(TaskAction.SWITCH_TO_MANUAL, null, NOW);
-        assertThat(t.status()).isEqualTo(TaskStatus.WAITING);
-        assertThat(t.human()).isTrue();
-        assertThat(t.agent()).isEqualTo(Agent.raul());
+        Task t = task(TaskStatus.FAILED, new Agent(AgentKind.BROWSER, "Publer · Chrome"), false, "GENERIC", 1, Set.of());
+        t.execute(TaskCommandType.SWITCH_TO_MANUAL, null, NOW);
+        assertThat(t.getStatus()).isEqualTo(TaskStatus.WAITING);
+        assertThat(t.isHuman()).isTrue();
+        assertThat(t.getAgent()).isEqualTo(Agent.raul());
         assertThat(t.pendingNotices()).containsExactly(new SwitchedToManual("t", "promo"));
     }
 
     @Test
     void approvingAReviewCompletesItAndNotifiesPublishing() {
-        Task review = task(TaskStatus.WAITING, Agent.raul(), true, Task.TYPE_REVIEW, 1, List.of());
-        assertThat(review.allowedActions()).contains(TaskAction.APPROVE).doesNotContain(TaskAction.MARK_DONE);
-        review.apply(TaskAction.APPROVE, null, NOW);
-        assertThat(review.status()).isEqualTo(TaskStatus.COMPLETED);
-        assertThat(review.checks()).allMatch(Task.Check::passed);
+        Task review = task(TaskStatus.WAITING, Agent.raul(), true, Task.TYPE_REVIEW, 1, Set.of());
+        assertThat(review.allowedCommands()).contains(TaskCommandType.APPROVE).doesNotContain(TaskCommandType.MARK_DONE);
+        review.execute(TaskCommandType.APPROVE, null, NOW);
+        assertThat(review.getStatus()).isEqualTo(TaskStatus.COMPLETED);
+        assertThat(review.getChecks()).allMatch(TaskCheck::passed);
         assertThat(review.pendingNotices()).contains(new ReviewApproved("t", "promo"), new TaskCompleted("t"));
     }
 
     @Test
     void humanTaskThatIsNotAReviewIsMarkedDone() {
-        Task t = task(TaskStatus.WAITING, Agent.raul(), true, "generic", 1, List.of());
-        assertThat(t.allowedActions()).contains(TaskAction.MARK_DONE).doesNotContain(TaskAction.APPROVE, TaskAction.CHANGE_AGENT);
-        t.apply(TaskAction.MARK_DONE, null, NOW);
-        assertThat(t.status()).isEqualTo(TaskStatus.COMPLETED);
+        Task t = task(TaskStatus.WAITING, Agent.raul(), true, "GENERIC", 1, Set.of());
+        assertThat(t.allowedCommands()).contains(TaskCommandType.MARK_DONE)
+                .doesNotContain(TaskCommandType.APPROVE, TaskCommandType.CHANGE_AGENT);
+        t.execute(TaskCommandType.MARK_DONE, null, NOW);
+        assertThat(t.getStatus()).isEqualTo(TaskStatus.COMPLETED);
     }
 
     @Test
     void blockedTaskIsQueuedOnlyWhenAllDependenciesAreCompleted() {
-        Task t = task(TaskStatus.BLOCKED, Agent.ai("Opus"), false, "generic", 1, List.of("a", "b"));
-        assertThat(t.unblockIfReady(Set.of("a"))).isFalse();
-        assertThat(t.status()).isEqualTo(TaskStatus.BLOCKED);
-        assertThat(t.unblockIfReady(Set.of("a", "b"))).isTrue();
-        assertThat(t.status()).isEqualTo(TaskStatus.QUEUED);
+        Task t = task(TaskStatus.BLOCKED, Agent.ai(AiModel.OPUS), false, "GENERIC", 1, Set.of("a", "b"));
+        assertThat(t.unblockIfReady(Set.of("a"), NOW)).isFalse();
+        assertThat(t.getStatus()).isEqualTo(TaskStatus.BLOCKED);
+        assertThat(t.unblockIfReady(Set.of("a", "b"), NOW)).isTrue();
+        assertThat(t.getStatus()).isEqualTo(TaskStatus.QUEUED);
     }
 
     @Test
     void progressCompletesTheTask() {
         Task t = task(TaskStatus.RUNNING);
-        t.advance(30);
-        assertThat(t.status()).isEqualTo(TaskStatus.RUNNING);
-        assertThat(t.progress()).isEqualTo(80);
-        t.advance(30);
-        assertThat(t.status()).isEqualTo(TaskStatus.COMPLETED);
-        assertThat(t.progress()).isEqualTo(100);
-        assertThat(t.steps()).allMatch(Task.Step::done);
+        t.advance(30, NOW);
+        assertThat(t.getStatus()).isEqualTo(TaskStatus.RUNNING);
+        assertThat(t.getProgress()).isEqualTo(80);
+        assertThat(t.getSteps().get(1).state()).isEqualTo(StepState.IN_PROGRESS);
+        t.advance(30, NOW);
+        assertThat(t.getStatus()).isEqualTo(TaskStatus.COMPLETED);
+        assertThat(t.getProgress()).isEqualTo(100);
+        assertThat(t.getSteps()).allMatch(s -> s.state() == StepState.DONE);
     }
 
     @Test
     void queuedTasksStartFromTheQueueOnly() {
         Task queued = task(TaskStatus.QUEUED);
         queued.startFromQueue(NOW);
-        assertThat(queued.status()).isEqualTo(TaskStatus.RUNNING);
-        assertThat(queued.startedAt()).isEqualTo(NOW);
+        assertThat(queued.getStatus()).isEqualTo(TaskStatus.RUNNING);
+        assertThat(queued.getStartedAt()).isEqualTo(NOW);
         assertThatThrownBy(() -> task(TaskStatus.WAITING).startFromQueue(NOW)).isInstanceOf(DomainException.class);
     }
 
     @Test
-    void agentCanOnlyBeChangedToAvailableClaudeModels() {
+    void changingTheAgentNeedsAModel() {
         Task t = task(TaskStatus.QUEUED);
-        t.apply(TaskAction.CHANGE_AGENT, "Opus", NOW);
-        assertThat(t.agent()).isEqualTo(Agent.ai("Opus"));
-        assertThatThrownBy(() -> t.apply(TaskAction.CHANGE_AGENT, "GPT", NOW)).isInstanceOf(IllegalArgumentException.class);
+        t.execute(TaskCommandType.CHANGE_AGENT, AiModel.OPUS, NOW);
+        assertThat(t.getAgent()).isEqualTo(Agent.ai(AiModel.OPUS));
+        assertThat(t.getAgent().name()).isEqualTo("Opus");
+        assertThatThrownBy(() -> t.execute(TaskCommandType.CHANGE_AGENT, null, NOW))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void onlyWaitingTasksCanBePaused() {
-        assertThatThrownBy(() -> new Task("t", "gen", null, null, "x", TaskStatus.RUNNING, true, 0, Agent.raul(), null,
-                null, null, true, 1, 2, null, List.of(), List.of(), List.of(), 0))
+        assertThatThrownBy(() -> Task.builder().id("t").stationId("gen").title("x").status(TaskStatus.RUNNING)
+                .paused(true).agent(Agent.raul()).build())
                 .isInstanceOf(IllegalArgumentException.class);
     }
 }

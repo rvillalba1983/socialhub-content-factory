@@ -59,9 +59,11 @@ class JpaPublicationRepository implements PublicationRepository {
 
     @Override
     public Publication save(Publication publication) {
-        PublicationEntity entity = jpa.findById(publication.getId()).orElseGet(PublicationEntity::new);
+        var existing = jpa.findById(publication.getId());
+        PublicationEntity entity = existing.orElseGet(PublicationEntity::new);
         mapper.update(publication, entity);
-        jpa.save(entity);
+        // Una entidad ya cargada se guarda sola al confirmar la transacción (sin merge)
+        if (existing.isEmpty()) jpa.save(entity);
         return publication;
     }
 }

@@ -5,12 +5,18 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.socialhub.platform.DomainException;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import org.junit.jupiter.api.Test;
 
 class PublicationTest {
 
     private static Publication at(PublicationStatus status) {
-        return new Publication("p", "promo", status, null, null, null, null, 0);
+        return Publication.builder().id("p").promotionId("promo").platform(Platform.INSTAGRAM).type("Reel")
+                .title("Prueba").scheduledOn(LocalDate.of(2026, 11, 2)).scheduledTime(LocalTime.of(19, 0))
+                .status(status)
+                .confirmation(status == PublicationStatus.PUBLISHED ? "Vista de Publer" : null)
+                .build();
     }
 
     @Test
@@ -23,7 +29,7 @@ class PublicationTest {
         p.moveTo(PublicationStatus.APPROVED);
         p.moveTo(PublicationStatus.SCHEDULED);
         p.moveTo(PublicationStatus.PUBLISHING);
-        assertThat(p.status()).isEqualTo(PublicationStatus.PUBLISHING);
+        assertThat(p.getStatus()).isEqualTo(PublicationStatus.PUBLISHING);
     }
 
     @Test
@@ -43,7 +49,15 @@ class PublicationTest {
                 .isInstanceOf(DomainException.class);
 
         p.confirmPublished("17890", null, Instant.parse("2026-10-26T18:00:00Z"));
-        assertThat(p.status()).isEqualTo(PublicationStatus.PUBLISHED);
-        assertThat(p.confirmation()).contains("17890");
+        assertThat(p.getStatus()).isEqualTo(PublicationStatus.PUBLISHED);
+        assertThat(p.getConfirmation()).contains("17890");
+    }
+
+    @Test
+    void aPublishedPublicationCannotBeLoadedWithoutConfirmation() {
+        assertThatThrownBy(() -> Publication.builder().id("p").promotionId("promo").platform(Platform.TIKTOK)
+                .type("Vídeo").title("x").scheduledOn(LocalDate.of(2026, 11, 2)).scheduledTime(LocalTime.NOON)
+                .status(PublicationStatus.PUBLISHED).build())
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }

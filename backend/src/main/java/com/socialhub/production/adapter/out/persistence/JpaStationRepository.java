@@ -28,8 +28,8 @@ class JpaStationRepository implements StationRepository {
     public Station save(Station station) {
         StationEntity entity = jpa.findById(station.getId())
                 .orElseThrow(() -> new IllegalStateException("Las estaciones se crean con la migración o los datos de ejemplo"));
+        // Entidad ya cargada: se guarda al confirmar la transacción
         mapper.update(station, entity);
-        jpa.save(entity);
         return station;
     }
 }

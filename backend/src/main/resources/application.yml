@@ -18,7 +18,6 @@ spring:
         default_batch_fetch_size: 50
         jdbc:
           batch_size: 50
-          time_zone: UTC
         order_inserts: true
         order_updates: true
         # Envers: tablas *_aud y revinfo
