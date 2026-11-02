@@ -1,6 +1,5 @@
 package com.socialhub.demo;
 
-import com.socialhub.audit.AuditLog;
 import com.socialhub.platform.SocialHubProperties;
 import java.io.IOException;
 import java.io.InputStream;
@@ -38,17 +37,15 @@ class DemoDataLoader implements ApplicationRunner {
     private final JdbcClient jdbc;
     private final ObjectMapper mapper;
     private final SocialHubProperties properties;
-    private final AuditLog audit;
     private final Clock clock;
     private final TransactionTemplate tx;
 
-    DemoDataLoader(JdbcClient jdbc, ObjectMapper mapper, SocialHubProperties properties, AuditLog audit, Clock clock,
+    DemoDataLoader(JdbcClient jdbc, ObjectMapper mapper, SocialHubProperties properties, Clock clock,
                    PlatformTransactionManager transactions) {
         this.tx = new TransactionTemplate(transactions);
         this.jdbc = jdbc;
         this.mapper = mapper;
         this.properties = properties;
-        this.audit = audit;
         this.clock = clock;
     }
 
@@ -68,7 +65,7 @@ class DemoDataLoader implements ApplicationRunner {
         Instant now = clock.instant();
 
         for (int i = 0; i < data.commonRules().size(); i++) {
-            jdbc.sql("insert into app_rule (position, text) values (?, ?)").params(i, data.commonRules().get(i)).update();
+            jdbc.sql("insert into common_rule (position, text) values (?, ?)").params(i, data.commonRules().get(i)).update();
         }
         for (int i = 0; i < data.brands().size(); i++) {
             var b = data.brands().get(i);
@@ -84,7 +81,7 @@ class DemoDataLoader implements ApplicationRunner {
                     insert into station (id, position, name, description, status, note, limit_note, tools)
                     values (?, ?, ?, ?, ?, ?, ?, ?)
                     """).params(s.id(), i, s.name(), s.description(), s.status(), s.note(), s.limit(),
-                    s.tools().toArray(String[]::new)).update();
+                    array(s.tools())).update();
         }
         for (var t : data.tasks()) {
             insertTask(t, now);
@@ -96,20 +93,17 @@ class DemoDataLoader implements ApplicationRunner {
         }
         insertArmory(data.armory());
         insertPublications(data, today);
-        audit.record("SocialHub", "demo.load", "app", null, "Datos de ejemplo cargados alrededor del " + today);
         log.info("Datos de ejemplo cargados (marcados como demostración)");
     }
 
     private void insertPromotion(DemoData.PromotionSeed p, int position, LocalDate today) {
         jdbc.sql("""
                 insert into promotion (id, brand_id, name, description, scope, cadence, starts_on, ends_on, metrics_source,
-                                       position, is_demo)
-                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, true)
+                                       goals, rules, human_todos, position, is_demo)
+                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, true)
                 """).params(p.id(), p.brandId(), p.name(), p.description(), p.scope(), p.cadence(),
-                today.plusDays(p.startOffset()), today.plusDays(p.endOffset()), p.metricsSource(), position).update();
-        texts("promotion_goal", p.id(), p.goals());
-        texts("promotion_rule", p.id(), p.rules());
-        texts("promotion_human_todo", p.id(), p.humanTodos());
+                today.plusDays(p.startOffset()), today.plusDays(p.endOffset()), p.metricsSource(),
+                array(p.goals()), array(p.rules()), array(p.humanTodos()), position).update();
         LocalDate start = today.plusDays(p.startOffset());
         for (int i = 0; i < p.milestones().size(); i++) {
             var m = p.milestones().get(i);
@@ -145,19 +139,18 @@ class DemoDataLoader implements ApplicationRunner {
         Integer started = t.startedMinutesAgo();
         jdbc.sql("""
                 insert into task (id, station_id, promotion_id, type, title, goal, status, progress, agent_kind, agent_name,
-                                  why, reason, error, result, human, attempts, max_attempts, started_at, is_demo)
-                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, true)
-                """).params(t.id(), t.station(), t.promotion(), t.type() == null ? "generic" : t.type(), t.title(),
+                                  why, reason, error, result, human, attempts, max_attempts, started_at, inputs, is_demo)
+                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, true)
+                """).params(t.id(), t.station(), t.promotion(), t.type() == null ? "GENERIC" : t.type(), t.title(),
                 Objects.requireNonNullElse(t.goal(), ""), t.status(), t.progress() == null ? 0 : t.progress(),
                 t.agent().get(0), t.agent().get(1), t.why(), t.reason(), t.error(), t.result(),
                 Boolean.TRUE.equals(t.human()), t.attempts() == null ? 1 : t.attempts(),
                 t.maxAttempts() == null ? 2 : t.maxAttempts(),
-                started == null ? null : Timestamp.from(now.minus(started, ChronoUnit.MINUTES))).update();
-        texts("task_input", t.id(), nz(t.inputs()), "task_id");
+                started == null ? null : Timestamp.from(now.minus(started, ChronoUnit.MINUTES)), array(nz(t.inputs()))).update();
         List<List<Object>> steps = nz(t.steps());
         for (int i = 0; i < steps.size(); i++) {
             jdbc.sql("insert into task_step (task_id, position, label, state) values (?, ?, ?, ?)")
-                    .params(t.id(), i, steps.get(i).get(0), ((Number) steps.get(i).get(1)).doubleValue()).update();
+                    .params(t.id(), i, steps.get(i).get(0), steps.get(i).get(1)).update();
         }
         List<List<Object>> checks = nz(t.checks());
         for (int i = 0; i < checks.size(); i++) {
@@ -172,33 +165,13 @@ class DemoDataLoader implements ApplicationRunner {
     }
 
     private void insertArmory(List<DemoData.ArmorySeed> items) {
-        jdbc.sql("insert into ai_provider (id, name) values ('anthropic', 'Anthropic')").update();
-        for (String model : List.of("Haiku", "Sonnet", "Opus")) {
-            jdbc.sql("insert into ai_model (id, provider_id, name) values (?, 'anthropic', ?)")
-                    .params("claude-" + model.toLowerCase(), "Claude " + model).update();
-        }
         for (int i = 0; i < items.size(); i++) {
             var a = items.get(i);
-            switch (a.kind()) {
-                case "agent" -> jdbc.sql("""
-                        insert into ai_agent (id, provider_id, name, description, status, note, position, is_demo)
-                        values (?, ?, ?, ?, ?, ?, ?, true)
-                        """).params(a.id(), "claude-pro".equals(a.id()) ? "anthropic" : null, a.name(), a.description(),
-                        a.status(), a.note(), i).update();
-                case "tool" -> {
-                    jdbc.sql("""
-                            insert into local_tool (id, name, description, status, note, position, is_demo)
-                            values (?, ?, ?, ?, ?, ?, true)
-                            """).params(a.id(), a.name(), a.description(), a.status(), a.note(), i).update();
-                    for (String c : nz(a.capabilities())) {
-                        jdbc.sql("insert into local_tool_capability (tool_id, capability) values (?, ?)").params(a.id(), c).update();
-                    }
-                }
-                default -> jdbc.sql("""
-                        insert into external_service (id, name, description, kind, status, note, position, is_demo)
-                        values (?, ?, ?, ?, ?, ?, ?, true)
-                        """).params(a.id(), a.name(), a.description(), a.kind(), a.status(), a.note(), i).update();
-            }
+            jdbc.sql("""
+                    insert into armory_item (id, kind, name, description, status, note, capabilities, position, is_demo)
+                    values (?, ?, ?, ?, ?, ?, ?, ?, true)
+                    """).params(a.id(), a.kind(), a.name(), a.description(), a.status(),
+                    Objects.requireNonNullElse(a.note(), ""), array(nz(a.capabilities())), i).update();
         }
     }
 
@@ -216,22 +189,22 @@ class DemoDataLoader implements ApplicationRunner {
                 int offset = (int) week[k][0];
                 String type = (String) week[k][2];
                 LocalDate date = monday.plusDays(offset);
-                String status = w == 1 ? (offset < 2 ? "review" : "production") : w == 2 ? "proposal" : "idea";
+                String status = w == 1 ? (offset < 2 ? "IN_REVIEW" : "IN_PRODUCTION") : w == 2 ? "PROPOSAL" : "IDEA";
                 String title = "Historia".equals(type) ? "Historia con la llamada a la acción escrita"
                         : (w == 1 && offset == 0 ? "Presentación: 30 poemas que se leen… y se juegan"
                         : series[(w + k) % 4] + " · semana " + w);
                 if (date.equals(freeDay)) {
                     title = "Días gratis: empieza hoy (hora de España y de América)";
-                    status = "proposal";
+                    status = "PROPOSAL";
                 }
-                publication("d" + (++seq), "delito-lanzamiento", "instagram", type, title, date, (String) week[k][1], status,
+                publication("d" + (++seq), "delito-lanzamiento", "INSTAGRAM", type, title, date, (String) week[k][1], status,
                         "Publer", null, null, null);
             }
         }
-        publication("d" + (++seq), "delito-lanzamiento", "instagram", "Historia", "Días gratis: segundo día",
-                freeDay.plusDays(1), "13:00", "proposal", "Publer", null, null, null);
-        publication("d" + (++seq), "delito-lanzamiento", "instagram", "Historia", "Días gratis: último día",
-                freeDay.plusDays(2), "13:00", "proposal", "Publer", null, null, null);
+        publication("d" + (++seq), "delito-lanzamiento", "INSTAGRAM", "Historia", "Días gratis: segundo día",
+                freeDay.plusDays(1), "13:00", "PROPOSAL", "Publer", null, null, null);
+        publication("d" + (++seq), "delito-lanzamiento", "INSTAGRAM", "Historia", "Días gratis: último día",
+                freeDay.plusDays(2), "13:00", "PROPOSAL", "Publer", null, null, null);
 
         LocalDate litoStart = today.plusDays(promotion(data, "litoques-lanzamiento").startOffset());
         int todayN = (int) ChronoUnit.DAYS.between(litoStart, today) + 1;
@@ -241,25 +214,25 @@ class DemoDataLoader implements ApplicationRunner {
             int k = n - todayN;
             String reel;
             String story;
-            if (k < 0) { reel = story = "published"; }
-            else if (k == 0) { reel = story = "scheduled"; }
-            else if (k == 1) { reel = "scheduled"; story = "approved"; }
-            else if (k == 2) { reel = "approved"; story = "draft"; }
-            else if (k == 3) { reel = story = "production"; }
-            else { reel = story = n <= todayN + 5 ? "proposal" : "idea"; }
+            if (k < 0) { reel = story = "PUBLISHED"; }
+            else if (k == 0) { reel = story = "SCHEDULED"; }
+            else if (k == 1) { reel = "SCHEDULED"; story = "APPROVED"; }
+            else if (k == 2) { reel = "APPROVED"; story = "DRAFT"; }
+            else if (k == 3) { reel = story = "IN_PRODUCTION"; }
+            else { reel = story = n <= todayN + 5 ? "PROPOSAL" : "IDEA"; }
             String note = k < 0 ? "Confirmada en la vista semanal de Publer" : null;
-            publication("l" + n + "r", "litoques-lanzamiento", "instagram", "Reel", "Día " + n + " · Reel de 25 s con un tema de Litoques",
+            publication("l" + n + "r", "litoques-lanzamiento", "INSTAGRAM", "Reel", "Día " + n + " · Reel de 25 s con un tema de Litoques",
                     date, "19:00", reel, "Publer", null, note, k < 0 ? confirmed : null);
-            publication("l" + n + "h", "litoques-lanzamiento", "instagram", "Historia", "Día " + n + " · Historia", date, "21:00",
+            publication("l" + n + "h", "litoques-lanzamiento", "INSTAGRAM", "Historia", "Día " + n + " · Historia", date, "21:00",
                     story, "Publer", k == 1 ? "Pendiente de programar: Publer no respondió" : null, note,
                     k < 0 ? confirmed : null);
         }
         LocalDate tiktokDay = delitoStart.plusDays(7);
-        publication("tt-delito", "delito-lanzamiento", "tiktok", "TikTok · prueba privada",
-                "Primera prueba del adaptador de TikTok (solo visible para la cuenta)", tiktokDay, "12:00", "idea",
+        publication("tt-delito", "delito-lanzamiento", "TIKTOK", "TikTok · prueba privada",
+                "Primera prueba del adaptador de TikTok (solo visible para la cuenta)", tiktokDay, "12:00", "IDEA",
                 "TikTok · API oficial", "Sin cuenta todavía", null, null);
-        publication("tt-litoques", "litoques-lanzamiento", "tiktok", "TikTok · prueba privada",
-                "Primera prueba del adaptador de TikTok (solo visible para la cuenta)", tiktokDay, "12:00", "idea",
+        publication("tt-litoques", "litoques-lanzamiento", "TIKTOK", "TikTok · prueba privada",
+                "Primera prueba del adaptador de TikTok (solo visible para la cuenta)", tiktokDay, "12:00", "IDEA",
                 "TikTok · API oficial", "Sin cuenta todavía", null, null);
     }
 
@@ -277,15 +250,8 @@ class DemoDataLoader implements ApplicationRunner {
         return data.promotions().stream().filter(p -> p.id().equals(id)).findFirst().orElseThrow();
     }
 
-    private void texts(String table, String promotionId, List<String> values) {
-        texts(table, promotionId, values, "promotion_id");
-    }
-
-    private void texts(String table, String ownerId, List<String> values, String ownerColumn) {
-        for (int i = 0; i < values.size(); i++) {
-            jdbc.sql("insert into " + table + " (" + ownerColumn + ", position, text) values (?, ?, ?)")
-                    .params(ownerId, i, values.get(i)).update();
-        }
+    private static String[] array(List<String> values) {
+        return values.toArray(String[]::new);
     }
 
     private static <T> List<T> nz(List<T> list) {
