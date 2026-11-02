@@ -216,3 +216,13 @@ Detalle en `docs/fase-4-5.md`.
   - Drive aparece en la armería y, si falta algo, en los avisos (tipo `ARMORY`).
 - **Módulo `drive`:** comprueba las carpetas de Drive. No llama a la API de Google: solo mira las carpetas sincronizadas en el ordenador.
 
+## 2026-11-02 · Fase 5, bloque 2: intercambio con Claude
+- **Carpeta de intercambio:** por marca. Es la del papel «Encargos», con `para-claude` y `de-claude`.
+- **Validación de resultados:**
+  - Con la librería `com.networknt:json-schema-validator` 3.0.8 (gratuita, Apache 2.0, Jackson 3), contra el propio archivo del contrato, que se copia al jar.
+  - El `$id` del contrato no es una URI y la librería no lo admite. Se quita al cargarlo, sin cambiar el contrato.
+- **Intentos de los encargos a Claude:** 3. Los dos primeros usan el modelo de la tarea y el tercero sube un nivel. Reintentos a mano.
+- **Límite diario:** se cuenta por envíos (cada intento cuenta) desde las 0:00, hora de España.
+- **Sin carpeta de «Encargos»:** el encargo sigue en cola con el motivo, sin bloquearse, y sale en cuanto se configura.
+- **Motor:** tomar tareas de la cola y recuperar las que quedaron a medias ya no se cruzan (aparecía en las pruebas).
+

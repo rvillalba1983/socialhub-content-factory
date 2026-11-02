@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { api } from './api';
+import { Claude } from './Claude';
 import { ControlCenter } from './ControlCenter';
 import { ExternalOperations } from './ExternalOperations';
 import { Registration } from './Registration';
@@ -30,11 +31,12 @@ export function Factory({ data, live, onRefresh }: {
   const [sel, setSel] = useState<Selection>({ type: null, id: null });
   const [cc, setCc] = useState<{ promo: string; tab: string; hl: string | null } | null>(null);
   const [ops, setOps] = useState(false);
+  const [claude, setClaude] = useState(false);
   const [reg, setReg] = useState<{ kind: 'brand' | 'promotion'; id: string | null } | false | null>(false);
   const [demoAvailable, setDemoAvailable] = useState(true);
   useEffect(() => { api.appMode().then(m => setDemoAvailable(m.demo_available)).catch(() => {}); }, []);
   // Abrir una promoción cierra el registro de operaciones
-  useEffect(() => { if (cc) setOps(false); }, [cc]);
+  useEffect(() => { if (cc) { setOps(false); setClaude(false); } }, [cc]);
   const [toast, setToast] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [hitIndex, setHitIndex] = useState(0);
@@ -230,7 +232,7 @@ export function Factory({ data, live, onRefresh }: {
     try {
       await api.changeAppMode(mode);
       // Lo seleccionado pertenece a la otra base de datos
-      setSel({ type: null, id: null }); setCc(null); setOps(false); setReg(false);
+      setSel({ type: null, id: null }); setCc(null); setOps(false); setReg(false); setClaude(false);
       say(mode === 'DEMO' ? 'Modo demo: datos de ejemplo' : 'Modo real');
       onRefresh();
     } catch (e) { say(e instanceof Error ? e.message : 'No se pudo cambiar de modo.'); }
@@ -338,8 +340,9 @@ export function Factory({ data, live, onRefresh }: {
           <span className="zpct mono">{zoom}%</span>
           <button className="ibtn" onClick={() => { const a = avail(); zoomAt(a.w / 2, a.h / 2, 1.25); }} aria-label="Acercar"><Icon name="plus" /></button>
           <button className="ibtn" onClick={fit} aria-label="Encuadrar todo" title="Encuadrar todo (0)"><Icon name="fit" /></button>
-          <button className="ibtn" onClick={() => { setCc(null); setOps(false); setReg(null); }} title="Dar de alta y editar marcas y promociones">Marcas</button>
-          <button className={`ibtn${ops ? ' on' : ''}`} onClick={() => { setCc(null); setReg(false); setOps(true); }} title="Operaciones externas: llamadas a PostgreSQL, Drive, Publer… y sus fallos">Operaciones</button>
+          <button className={`ibtn${claude ? ' on' : ''}`} onClick={() => { setCc(null); setOps(false); setReg(false); setClaude(true); }} title="Encargos a Claude: ajustes, límite diario y registro">Claude</button>
+          <button className="ibtn" onClick={() => { setCc(null); setOps(false); setClaude(false); setReg(null); }} title="Dar de alta y editar marcas y promociones">Marcas</button>
+          <button className={`ibtn${ops ? ' on' : ''}`} onClick={() => { setCc(null); setReg(false); setClaude(false); setOps(true); }} title="Operaciones externas: llamadas a PostgreSQL, Drive, Publer… y sus fallos">Operaciones</button>
         </div>
       </header>
 
@@ -388,6 +391,7 @@ export function Factory({ data, live, onRefresh }: {
             onEdit={() => { const id = cc.promo; setCc(null); setReg({ kind: 'promotion', id }); }} onMessage={say} />
         )}
         {ops && <ExternalOperations onClose={() => setOps(false)} />}
+        {claude && <Claude data={data} onClose={() => setClaude(false)} onMessage={say} onTask={id => { setClaude(false); goTask(id); }} />}
         {reg !== false && (
           <Registration data={data} initial={reg} onClose={() => setReg(false)}
             onSaved={m => { say(m); onRefresh(); }} />

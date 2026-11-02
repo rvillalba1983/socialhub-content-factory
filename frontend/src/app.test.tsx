@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, vi } from 'vitest';
 import { api } from './api';
+import { Claude } from './Claude';
 import { ExternalOperations } from './ExternalOperations';
 import { FolderRoles } from './Folders';
 import { PublicationEditor } from './PublicationEditor';
@@ -253,5 +254,41 @@ describe('Avisos', () => {
     openAlert({ kind: 'BLOCKED', target_type: 'ARMORY', target_id: 'google-drive', station_id: 'gen', title: 'Drive', detail: 'No disponible' }, go);
     expect(go.onArmory).toHaveBeenCalledWith('google-drive');
     expect(go.onStation).not.toHaveBeenCalled();
+  });
+});
+
+describe('Encargos a Claude', () => {
+  it('guarda el límite y encarga un trabajo; tokens y coste figuran como desconocidos', async () => {
+    const settings = {
+      daily_limit: 10, used_today: 3, models: [
+        { type: 'RESEARCH' as const, label: 'Investigación', model: 'SONNET' as const },
+        { type: 'WEEKLY_BALANCE' as const, label: 'Balance semanal', model: 'OPUS' as const },
+      ],
+    };
+    vi.spyOn(api, 'aiSettings').mockResolvedValue(settings);
+    vi.spyOn(api, 'aiRequests').mockResolvedValue({ offset: 0, limit: 50, total: 1, items: [
+      { id: 'r1', task_id: 't-9', brand_id: 'b', type: 'RESEARCH', model: 'OPUS', attempt: 3, status: 'FAILED',
+        request_path: 'G:/Encargos/para-claude/t-9-3.json', sent_at: '2026-11-02T09:40:00Z', duration_ms: 125000, error: 'Sin acceso a la web' },
+    ] });
+    const save = vi.spyOn(api, 'saveAiSettings').mockResolvedValue({ ...settings, daily_limit: 5 });
+    const order = vi.spyOn(api, 'orderFromClaude').mockResolvedValue({ task_id: 't-10' });
+    const onTask = vi.fn();
+    render(<Claude data={snapshot} onClose={() => {}} onTask={onTask} onMessage={() => {}} />);
+    expect(await screen.findByText('Sin acceso a la web')).toBeInTheDocument();
+    expect(screen.getByText('2 min 5 s')).toBeInTheDocument();
+    expect(screen.getAllByText('desconocido')).toHaveLength(2);
+    expect(screen.getByText(/Encargos al día \(hoy: 3\)/)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/Encargos al día/), { target: { value: '5' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar ajustes' }));
+    await waitFor(() => expect(save).toHaveBeenCalledWith({ daily_limit: 5, models: [
+      { type: 'RESEARCH', model: 'SONNET' }, { type: 'WEEKLY_BALANCE', model: 'OPUS' },
+    ] }));
+
+    fireEvent.change(screen.getByLabelText('Qué tiene que hacer'), { target: { value: 'Salas de poesía' } });
+    fireEvent.change(screen.getByLabelText('Datos de entrada (uno por línea)'), { target: { value: 'Granada\n\nJaén' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Encargar a Claude' }));
+    await waitFor(() => expect(onTask).toHaveBeenCalledWith('t-10'));
+    expect(order).toHaveBeenCalledWith('p', { type: 'RESEARCH', title: undefined, goal: 'Salas de poesía', inputs: ['Granada', 'Jaén'] });
   });
 });

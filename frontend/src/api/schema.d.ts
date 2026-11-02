@@ -279,6 +279,63 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/ai/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Límite diario y modelo de cada tipo de encargo */
+        get: operations["getAiSettings"];
+        put: operations["updateAiSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ai/requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Registro de envíos a Claude, del más reciente al más antiguo
+         * @description Tokens y coste no figuran porque Claude Pro no los expone (se muestran como desconocidos).
+         */
+        get: operations["listAiRequests"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/promotions/{promotion_id}/ai-orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Encarga un trabajo a Claude
+         * @description Crea la tarea en cola. Sale hacia «<Encargos de la marca>/para-claude» en el siguiente envío (cada 30 s), si no se ha llegado al límite diario. La tarea programada «Encargos de SocialHub» deja el resultado en «de-claude».
+         */
+        post: operations["createAiOrder"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/tasks": {
         parameters: {
             query?: never;
@@ -502,6 +559,78 @@ export interface components {
         };
         FolderListInput: {
             items: components["schemas"]["FolderInput"][];
+        };
+        /**
+         * @description Tipo de encargo a Claude
+         * @enum {string}
+         */
+        AiRequestType: "WEEKLY_SPEC" | "CAPTIONS" | "WEEKLY_BALANCE" | "RESEARCH";
+        AiTypeModel: {
+            type: components["schemas"]["AiRequestType"];
+            label: string;
+            model: components["schemas"]["AiModel"];
+        };
+        AiSettings: {
+            /** Format: int32 */
+            daily_limit: number;
+            /**
+             * Format: int64
+             * @description Encargos enviados hoy (día de España)
+             */
+            used_today: number;
+            models: components["schemas"]["AiTypeModel"][];
+        };
+        AiSettingsInput: {
+            /** Format: int32 */
+            daily_limit: number;
+            models: {
+                type: components["schemas"]["AiRequestType"];
+                model: components["schemas"]["AiModel"];
+            }[];
+        };
+        AiOrderInput: {
+            type: components["schemas"]["AiRequestType"];
+            title?: string;
+            goal: string;
+            inputs?: string[];
+        };
+        AiOrder: {
+            task_id: string;
+        };
+        AiRequestPage: {
+            items: components["schemas"]["AiRequest"][];
+            /** Format: int32 */
+            offset: number;
+            /** Format: int32 */
+            limit: number;
+            /** Format: int64 */
+            total: number;
+        };
+        AiRequest: {
+            /** @description idempotencyKey del encargo */
+            id: string;
+            task_id: string;
+            brand_id: string;
+            promotion_id?: string;
+            type: components["schemas"]["AiRequestType"];
+            model: components["schemas"]["AiModel"];
+            /** Format: int32 */
+            attempt: number;
+            /** @enum {string} */
+            status: "SENT" | "COMPLETED" | "FAILED" | "NEEDS_HUMAN" | "INVALID";
+            request_path: string;
+            result_path?: string;
+            /** Format: date-time */
+            sent_at: string;
+            /** Format: date-time */
+            finished_at?: string;
+            /** Format: int64 */
+            duration_ms?: number;
+            /** @description Agente que lo hizo, según el resultado */
+            runtime?: string;
+            /** @description Modelo que dice haber usado */
+            result_model?: string;
+            error?: string;
         };
         Brand: {
             id: string;
@@ -897,6 +1026,14 @@ export type Folder = components['schemas']['Folder'];
 export type FolderList = components['schemas']['FolderList'];
 export type FolderInput = components['schemas']['FolderInput'];
 export type FolderListInput = components['schemas']['FolderListInput'];
+export type AiRequestType = components['schemas']['AiRequestType'];
+export type AiTypeModel = components['schemas']['AiTypeModel'];
+export type AiSettings = components['schemas']['AiSettings'];
+export type AiSettingsInput = components['schemas']['AiSettingsInput'];
+export type AiOrderInput = components['schemas']['AiOrderInput'];
+export type AiOrder = components['schemas']['AiOrder'];
+export type AiRequestPage = components['schemas']['AiRequestPage'];
+export type AiRequest = components['schemas']['AiRequest'];
 export type Brand = components['schemas']['Brand'];
 export type AppMode = components['schemas']['AppMode'];
 export type AppModeState = components['schemas']['AppModeState'];
@@ -1589,6 +1726,112 @@ export interface operations {
             };
             404: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    getAiSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Ajustes y encargos enviados hoy */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiSettings"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    updateAiSettings: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiSettingsInput"];
+            };
+        };
+        responses: {
+            /** @description Ajustes guardados */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiSettings"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    listAiRequests: {
+        parameters: {
+            query?: {
+                offset?: components["parameters"]["Offset"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Página de envíos */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiRequestPage"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    createAiOrder: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path: {
+                promotion_id: components["parameters"]["PromotionId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AiOrderInput"];
+            };
+        };
+        responses: {
+            /** @description Encargo en cola */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiOrder"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
             default: components["responses"]["Problem"];
         };
     };

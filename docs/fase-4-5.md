@@ -71,3 +71,32 @@ Estado: **plan aprobado por respuestas de Raúl** · 2 nov 2026
   - El servicio «Google Drive (carpetas)» de la armería se comprueba cada 30 s. Si falta alguna carpeta, sale en «Necesita atención» (aviso de tipo `ARMORY`) y lleva a la armería.
 - **Pruebas:** 60 de backend (incluidas las de extremo a extremo de carpetas, publicaciones, archivos y carpeta desmontada) y 16 de frontal.
 
+## Bloque 2 · hecho (rama `fase-5/intercambio`)
+
+- **Carpeta de intercambio** (respuesta de Raúl: «Por marca»): la que tiene el papel «Encargos» en la marca, con `para-claude` (encargos) y `de-claude` (resultados). SocialHub crea esas dos subcarpetas si no existen.
+- **Envío** (cada 30 s, modo real):
+  - Los encargos en cola salen por orden de llegada.
+  - Cada encargo es un archivo `<tarea>-<intento>.json` con el contrato `task-request.v1`.
+  - Se escribe con otro nombre y se renombra al final, para que nadie lea un archivo a medias.
+  - La tarea pasa a «En espera · encargada a Claude <modelo>».
+- **Motivos visibles cuando un encargo no sale:**
+  - Si la marca no tiene carpeta de «Encargos», sigue en cola con el motivo.
+  - Si la carpeta no está accesible, se bloquea sin gastar intento y sale sola cuando aparece.
+  - Si se llega al límite diario, sigue en cola con el motivo.
+- **Límite diario:** 10 por defecto, configurable entre 0 y 100. Cuenta los envíos desde las 0:00, hora de España.
+- **Modelo:**
+  - Cada tipo de encargo tiene el suyo; se puede cambiar por tipo (pantalla «Claude») y por tarea («Cambiar agente»).
+  - Los encargos tienen 3 intentos (respuesta de Raúl). Los dos primeros usan el modelo de la tarea y el tercero sube un nivel. Los reintentos siguen siendo a mano.
+- **Recogida** (cada 30 s):
+  - Cada `.json` nuevo de `de-claude` se valida con `task-result.v1`, con la librería `json-schema-validator` 3.0.8 (respuesta de Raúl).
+  - Un archivo modificado hace menos de 3 s se deja para la siguiente pasada.
+  - Si el resultado es `completed`, la tarea se completa con `outputs.summary` y los avisos. Si es `failed`, la tarea queda con error. Si es `needs_human`, espera a Raúl con la pregunta de Claude.
+  - Un resultado que no cumple el contrato deja la tarea con error y el detalle.
+  - Cada archivo (ruta y fecha) se lee una sola vez y no se mueve ni se borra. Un resultado para una tarea que no lo espera se registra y se ignora.
+- **Registro:**
+  - De cada envío se guardan el tipo, el modelo, el intento, el estado, la duración, el agente y el error.
+  - Tokens y coste figuran como desconocidos.
+  - Pantalla «Claude» en la cabecera, con los ajustes, el alta de un encargo y el registro.
+- **Para el bloque 3:** al completarse un encargo se publica el evento `AiResultApplied` con sus `outputs`. Los tipos concretos lo usarán (por ejemplo, el spec semanal creará la tarea de piezas).
+- **Pruebas:** 67 de backend y 17 de frontal. La prueba de extremo a extremo hace de Claude escribiendo resultados: límite diario, contrato, reintentos con subida a Opus, `needs_human` y carpeta no disponible.
+
