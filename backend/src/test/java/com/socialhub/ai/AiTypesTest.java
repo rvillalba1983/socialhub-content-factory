@@ -82,6 +82,8 @@ class AiTypesTest {
         write(put("/api/brands/el-delito/folders"), """
                 {"items":[{"role":"ORDERS","location":%s},{"role":"REPORTS","location":%s},{"role":"MATERIAL","location":%s}]}"""
                 .formatted(q(orders), q(reports), q(material))).andExpect(status().isOk());
+        // Esta prueba envía muchos encargos: sin límite diario que estorbe
+        write(put("/api/ai/settings"), "{\"daily_limit\":100,\"models\":[]}").andExpect(status().isOk());
         write(put("/api/brands/el-delito/identity"), """
                 {"tone":"Cercano","audience":"","forbidden_topics":[],"preferred_expressions":[],"forbidden_expressions":[],
                  "colors":[],"font":"","logo":"","visual_style":"","photo_style":"","call_to_action":"","fixed_hashtags":""}""")
@@ -248,6 +250,43 @@ class AiTypesTest {
         assertThat(memory.get("rejections").get(1).get("reason").asString()).isEqualTo("Tono");
         assertThat(memory.get("corrections").get(0).get("raul_caption").asString()).isEqualTo("¿Y si leer fuera el delito?");
         assertThat(memory.get("published_last_8_weeks").size()).isZero();
+    }
+
+    @Test
+    @Order(7)
+    void weeklyProposalsBecomePublicationsToReviewAndTheSpecOnlyUsesApprovedOnes() throws Exception {
+        String task = order("WEEKLY_PROPOSALS", "Propón la semana", "2030-11-18");
+        JsonNode request = request(task);
+        assertThat(request.get("inputs").get("week").get("from").asString()).isEqualTo("2030-11-18");
+        assertThat(request.get("inputs").get("promotion").get("name").asString()).isEqualTo("Poemario");
+
+        String twoProposals = """
+                {"proposals":[
+                  {"scheduled_on":"2030-11-18","scheduled_time":"19:00","platform":"INSTAGRAM","type":"Carrusel",
+                   "title":"Tres versos de la herida","idea":"Carrusel con tres versos","why":"Funciona el formato"},
+                  {"scheduled_on":"2030-11-20","scheduled_time":"13:00","platform":"tiktok","type":"Reel","title":"Leer en voz alta"}],
+                 "summary":"Semana tranquila"}""";
+        result(task, completed(task, twoProposals.replace("2030-11-20", "2030-11-30")));
+        waitFor(() -> "FAILED".equals(task(task).get("status").asString()), "propuesta fuera de la semana");
+        assertThat(task(task).get("error").asString()).contains("Propuesta 2").contains("fuera de la semana");
+
+        mvc.perform(post("/api/tasks/{id}/commands", task).header("X-SocialHub-Request", "1")
+                .contentType(MediaType.APPLICATION_JSON).content("{\"type\":\"RETRY\"}")).andExpect(status().isOk());
+        waitFor(() -> "WAITING".equals(task(task).get("status").asString()), "segundo intento");
+        result(task, completed(task, twoProposals));
+        waitFor(() -> "COMPLETED".equals(task(task).get("status").asString()), "propuestas creadas");
+        assertThat(task(task).get("result").asString()).isEqualTo("2 propuestas para revisar en Publicaciones · Semana tranquila");
+        JsonNode first = publication("2030-11-18-instagram");
+        assertThat(first.get("status").asString()).isEqualTo("PROPOSAL");
+        assertThat(first.get("note").asString()).isEqualTo("Idea: Carrusel con tres versos · Por qué: Funciona el formato");
+        assertThat(publication("2030-11-20-tiktok").get("status").asString()).isEqualTo("PROPOSAL");
+
+        // Se aprueba una y la otra no: el spec solo ve la aprobada
+        write(post("/api/publications/2030-11-18-instagram/status-changes"), "{\"status\":\"IN_PRODUCTION\"}").andExpect(status().isOk());
+        String spec = order("WEEKLY_SPEC", "spec", "2030-11-18");
+        JsonNode planned = request(spec).get("inputs").get("publications");
+        assertThat(planned.size()).isEqualTo(1);
+        assertThat(planned.get(0).get("id").asString()).isEqualTo("2030-11-18-instagram");
     }
 
     // ---------------------------------------------------------------- utilidades

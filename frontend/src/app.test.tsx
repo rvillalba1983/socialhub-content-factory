@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, vi } from 'vitest';
 import { api } from './api';
 import { Claude } from './Claude';
+import { ControlCenter } from './ControlCenter';
 import { ExternalOperations } from './ExternalOperations';
 import { FolderRoles } from './Folders';
 import { MemoryCard } from './Memory';
@@ -385,5 +386,30 @@ describe('Memoria editorial', () => {
     fireEvent.change(screen.getByLabelText('Nueva decisión'), { target: { value: 'Máximo 2 reels' } });
     fireEvent.click(screen.getByRole('button', { name: 'Añadir' }));
     await waitFor(() => expect(add).toHaveBeenCalledWith('b', 'Máximo 2 reels'));
+  });
+});
+
+describe('Propuestas de la semana', () => {
+  it('se aprueban o se rechazan con motivo desde Publicaciones', async () => {
+    const proposal: Publication = {
+      id: '2030-11-18-instagram', promotion_id: 'p', platform: 'INSTAGRAM', type: 'Carrusel', title: 'Tres versos',
+      scheduled_on: '2030-11-18', scheduled_time: '19:00', timezone: 'Europe/Madrid', status: 'PROPOSAL', route: 'Publer',
+      note: 'Idea: tres versos', demo: false,
+    };
+    const change = vi.spyOn(api, 'changePublicationStatus').mockResolvedValue(proposal);
+    const order = vi.spyOn(api, 'orderFromClaude').mockResolvedValue({ task_id: 't-1' });
+    render(<ControlCenter p={snapshot.promotions[0]} data={{ ...snapshot, publications: [proposal] }} initialTab="publicaciones"
+      highlight={null} onClose={() => {}} onTask={() => {}} onEdit={() => {}} onMessage={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Propuestas' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Aprobar Tres versos' }));
+    await waitFor(() => expect(change).toHaveBeenCalledWith('2030-11-18-instagram', 'IN_PRODUCTION'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Rechazar Tres versos' }));
+    fireEvent.change(screen.getByLabelText('Motivo'), { target: { value: 'OFF_BRAND' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Rechazar propuesta' }));
+    await waitFor(() => expect(change).toHaveBeenCalledWith('2030-11-18-instagram', 'CANCELLED', 'OFF_BRAND', undefined));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Pedir propuestas a Claude' }));
+    await waitFor(() => expect(order).toHaveBeenCalledWith('p', expect.objectContaining({ type: 'WEEKLY_PROPOSALS' })));
   });
 });

@@ -9,7 +9,8 @@ public enum AiRequestType {
     CAPTIONS("Textos y hashtags", "gen", "socialhub.captions"),
     WEEKLY_BALANCE("Balance semanal", "ana", "socialhub.weekly-balance"),
     RESEARCH("Investigación", "inv", "socialhub.research"),
-    QUALITY_REVIEW("Revisión de calidad", "rev", "socialhub.quality-review");
+    QUALITY_REVIEW("Revisión de calidad", "rev", "socialhub.quality-review"),
+    WEEKLY_PROPOSALS("Propuestas de la semana", "est", "socialhub.weekly-proposals");
 
     private final String label;
     private final String stationId;

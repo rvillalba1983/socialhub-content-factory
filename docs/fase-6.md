@@ -1,6 +1,6 @@
 # SocialHub · Fase 6: producción editorial
 
-Estado: **bloque 1 en `main`; bloque 2 hecho** (rama `fase-6/memoria`) · 3 nov 2026
+Estado: **bloques 1 y 2 en `main`; bloque 3 hecho** (rama `fase-6/propuestas`) · 3 nov 2026
 
 ## Respuestas de Raúl
 
@@ -95,4 +95,28 @@ Cómo se aplica:
   - En el editor de la publicación, «Pasar a Cancelada» y «Descartar texto» piden el motivo.
   - En «Marcas», la tarjeta «Memoria editorial» muestra y edita las decisiones y enseña los rechazos y correcciones.
 - **Pruebas:** 80 de backend y 21 de frontal.
+
+## Bloque 3 · propuestas de contenido y calendario (respuestas de Raúl)
+
+| # | Tema | Decisión |
+|---|---|---|
+| 1 | Cómo propone Claude | Encargo semanal nuevo, «Propuestas de la semana». Claude propone las publicaciones de la semana siguiente: fecha, hora, plataforma, tipo, título, idea y por qué. SocialHub las crea como «Propuesta» y Raúl aprueba o rechaza cada una, con su motivo |
+| 2 | Cuándo sale solo | Los lunes desde las 18:00 (hora de España), para la semana que empieza el lunes siguiente. Si SocialHub estaba cerrado, se pide el martes o el miércoles |
+
+Cómo se aplica:
+- **Aprobar** pasa la propuesta a «En producción». **Rechazar** la cancela con su motivo, que queda en la memoria editorial.
+- **El spec del domingo** solo usa publicaciones aprobadas: deja fuera las ideas, las propuestas y las canceladas.
+- **Modelo por defecto:** Sonnet.
+
+### Bloque 3 · hecho
+
+- **Encargo `WEEKLY_PROPOSALS`** (estación «Selección y estrategia», Sonnet):
+  - Lleva la semana, la promoción (descripción, cadencia, objetivos e hitos) y lo ya planificado.
+  - Claude devuelve `outputs.proposals: [{scheduled_on, scheduled_time, platform, type, title, idea, why}]`, como mucho 21.
+  - Se comprueban todas (fechas dentro de la semana, hora, plataforma, tipo y título) antes de crear ninguna.
+  - Se crean como «Propuesta», con la idea y el porqué en las observaciones.
+- **Revisión:** en Publicaciones hay un filtro «Propuestas» con «Aprobar» (pasa a «En producción») y «Rechazar» (pide el motivo y la cancela). También hay un botón «Pedir propuestas a Claude».
+- **Sale solo** los lunes desde las 18:00. El spec semanal ya solo recibe las publicaciones aprobadas.
+- **Calendario editorial:** el calendario semanal del centro de control muestra las propuestas junto al resto, con su estado.
+- **Pruebas:** 82 de backend y 22 de frontal.
 

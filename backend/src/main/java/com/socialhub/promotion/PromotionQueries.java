@@ -105,6 +105,23 @@ public class PromotionQueries {
         return decisions.decisions(brandId);
     }
 
+    /** Lo que Claude necesita saber de una promoción para proponer contenido. */
+    public java.util.Map<String, Object> summaryForAi(String promotionId) {
+        Promotion p = promotion(promotionId);
+        var m = new java.util.LinkedHashMap<String, Object>();
+        m.put("name", p.name());
+        if (!p.description().isBlank()) m.put("description", p.description());
+        if (!p.scope().isBlank()) m.put("scope", p.scope());
+        if (!p.cadence().isBlank()) m.put("cadence", p.cadence());
+        m.put("dates", p.startsOn() + " – " + p.endsOn());
+        if (!p.goals().isEmpty()) m.put("goals", p.goals());
+        if (!p.milestones().isEmpty()) {
+            m.put("milestones", p.milestones().stream().map(x -> x.startsOn() + (x.endsOn() == null ? "" : " – " + x.endsOn())
+                    + ": " + x.label()).toList());
+        }
+        return m;
+    }
+
     /** Promociones de una marca. */
     public List<String> promotionIdsOf(String brandId) {
         return repository.promotions().stream().filter(p -> p.brandId().equals(brandId)).map(Promotion::id).toList();

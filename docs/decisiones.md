@@ -253,3 +253,8 @@ Detalle en `docs/fase-6.md`.
 - **Cuánto va a Claude:** 8 semanas de lo publicado, 20 rechazos, 20 correcciones y todas las decisiones, solo de la misma marca.
 - **Motivo:** fijo más una nota opcional. Es obligatorio al cancelar una publicación o descartar un texto de Claude.
 
+## 2026-11-03 · Fase 6, bloque 3: propuestas (respuestas de Raúl)
+- **Propuestas:** encargo semanal «Propuestas de la semana». Sale solo los lunes desde las 18:00, para la semana siguiente; si SocialHub estaba cerrado, el martes o el miércoles.
+- **Revisión:** cada propuesta se aprueba (pasa a «En producción») o se rechaza con motivo (se cancela y queda en la memoria editorial).
+- **El spec semanal** solo tiene en cuenta las publicaciones aprobadas.
+

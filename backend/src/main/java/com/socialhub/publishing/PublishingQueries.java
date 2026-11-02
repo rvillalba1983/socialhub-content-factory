@@ -46,6 +46,14 @@ public class PublishingQueries {
                 from, to, null), 0, 500).items();
     }
 
+    /** Publicaciones aprobadas entre dos fechas (sin ideas, propuestas ni canceladas), para el spec semanal. */
+    public List<java.util.Map<String, Object>> approvedForAi(String promotionId, java.time.LocalDate from, java.time.LocalDate to) {
+        var excluded = java.util.EnumSet.of(com.socialhub.publishing.domain.PublicationStatus.IDEA,
+                com.socialhub.publishing.domain.PublicationStatus.PROPOSAL, com.socialhub.publishing.domain.PublicationStatus.CANCELLED);
+        return between(promotionId, from, to).stream().filter(p -> !excluded.contains(p.getStatus()))
+                .map(PublishingQueries::forAi).toList();
+    }
+
     /** Publicaciones entre dos fechas, como datos sencillos para un encargo a Claude. */
     public List<java.util.Map<String, Object>> forAi(String promotionId, java.time.LocalDate from, java.time.LocalDate to) {
         return between(promotionId, from, to).stream().map(PublishingQueries::forAi).toList();

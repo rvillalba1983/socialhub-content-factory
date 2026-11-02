@@ -688,7 +688,7 @@ export interface components {
          * @description Tipo de encargo a Claude
          * @enum {string}
          */
-        AiRequestType: "WEEKLY_SPEC" | "CAPTIONS" | "WEEKLY_BALANCE" | "RESEARCH" | "QUALITY_REVIEW";
+        AiRequestType: "WEEKLY_SPEC" | "CAPTIONS" | "WEEKLY_BALANCE" | "RESEARCH" | "QUALITY_REVIEW" | "WEEKLY_PROPOSALS";
         AiTypeModel: {
             type: components["schemas"]["AiRequestType"];
             label: string;

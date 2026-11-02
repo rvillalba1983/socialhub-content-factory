@@ -33,4 +33,12 @@ class AiAutoOrdersTest {
         assertThat(AiAutoOrders.balanceWeek(at(12, 9))).isEmpty();
         assertThat(AiAutoOrders.balanceWeek(at(8, 10))).isEmpty();
     }
+
+    @Test
+    void proposalsAreAskedOnMondayFromSixPmForTheNextWeek() {
+        assertThat(AiAutoOrders.proposalsWeek(at(9, 17))).isEmpty();
+        assertThat(AiAutoOrders.proposalsWeek(at(9, 18))).contains(LocalDate.of(2026, 11, 16));
+        assertThat(AiAutoOrders.proposalsWeek(at(11, 10))).contains(LocalDate.of(2026, 11, 16));
+        assertThat(AiAutoOrders.proposalsWeek(at(12, 10))).isEmpty();
+    }
 }
