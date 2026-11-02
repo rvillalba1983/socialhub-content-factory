@@ -30,4 +30,16 @@ public class ArmoryService {
         repository.save(new ArmoryItem(id, "TOOL", name, description, ok ? "OK" : "FAILED", note, capabilities, false));
         events.publishEvent(new FactoryChanged("armory", id));
     }
+
+    /**
+     * Registra o actualiza un servicio externo (por ejemplo, Google Drive) con su estado.
+     *
+     * @param status {@code OK}, {@code BLOCKED} (no disponible) o {@code IDLE} (sin configurar)
+     */
+    @Transactional
+    public void registerService(String id, String name, String description, String status, String note,
+                                List<String> capabilities) {
+        repository.save(new ArmoryItem(id, "SERVICE", name, description, status, note, capabilities, false));
+        events.publishEvent(new FactoryChanged("armory", id));
+    }
 }

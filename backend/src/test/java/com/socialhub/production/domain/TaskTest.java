@@ -203,4 +203,28 @@ class TaskTest {
         assertThat(t.getError()).isNull();
         assertThat(task(TaskStatus.RUNNING).requeue(NOW)).isFalse();
     }
+
+    @Test
+    void aMissingFolderBlocksWithoutSpendingAnAttemptAndRequeuesWhenItAppears() {
+        Task t = task(TaskStatus.RUNNING);
+        t.blockRun("Falta G:", "G:\\Mi unidad", NOW);
+        assertThat(t.getStatus()).isEqualTo(TaskStatus.BLOCKED);
+        assertThat(t.getWaitingFor()).isEqualTo("G:\\Mi unidad");
+        assertThat(t.getAttempts()).isEqualTo(1);
+        assertThat(t.resourceAvailable(NOW)).isTrue();
+        assertThat(t.getStatus()).isEqualTo(TaskStatus.QUEUED);
+        assertThat(t.getWaitingFor()).isNull();
+        assertThat(t.resourceAvailable(NOW)).isFalse();
+
+        // Raúl pide comprobarlo ya: vuelve a la cola (si sigue sin estar, se bloqueará otra vez)
+        Task again = task(TaskStatus.RUNNING);
+        again.blockRun("Falta G:", "G:", NOW);
+        again.execute(TaskCommandType.RECHECK, null, NOW);
+        assertThat(again.getStatus()).isEqualTo(TaskStatus.QUEUED);
+
+        Task cancelled = task(TaskStatus.RUNNING);
+        cancelled.blockRun("Falta G:", "G:", NOW);
+        cancelled.execute(TaskCommandType.CANCEL, null, NOW);
+        assertThat(cancelled.getWaitingFor()).isNull();
+    }
 }

@@ -761,7 +761,10 @@ components:
       required: [kind, target_type, target_id, station_id, title, detail]
       properties:
         kind: { type: string, enum: [FAILED, BLOCKED] }
-        target_type: { type: string, enum: [TASK, STATION] }
+        target_type:
+          type: string
+          enum: [TASK, STATION, ARMORY]
+          description: En avisos de la armería (por ejemplo, Drive no disponible), target_id es el elemento de la armería
         target_id: { type: string }
         station_id: { type: string }
         title: { type: string }
@@ -1042,6 +1045,9 @@ components:
         agent: { $ref: "#/components/schemas/Agent" }
         why: { type: string, description: Por qué se usa ese agente o herramienta }
         reason: { type: string }
+        waiting_for:
+          type: string
+          description: Carpeta que falta. La tarea vuelve sola a la cola cuando aparece.
         error: { type: string }
         result: { type: string }
         human: { type: boolean, description: Espera una acción de Raúl }

@@ -1,6 +1,11 @@
 package com.socialhub.pieces;
 
+import com.socialhub.production.ResourceUnavailableException;
 import com.socialhub.production.TaskExecutor;
+import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
+import java.nio.file.Path;
+import java.util.List;
 import com.socialhub.promotion.PromotionQueries;
 import com.socialhub.publishing.PublishingService;
 import java.time.Duration;
@@ -29,7 +34,9 @@ class GeneratePiecesExecutor implements TaskExecutor {
     public String run(Run run) throws Exception {
         if (run.promotionId() == null) throw new IllegalStateException("La tarea no tiene promoción");
         if (run.inputs().isEmpty()) throw new IllegalStateException("La tarea no indica el spec.json");
-        SpecReader.Loaded loaded = reader.load(run.inputs().getFirst(), promotions.driveFolders(run.promotionId()));
+        List<String> folders = promotions.driveFolders(run.promotionId());
+        requireFolderOf(run.inputs().getFirst(), folders);
+        SpecReader.Loaded loaded = reader.load(run.inputs().getFirst(), folders);
         publications.check(run.promotionId(), loaded.spec());
         run.log("Spec leído: " + loaded.spec().piezas().size() + " piezas");
         PieceGenerator.Batch batch = generator.generate(loaded.spec(), loaded.files(), run::log, run::progress);
@@ -41,5 +48,30 @@ class GeneratePiecesExecutor implements TaskExecutor {
         }
         return batch.pieces().size() + " piezas (" + files + " archivos) en " + batch.outputDir()
                 + (batch.readme() == null ? "" : " · LEEME: " + batch.readme().getFileName());
+    }
+
+    /**
+     * Si la carpeta de la promoción que contiene el spec no está (G: sin montar), la tarea se bloquea y espera
+     * en lugar de fallar.
+     */
+    static void requireFolderOf(String specPath, List<String> folders) {
+        Path spec;
+        try {
+            spec = Path.of(specPath).toAbsolutePath().normalize();
+        } catch (InvalidPathException e) {
+            return;
+        }
+        for (String folder : folders) {
+            Path root;
+            try {
+                root = Path.of(folder).toAbsolutePath().normalize();
+            } catch (InvalidPathException e) {
+                continue;
+            }
+            if (spec.startsWith(root) && !Files.isDirectory(root)) {
+                throw new ResourceUnavailableException(folder, "La carpeta «" + folder + "» no está disponible en este "
+                        + "ordenador. ¿Está abierto Google Drive para ordenador? La tarea seguirá sola cuando aparezca.");
+            }
+        }
     }
 }

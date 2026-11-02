@@ -72,6 +72,14 @@ public class PromotionQueries {
         return result;
     }
 
+    /** Todas las carpetas configuradas: las de las marcas y las de cada promoción, sin repetir. */
+    public List<String> allFolders() {
+        var all = new LinkedHashSet<String>();
+        brands().forEach(b -> folderRepository.brandFolders(b.id()).values().forEach(all::add));
+        promotionIds().forEach(id -> all.addAll(driveFolders(id)));
+        return List.copyOf(all);
+    }
+
     /** Carpeta con el papel «Encargos», si la promoción lo tiene. */
     public Optional<String> ordersFolder(String promotionId) {
         return folders(promotionId).stream()

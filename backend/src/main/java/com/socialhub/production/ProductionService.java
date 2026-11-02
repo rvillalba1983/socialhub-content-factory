@@ -193,6 +193,34 @@ public class ProductionService {
         });
     }
 
+    /** Falta una carpeta: la tarea en curso se bloquea sin gastar intento. */
+    @Transactional
+    public void blockRun(String taskId, String reason, String path) {
+        tasks.findById(taskId).filter(t -> t.getStatus() == TaskStatus.RUNNING).ifPresent(t -> {
+            t.blockRun(reason, path, clock.instant());
+            persist(t);
+        });
+    }
+
+    /**
+     * Las tareas bloqueadas por una carpeta que ya está vuelven a la cola.
+     *
+     * @param available si la carpeta existe ahora
+     * @return cuántas vuelven a la cola
+     */
+    @Transactional
+    public int requeueWhenAvailable(java.util.function.Predicate<String> available) {
+        int n = 0;
+        for (Task task : tasks.findByStatusIn(List.of(TaskStatus.BLOCKED))) {
+            if (task.getWaitingFor() != null && available.test(task.getWaitingFor())
+                    && task.resourceAvailable(clock.instant())) {
+                persist(task);
+                n++;
+            }
+        }
+        return n;
+    }
+
     @Transactional
     public void logRun(String taskId, String message) {
         tasks.findById(taskId).ifPresent(t -> {
