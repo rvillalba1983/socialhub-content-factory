@@ -22,4 +22,10 @@ public interface TaskRepository {
     Set<String> completedIds();
 
     Task save(Task task);
+
+    /**
+     * Bloquea y devuelve hasta {@code limit} tareas en cola de esos tipos, en estaciones que aceptan trabajo.
+     * Otras transacciones no las ven mientras tanto ({@code SKIP LOCKED}).
+     */
+    List<Task> claimQueued(Set<String> types, int limit);
 }

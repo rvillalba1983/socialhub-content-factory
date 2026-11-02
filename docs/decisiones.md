@@ -174,3 +174,10 @@ Detalles de implementación que no cambian ninguna respuesta de Raúl; se pueden
 
 Detalle en `docs/fase-3.md`.
 
+## 2026-11-02 · Fase 3, bloque 2: detalles del motor
+- **Reintentos:** son manuales y limitados, con 2 intentos, como hasta ahora. El motor no reintenta solo, para no repetir un error sin que Raúl lo vea.
+- **Reanudar:** una tarea reanudada vuelve a la cola, en lugar de pasar directamente a «en progreso». Así el motor la retoma de verdad.
+- **Modo fijado por hilo:** el motor (real) y el simulador (demo) fijan su base de datos aunque la interfaz cambie de modo. Así nunca se escribe en la base de datos equivocada.
+- **Envers con dos bases de datos:** cada número de revisión se pide a la secuencia de su base de datos (migración `V3`), sin bloques en memoria compartidos.
+- **Entidades nuevas:** la versión es nula hasta guardarlas, para que se inserten en lugar de fusionarse.
+

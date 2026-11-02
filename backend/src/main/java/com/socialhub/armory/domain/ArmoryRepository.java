@@ -6,4 +6,7 @@ import org.jmolecules.architecture.hexagonal.SecondaryPort;
 @SecondaryPort
 public interface ArmoryRepository {
     List<ArmoryItem> findAll();
+
+    /** Crea o actualiza. Las nuevas van al final. */
+    ArmoryItem save(ArmoryItem item);
 }

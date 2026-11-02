@@ -9,9 +9,10 @@ on:
   workflow_dispatch:
     inputs:
       otros_sistemas:
-        description: "Probar también en Windows y macOS (gastan más minutos)"
-        type: boolean
-        default: false
+        description: "Probar también en otros sistemas (Windows gasta x2 minutos, macOS x10)"
+        type: choice
+        default: ninguno
+        options: [ninguno, windows, windows-y-macos]
 
 permissions:
   contents: read
@@ -31,6 +32,10 @@ jobs:
           distribution: temurin
           java-version: "25"
           cache: maven
+      # En Linux, el FFmpeg incluido usa bibliotecas del sistema (dispositivos de audio y vídeo).
+      # En Windows y macOS no hace falta instalar nada.
+      - name: Bibliotecas del sistema para FFmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq libxcb1 libxcb-shm0 libasound2t64 libpulse0 libva2 libva-drm2
       - run: mvn -B verify
       - name: Informes de pruebas
         if: failure()
@@ -41,11 +46,11 @@ jobs:
 
   otros-sistemas:
     name: Compilar y probar (${{ matrix.os }})
-    if: github.event_name == 'workflow_dispatch' && inputs.otros_sistemas
+    if: github.event_name == 'workflow_dispatch' && inputs.otros_sistemas != 'ninguno'
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, macos-latest]
+        os: ${{ fromJSON(inputs.otros_sistemas == 'windows' && '["windows-latest"]' || '["windows-latest","macos-latest"]') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     defaults:
@@ -84,10 +89,21 @@ jobs:
           curl -sf http://localhost:8686/ | grep -q '<div id="root">' || { echo "::error::La web no se sirve en localhost:8686"; exit 1; }
           code=$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{"type":"PAUSE"}' http://localhost:8686/api/tasks/t1/commands)
           test "$code" = "403" || { echo "::error::Una orden sin la cabecera de protección debería dar 403 y dio $code"; exit 1; }
+          # Modo real: el motor comprueba FFmpeg y Java 2D al arrancar
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:8686/api/tasks/check-local-tools | grep -q '"status":"COMPLETED"' && break
+            sleep 2
+          done
+          curl -sf http://localhost:8686/api/tasks/check-local-tools | grep -q '"status":"COMPLETED"' \
+            || { echo "::error::La comprobación de herramientas locales no terminó bien"; curl -s http://localhost:8686/api/tasks/check-local-tools; exit 1; }
+          curl -sf http://localhost:8686/api/armory-items | grep -q '"id":"ffmpeg"' || { echo "::error::FFmpeg no está en la armería"; exit 1; }
+          # Modo demo: base de datos aparte con los datos de ejemplo
+          code=$(curl -s -o /dev/null -w '%{http_code}' -X PUT -H 'Content-Type: application/json' -H 'X-SocialHub-Request: 1' -d '{"mode":"DEMO"}' http://localhost:8686/api/app-mode)
+          test "$code" = "200" || { echo "::error::Cambiar a modo demo debería dar 200 y dio $code"; exit 1; }
           code=$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -H 'X-SocialHub-Request: 1' -d '{"type":"PAUSE"}' http://localhost:8686/api/tasks/t1/commands)
           test "$code" = "200" || { echo "::error::La orden PAUSE debería dar 200 y dio $code"; exit 1; }
           grep -E "PostgreSQL incluido en marcha|Started SocialHubApplication" "$RUNNER_TEMP/socialhub.log"
-          echo "SocialHub arranca, sirve la web y la API en localhost:8686"
+          echo "SocialHub arranca, sirve la web y la API en localhost:8686 y FFmpeg funciona"
       - name: Registro de SocialHub
         if: always()
         shell: bash

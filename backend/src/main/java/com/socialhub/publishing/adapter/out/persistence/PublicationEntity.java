@@ -57,6 +57,7 @@ class PublicationEntity {
     @Column(name = "is_demo")
     private boolean demo;
 
+    /** Nula hasta guardarla: así Spring Data sabe que es nueva y la inserta (persist) en lugar de fusionarla. */
     @Version
-    private long version;
+    private @Nullable Long version;
 }

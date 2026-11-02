@@ -113,7 +113,9 @@ Incluyen:
 
 En Linux y macOS no se pueden ejecutar como `root`, porque `initdb` se niega a funcionar con ese usuario.
 
-GitHub Actions las ejecuta en Linux en cada cambio. Windows y macOS solo se prueban bajo demanda, desde la pestaña Actions con la opción «Probar también en Windows y macOS».
+En Linux, el FFmpeg incluido necesita algunas bibliotecas del sistema: `libxcb1 libxcb-shm0 libasound2t64 libpulse0 libva2 libva-drm2`. En Windows y macOS no hace falta instalar nada.
+
+GitHub Actions las ejecuta en Linux en cada cambio. Windows y macOS solo se prueban bajo demanda, desde la pestaña Actions con la opción «Probar también en otros sistemas» (solo Windows, o Windows y macOS).
 
 ## API
 

@@ -8,7 +8,7 @@ public final class ProductionEvents {
 
     private ProductionEvents() {}
 
-    public sealed interface TaskNotice permits ReviewApproved, SwitchedToManual, TaskCompleted {}
+    public sealed interface TaskNotice permits ReviewApproved, SwitchedToManual, TaskCompleted, TaskInterrupted {}
 
     /** Raúl ha aprobado una revisión: las publicaciones en revisión de esa promoción quedan aprobadas. */
     @DomainEvent
@@ -20,4 +20,8 @@ public final class ProductionEvents {
 
     @DomainEvent
     public record TaskCompleted(String taskId) implements TaskNotice {}
+
+    /** Una tarea en ejecución se ha pausado o cancelado: el motor debe parar lo que estuviera haciendo. */
+    @DomainEvent
+    public record TaskInterrupted(String taskId) implements TaskNotice {}
 }

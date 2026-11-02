@@ -14,6 +14,14 @@ interface TaskJpaRepository extends JpaRepository<TaskEntity, String>, JpaSpecif
 
     List<TaskEntity> findByStatusInOrderById(Collection<TaskStatus> statuses);
 
+    @Query(value = """
+            select t.id from task t join station s on s.id = t.station_id
+            where t.status = 'QUEUED' and t.type in (:types) and not s.paused and s.status <> 'BLOCKED'
+            order by t.updated_at, t.id
+            limit :limit
+            for update of t skip locked""", nativeQuery = true)
+    List<String> lockQueued(Collection<String> types, int limit);
+
     @Query("select t.id from TaskEntity t where t.status = com.socialhub.production.domain.TaskStatus.COMPLETED")
     Set<String> findCompletedIds();
 }

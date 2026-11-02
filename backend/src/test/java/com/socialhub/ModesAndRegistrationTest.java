@@ -48,7 +48,9 @@ class ModesAndRegistrationTest {
                 .andExpect(jsonPath("$.stations.length()").value(8))
                 .andExpect(jsonPath("$.stations[0].status").value("IDLE"))
                 .andExpect(jsonPath("$.brands.length()").value(0))
-                .andExpect(jsonPath("$.tasks.length()").value(0))
+                // Solo la comprobación de herramientas locales que se pone en cola al arrancar
+                .andExpect(jsonPath("$.tasks.length()").value(1))
+                .andExpect(jsonPath("$.tasks[0].id").value("check-local-tools"))
                 .andExpect(jsonPath("$.publications.length()").value(0));
     }
 
@@ -105,7 +107,7 @@ class ModesAndRegistrationTest {
         write(put("/api/app-mode"), "{\"mode\":\"REAL\"}").andExpect(jsonPath("$.mode").value("REAL"));
         mvc.perform(get("/api/factory"))
                 .andExpect(jsonPath("$.demo").value(false))
-                .andExpect(jsonPath("$.tasks.length()").value(0))
+                .andExpect(jsonPath("$.tasks.length()").value(1))
                 .andExpect(jsonPath("$.brands.length()").value(2))
                 .andExpect(jsonPath("$.promotions[0].id").value("lanzamiento-del-poemario"));
     }

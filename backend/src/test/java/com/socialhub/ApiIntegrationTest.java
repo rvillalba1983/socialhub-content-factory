@@ -144,7 +144,8 @@ class ApiIntegrationTest {
         mvc.perform(post("/api/stations/gen/commands").header(GUARD, "1")
                         .contentType(MediaType.APPLICATION_JSON).content("{\"type\":\"RESUME\"}"))
                 .andExpect(status().isOk());
-        assertThat(taskStatus("t7")).isEqualTo("RUNNING");
+        // Reanudada vuelve a la cola: el simulador (o el motor, en modo real) la retoma
+        assertThat(taskStatus("t7")).isEqualTo("QUEUED");
         assertThat(count("select count(*) from station_aud where id = 'gen'")).isEqualTo(2);
     }
 

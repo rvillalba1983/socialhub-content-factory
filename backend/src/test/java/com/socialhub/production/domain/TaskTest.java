@@ -7,6 +7,7 @@ import com.socialhub.platform.DomainException;
 import com.socialhub.production.ProductionEvents.ReviewApproved;
 import com.socialhub.production.ProductionEvents.SwitchedToManual;
 import com.socialhub.production.ProductionEvents.TaskCompleted;
+import com.socialhub.production.ProductionEvents.TaskInterrupted;
 import java.time.Instant;
 import java.util.List;
 import java.util.Set;
@@ -41,8 +42,10 @@ class TaskTest {
         assertThat(t.allowedCommands()).contains(TaskCommandType.RESUME).doesNotContain(TaskCommandType.PAUSE);
 
         t.execute(TaskCommandType.RESUME, null, NOW);
-        assertThat(t.getStatus()).isEqualTo(TaskStatus.RUNNING);
+        // Vuelve a la cola: el motor la retoma
+        assertThat(t.getStatus()).isEqualTo(TaskStatus.QUEUED);
         assertThat(t.isPaused()).isFalse();
+        assertThat(t.pendingNotices()).containsExactly(new TaskInterrupted("t"));
         assertThat(t.newHistory()).extracting(TaskHistoryEntry::message).containsExactly("Pausada", "Reanudada");
         assertThat(t.getHistory()).hasSize(2);
     }
@@ -151,5 +154,53 @@ class TaskTest {
         assertThatThrownBy(() -> Task.builder().id("t").stationId("gen").title("x").status(TaskStatus.RUNNING)
                 .paused(true).agent(Agent.raul()).build())
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void theEngineFinishesOrFailsARun() {
+        Task ok = task(TaskStatus.RUNNING);
+        ok.reportProgress(150);
+        assertThat(ok.getProgress()).isEqualTo(99);
+        ok.finishRun("5 piezas", NOW);
+        assertThat(ok.getStatus()).isEqualTo(TaskStatus.COMPLETED);
+        assertThat(ok.getResult()).isEqualTo("5 piezas");
+
+        Task ko = task(TaskStatus.RUNNING);
+        ko.execute(TaskCommandType.PAUSE, null, NOW);
+        ko.execute(TaskCommandType.RESUME, null, NOW);
+        ko.startFromQueue(NOW);
+        ko.failRun("FFmpeg terminó con código 1", NOW);
+        assertThat(ko.getStatus()).isEqualTo(TaskStatus.FAILED);
+        assertThat(ko.getError()).isEqualTo("FFmpeg terminó con código 1");
+        assertThat(ko.allowedCommands()).contains(TaskCommandType.RETRY);
+        assertThatThrownBy(() -> ko.finishRun("tarde", NOW)).isInstanceOf(DomainException.class);
+    }
+
+    @Test
+    void cancellingARunningTaskInterruptsIt() {
+        Task t = task(TaskStatus.RUNNING);
+        t.execute(TaskCommandType.CANCEL, null, NOW);
+        assertThat(t.pendingNotices()).containsExactly(new TaskInterrupted("t"));
+        Task queued = task(TaskStatus.QUEUED);
+        queued.execute(TaskCommandType.CANCEL, null, NOW);
+        assertThat(queued.pendingNotices()).isEmpty();
+    }
+
+    @Test
+    void aRestartPutsRunningTasksBackInTheQueueWithoutSpendingAnAttempt() {
+        Task t = task(TaskStatus.RUNNING);
+        assertThat(t.recoverAfterRestart(NOW)).isTrue();
+        assertThat(t.getStatus()).isEqualTo(TaskStatus.QUEUED);
+        assertThat(t.getAttempts()).isEqualTo(1);
+        assertThat(task(TaskStatus.WAITING).recoverAfterRestart(NOW)).isFalse();
+    }
+
+    @Test
+    void periodicChecksAreRequeued() {
+        Task t = task(TaskStatus.FAILED);
+        assertThat(t.requeue(NOW)).isTrue();
+        assertThat(t.getStatus()).isEqualTo(TaskStatus.QUEUED);
+        assertThat(t.getError()).isNull();
+        assertThat(task(TaskStatus.RUNNING).requeue(NOW)).isFalse();
     }
 }

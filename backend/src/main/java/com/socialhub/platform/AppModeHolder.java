@@ -6,6 +6,7 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
@@ -13,6 +14,10 @@ import org.springframework.stereotype.Component;
 /**
  * Modo actual (real o demo). Se recuerda en el archivo {@code mode} de la carpeta de datos, así que al reiniciar
  * SocialHub vuelve al último modo elegido.
+ *
+ * <p>El modo elegido en la interfaz decide qué base de datos ven las peticiones. Los procesos en segundo plano
+ * (el motor de tareas en modo real, el simulador en modo demo) fijan su modo con {@link #callIn}, así que siguen
+ * trabajando sobre su base de datos aunque Raúl cambie de modo en la interfaz.
  */
 @Slf4j
 @Component
@@ -21,6 +26,8 @@ public class AppModeHolder {
     private final Path file;
     private final boolean demoEnabled;
     private final ApplicationEventPublisher events;
+    private static final ThreadLocal<AppMode> PINNED = new ThreadLocal<>();
+
     private volatile AppMode current;
 
     public AppModeHolder(AppPaths paths, SocialHubProperties properties, ApplicationEventPublisher events) {
@@ -32,9 +39,31 @@ public class AppModeHolder {
         log.info("SocialHub en modo {}", current);
     }
 
-    public AppMode current() { return current; }
+    /** Modo que se aplica en este hilo: el fijado con {@link #callIn} o, si no hay, el elegido en la interfaz. */
+    public AppMode current() {
+        AppMode pinned = PINNED.get();
+        return pinned != null ? pinned : current;
+    }
 
-    public boolean isDemo() { return current == AppMode.DEMO; }
+    /** Modo elegido en la interfaz. */
+    public AppMode selected() { return current; }
+
+    public boolean isDemo() { return current() == AppMode.DEMO; }
+
+    /** Ejecuta {@code action} con el modo fijado (y por tanto su base de datos), sea cual sea el de la interfaz. */
+    public static <T> T callIn(AppMode mode, Supplier<T> action) {
+        AppMode previous = PINNED.get();
+        PINNED.set(mode);
+        try {
+            return action.get();
+        } finally {
+            if (previous == null) PINNED.remove(); else PINNED.set(previous);
+        }
+    }
+
+    public static void runIn(AppMode mode, Runnable action) {
+        callIn(mode, () -> { action.run(); return null; });
+    }
 
     public boolean demoEnabled() { return demoEnabled; }
 

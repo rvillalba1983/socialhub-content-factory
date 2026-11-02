@@ -59,6 +59,14 @@ class JpaTaskRepository implements TaskRepository {
     }
 
     @Override
+    public List<Task> claimQueued(Set<String> types, int limit) {
+        if (types.isEmpty() || limit <= 0) return List.of();
+        return jpa.lockQueued(types, limit).stream()
+                .map(id -> jpa.findById(id).map(mapper::toDomain).orElseThrow())
+                .toList();
+    }
+
+    @Override
     public Task save(Task task) {
         var existing = jpa.findById(task.getId());
         TaskEntity entity = existing.orElseGet(() -> new TaskEntity(task.getId()));
