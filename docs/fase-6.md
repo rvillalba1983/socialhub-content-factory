@@ -61,5 +61,5 @@ Qué se comprueba:
   - Encargo `QUALITY_REVIEW`, Haiku por defecto. Lleva la publicación, sus archivos y los avisos del código.
   - Claude devuelve `outputs.issues: [{message}]`. Cada revisión sustituye a la anterior.
   - Botón «Revisar con Claude» en el editor de cada publicación, junto al panel de calidad.
-- **Pruebas:** 83 de backend y 19 de frontal.
+- **Pruebas:** 79 de backend y 19 de frontal.
 
