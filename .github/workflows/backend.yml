@@ -9,9 +9,10 @@ on:
   workflow_dispatch:
     inputs:
       otros_sistemas:
-        description: "Probar también en Windows y macOS (gastan más minutos)"
-        type: boolean
-        default: false
+        description: "Probar también en otros sistemas (Windows gasta x2 minutos, macOS x10)"
+        type: choice
+        default: ninguno
+        options: [ninguno, windows, windows-y-macos]
 
 permissions:
   contents: read
@@ -45,11 +46,11 @@ jobs:
 
   otros-sistemas:
     name: Compilar y probar (${{ matrix.os }})
-    if: github.event_name == 'workflow_dispatch' && inputs.otros_sistemas
+    if: github.event_name == 'workflow_dispatch' && inputs.otros_sistemas != 'ninguno'
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, macos-latest]
+        os: ${{ fromJSON(inputs.otros_sistemas == 'windows' && '["windows-latest"]' || '["windows-latest","macos-latest"]') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     defaults:
