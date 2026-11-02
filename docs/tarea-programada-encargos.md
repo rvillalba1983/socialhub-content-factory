@@ -9,7 +9,7 @@ Creada el 2 nov 2026 con el OK de Raúl. No se ha tocado ninguna de las tareas p
   - La sesión principal solo reparte el trabajo. La herramienta de creación no permite elegir su modelo, así que se creó con Opus. Raúl puede cambiarlo a Haiku en los ajustes de la tarea programada para gastar menos.
 - **Aprobaciones:** se ejecuta sin pedirlas (aprobación automática).
 - **Avisos:** notificación en el móvil al terminar, solo si hubo encargos.
-- **Actualizada el 3 nov 2026** (con el OK de Raúl): revisión de calidad e identidad de la marca. El texto de abajo resume las instrucciones; el texto completo vigente está en la propia tarea programada.
+- **Actualizada el 3 nov 2026** (con el OK de Raúl): revisión de calidad, identidad de la marca y memoria editorial. El texto de abajo resume las instrucciones; el texto completo vigente está en la propia tarea programada.
 
 ## Instrucciones de la tarea
 
@@ -40,6 +40,11 @@ Todo se hace desde la nube con el conector de Google Drive, WebSearch y WebFetch
 REGLAS PARA CADA ENCARGO
 - Haz exactamente lo que pide «goal», con «inputs», respetando todas sus «rules» y la identidad de la marca
   (inputs.brand_identity). Si el encargo trae inputs.expected_outputs, síguelo también.
+- Usa la memoria editorial (inputs.editorial_memory):
+  · cumple las decisiones;
+  · no repitas lo publicado en las últimas 8 semanas;
+  · no vuelvas a proponer lo rechazado y corrige lo que señala el motivo;
+  · imita las correcciones de Raúl.
 - Nunca envíes correos ni mensajes, nunca publiques, nunca programes nada y nunca pagues. No inventes datos, cifras,
   enlaces ni usuarios: lo que no puedas comprobar, dilo en «warnings».
 - Si necesitas que Raúl decida algo, devuelve status "needs_human" con la pregunta en «error».
