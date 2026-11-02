@@ -245,7 +245,7 @@ function QualityPanel({ publication, promotionId }: { publication: Publication; 
 }
 
 /** Motivo fijo y nota: queda en la memoria editorial de la marca. */
-function ReasonForm({ title, action, onSubmit, onCancel }: {
+export function ReasonForm({ title, action, onSubmit, onCancel }: {
   title: string; action: string; onSubmit: (reason: RejectionReason, note?: string) => void; onCancel: () => void;
 }) {
   const [reason, setReason] = useState<RejectionReason>('TONE');

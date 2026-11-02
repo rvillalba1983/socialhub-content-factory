@@ -6,7 +6,8 @@ import {
 } from './model';
 import { AgentChip, Dot, Pill } from './ui';
 import { FolderRoles } from './Folders';
-import { PublicationEditor } from './PublicationEditor';
+import { PublicationEditor, ReasonForm } from './PublicationEditor';
+import { api } from './api';
 
 const TABS: [string, string][] = [
   ['resumen', 'Resumen'], ['calendario', 'Calendario'], ['publicaciones', 'Publicaciones'], ['tareas', 'Tareas'],
@@ -14,7 +15,7 @@ const TABS: [string, string][] = [
 ];
 
 const FILTERS: [string, string][] = [
-  ['all', 'Todas'], ['pending', 'Pendientes'], ['IN_REVIEW', 'En revisión'], ['SCHEDULED', 'Programadas'],
+  ['all', 'Todas'], ['PROPOSAL', 'Propuestas'], ['pending', 'Pendientes'], ['IN_REVIEW', 'En revisión'], ['SCHEDULED', 'Programadas'],
   ['PUBLISHED', 'Publicadas'], ['issues', 'Con incidencia'],
 ];
 
@@ -24,6 +25,13 @@ export function ControlCenter({ p, brand, data, initialTab, highlight, onClose, 
 }) {
   /** Publicación abierta en el editor: su id, «new» para una nueva o null. */
   const [editing, setEditing] = useState<string | null>(null);
+  /** Propuesta que se está rechazando (pide el motivo). */
+  const [rejecting, setRejecting] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const act = async (action: () => Promise<unknown>, message: string) => {
+    setActionError(null);
+    try { await action(); onMessage?.(message); } catch (e) { setActionError(e instanceof Error ? e.message : String(e)); }
+  };
   const [tab, setTab] = useState(initialTab);
   const [filter, setFilter] = useState('all');
   const [hl, setHl] = useState<string | null>(highlight);
@@ -131,8 +139,23 @@ export function ControlCenter({ p, brand, data, initialTab, highlight, onClose, 
             <>
               <div className="row-between">
                 <div className="filters">{FILTERS.map(([k, l]) => <button key={k} className={`chip${filter === k ? ' on' : ''}`} onClick={() => setFilter(k)}>{l}</button>)}</div>
-                <button className="btn primary" onClick={() => setEditing('new')}>Nueva publicación</button>
+                <span>
+                  <button className="btn" onClick={() => void act(() => api.orderFromClaude(p.id, {
+                    type: 'WEEKLY_PROPOSALS', goal: `Propón las publicaciones de la semana que viene para «${p.name}», según su cadencia, objetivos, hitos y memoria editorial.`,
+                  }), 'Propuestas pedidas a Claude: llegarán como «Propuesta»')}>Pedir propuestas a Claude</button>{' '}
+                  <button className="btn primary" onClick={() => setEditing('new')}>Nueva publicación</button>
+                </span>
               </div>
+              {actionError && <p className="error" role="alert">{actionError}</p>}
+              {rejecting && (
+                <ReasonForm title={`Por qué rechazas «${pubs.find(x => x.id === rejecting)?.title ?? ''}»`} action="Rechazar propuesta"
+                  onCancel={() => setRejecting(null)}
+                  onSubmit={(reason, note) => {
+                    const id = rejecting;
+                    setRejecting(null);
+                    void act(() => api.changePublicationStatus(id, 'CANCELLED', reason, note), 'Propuesta rechazada');
+                  }} />
+              )}
               {editing && (
                 <PublicationEditor key={editing} promotionId={p.id}
                   publication={editing === 'new' ? undefined : pubs.find(x => x.id === editing)}
@@ -150,7 +173,14 @@ export function ControlCenter({ p, brand, data, initialTab, highlight, onClose, 
                         <td>{x.platform === 'TIKTOK' ? 'TikTok' : 'Instagram'}</td><td>{x.type}</td><td>{x.title}</td>
                         <td><Pill s={st.s} label={st.label} /></td><td>{x.route}</td>
                         <td>{x.flag ?? x.note ?? ''}</td>
-                        <td><button className="btn" aria-label={`Editar ${x.title}`} onClick={() => setEditing(x.id)}>Editar</button></td>
+                        <td className="nowrap">
+                          {x.status === 'PROPOSAL' && <>
+                            <button className="btn" aria-label={`Aprobar ${x.title}`}
+                              onClick={() => void act(() => api.changePublicationStatus(x.id, 'IN_PRODUCTION'), `Propuesta aprobada · ${x.title}`)}>Aprobar</button>{' '}
+                            <button className="btn" aria-label={`Rechazar ${x.title}`} onClick={() => setRejecting(x.id)}>Rechazar</button>{' '}
+                          </>}
+                          <button className="btn" aria-label={`Editar ${x.title}`} onClick={() => setEditing(x.id)}>Editar</button>
+                        </td>
                       </tr>
                     );
                   })}

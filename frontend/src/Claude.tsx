@@ -15,6 +15,7 @@ const INPUT_HINT: Record<AiRequestType, string> = {
   WEEKLY_BALANCE: 'Opcional: un día de la semana. Sin fecha, la semana pasada. Sale solo cada lunes.',
   RESEARCH: 'Lo que Claude deba tener en cuenta: lugares, nombres, enlaces…',
   QUALITY_REVIEW: 'El identificador de una publicación. También desde la propia publicación.',
+  WEEKLY_PROPOSALS: 'Opcional: un día de la semana. Sin fecha, la que viene. Sale solo los lunes a las 18:00.',
 };
 
 const REQUEST_STATUS: Record<AiRequest['status'], { label: string; s: StatusCode }> = {

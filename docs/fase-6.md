@@ -1,6 +1,6 @@
 # SocialHub · Fase 6: producción editorial
 
-Estado: **bloques 1 y 2 en `main`; bloque 3 en marcha** (rama `fase-6/propuestas`) · 3 nov 2026
+Estado: **bloques 1 y 2 en `main`; bloque 3 hecho** (rama `fase-6/propuestas`) · 3 nov 2026
 
 ## Respuestas de Raúl
 
@@ -107,4 +107,16 @@ Cómo se aplica:
 - **Aprobar** pasa la propuesta a «En producción». **Rechazar** la cancela con su motivo, que queda en la memoria editorial.
 - **El spec del domingo** solo usa publicaciones aprobadas: deja fuera las ideas, las propuestas y las canceladas.
 - **Modelo por defecto:** Sonnet.
+
+### Bloque 3 · hecho
+
+- **Encargo `WEEKLY_PROPOSALS`** (estación «Selección y estrategia», Sonnet):
+  - Lleva la semana, la promoción (descripción, cadencia, objetivos e hitos) y lo ya planificado.
+  - Claude devuelve `outputs.proposals: [{scheduled_on, scheduled_time, platform, type, title, idea, why}]`, como mucho 21.
+  - Se comprueban todas (fechas dentro de la semana, hora, plataforma, tipo y título) antes de crear ninguna.
+  - Se crean como «Propuesta», con la idea y el porqué en las observaciones.
+- **Revisión:** en Publicaciones hay un filtro «Propuestas» con «Aprobar» (pasa a «En producción») y «Rechazar» (pide el motivo y la cancela). También hay un botón «Pedir propuestas a Claude».
+- **Sale solo** los lunes desde las 18:00. El spec semanal ya solo recibe las publicaciones aprobadas.
+- **Calendario editorial:** el calendario semanal del centro de control muestra las propuestas junto al resto, con su estado.
+- **Pruebas:** 82 de backend y 22 de frontal.
 
