@@ -1,6 +1,6 @@
 // Tipos de la API (generados desde contracts/openapi.yaml) y utilidades de presentación.
 import type {
-  ArmoryItem, Factory, FolderRole, Promotion, PublicationStatus, StatusLevel, Task, TaskStatus, TaskStepState,
+  ArmoryItem, Factory, FolderRole, Promotion, PublicationStatus, RejectionReason, StatusLevel, Task, TaskStatus, TaskStepState,
 } from './api/types';
 
 export type * from './api/types';
@@ -51,6 +51,12 @@ export const PUBLICATION_NEXT: Record<PublicationStatus, PublicationStatus[]> = 
   PUBLISH_ERROR: ['SCHEDULED', 'APPROVED', 'CANCELLED'],
   CANCELLED: ['IDEA'],
 };
+
+/** Motivos fijos de un rechazo (memoria editorial). */
+export const REJECTION_REASONS: [RejectionReason, string][] = [
+  ['TONE', 'Tono'], ['REPEATED', 'Repetido'], ['OFF_BRAND', 'Fuera de la marca'], ['WRONG_DATA', 'Error de datos'],
+  ['FORMAT', 'Formato'], ['OTHER', 'Otro'],
+];
 
 /** Papeles de carpeta, en el orden en que se muestran. */
 export const FOLDER_ROLES: [FolderRole, string, string][] = [

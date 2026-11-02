@@ -1,6 +1,6 @@
 # SocialHub · Fase 6: producción editorial
 
-Estado: **bloque 1 en `main`; bloque 2 en marcha** (rama `fase-6/memoria`) · 3 nov 2026
+Estado: **bloque 1 en `main`; bloque 2 hecho** (rama `fase-6/memoria`) · 3 nov 2026
 
 ## Respuestas de Raúl
 
@@ -78,4 +78,21 @@ Cómo se aplica:
 - **Correcciones:** SocialHub guarda la última propuesta de Claude en cada publicación. Si Raúl guarda un texto distinto, se apunta el antes y el después.
 - **Decisiones editoriales:** notas por marca que Raúl añade o borra en «Marcas».
 - **En los encargos:** todo va en `inputs.editorial_memory`.
+
+### Bloque 2 · hecho
+
+- **API:**
+  - `GET/POST /api/brands/{id}/decisions` y `DELETE /api/brands/{id}/decisions/{decisión}`.
+  - `GET /api/brands/{id}/editorial-memory`.
+  - `POST /api/publications/{id}/text-rejections`.
+  - `status-changes` admite `reason` y `note`; `reason` es obligatorio para cancelar.
+- **Correcciones:** cuando Claude deja un texto, se guarda como su propuesta. La primera vez que Raúl lo cambia y guarda, se apunta la corrección y se olvida la propuesta, así que los cambios siguientes no cuentan como correcciones de Claude.
+- **En los encargos:** `inputs.editorial_memory` lleva:
+  - las decisiones;
+  - lo aprobado, programado o publicado de las últimas 8 semanas (título, tipo, fecha y texto recortado);
+  - los últimos 20 rechazos y las últimas 20 correcciones, solo de la misma marca.
+- **Interfaz:**
+  - En el editor de la publicación, «Pasar a Cancelada» y «Descartar texto» piden el motivo.
+  - En «Marcas», la tarjeta «Memoria editorial» muestra y edita las decisiones y enseña los rechazos y correcciones.
+- **Pruebas:** 80 de backend y 21 de frontal.
 

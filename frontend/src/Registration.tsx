@@ -8,6 +8,7 @@ import {
 import { Pill } from './ui';
 import { FolderRoles } from './Folders';
 import { IdentityForm } from './Identity';
+import { MemoryCard } from './Memory';
 
 type Editing = { kind: 'brand'; id: string | null } | { kind: 'promotion'; id: string | null } | null;
 
@@ -39,6 +40,7 @@ export function Registration({ data, initial, onClose, onSaved }: {
             onSaved={b => { setEditing(null); onSaved(`Marca guardada · ${b.name}`); }} />
         )}
         {editing?.kind === 'brand' && editing.id && <IdentityForm brandId={editing.id} onSaved={onSaved} />}
+        {editing?.kind === 'brand' && editing.id && <MemoryCard brandId={editing.id} onSaved={onSaved} />}
         {editing?.kind === 'brand' && editing.id && <FolderRoles owner="brand" id={editing.id} onSaved={onSaved} />}
         {editing?.kind === 'promotion' && (
           <PromotionForm data={data} promotion={editing.id ? data.promotions.find(p => p.id === editing.id) : undefined}
