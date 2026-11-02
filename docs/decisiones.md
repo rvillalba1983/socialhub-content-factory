@@ -187,3 +187,16 @@ Detalle en `docs/fase-3.md`.
 - **Volver a ejecutar** una tarea de piezas no pisa lo anterior: genera archivos numerados.
 - **Encargar desde el botón** se permite siempre, incluso para un spec ya encargado. La carpeta vigilada solo encarga lo nuevo o modificado.
 
+## 2026-11-02 · Fases 4 y 5: decisiones (respuestas de Raúl)
+- **Carpetas:** Raúl indica qué carpeta de G: hace cada papel. Se mapea en la marca y la promoción puede cambiar el papel que necesite. No se crea ni se mueve nada.
+- **Archivos y publicaciones:** campo `publicacion` en cada pieza del spec. Si no lo lleva, la asociación se hace a mano en la app.
+- **Publicaciones en modo real:** alta y edición desde el centro de control.
+- **Sin G::** la tarea se bloquea sin gastar intentos y vuelve a la cola sola cuando la carpeta aparece.
+- **Encargos a Claude:**
+  - Los recoge una tarea programada nueva, «Encargos de SocialHub», 3 veces al día.
+  - Los primeros tipos son spec semanal, textos y hashtags, balance semanal e investigación.
+  - El modelo va por tipo de encargo y sube un nivel tras dos fallos.
+  - Como mucho 10 encargos al día, configurable.
+
+Detalle en `docs/fase-4-5.md`.
+
