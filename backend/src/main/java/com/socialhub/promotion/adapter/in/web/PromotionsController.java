@@ -4,6 +4,8 @@ import com.socialhub.api.PromotionsApi;
 import com.socialhub.api.model.PromotionDto;
 import com.socialhub.api.model.PromotionInputDto;
 import com.socialhub.api.model.PromotionListDto;
+import com.socialhub.api.model.FolderListDto;
+import com.socialhub.api.model.FolderListInputDto;
 import com.socialhub.promotion.PromotionQueries;
 import com.socialhub.promotion.PromotionService;
 import org.springframework.http.HttpStatus;
@@ -37,5 +39,15 @@ class PromotionsController implements PromotionsApi {
     @Override
     public ResponseEntity<PromotionDto> updatePromotion(String promotionId, String requestGuard, PromotionInputDto input) {
         return ResponseEntity.ok(mapper.toDto(service.updatePromotion(promotionId, mapper.toDraft(input))));
+    }
+
+    @Override
+    public ResponseEntity<FolderListDto> listPromotionFolders(String promotionId) {
+        return ResponseEntity.ok(mapper.toFolderList(queries.folders(promotionId)));
+    }
+
+    @Override
+    public ResponseEntity<FolderListDto> replacePromotionFolders(String promotionId, String requestGuard, FolderListInputDto input) {
+        return ResponseEntity.ok(mapper.toFolderList(service.replacePromotionFolders(promotionId, mapper.toFolderMap(input))));
     }
 }
