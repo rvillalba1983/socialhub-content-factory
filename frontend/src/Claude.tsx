@@ -9,6 +9,13 @@ import { Pill } from './ui';
 
 const PAGE = 50;
 
+const INPUT_HINT: Record<AiRequestType, string> = {
+  WEEKLY_SPEC: 'Opcional: un día de la semana (2026-11-09). Sin fecha, la semana que viene. Sale solo cada domingo.',
+  CAPTIONS: 'Los identificadores de las publicaciones (por ejemplo, 2026-11-10-instagram). También desde cada publicación.',
+  WEEKLY_BALANCE: 'Opcional: un día de la semana. Sin fecha, la semana pasada. Sale solo cada lunes.',
+  RESEARCH: 'Lo que Claude deba tener en cuenta: lugares, nombres, enlaces…',
+};
+
 const REQUEST_STATUS: Record<AiRequest['status'], { label: string; s: StatusCode }> = {
   SENT: { label: 'Esperando a Claude', s: 'WAITING' },
   COMPLETED: { label: 'Completado', s: 'OK' },
@@ -177,6 +184,7 @@ function OrderCard({ data, settings, onOrdered }: { data: Snapshot; settings: Ai
         <textarea required rows={3} maxLength={4000} value={goal} onChange={e => setGoal(e.target.value)} /></label>
       <label className="field"><span>Datos de entrada (uno por línea)</span>
         <textarea rows={3} value={inputs} onChange={e => setInputs(e.target.value)} /></label>
+      <p className="src">{INPUT_HINT[type]}</p>
       <div className="form-actions">
         {error && <p className="error" role="alert">{error}</p>}
         <button className="btn primary" disabled={busy || !goal.trim()}>{busy ? 'Encargando…' : 'Encargar a Claude'}</button>

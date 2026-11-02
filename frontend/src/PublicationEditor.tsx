@@ -14,6 +14,7 @@ const toInput = (p?: Publication): PublicationInput => ({
   platform: p?.platform ?? 'INSTAGRAM', type: p?.type ?? '', title: p?.title ?? '',
   scheduled_on: p?.scheduled_on ?? '', scheduled_time: p ? p.scheduled_time.slice(0, 5) : '19:00',
   timezone: p?.timezone ?? 'Europe/Madrid', route: p?.route ?? 'Publer', note: p?.note ?? '',
+  caption: p?.caption ?? '', hashtags: p?.hashtags ?? '',
 });
 
 /** Alta y edición de una publicación, su estado y sus archivos. */
@@ -24,6 +25,12 @@ export function PublicationEditor({ promotionId, publication, onClose, onSaved }
   const [initial, setInitial] = useState<Initial>('IDEA');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [asked, setAsked] = useState<string | null>(null);
+  const [textsTouched, setTextsTouched] = useState(false);
+  // Si Claude deja textos nuevos mientras el editor está abierto y Raúl no ha tocado los suyos, se ven al momento
+  useEffect(() => {
+    if (!textsTouched) setForm(f => ({ ...f, caption: publication?.caption ?? '', hashtags: publication?.hashtags ?? '' }));
+  }, [publication?.caption, publication?.hashtags, textsTouched]);
   const locked = publication?.status === 'PUBLISHING' || publication?.status === 'PUBLISHED';
   const set = <K extends keyof PublicationInput>(k: K, v: PublicationInput[K]) => setForm({ ...form, [k]: v });
 
@@ -35,10 +42,24 @@ export function PublicationEditor({ promotionId, publication, onClose, onSaved }
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    const input = { ...form, note: form.note?.trim() || undefined };
+    const input = { ...form, note: form.note?.trim() || undefined, caption: form.caption?.trim() || undefined,
+      hashtags: form.hashtags?.trim() || undefined };
     void run(() => (publication ? api.updatePublication(publication.id, input)
       : api.createPublication(promotionId, { ...input, initial_status: initial })),
     publication ? 'Publicación guardada' : 'Publicación creada');
+    setTextsTouched(false);
+  };
+
+  const askClaude = async () => {
+    if (!publication) return;
+    setError(null);
+    try {
+      await api.orderFromClaude(promotionId, {
+        type: 'CAPTIONS', title: `Textos · ${publication.title}`, inputs: [publication.id],
+        goal: `Escribe el texto y los hashtags de «${publication.title}» (${publication.type}, ${publication.platform === 'TIKTOK' ? 'TikTok' : 'Instagram'}).`,
+      });
+      setAsked('Pedido a Claude: los textos llegarán aquí para que los revises.');
+    } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
   };
 
   return (
@@ -69,6 +90,18 @@ export function PublicationEditor({ promotionId, publication, onClose, onSaved }
                 {INITIAL.map(s => <option key={s} value={s}>{PUBLICATION_STATUS[s].label}</option>)}</select></label>
           )}
         </div>
+        <label className="field"><span>Texto ({(form.caption ?? '').length} / 2200)</span>
+          <textarea rows={4} disabled={locked} maxLength={2200} value={form.caption ?? ''}
+            onChange={e => { setTextsTouched(true); set('caption', e.target.value); }} /></label>
+        <label className="field"><span>Hashtags</span>
+          <input disabled={locked} maxLength={1000} placeholder="#poesia #eldelito" value={form.hashtags ?? ''}
+            onChange={e => { setTextsTouched(true); set('hashtags', e.target.value); }} /></label>
+        {publication && !locked && (
+          <p className="src">
+            <button type="button" className="btn" onClick={() => void askClaude()}>Pedir textos a Claude</button>
+            {asked && <> {asked}</>}
+          </p>
+        )}
         <label className="field"><span>Observaciones</span>
           <textarea rows={2} disabled={locked} maxLength={2000} value={form.note ?? ''} onChange={e => set('note', e.target.value)} /></label>
         <div className="form-actions">

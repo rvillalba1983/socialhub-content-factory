@@ -80,6 +80,14 @@ public class PromotionQueries {
         return List.copyOf(all);
     }
 
+    /** Promociones activas cuyas fechas se cruzan con ese intervalo (incluido). */
+    public List<String> activeBetween(java.time.LocalDate from, java.time.LocalDate to) {
+        return repository.promotions().stream()
+                .filter(p -> "ACTIVE".equals(p.status()) && !p.startsOn().isAfter(to) && !p.endsOn().isBefore(from))
+                .map(Promotion::id)
+                .toList();
+    }
+
     /** Marca de una promoción. */
     public String brandOf(String promotionId) { return promotion(promotionId).brandId(); }
 
@@ -96,6 +104,20 @@ public class PromotionQueries {
         var all = new ArrayList<String>(promotion(promotionId).rules());
         all.addAll(commonRules());
         return List.copyOf(all);
+    }
+
+    /** Carpeta con el papel «Informes» de la promoción (propia o de la marca). */
+    public Optional<String> reportsFolder(String promotionId) { return folderOf(promotionId, FolderRole.REPORTS); }
+
+    /** Carpetas en vigor por papel («MATERIAL» → ruta…), para contárselas a Claude. */
+    public java.util.Map<String, String> folderMap(String promotionId) {
+        var map = new java.util.LinkedHashMap<String, String>();
+        folders(promotionId).forEach(f -> map.put(f.role().name(), f.location()));
+        return map;
+    }
+
+    private Optional<String> folderOf(String promotionId, FolderRole role) {
+        return folders(promotionId).stream().filter(f -> f.role() == role).map(FolderAssignment::location).findFirst();
     }
 
     /** Carpeta con el papel «Encargos», si la promoción lo tiene. */

@@ -37,7 +37,7 @@ public interface PublicationWebMapper {
     default Publication.Details toDetails(PublicationInputDto input) {
         return new Publication.Details(Platform.valueOf(input.getPlatform().name()), input.getType(), input.getTitle(),
                 input.getScheduledOn(), LocalTime.parse(input.getScheduledTime(), HH_MM), input.getTimezone(),
-                input.getRoute(), input.getNote());
+                input.getRoute(), input.getNote(), input.getCaption(), input.getHashtags());
     }
 
     default PublicationStatus initialStatus(PublicationInputDto input) {

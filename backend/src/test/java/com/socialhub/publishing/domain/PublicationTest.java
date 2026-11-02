@@ -66,7 +66,7 @@ class PublicationTest {
 
     private static Publication.Details details(LocalTime time) {
         return new Publication.Details(Platform.TIKTOK, "Reel", "Nuevo", LocalDate.of(2026, 11, 2), time,
-                "Europe/Madrid", "Publer", " ");
+                "Europe/Madrid", "Publer", " ", "Texto", "#poesia");
     }
 
     @Test
@@ -102,6 +102,6 @@ class PublicationTest {
         assertThatThrownBy(() -> Publication.create("x", "promo", details(LocalTime.NOON), PublicationStatus.SCHEDULED, false))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> new Publication.Details(Platform.TIKTOK, "Reel", "T", LocalDate.of(2026, 11, 2),
-                LocalTime.NOON, "Marte/Olympus", "Publer", null)).isInstanceOf(IllegalArgumentException.class);
+                LocalTime.NOON, "Marte/Olympus", "Publer", null, null, null)).isInstanceOf(IllegalArgumentException.class);
     }
 }

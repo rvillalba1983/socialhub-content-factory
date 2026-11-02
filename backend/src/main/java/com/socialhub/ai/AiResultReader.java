@@ -51,6 +51,7 @@ class AiResultReader {
     private final Clock clock;
     private final TransactionTemplate transactions;
     private final ApplicationEventPublisher events;
+    private final AiHandlers handlers;
 
     @Scheduled(initialDelayString = "${socialhub.ai.initial-delay-millis:10000}",
                fixedDelayString = "${socialhub.ai.read-millis:30000}")
@@ -129,8 +130,17 @@ class AiResultReader {
         transactions.executeWithoutResult(s -> {
             switch (status) {
                 case "completed" -> {
+                    String applied;
+                    try {
+                        applied = apply(sent, type, result, file);
+                    } catch (IllegalArgumentException | IllegalStateException e) {
+                        String error = "El resultado no sirve: " + e.getMessage();
+                        finish(sent, AiRequestEntity.Status.INVALID, file, result, error);
+                        production.aiFailed(taskId, error + " (" + file.getFileName() + ")");
+                        break;
+                    }
                     finish(sent, AiRequestEntity.Status.COMPLETED, file, result, null);
-                    production.aiCompleted(taskId, summary(result, file));
+                    production.aiCompleted(taskId, applied);
                     events.publishEvent(new AiResultApplied(taskId, type, sent.getPromotionId(), file.toString(),
                             result.path("outputs")));
                 }
@@ -148,6 +158,18 @@ class AiResultReader {
             record(file, modified, sent.getId(), "APPLIED", status);
         });
         log.info("Resultado de Claude para {}: {} ({})", taskId, status, file);
+    }
+
+    /** El manejador del tipo hace lo suyo con el resultado; sin manejador, vale el resumen. */
+    private String apply(AiRequestEntity sent, AiRequestType type, JsonNode result, Path file) {
+        var handler = handlers.of(type);
+        if (handler.isEmpty() || sent.getPromotionId() == null) return summary(result, file);
+        var task = production.waitingAiTask(sent.getTaskId()).orElseThrow();
+        AiJob job = new AiJob(task.id(), type, sent.getPromotionId(), sent.getBrandId(), task.title(), task.goal(),
+                task.inputs());
+        String text = handler.get().apply(job, result.path("outputs"), result);
+        List<String> warnings = warnings(result);
+        return warnings.isEmpty() ? text : text + " · Avisos: " + String.join(" · ", warnings);
     }
 
     private void finish(AiRequestEntity request, AiRequestEntity.Status status, Path file, JsonNode result,

@@ -69,9 +69,30 @@ final class PieceFiles {
         return resolved;
     }
 
+    /** Comprueba, sin crear nada, que la carpeta de salida queda dentro de las carpetas de la promoción. */
+    void checkOutputDir(String path) {
+        insideLexically(canonical(resolve(path)));
+    }
+
+    /**
+     * Ruta comparable aunque no exista: la parte que existe se pasa a su ruta real y se le añade el resto. Así,
+     * en Windows, nombres cortos y largos («RUNNER~1» y «runneradmin») acaban igual.
+     */
+    static Path canonical(Path path) {
+        Path absolute = path.toAbsolutePath().normalize();
+        Path existing = absolute;
+        while (existing != null && !Files.exists(existing)) existing = existing.getParent();
+        if (existing == null) return absolute;
+        try {
+            return existing.toRealPath().resolve(existing.relativize(absolute)).normalize();
+        } catch (IOException e) {
+            return absolute;
+        }
+    }
+
     /** Carpeta de salida, que se crea si no existe. */
     Path outputDir(String path) throws IOException {
-        Path dir = resolve(path).toAbsolutePath().normalize();
+        Path dir = canonical(resolve(path));
         insideLexically(dir);
         Files.createDirectories(dir);
         return inside(dir, true);
@@ -101,7 +122,7 @@ final class PieceFiles {
     private Path inside(Path path, boolean mustExist) {
         Path real;
         try {
-            real = mustExist ? path.toRealPath() : path.toAbsolutePath().normalize();
+            real = mustExist ? path.toRealPath() : canonical(path);
         } catch (IOException e) {
             throw new IllegalArgumentException("No existe: " + path);
         }

@@ -1293,6 +1293,8 @@ components:
         route: { type: string }
         flag: { type: string, description: Incidencia anotada }
         note: { type: string }
+        caption: { type: string, description: Texto de la publicación }
+        hashtags: { type: string }
         confirmation: { type: string, description: Prueba de que se ha publicado de verdad }
         demo: { type: boolean }
 
@@ -1308,6 +1310,8 @@ components:
         timezone: { type: string, maxLength: 60, default: Europe/Madrid }
         route: { type: string, minLength: 1, maxLength: 40, default: Publer }
         note: { type: string, maxLength: 2000 }
+        caption: { type: string, maxLength: 2200, description: "Texto de la publicación (Instagram admite 2.200 caracteres)" }
+        hashtags: { type: string, maxLength: 1000 }
         initial_status:
           description: Solo al dar de alta (por defecto, idea). Al editar no se admite.
           type: string

@@ -48,6 +48,7 @@ class PieceGenerator {
     void validate(PromoSpec spec, PieceFiles files) {
         if (spec.piezas() == null || spec.piezas().isEmpty()) throw new IllegalArgumentException("El spec no tiene piezas");
         if (spec.piezas().size() > 60) throw new IllegalArgumentException("Demasiadas piezas en un spec (máximo 60)");
+        files.checkOutputDir(spec.out() == null || spec.out().isBlank() ? "salida" : spec.out());
         for (PromoSpec.Piece p : spec.piezas()) {
             PieceFiles.safeName(p.nombre());
             switch (p.tipo()) {

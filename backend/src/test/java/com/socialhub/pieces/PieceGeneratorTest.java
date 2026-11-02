@@ -123,9 +123,8 @@ class PieceGeneratorTest {
         assertThatThrownBy(() -> reader.load(spec.toString(), List.of(root))).hasMessageContaining("Fuera de las carpetas");
 
         Files.writeString(spec, "{\"out\":\"../Otra\",\"piezas\":[{\"tipo\":\"historia\",\"nombre\":\"x\",\"img\":\"material/page 46.png\",\"titulo\":\"t\"}]}");
-        var loaded = reader.load(spec.toString(), List.of(root));
-        assertThatThrownBy(() -> generator.generate(loaded.spec(), loaded.files(), s -> {}, p -> {}))
-                .hasMessageContaining("Fuera de las carpetas");
+        // La carpeta de salida se comprueba ya al leer el spec, antes de encargar nada
+        assertThatThrownBy(() -> reader.load(spec.toString(), List.of(root))).hasMessageContaining("Fuera de las carpetas");
 
         Files.writeString(spec, "{\"piezas\":[{\"tipo\":\"historia\",\"nombre\":\"../x\",\"img\":\"material/page 46.png\",\"titulo\":\"t\"}]}");
         assertThatThrownBy(() -> reader.load(spec.toString(), List.of(root))).hasMessageContaining("Nombre de pieza no válido");
