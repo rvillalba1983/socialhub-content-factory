@@ -25,6 +25,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  *   <li>Domingo desde las 9:00: spec.json de la semana que empieza el lunes. Si SocialHub estaba cerrado, el lunes o
  *       el martes se pide el de la semana en curso.</li>
  *   <li>Lunes desde las 9:00: balance de la semana pasada. Si estaba cerrado, se pide el martes o el miércoles.</li>
+ *   <li>Lunes desde las 18:00: propuestas de la semana siguiente. Si estaba cerrado, se piden el martes o el miércoles.</li>
  * </ul>
  * Cada encargo se crea una sola vez por promoción y semana. Los demás tipos se piden a mano.
  */
@@ -61,6 +62,8 @@ class AiAutoOrders {
         if (spec.isPresent()) n += create(AiRequestType.WEEKLY_SPEC, spec.get());
         Optional<LocalDate> balance = balanceWeek(now);
         if (balance.isPresent()) n += create(AiRequestType.WEEKLY_BALANCE, balance.get());
+        Optional<LocalDate> proposals = proposalsWeek(now);
+        if (proposals.isPresent()) n += create(AiRequestType.WEEKLY_PROPOSALS, proposals.get());
         return n;
     }
 
@@ -86,6 +89,19 @@ class AiAutoOrders {
         };
     }
 
+    static final LocalTime PROPOSALS_FROM = LocalTime.of(18, 0);
+
+    /** Lunes de la semana cuyas propuestas toca pedir ahora (la siguiente), si toca alguna. */
+    static Optional<LocalDate> proposalsWeek(ZonedDateTime now) {
+        LocalDate today = now.toLocalDate();
+        LocalDate next = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).plusWeeks(1);
+        return switch (today.getDayOfWeek()) {
+            case MONDAY -> now.toLocalTime().isBefore(PROPOSALS_FROM) ? Optional.empty() : Optional.of(next);
+            case TUESDAY, WEDNESDAY -> Optional.of(next);
+            default -> Optional.empty();
+        };
+    }
+
     private int create(AiRequestType type, LocalDate week) {
         int n = 0;
         List<String> active = promotions.activeBetween(week, week.plusDays(6));
@@ -95,11 +111,14 @@ class AiAutoOrders {
             transactions.executeWithoutResult(s -> {
                 String title = type.label() + " · semana del " + week.getDayOfMonth() + " "
                         + week.getMonth().getDisplayName(TextStyle.SHORT, Locale.of("es", "ES"));
-                String goal = type == AiRequestType.WEEKLY_SPEC
-                        ? "Prepara el spec.json de piezas de la semana del " + week + " para esta promoción: las piezas de "
-                          + "sus publicaciones, con el material de sus carpetas y sus normas."
-                        : "Haz el balance de la semana del " + week + " de esta promoción: qué se publicó, qué falló y qué "
-                          + "conviene cambiar. Sin inventar cifras.";
+                String goal = switch (type) {
+                    case WEEKLY_SPEC -> "Prepara el spec.json de piezas de la semana del " + week + " para esta promoción: "
+                            + "las piezas de sus publicaciones aprobadas, con el material de sus carpetas y sus normas.";
+                    case WEEKLY_PROPOSALS -> "Propón las publicaciones de la semana del " + week + " para esta promoción, "
+                            + "según su cadencia, sus objetivos, sus hitos y su memoria editorial.";
+                    default -> "Haz el balance de la semana del " + week + " de esta promoción: qué se publicó, qué falló y "
+                            + "qué conviene cambiar. Sin inventar cifras.";
+                };
                 String taskId = orders.submit(promotionId, type, title, goal, List.of(week.toString()));
                 done.save(new AiAutoOrderEntity(promotionId, type.name(), week, taskId, clock.instant()));
             });

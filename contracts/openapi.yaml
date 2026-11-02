@@ -1056,7 +1056,7 @@ components:
     AiRequestType:
       description: Tipo de encargo a Claude
       type: string
-      enum: [WEEKLY_SPEC, CAPTIONS, WEEKLY_BALANCE, RESEARCH, QUALITY_REVIEW]
+      enum: [WEEKLY_SPEC, CAPTIONS, WEEKLY_BALANCE, RESEARCH, QUALITY_REVIEW, WEEKLY_PROPOSALS]
 
     AiTypeModel:
       type: object
