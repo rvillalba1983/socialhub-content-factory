@@ -61,18 +61,7 @@ class WeeklySpecHandler implements AiTypeHandler {
     public Map<String, Object> inputs(AiJob job) {
         LocalDate from = weekStart(job.inputs());
         LocalDate to = from.plusDays(6);
-        var list = publications.between(job.promotionId(), from, to).stream().map(p -> {
-            Map<String, Object> m = new LinkedHashMap<>();
-            m.put("id", p.getId());
-            m.put("platform", p.getPlatform().name());
-            m.put("type", p.getType());
-            m.put("title", p.getTitle());
-            m.put("scheduled_on", p.getScheduledOn().toString());
-            m.put("scheduled_time", p.getScheduledTime().toString());
-            m.put("status", p.getStatus().name());
-            if (p.getNote() != null) m.put("note", p.getNote());
-            return m;
-        }).toList();
+        var list = publications.forAi(job.promotionId(), from, to);
         Map<String, Object> inputs = new LinkedHashMap<>();
         inputs.put("week", Map.of("from", from.toString(), "to", to.toString()));
         inputs.put("folders", promotions.folderMap(job.promotionId()));

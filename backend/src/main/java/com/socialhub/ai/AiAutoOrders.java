@@ -1,0 +1,111 @@
+package com.socialhub.ai;
+
+import com.socialhub.platform.AppMode;
+import com.socialhub.platform.AppModeHolder;
+import com.socialhub.promotion.PromotionQueries;
+import java.time.Clock;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZonedDateTime;
+import java.time.format.TextStyle;
+import java.time.temporal.TemporalAdjusters;
+import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionTemplate;
+
+/**
+ * Encargos que salen solos cada semana, para cada promoción activa (hora de España):
+ * <ul>
+ *   <li>Domingo desde las 9:00: spec.json de la semana que empieza el lunes. Si SocialHub estaba cerrado, el lunes o
+ *       el martes se pide el de la semana en curso.</li>
+ *   <li>Lunes desde las 9:00: balance de la semana pasada. Si estaba cerrado, se pide el martes o el miércoles.</li>
+ * </ul>
+ * Cada encargo se crea una sola vez por promoción y semana. Los demás tipos se piden a mano.
+ */
+@Slf4j
+@Component
+@RequiredArgsConstructor
+class AiAutoOrders {
+
+    static final LocalTime FROM = LocalTime.of(9, 0);
+
+    private final PromotionQueries promotions;
+    private final AiOrders orders;
+    private final AiAutoOrderRepository done;
+    private final TransactionTemplate transactions;
+    private final Clock clock;
+
+    @Scheduled(initialDelayString = "${socialhub.ai.auto-initial-delay-millis:60000}",
+               fixedDelayString = "${socialhub.ai.auto-millis:600000}")
+    void run() {
+        AppModeHolder.runIn(AppMode.REAL, () -> {
+            try {
+                createDue();
+            } catch (RuntimeException e) {
+                log.warn("Encargos semanales omitidos: {}", e.toString());
+            }
+        });
+    }
+
+    /** @return cuántos encargos se han creado */
+    int createDue() {
+        ZonedDateTime now = ZonedDateTime.now(clock);
+        int n = 0;
+        Optional<LocalDate> spec = specWeek(now);
+        if (spec.isPresent()) n += create(AiRequestType.WEEKLY_SPEC, spec.get());
+        Optional<LocalDate> balance = balanceWeek(now);
+        if (balance.isPresent()) n += create(AiRequestType.WEEKLY_BALANCE, balance.get());
+        return n;
+    }
+
+    /** Lunes de la semana cuyo spec toca pedir ahora, si toca alguno. */
+    static Optional<LocalDate> specWeek(ZonedDateTime now) {
+        LocalDate today = now.toLocalDate();
+        boolean afterNine = !now.toLocalTime().isBefore(FROM);
+        return switch (today.getDayOfWeek()) {
+            case SUNDAY -> afterNine ? Optional.of(today.plusDays(1)) : Optional.empty();
+            case MONDAY, TUESDAY -> Optional.of(today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)));
+            default -> Optional.empty();
+        };
+    }
+
+    /** Lunes de la semana cuyo balance toca pedir ahora, si toca alguno. */
+    static Optional<LocalDate> balanceWeek(ZonedDateTime now) {
+        LocalDate today = now.toLocalDate();
+        LocalDate lastWeek = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).minusWeeks(1);
+        return switch (today.getDayOfWeek()) {
+            case MONDAY -> now.toLocalTime().isBefore(FROM) ? Optional.empty() : Optional.of(lastWeek);
+            case TUESDAY, WEDNESDAY -> Optional.of(lastWeek);
+            default -> Optional.empty();
+        };
+    }
+
+    private int create(AiRequestType type, LocalDate week) {
+        int n = 0;
+        List<String> active = promotions.activeBetween(week, week.plusDays(6));
+        for (String promotionId : active) {
+            var key = new AiAutoOrderEntity.Key(promotionId, type.name(), week);
+            if (done.existsById(key)) continue;
+            transactions.executeWithoutResult(s -> {
+                String title = type.label() + " · semana del " + week.getDayOfMonth() + " "
+                        + week.getMonth().getDisplayName(TextStyle.SHORT, Locale.of("es", "ES"));
+                String goal = type == AiRequestType.WEEKLY_SPEC
+                        ? "Prepara el spec.json de piezas de la semana del " + week + " para esta promoción: las piezas de "
+                          + "sus publicaciones, con el material de sus carpetas y sus normas."
+                        : "Haz el balance de la semana del " + week + " de esta promoción: qué se publicó, qué falló y qué "
+                          + "conviene cambiar. Sin inventar cifras.";
+                String taskId = orders.submit(promotionId, type, title, goal, List.of(week.toString()));
+                done.save(new AiAutoOrderEntity(promotionId, type.name(), week, taskId, clock.instant()));
+            });
+            log.info("Encargo semanal creado: {} de {} (semana del {})", type, promotionId, week);
+            n++;
+        }
+        return n;
+    }
+}

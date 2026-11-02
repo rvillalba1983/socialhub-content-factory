@@ -80,6 +80,14 @@ public class PromotionQueries {
         return List.copyOf(all);
     }
 
+    /** Promociones activas cuyas fechas se cruzan con ese intervalo (incluido). */
+    public List<String> activeBetween(java.time.LocalDate from, java.time.LocalDate to) {
+        return repository.promotions().stream()
+                .filter(p -> "ACTIVE".equals(p.status()) && !p.startsOn().isAfter(to) && !p.endsOn().isBefore(from))
+                .map(Promotion::id)
+                .toList();
+    }
+
     /** Marca de una promoción. */
     public String brandOf(String promotionId) { return promotion(promotionId).brandId(); }
 

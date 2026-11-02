@@ -120,11 +120,13 @@ class AiExchangeTest {
     void aCompletedResultCompletesTheTask() throws Exception {
         result(research1, """
                 {"contract":"socialhub.task-result","version":1,"taskId":"%s","status":"completed",
-                 "outputs":{"summary":"5 salas encontradas"},"warnings":["Una sala cierra en diciembre"],
+                 "outputs":{"summary":"5 salas encontradas","report":"# Salas"},"warnings":["Una sala cierra en diciembre"],
                  "agent":{"runtime":"tarea programada en la nube","model":"sonnet"},
                  "startedAt":"2026-11-02T09:40:00Z","finishedAt":"2026-11-02T09:43:00Z"}""".formatted(research1));
         waitFor(() -> "COMPLETED".equals(task(research1).get("status").asString()), "primer encargo completado");
-        assertThat(task(research1).get("result").asString()).isEqualTo("5 salas encontradas · Avisos: Una sala cierra en diciembre");
+        // La marca no tiene carpeta de Informes: el informe se queda en el resultado de Claude
+        assertThat(task(research1).get("result").asString()).startsWith("5 salas encontradas · La promoción no tiene carpeta")
+                .endsWith(" · Avisos: Una sala cierra en diciembre");
         JsonNode page = json.readTree(mvc.perform(get("/api/ai/requests")).andReturn().getResponse().getContentAsString());
         JsonNode first = find(page, research1);
         assertThat(first.get("status").asString()).isEqualTo("COMPLETED");

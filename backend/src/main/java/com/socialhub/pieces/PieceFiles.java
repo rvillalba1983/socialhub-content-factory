@@ -69,6 +69,11 @@ final class PieceFiles {
         return resolved;
     }
 
+    /** Comprueba, sin crear nada, que la carpeta de salida queda dentro de las carpetas de la promoción. */
+    void checkOutputDir(String path) {
+        insideLexically(resolve(path).toAbsolutePath().normalize());
+    }
+
     /** Carpeta de salida, que se crea si no existe. */
     Path outputDir(String path) throws IOException {
         Path dir = resolve(path).toAbsolutePath().normalize();

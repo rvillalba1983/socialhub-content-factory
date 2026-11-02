@@ -47,19 +47,7 @@ class CaptionsHandler implements AiTypeHandler {
     public Map<String, Object> inputs(AiJob job) {
         List<Map<String, Object>> list = new ArrayList<>();
         for (String id : job.inputs()) {
-            queries.find(id).ifPresent(p -> {
-                Map<String, Object> m = new LinkedHashMap<>();
-                m.put("id", p.getId());
-                m.put("platform", p.getPlatform().name());
-                m.put("type", p.getType());
-                m.put("title", p.getTitle());
-                m.put("scheduled_on", p.getScheduledOn().toString());
-                m.put("scheduled_time", p.getScheduledTime().toString());
-                if (p.getNote() != null) m.put("note", p.getNote());
-                if (p.getCaption() != null) m.put("current_caption", p.getCaption());
-                if (p.getHashtags() != null) m.put("current_hashtags", p.getHashtags());
-                list.add(m);
-            });
+            queries.find(id).ifPresent(p -> list.add(PublishingQueries.forAi(p)));
         }
         return Map.of("publications", list,
                 "expected_outputs", "publications: [{id, caption (máx. 2200), hashtags (máx. 1000)}] y summary");

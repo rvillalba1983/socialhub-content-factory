@@ -46,18 +46,7 @@ class WeeklyBalanceHandler implements AiTypeHandler {
     public Map<String, Object> inputs(AiJob job) {
         LocalDate from = weekStart(job.inputs());
         LocalDate to = from.plusDays(6);
-        var list = queries.between(job.promotionId(), from, to).stream().map(p -> {
-            Map<String, Object> m = new LinkedHashMap<>();
-            m.put("id", p.getId());
-            m.put("platform", p.getPlatform().name());
-            m.put("type", p.getType());
-            m.put("title", p.getTitle());
-            m.put("scheduled_on", p.getScheduledOn().toString());
-            m.put("status", p.getStatus().name());
-            if (p.getFlag() != null) m.put("flag", p.getFlag());
-            if (p.getConfirmation() != null) m.put("confirmation", p.getConfirmation());
-            return m;
-        }).toList();
+        var list = queries.forAi(job.promotionId(), from, to);
         return Map.of("week", Map.of("from", from.toString(), "to", to.toString()), "publications", list,
                 "expected_outputs", "report (Markdown) y summary. No inventes cifras: si faltan métricas, dilo.");
     }
