@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from './icons';
 import {
-  PUBLICATION_STATUS, STATUS, addDays, dayLabel, hhmm, isoDay, parseDay, shortDate, statusClass, weekday,
+  PROMOTION_STATUS, PUBLICATION_STATUS, STATUS, addDays, dayLabel, hhmm, isoDay, parseDay, shortDate, statusClass, weekday,
   type Brand, type Promotion, type Publication, type PublicationStatus, type Snapshot,
 } from './model';
 import { AgentChip, Dot, Pill } from './ui';
@@ -16,9 +16,9 @@ const FILTERS: [string, string][] = [
   ['PUBLISHED', 'Publicadas'], ['issues', 'Con incidencia'],
 ];
 
-export function ControlCenter({ p, brand, data, initialTab, highlight, onClose, onTask }: {
+export function ControlCenter({ p, brand, data, initialTab, highlight, onClose, onTask, onEdit }: {
   p: Promotion; brand?: Brand; data: Snapshot; initialTab: string; highlight: string | null;
-  onClose: () => void; onTask: (id: string) => void;
+  onClose: () => void; onTask: (id: string) => void; onEdit: () => void;
 }) {
   const [tab, setTab] = useState(initialTab);
   const [filter, setFilter] = useState('all');
@@ -57,7 +57,8 @@ export function ControlCenter({ p, brand, data, initialTab, highlight, onClose, 
             <p>{shortDate(p.starts_on)} – {shortDate(p.ends_on)} · {p.cadence}</p>
             <p>{p.description}</p>
           </div>
-          <div className="promo-row"><Pill s="OK" label="Activa" /><span className="pill s-wait"><Icon name="human" /><span>Supervisada</span></span></div>
+          <div className="promo-row"><Pill s={PROMOTION_STATUS[p.status].s} label={PROMOTION_STATUS[p.status].label} /><span className="pill s-wait"><Icon name="human" /><span>Supervisada</span></span>
+            <button className="btn" onClick={onEdit}>Editar</button></div>
         </div>
         <nav className="tabs" role="tablist">
           {TABS.map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => { setTab(k); setHl(null); }}>{l}</button>)}

@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, vi } from 'vitest';
 import { api } from './api';
 import { ExternalOperations } from './ExternalOperations';
+import { BrandForm, PromotionForm } from './Registration';
 import type { ExternalOperationPage, Snapshot, Station, Task } from './model';
 import { TaskPanel } from './Panel';
 import { World } from './World';
@@ -45,7 +46,7 @@ afterEach(() => vi.restoreAllMocks());
 describe('World', () => {
   it('pinta las 8 estaciones del anillo y marca la que tiene errores', () => {
     const { container } = render(<World data={snapshot} sel={{ type: null, id: null }} onStation={() => {}} onTask={() => {}}
-      onTaskAction={() => {}} onArmory={() => {}} onPromotion={() => {}} />);
+      onTaskAction={() => {}} onArmory={() => {}} onPromotion={() => {}} onRegister={() => {}} />);
     expect(container.querySelectorAll('.node')).toHaveLength(8);
     const prog = container.querySelector('.node[data-st="prog"]')!;
     expect(prog.className).toContain('attn');
@@ -121,5 +122,42 @@ describe('ExternalOperations', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Fallidas' }));
     await waitFor(() => expect(list).toHaveBeenLastCalledWith({ system: undefined, outcome: 'FAILURE', offset: 0, limit: 50 }));
+  });
+});
+
+describe('Modo real vacío', () => {
+  it('invita a dar de alta la primera marca', () => {
+    const onRegister = vi.fn();
+    render(<World data={{ ...snapshot, demo: false, brands: [], promotions: [], tasks: [], alerts: [] }} sel={{ type: null, id: null }}
+      onStation={() => {}} onTask={() => {}} onTaskAction={() => {}} onArmory={() => {}} onPromotion={() => {}} onRegister={onRegister} />);
+    expect(screen.getByText('Da de alta tu primera marca')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Marcas y promociones →' }));
+    expect(onRegister).toHaveBeenCalled();
+  });
+});
+
+describe('Altas', () => {
+  it('crea una marca con el color elegido', async () => {
+    const create = vi.spyOn(api, 'createBrand').mockResolvedValue({ id: 'litoques', name: 'Litoques', handle: '@litoques', color: '#C98A1B', demo: false });
+    const onSaved = vi.fn();
+    render(<BrandForm onCancel={() => {}} onSaved={onSaved} />);
+    fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Litoques' } });
+    fireEvent.change(screen.getByLabelText('Cuenta'), { target: { value: '@litoques' } });
+    fireEvent.change(screen.getByLabelText('Color de la marca'), { target: { value: '#c98a1b' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+    await waitFor(() => expect(onSaved).toHaveBeenCalled());
+    expect(create).toHaveBeenCalledWith({ name: 'Litoques', handle: '@litoques', color: '#C98A1B' });
+  });
+
+  it('edita una promoción con sus hitos y muestra el error del backend', async () => {
+    const update = vi.spyOn(api, 'updatePromotion').mockRejectedValue(new Error('La promoción no puede terminar antes de empezar'));
+    render(<PromotionForm data={snapshot} promotion={snapshot.promotions[0]} onCancel={() => {}} onSaved={() => {}} />);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Añadir' })[0]);
+    fireEvent.change(screen.getByLabelText('Hito'), { target: { value: 'Días gratis' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('no puede terminar antes de empezar');
+    expect(update).toHaveBeenCalledWith('p', expect.objectContaining({
+      brand_id: 'b', name: 'Lanzamiento del poemario', milestones: [{ starts_on: '2026-10-27', label: 'Días gratis' }],
+    }));
   });
 });

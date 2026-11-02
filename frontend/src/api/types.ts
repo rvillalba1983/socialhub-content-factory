@@ -4,7 +4,8 @@ export type {
   Agent, Alert, ArmoryItem, AvailableCommand, Brand, ExternalOperation, ExternalOperationPage, Factory,
   OperationOutcome, Platform, Promotion, Publication, PublicationPage, PublicationStatus, Station,
   StationCommandType, StatusLevel, Task, TaskCommand, TaskCommandType, TaskCounts, TaskStatus, TaskStep,
-  AiModel,
+  AiModel, AppMode, AppModeState, BrandInput, PromotionInput, Milestone, PromotionResource, Automation,
+  PublishingRoute, Setting,
 } from './schema';
 
 import type { TaskStep } from './schema';

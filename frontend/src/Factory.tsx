@@ -2,9 +2,10 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { api } from './api';
 import { ControlCenter } from './ControlCenter';
 import { ExternalOperations } from './ExternalOperations';
+import { Registration } from './Registration';
 import { Icon } from './icons';
 import {
-  AI_MODELS, STATUS, alertTone, byPriority, normalize, shortDate, type AiModel, type Snapshot, type StationCommandType, type StatusCode,
+  AI_MODELS, STATUS, type AppMode, alertTone, byPriority, normalize, shortDate, type AiModel, type Snapshot, type StationCommandType, type StatusCode,
   type Task, type TaskCommandType,
 } from './model';
 import { ArmoryPanel, StationPanel, TaskPanel } from './Panel';
@@ -29,6 +30,9 @@ export function Factory({ data, live, onRefresh }: {
   const [sel, setSel] = useState<Selection>({ type: null, id: null });
   const [cc, setCc] = useState<{ promo: string; tab: string; hl: string | null } | null>(null);
   const [ops, setOps] = useState(false);
+  const [reg, setReg] = useState<{ kind: 'brand' | 'promotion'; id: string | null } | false | null>(false);
+  const [demoAvailable, setDemoAvailable] = useState(true);
+  useEffect(() => { api.appMode().then(m => setDemoAvailable(m.demo_available)).catch(() => {}); }, []);
   // Abrir una promoción cierra el registro de operaciones
   useEffect(() => { if (cc) setOps(false); }, [cc]);
   const [toast, setToast] = useState<string | null>(null);
@@ -222,6 +226,16 @@ export function Factory({ data, live, onRefresh }: {
     }
   }, [onRefresh, say]);
 
+  const switchMode = useCallback(async (mode: AppMode) => {
+    try {
+      await api.changeAppMode(mode);
+      // Lo seleccionado pertenece a la otra base de datos
+      setSel({ type: null, id: null }); setCc(null); setOps(false); setReg(false);
+      say(mode === 'DEMO' ? 'Modo demo: datos de ejemplo' : 'Modo real');
+      onRefresh();
+    } catch (e) { say(e instanceof Error ? e.message : 'No se pudo cambiar de modo.'); }
+  }, [onRefresh, say]);
+
   const runStation = useCallback(async (id: string, type: StationCommandType) => {
     try {
       await api.stationCommand(id, type);
@@ -288,7 +302,12 @@ export function Factory({ data, live, onRefresh }: {
             </span>
           ))}
         </nav>
-        {data.demo && <span className="demo" title="Datos de ejemplo basados en las campañas reales de El DeLito y Litoques. Las acciones cambian la base de datos de SocialHub, pero no actúan sobre servicios reales.">Datos de ejemplo</span>}
+        <div className="seg mode-seg" role="group" aria-label="Modo">
+          <button className={!data.demo ? 'on' : ''} aria-pressed={!data.demo} onClick={() => data.demo && switchMode('REAL')}
+            title="Tus datos reales">Real</button>
+          {demoAvailable && <button className={data.demo ? 'on demo' : ''} aria-pressed={data.demo} onClick={() => !data.demo && switchMode('DEMO')}
+            title="Datos de ejemplo en una base de datos aparte. Nada actúa sobre servicios reales.">Demo</button>}
+        </div>
         <span className="demo" title={live ? 'Recibiendo cambios en directo' : 'Sin conexión en directo: se recarga al actuar'}>{live ? '● En directo' : '○ Sin directo'}</span>
         <div className="search">
           <Icon name="search" />
@@ -319,7 +338,8 @@ export function Factory({ data, live, onRefresh }: {
           <span className="zpct mono">{zoom}%</span>
           <button className="ibtn" onClick={() => { const a = avail(); zoomAt(a.w / 2, a.h / 2, 1.25); }} aria-label="Acercar"><Icon name="plus" /></button>
           <button className="ibtn" onClick={fit} aria-label="Encuadrar todo" title="Encuadrar todo (0)"><Icon name="fit" /></button>
-          <button className={`ibtn${ops ? ' on' : ''}`} onClick={() => { setCc(null); setOps(true); }} title="Operaciones externas: llamadas a PostgreSQL, Drive, Publer… y sus fallos">Operaciones</button>
+          <button className="ibtn" onClick={() => { setCc(null); setOps(false); setReg(null); }} title="Dar de alta y editar marcas y promociones">Marcas</button>
+          <button className={`ibtn${ops ? ' on' : ''}`} onClick={() => { setCc(null); setReg(false); setOps(true); }} title="Operaciones externas: llamadas a PostgreSQL, Drive, Publer… y sus fallos">Operaciones</button>
         </div>
       </header>
 
@@ -328,7 +348,8 @@ export function Factory({ data, live, onRefresh }: {
           <World data={data} sel={sel} onStation={goStation} onTask={goTask}
             onTaskAction={(t, a) => (t.available_commands.find(x => x.type === a)?.needs_confirmation ? goTask(t.id) : runTask(t, a))}
             onArmory={id => { setCc(null); setSel({ type: 'armory', id }); }}
-            onPromotion={id => { setSel({ type: null, id: null }); setCc({ promo: id, tab: 'resumen', hl: null }); }} />
+            onPromotion={id => { setSel({ type: null, id: null }); setCc({ promo: id, tab: 'resumen', hl: null }); }}
+            onRegister={() => setReg(null)} />
         </div>
 
         {data.alerts.length > 0 && (
@@ -363,9 +384,14 @@ export function Factory({ data, live, onRefresh }: {
 
         {cc && ccPromotion && (
           <ControlCenter key={cc.promo + cc.tab + (cc.hl ?? '')} p={ccPromotion} brand={brands.get(ccPromotion.brand_id)} data={data}
-            initialTab={cc.tab} highlight={cc.hl} onClose={() => setCc(null)} onTask={goTask} />
+            initialTab={cc.tab} highlight={cc.hl} onClose={() => setCc(null)} onTask={goTask}
+            onEdit={() => { const id = cc.promo; setCc(null); setReg({ kind: 'promotion', id }); }} />
         )}
         {ops && <ExternalOperations onClose={() => setOps(false)} />}
+        {reg !== false && (
+          <Registration data={data} initial={reg} onClose={() => setReg(false)}
+            onSaved={m => { say(m); onRefresh(); }} />
+        )}
         {toast && <div className="toast" role="status">{toast}</div>}
       </main>
     </>

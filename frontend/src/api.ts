@@ -1,5 +1,5 @@
 import type {
-  ExternalOperationPage, OperationOutcome, Snapshot, Station, StationCommandType, Task, TaskCommand,
+  AppMode, AppModeState, Brand, BrandInput, ExternalOperationPage, Promotion, PromotionInput, OperationOutcome, Snapshot, Station, StationCommandType, Task, TaskCommand,
 } from './model';
 
 export class ApiError extends Error {
@@ -22,9 +22,16 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 const post = <T>(path: string, body: unknown) => call<T>(path, { method: 'POST', body: JSON.stringify(body) });
+const putJson = <T>(path: string, body: unknown) => call<T>(path, { method: 'PUT', body: JSON.stringify(body) });
 
 export const api = {
   factory: () => call<Snapshot>('/api/factory'),
+  appMode: () => call<AppModeState>('/api/app-mode'),
+  changeAppMode: (mode: AppMode) => putJson<AppModeState>('/api/app-mode', { mode }),
+  createBrand: (input: BrandInput) => post<Brand>('/api/brands', input),
+  updateBrand: (id: string, input: BrandInput) => putJson<Brand>(`/api/brands/${encodeURIComponent(id)}`, input),
+  createPromotion: (input: PromotionInput) => post<Promotion>('/api/promotions', input),
+  updatePromotion: (id: string, input: PromotionInput) => putJson<Promotion>(`/api/promotions/${encodeURIComponent(id)}`, input),
   taskCommand: (id: string, command: TaskCommand) =>
     post<Task>(`/api/tasks/${encodeURIComponent(id)}/commands`, command),
   stationCommand: (id: string, type: StationCommandType) =>

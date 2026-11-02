@@ -1,6 +1,6 @@
 // Tipos de la API (generados desde contracts/openapi.yaml) y utilidades de presentación.
 import type {
-  ArmoryItem, Factory, PublicationStatus, StatusLevel, Task, TaskStatus, TaskStepState,
+  ArmoryItem, Factory, Promotion, PublicationStatus, StatusLevel, Task, TaskStatus, TaskStepState,
 } from './api/types';
 
 export type * from './api/types';
@@ -62,6 +62,12 @@ export const alertTone = (kind: 'FAILED' | 'BLOCKED') => (kind === 'FAILED' ? 'e
 /** Avisos por prioridad: primero los errores, luego los bloqueos. */
 export const byPriority = <T extends { kind: 'FAILED' | 'BLOCKED' }>(alerts: T[]) =>
   [...alerts].sort((a, b) => (a.kind === b.kind ? 0 : a.kind === 'FAILED' ? -1 : 1));
+
+/** Estado de una promoción para mostrarlo. */
+export const PROMOTION_STATUS: Record<Promotion['status'], { label: string; s: StatusCode }> = {
+  PLANNED: { label: 'Planificada', s: 'IDLE' }, ACTIVE: { label: 'Activa', s: 'OK' },
+  PAUSED: { label: 'En pausa', s: 'WAITING' }, FINISHED: { label: 'Terminada', s: 'COMPLETED' },
+};
 
 export const isDone = (s: TaskStepState) => s === 'DONE';
 
