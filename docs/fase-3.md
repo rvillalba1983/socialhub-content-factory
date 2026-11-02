@@ -1,6 +1,6 @@
 # SocialHub — Fase 3: motor de tareas y herramientas locales
 
-Estado: **plan aprobado por respuestas de Raúl** · 2 nov 2026
+Estado: **en curso** · bloque 1 (modos y altas) en revisión · 2 nov 2026
 
 ## Decisiones (respuestas de Raúl, una a una)
 

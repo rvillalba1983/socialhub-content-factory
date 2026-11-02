@@ -57,7 +57,7 @@ button:disabled{opacity:.4;cursor:default}
 .crumbs .cur{color:var(--ink);font-weight:550}
 .crumbs .sep{color:var(--line-2)}
 .demo{font-size:12px;font-weight:500;color:var(--ink-2);background:var(--surface-2);border:1px dashed var(--line-2);padding:4px 10px;border-radius:999px;white-space:nowrap}
-.search{position:relative;flex:0 1 300px;min-width:170px}
+.search{position:relative;flex:0 1 220px;min-width:150px}
 .search input{width:100%;border:1px solid var(--line);background:var(--surface-2);border-radius:10px;padding:8px 10px 8px 32px;outline:none}
 .search input:focus{border-color:var(--line-2);background:var(--surface);box-shadow:0 0 0 4px var(--accent-soft)}
 .search .ic{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--ink-3)}
