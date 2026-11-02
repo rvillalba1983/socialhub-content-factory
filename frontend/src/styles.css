@@ -363,3 +363,9 @@ body{margin:0;display:block}
 .access code{font-family:var(--f-mono);font-size:12px;background:var(--surface-2);padding:1px 5px;border-radius:5px}
 .error{color:var(--err);margin:0;font-size:13px}
 .top .ibtn{font-size:12.5px;font-weight:500}
+
+/* Operaciones externas */
+.ops-filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.ops-filters label{margin-left:8px}
+tr.op-fail td{background:color-mix(in srgb,var(--err) 6%,transparent)}
+tr.op-detail td{background:var(--surface-2)}

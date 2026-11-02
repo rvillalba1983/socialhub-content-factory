@@ -1,4 +1,6 @@
-import type { Snapshot } from './model';
+import type {
+  ExternalOperationPage, OperationOutcome, Snapshot, Station, StationCommandType, Task, TaskCommand,
+} from './model';
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) { super(message); }
@@ -6,7 +8,8 @@ export class ApiError extends Error {
 
 async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
   const method = init.method ?? 'GET';
-  const headers: Record<string, string> = { Accept: 'application/json' };
+  const headers: Record<string, string> = { Accept: 'application/json, application/problem+json' };
+  // Las peticiones que cambian algo llevan la cabecera de protección (otras webs no pueden añadirla)
   if (method !== 'GET') headers['X-SocialHub-Request'] = '1';
   if (init.body) headers['Content-Type'] = 'application/json';
   const res = await fetch(path, { ...init, method, headers, credentials: 'same-origin' });
@@ -18,17 +21,17 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
   return res.status === 204 ? (undefined as T) : res.json();
 }
 
-export interface AuthStatus { needsSetup: boolean; authenticated: boolean; minLength: number }
+const post = <T>(path: string, body: unknown) => call<T>(path, { method: 'POST', body: JSON.stringify(body) });
 
 export const api = {
-  status: () => call<AuthStatus>('/api/v1/auth/status'),
-  setup: (password: string) => call<void>('/api/v1/auth/setup', { method: 'POST', body: JSON.stringify({ password }) }),
-  login: (password: string) => call<void>('/api/v1/auth/login', { method: 'POST', body: JSON.stringify({ password }) }),
-  logout: () => call<void>('/api/v1/auth/logout', { method: 'POST' }),
-  factory: () => call<Snapshot>('/api/v1/factory'),
-  taskAction: (id: string, action: string, model?: string) =>
-    call<void>(`/api/v1/tasks/${encodeURIComponent(id)}/actions/${encodeURIComponent(action)}`,
-      { method: 'POST', body: model ? JSON.stringify({ model }) : undefined }),
-  stationAction: (id: string, action: 'pause' | 'resume') =>
-    call<void>(`/api/v1/stations/${encodeURIComponent(id)}/actions/${action}`, { method: 'POST' }),
+  factory: () => call<Snapshot>('/api/factory'),
+  taskCommand: (id: string, command: TaskCommand) =>
+    post<Task>(`/api/tasks/${encodeURIComponent(id)}/commands`, command),
+  stationCommand: (id: string, type: StationCommandType) =>
+    post<Station>(`/api/stations/${encodeURIComponent(id)}/commands`, { type }),
+  externalOperations: (filter: { system?: string; outcome?: OperationOutcome; offset?: number; limit?: number }) => {
+    const q = new URLSearchParams();
+    Object.entries(filter).forEach(([k, v]) => { if (v !== undefined && v !== '') q.set(k, String(v)); });
+    return call<ExternalOperationPage>(`/api/external-operations?${q}`);
+  },
 };

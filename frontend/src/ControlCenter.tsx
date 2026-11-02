@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from './icons';
 import {
-  PUBLICATION_STATUS, addDays, dayLabel, hhmm, isoDay, parseDay, shortDate, weekday,
-  type Brand, type Promotion, type Publication, type Snapshot,
+  PUBLICATION_STATUS, STATUS, addDays, dayLabel, hhmm, isoDay, parseDay, shortDate, statusClass, weekday,
+  type Brand, type Promotion, type Publication, type PublicationStatus, type Snapshot,
 } from './model';
 import { AgentChip, Dot, Pill } from './ui';
 
@@ -12,8 +12,8 @@ const TABS: [string, string][] = [
 ];
 
 const FILTERS: [string, string][] = [
-  ['all', 'Todas'], ['pending', 'Pendientes'], ['review', 'En revisión'], ['scheduled', 'Programadas'],
-  ['published', 'Publicadas'], ['issues', 'Con incidencia'],
+  ['all', 'Todas'], ['pending', 'Pendientes'], ['IN_REVIEW', 'En revisión'], ['SCHEDULED', 'Programadas'],
+  ['PUBLISHED', 'Publicadas'], ['issues', 'Con incidencia'],
 ];
 
 export function ControlCenter({ p, brand, data, initialTab, highlight, onClose, onTask }: {
@@ -24,14 +24,14 @@ export function ControlCenter({ p, brand, data, initialTab, highlight, onClose, 
   const [filter, setFilter] = useState('all');
   const [hl, setHl] = useState<string | null>(highlight);
   const today = data.now.slice(0, 10);
-  const pubs = data.publications.filter(x => x.promotionId === p.id);
+  const pubs = data.publications.filter(x => x.promotion_id === p.id);
   const weeks = useMemo(() => {
-    const start = parseDay(p.startsOn), end = parseDay(p.endsOn);
+    const start = parseDay(p.starts_on), end = parseDay(p.ends_on);
     const first = addDays(start, -((start.getUTCDay() + 6) % 7));
     const out: Date[] = [];
     for (let d = first; d <= end; d = addDays(d, 7)) out.push(d);
     return out;
-  }, [p.startsOn, p.endsOn]);
+  }, [p.starts_on, p.ends_on]);
   const [week, setWeek] = useState(() => {
     const t = parseDay(today).getTime();
     const i = weeks.findIndex(w => t >= w.getTime() && t < addDays(w, 7).getTime());
@@ -44,7 +44,7 @@ export function ControlCenter({ p, brand, data, initialTab, highlight, onClose, 
   }, [hl, tab]);
 
   const jump = (id: string) => { setTab('publicaciones'); setFilter('all'); setHl(id); };
-  const freeDays = p.milestones.find(m => m.endsOn && /gratis/i.test(m.label));
+  const freeDays = p.milestones.find(m => m.ends_on && /gratis/i.test(m.label));
 
   return (
     <section className="cc" ref={ref}>
@@ -54,25 +54,25 @@ export function ControlCenter({ p, brand, data, initialTab, highlight, onClose, 
           <div>
             <div className="eyebrow">{brand?.name} · {brand?.handle}</div>
             <h1>{p.name}</h1>
-            <p>{shortDate(p.startsOn)} – {shortDate(p.endsOn)} · {p.cadence}</p>
+            <p>{shortDate(p.starts_on)} – {shortDate(p.ends_on)} · {p.cadence}</p>
             <p>{p.description}</p>
           </div>
-          <div className="promo-row"><Pill s="ok" label="Activa" /><span className="pill s-wait"><Icon name="human" /><span>Supervisada</span></span></div>
+          <div className="promo-row"><Pill s="OK" label="Activa" /><span className="pill s-wait"><Icon name="human" /><span>Supervisada</span></span></div>
         </div>
         <nav className="tabs" role="tablist">
           {TABS.map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => { setTab(k); setHl(null); }}>{l}</button>)}
         </nav>
 
         {tab === 'resumen' && (() => {
-          const tasks = data.tasks.filter(t => t.promotionId === p.id);
-          const incidents = tasks.filter(t => t.status === 'err' || t.status === 'block');
-          const next = pubs.filter(x => x.date >= today && !['published', 'cancelled'].includes(x.status)).slice(0, 4);
+          const tasks = data.tasks.filter(t => t.promotion_id === p.id);
+          const incidents = tasks.filter(t => t.status === 'FAILED' || t.status === 'BLOCKED');
+          const next = pubs.filter(x => x.scheduled_on >= today && x.status !== 'PUBLISHED' && x.status !== 'CANCELLED').slice(0, 4);
           return (
             <div className="grid2">
               <div className="card"><h3>Objetivos</h3><ul>{p.goals.map((g, i) => <li key={i}>{g}</li>)}</ul><p className="src">{p.scope}</p></div>
               <div className="card"><h3>Hitos</h3>
                 <ul className="ms-list">{p.milestones.map((m, i) => (
-                  <li key={i}><time>{shortDate(m.startsOn)}{m.endsOn ? `–${shortDate(m.endsOn)}` : ''}</time><span>{m.label}</span></li>
+                  <li key={i}><time>{shortDate(m.starts_on)}{m.ends_on ? `–${shortDate(m.ends_on)}` : ''}</time><span>{m.label}</span></li>
                 ))}</ul>
               </div>
               <div className="card"><h3>Próximas publicaciones</h3>{next.length ? next.map(x => <PubEvent key={x.id} x={x} onClick={() => jump(x.id)} />) : <p>Nada pendiente.</p>}</div>
@@ -81,9 +81,9 @@ export function ControlCenter({ p, brand, data, initialTab, highlight, onClose, 
                   <button key={t.id} className="qrow" onClick={() => onTask(t.id)}><Dot s={t.status} /><span>{t.title}<small>{t.error ?? t.reason}</small></span></button>
                 )) : <p>Ninguna.</p>}
               </div>
-              <div className="card"><h3>Esperan a Raúl</h3><ul>{p.humanTodos.map((h, i) => <li key={i}>{h}</li>)}</ul>
+              <div className="card"><h3>Esperan a Raúl</h3><ul>{p.human_todos.map((h, i) => <li key={i}>{h}</li>)}</ul>
                 <p className="src">Claude prepara, programa y avisa. Raúl solo revisa y pulsa enviar.</p></div>
-              <div className="card"><h3>Reglas de la promoción</h3><ul>{[...p.rules, ...data.commonRules].map((r, i) => <li key={i}>{r}</li>)}</ul></div>
+              <div className="card"><h3>Reglas de la promoción</h3><ul>{[...p.rules, ...data.common_rules].map((r, i) => <li key={i}>{r}</li>)}</ul></div>
             </div>
           );
         })()}
@@ -102,8 +102,8 @@ export function ControlCenter({ p, brand, data, initialTab, highlight, onClose, 
               <div className="cal">
                 {days.map(d => {
                   const iso = isoDay(d);
-                  const ev = pubs.filter(x => x.date === iso);
-                  const free = freeDays && iso >= freeDays.startsOn && iso <= (freeDays.endsOn ?? freeDays.startsOn);
+                  const ev = pubs.filter(x => x.scheduled_on === iso);
+                  const free = freeDays && iso >= freeDays.starts_on && iso <= (freeDays.ends_on ?? freeDays.starts_on);
                   return (
                     <div key={iso} className={`day${iso === today ? ' today' : ''}`}>
                       <header><span>{weekday(d)}{iso === today ? ' · hoy' : ''}</span><b>{d.getUTCDate()}</b></header>
@@ -119,8 +119,8 @@ export function ControlCenter({ p, brand, data, initialTab, highlight, onClose, 
 
         {tab === 'publicaciones' && (() => {
           const list = pubs.filter(x => filter === 'all'
-            || (filter === 'pending' && ['idea', 'proposal', 'production', 'draft'].includes(x.status))
-            || (filter === 'issues' && (x.flag || x.status === 'error'))
+            || (filter === 'pending' && (['IDEA', 'PROPOSAL', 'IN_PRODUCTION', 'DRAFT'] as PublicationStatus[]).includes(x.status))
+            || (filter === 'issues' && (x.flag || x.status === 'PUBLISH_ERROR'))
             || x.status === filter);
           return (
             <>
@@ -132,9 +132,9 @@ export function ControlCenter({ p, brand, data, initialTab, highlight, onClose, 
                     const st = PUBLICATION_STATUS[x.status];
                     return (
                       <tr key={x.id} id={`row-${x.id}`} className={hl === x.id ? 'hl' : ''}>
-                        <td className="nowrap mono">{dayLabel(parseDay(x.date))} {hhmm(x.time)}</td>
-                        <td>{x.platform === 'tiktok' ? 'TikTok' : 'Instagram'}</td><td>{x.type}</td><td>{x.title}</td>
-                        <td><Pill s={st?.s ?? 'idle'} label={st?.label ?? x.status} /></td><td>{x.route}</td>
+                        <td className="nowrap mono">{dayLabel(parseDay(x.scheduled_on))} {hhmm(x.scheduled_time)}</td>
+                        <td>{x.platform === 'TIKTOK' ? 'TikTok' : 'Instagram'}</td><td>{x.type}</td><td>{x.title}</td>
+                        <td><Pill s={st.s} label={st.label} /></td><td>{x.route}</td>
                         <td>{x.flag ?? x.note ?? ''}</td>
                       </tr>
                     );
@@ -151,12 +151,12 @@ export function ControlCenter({ p, brand, data, initialTab, highlight, onClose, 
           <div className="tbl-wrap"><table>
             <thead><tr><th>Estación</th><th>Tarea</th><th>Estado</th><th>Agente</th><th>Detalle</th></tr></thead>
             <tbody>
-              {data.tasks.filter(t => t.promotionId === p.id || t.promotionId === null).map(t => (
+              {data.tasks.filter(t => t.promotion_id === p.id || !t.promotion_id).map(t => (
                 <tr key={t.id}>
-                  <td className="nowrap">{data.stations.find(s => s.id === t.stationId)?.name}</td>
+                  <td className="nowrap">{data.stations.find(s => s.id === t.station_id)?.name}</td>
                   <td><button className="btn" style={{ padding: '3px 8px', textAlign: 'left' }} onClick={() => onTask(t.id)}>{t.title}</button></td>
-                  <td><Pill s={t.status} /></td><td><AgentChip t={t} /></td>
-                  <td>{t.status === 'run' ? `${Math.floor(t.progress)} %` : t.error ?? t.reason ?? t.result ?? ''}</td>
+                  <td><Pill s={t.status} /></td><td><AgentChip agent={t.agent} /></td>
+                  <td>{t.status === 'RUNNING' ? `${Math.floor(t.progress)} %` : t.error ?? t.reason ?? t.result ?? ''}</td>
                 </tr>
               ))}
             </tbody>
@@ -167,12 +167,12 @@ export function ControlCenter({ p, brand, data, initialTab, highlight, onClose, 
           <div className="grid2">
             <div className="card"><h3>Google Drive · cositas artisticas</h3>
               <div className="tbl-wrap"><table><tbody>
-                {p.resources.filter(r => r.kind === 'drive').map((r, i) => <tr key={i}><td className="mono" style={{ fontSize: 12 }}>{r.location}</td><td>{r.description}</td></tr>)}
+                {p.resources.filter(r => r.kind === 'DRIVE').map((r, i) => <tr key={i}><td className="mono" style={{ fontSize: 12 }}>{r.location}</td><td>{r.description}</td></tr>)}
               </tbody></table></div>
               <p className="src">Solo se crean archivos nuevos dentro de la carpeta de la campaña. Nunca se borra ni se modifica nada.</p>
             </div>
             <div className="card"><h3>Planes y documentos</h3>
-              {p.resources.filter(r => r.kind === 'doc').map((r, i) => <div key={i}><b>{r.location}</b><p>{r.description}</p></div>)}
+              {p.resources.filter(r => r.kind === 'DOC').map((r, i) => <div key={i}><b>{r.location}</b><p>{r.description}</p></div>)}
             </div>
           </div>
         )}
@@ -184,7 +184,7 @@ export function ControlCenter({ p, brand, data, initialTab, highlight, onClose, 
                 <thead><tr><th>Nombre</th><th>Cuándo</th><th>Modelo</th><th>Dónde</th><th>Estado</th></tr></thead>
                 <tbody>{p.automations.map((a, i) => (
                   <tr key={i}><td>{a.name}</td><td className="nowrap">{a.schedule}</td><td>Claude {a.model}</td>
-                    <td>{a.runsOn === 'pc' ? 'PC de Raúl (Chrome activo)' : 'Nube'}</td><td><Pill s={a.status} /></td></tr>
+                    <td>{a.runs_on === 'PC' ? 'PC de Raúl (Chrome activo)' : 'Nube'}</td><td><Pill s={a.status} /></td></tr>
                 ))}</tbody>
               </table></div>
             </div>
@@ -210,7 +210,7 @@ export function ControlCenter({ p, brand, data, initialTab, highlight, onClose, 
 
         {tab === 'metricas' && (
           <div className="grid2">
-            <div className="card"><h3>Métricas de la promoción</h3><p className="src">{p.metricsSource}</p>
+            <div className="card"><h3>Métricas de la promoción</h3><p className="src">{p.metrics_source}</p>
               {['Alcance', 'Impresiones', 'Interacciones', 'Reproducciones', 'Guardados', 'Compartidos', 'Seguidores ganados', 'Clics en el enlace']
                 .map(m => <div key={m} className="metric"><span>{m}</span><span className="v">Sin dato</span></div>)}
             </div>
@@ -226,7 +226,7 @@ export function ControlCenter({ p, brand, data, initialTab, highlight, onClose, 
           <div className="tbl-wrap"><table>
             <thead><tr><th>Parámetro</th><th>Valor</th><th>Origen</th></tr></thead>
             <tbody>{p.settings.map((s, i) => (
-              <tr key={i}><td className="nowrap">{s.label}</td><td>{s.value}</td><td>{s.origin === 'brand' ? 'Heredado de la marca' : 'Propio de la promoción'}</td></tr>
+              <tr key={i}><td className="nowrap">{s.label}</td><td>{s.value}</td><td>{s.origin === 'BRAND' ? 'Heredado de la marca' : 'Propio de la promoción'}</td></tr>
             ))}</tbody>
           </table></div>
         )}
@@ -236,11 +236,11 @@ export function ControlCenter({ p, brand, data, initialTab, highlight, onClose, 
 }
 
 function PubEvent({ x, onClick }: { x: Publication; onClick: () => void }) {
-  const st = PUBLICATION_STATUS[x.status] ?? { label: x.status, s: 'idle' as const };
+  const st = PUBLICATION_STATUS[x.status];
   return (
-    <button className={`ev s-${st.s === 'queued' ? 'wait' : st.s}`} onClick={onClick}>
-      <span className="t"><Icon name={st.s === 'ok' ? 'check' : st.s === 'err' ? 'alert' : st.s === 'run' ? 'run' : st.s === 'wait' ? 'clock' : 'dash'} />
-        <span className="mono">{hhmm(x.time)}</span> · {x.type}</span>
+    <button className={`ev ${statusClass(st.s)}`} onClick={onClick}>
+      <span className="t"><Icon name={STATUS[st.s].icon} />
+        <span className="mono">{hhmm(x.scheduled_time)}</span> · {x.type}</span>
       <span className="x">{x.title}</span>
       <span className="t" style={{ fontWeight: 500 }}>{st.label}</span>
       {x.flag && <span className="f">{x.flag}</span>}

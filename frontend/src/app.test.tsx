@@ -1,17 +1,24 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { vi } from 'vitest';
-import type { Snapshot, Station, Task } from './model';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, vi } from 'vitest';
+import { api } from './api';
+import { ExternalOperations } from './ExternalOperations';
+import type { ExternalOperationPage, Snapshot, Station, Task } from './model';
 import { TaskPanel } from './Panel';
 import { World } from './World';
 
-const counts = (o: Partial<Station['counts']> = {}) => ({ total: 0, running: 0, waiting: 0, blocked: 0, errors: 0, completed: 0, idle: 0, cancelled: 0, ...o });
+const counts = (o: Partial<Station['counts']> = {}): Station['counts'] =>
+  ({ total: 0, running: 0, waiting: 0, blocked: 0, failed: 0, completed: 0, idle: 0, cancelled: 0, ...o });
 const ids = ['inv', 'est', 'gen', 'rev', 'prog', 'pub', 'ana', 'ret'];
 
 const task = (o: Partial<Task>): Task => ({
-  id: 't', stationId: 'gen', promotionId: 'p', type: 'generic', title: 'Tarea de prueba', goal: 'Objetivo', status: 'run',
-  paused: false, progress: 40, agentKind: 'ai', agentName: 'Sonnet', why: null, reason: null, error: null, result: null,
-  human: false, attempts: 1, maxAttempts: 2, startedAt: null, inputs: [], steps: [{ label: 'Paso', state: 0.5 }], checks: [],
-  dependsOn: [], events: [], actions: [{ id: 'pause', label: 'Pausar', confirm: false }, { id: 'cancel', label: 'Cancelar', confirm: true }],
+  id: 't', station_id: 'gen', promotion_id: 'p', type: 'GENERIC', title: 'Tarea de prueba', goal: 'Objetivo',
+  status: 'RUNNING', paused: false, progress: 40, agent: { kind: 'AI', name: 'Sonnet' }, human: false, attempts: 1,
+  max_attempts: 2, inputs: [], steps: [{ label: 'Paso', state: 'IN_PROGRESS' }], checks: [], depends_on: [], events: [],
+  available_commands: [
+    { type: 'PAUSE', label: 'Pausar', needs_confirmation: false },
+    { type: 'CANCEL', label: 'Cancelar', needs_confirmation: true },
+    { type: 'CHANGE_AGENT', label: 'Cambiar agente', needs_confirmation: false },
+  ],
   demo: true, ...o,
 });
 
@@ -19,18 +26,21 @@ const snapshot: Snapshot = {
   now: '2026-10-26T10:00:00+01:00', demo: true,
   brands: [{ id: 'b', name: 'El DeLito', handle: '@elde_lito', color: '#D23A2E', demo: true }],
   promotions: [{
-    id: 'p', brandId: 'b', name: 'Lanzamiento del poemario', description: '', scope: '', cadence: '', startsOn: '2026-10-27',
-    endsOn: '2027-01-18', status: 'active', metricsSource: '', goals: [], rules: [], humanTodos: [], milestones: [],
+    id: 'p', brand_id: 'b', name: 'Lanzamiento del poemario', description: '', scope: '', cadence: '', starts_on: '2026-10-27',
+    ends_on: '2027-01-18', status: 'ACTIVE', metrics_source: '', goals: [], rules: [], human_todos: [], milestones: [],
     resources: [], automations: [], routes: [], settings: [], demo: true,
   }],
   stations: ids.map((id, i) => ({
-    id, position: i, name: `Estación ${id}`, description: '', status: id === 'prog' ? 'block' : 'ok', paused: false,
-    note: null, limit: '', tools: [], counts: id === 'prog' ? counts({ total: 1, errors: 1 }) : counts(),
+    id, position: i, name: `Estación ${id}`, description: '', status: id === 'prog' ? 'BLOCKED' : 'OK', paused: false,
+    limit_note: '', tools: [], counts: id === 'prog' ? counts({ total: 1, failed: 1 }) : counts(),
+    available_commands: ['PAUSE'],
   })),
-  tasks: [task({ id: 't13', stationId: 'prog', status: 'err', error: 'Publer no respondió' })],
-  publications: [], armory: [], commonRules: [],
-  alerts: [{ kind: 'err', target: 'task', id: 't13', stationId: 'prog', title: 'Estación prog', detail: 'Error: Tarea de prueba' }],
+  tasks: [task({ id: 't13', station_id: 'prog', status: 'FAILED', error: 'Publer no respondió' })],
+  publications: [], armory_items: [], common_rules: [],
+  alerts: [{ kind: 'FAILED', target_type: 'TASK', target_id: 't13', station_id: 'prog', title: 'Tarea de prueba', detail: 'Publer no respondió' }],
 };
+
+afterEach(() => vi.restoreAllMocks());
 
 describe('World', () => {
   it('pinta las 8 estaciones del anillo y marca la que tiene errores', () => {
@@ -52,13 +62,64 @@ describe('TaskPanel', () => {
     expect(onAction).not.toHaveBeenCalled();
     expect(screen.getByText(/¿Cancelar «Tarea de prueba»\?/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Sí, cancelar' }));
-    expect(onAction).toHaveBeenCalledWith('cancel');
+    expect(onAction).toHaveBeenCalledWith('CANCEL');
   });
 
-  it('solo ofrece las acciones que permite el backend', () => {
-    render(<TaskPanel t={task({ status: 'ok', actions: [{ id: 'rerun', label: 'Volver a ejecutar', confirm: false }] })}
+  it('solo ofrece las órdenes que permite el backend', () => {
+    render(<TaskPanel t={task({ status: 'COMPLETED', available_commands: [{ type: 'RERUN', label: 'Volver a ejecutar', needs_confirmation: false }] })}
       tasks={[]} demo onClose={() => {}} onTask={() => {}} onAction={() => {}} />);
     expect(screen.getByRole('button', { name: 'Volver a ejecutar' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Pausar' })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Reasignar agente')).not.toBeInTheDocument();
+  });
+
+  it('cambia de agente con el modelo del contrato', () => {
+    const onAction = vi.fn();
+    render(<TaskPanel t={task({})} tasks={[]} demo onClose={() => {}} onTask={() => {}} onAction={onAction} />);
+    fireEvent.change(screen.getByLabelText('Reasignar agente'), { target: { value: 'OPUS' } });
+    expect(onAction).toHaveBeenCalledWith('CHANGE_AGENT', 'OPUS');
+  });
+});
+
+describe('api', () => {
+  it('envía las órdenes a /commands con la cabecera de protección', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify(task({})), { status: 200 }));
+    await api.taskCommand('t1', { type: 'CHANGE_AGENT', model: 'OPUS' });
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('/api/tasks/t1/commands');
+    expect(init?.method).toBe('POST');
+    expect((init?.headers as Record<string, string>)['X-SocialHub-Request']).toBe('1');
+    expect(JSON.parse(String(init?.body))).toEqual({ type: 'CHANGE_AGENT', model: 'OPUS' });
+  });
+
+  it('muestra el detalle del error que devuelve el backend (problem+json)', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(
+      JSON.stringify({ title: 'Conflict', status: 409, detail: 'No se puede «Pausar» una tarea en estado «Completada».' }),
+      { status: 409, headers: { 'Content-Type': 'application/problem+json' } }));
+    await expect(api.stationCommand('gen', 'PAUSE')).rejects.toThrow('No se puede «Pausar»');
+  });
+});
+
+describe('ExternalOperations', () => {
+  it('lista las operaciones y filtra las fallidas', async () => {
+    const page: ExternalOperationPage = {
+      offset: 0, limit: 50, total: 2, items: [
+        { id: 2, system: 'publer', operation: 'schedule', outcome: 'FAILURE', started_at: '2026-11-02T09:00:00Z', duration_ms: 1200,
+          trace_id: 'abc123', error_type: 'java.net.SocketTimeoutException', error_message: 'Publer no respondió' },
+        { id: 1, system: 'postgres', operation: 'start', outcome: 'SUCCESS', started_at: '2026-11-02T08:00:00Z', duration_ms: 900 },
+      ],
+    };
+    const list = vi.spyOn(api, 'externalOperations').mockResolvedValue(page);
+    render(<ExternalOperations onClose={() => {}} />);
+    expect(await screen.findByRole('cell', { name: 'Publer' })).toBeInTheDocument();
+    expect(screen.getByRole('cell', { name: 'PostgreSQL' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Publer' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ver' }));
+    expect(screen.getByText('Publer no respondió')).toBeInTheDocument();
+    expect(screen.getByText(/abc123/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Fallidas' }));
+    await waitFor(() => expect(list).toHaveBeenLastCalledWith({ system: undefined, outcome: 'FAILURE', offset: 0, limit: 50 }));
   });
 });

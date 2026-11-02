@@ -1,8 +1,12 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { api } from './api';
 import { ControlCenter } from './ControlCenter';
+import { ExternalOperations } from './ExternalOperations';
 import { Icon } from './icons';
-import { STATUS, normalize, shortDate, type Snapshot, type StatusCode, type Task } from './model';
+import {
+  AI_MODELS, STATUS, alertTone, normalize, shortDate, type AiModel, type Snapshot, type StationCommandType, type StatusCode,
+  type Task, type TaskCommandType,
+} from './model';
 import { ArmoryPanel, StationPanel, TaskPanel } from './Panel';
 import { Dot, Pill, prefersReducedMotion } from './ui';
 import { World, type Selection } from './World';
@@ -13,8 +17,8 @@ const lodFor = (s: number) => (s < 0.72 ? 1 : s < 1.55 ? 2 : 3);
 
 interface Hit { kind: string; label: string; s?: StatusCode; go: () => void }
 
-export function Factory({ data, live, onLogout, onRefresh }: {
-  data: Snapshot; live: boolean; onLogout: () => void; onRefresh: () => void;
+export function Factory({ data, live, onRefresh }: {
+  data: Snapshot; live: boolean; onRefresh: () => void;
 }) {
   const vp = useRef<HTMLElement>(null);
   const world = useRef<HTMLDivElement>(null);
@@ -24,15 +28,18 @@ export function Factory({ data, live, onLogout, onRefresh }: {
   const [zoom, setZoom] = useState(50);
   const [sel, setSel] = useState<Selection>({ type: null, id: null });
   const [cc, setCc] = useState<{ promo: string; tab: string; hl: string | null } | null>(null);
+  const [ops, setOps] = useState(false);
+  // Abrir una promoción cierra el registro de operaciones
+  useEffect(() => { if (cc) setOps(false); }, [cc]);
   const [toast, setToast] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [hitIndex, setHitIndex] = useState(0);
   const fitted = useRef(false);
 
   const brands = useMemo(() => new Map(data.brands.map(b => [b.id, b])), [data.brands]);
-  const brandOf = useCallback((pid: string | null) => {
+  const brandOf = useCallback((pid?: string | null) => {
     const p = data.promotions.find(x => x.id === pid);
-    return p ? brands.get(p.brandId) : undefined;
+    return p ? brands.get(p.brand_id) : undefined;
   }, [data.promotions, brands]);
 
   // ---------- vista: zoom, desplazamiento y zoom semántico ----------
@@ -185,7 +192,7 @@ export function Factory({ data, live, onLogout, onRefresh }: {
     const t = data.tasks.find(x => x.id === id);
     if (!t) return;
     setCc(null); setSel({ type: 'task', id });
-    requestAnimationFrame(() => flyToStation(t.stationId, Math.max(1.7, view.current.s)));
+    requestAnimationFrame(() => flyToStation(t.station_id, Math.max(1.7, view.current.s)));
   }, [data.tasks, flyToStation]);
 
   const home = useCallback(() => { setCc(null); setSel({ type: null, id: null }); requestAnimationFrame(fit); }, [fit]);
@@ -193,8 +200,8 @@ export function Factory({ data, live, onLogout, onRefresh }: {
   const setLevel = (l: number) => {
     if (l === 1) { fit(); return; }
     const target = l === 2 ? 1.1 : 1.7;
-    const focus = sel.type === 'task' ? data.tasks.find(t => t.id === sel.id)?.stationId
-      : sel.type === 'station' ? sel.id : data.tasks.find(t => t.status === 'run')?.stationId;
+    const focus = sel.type === 'task' ? data.tasks.find(t => t.id === sel.id)?.station_id
+      : sel.type === 'station' ? sel.id : data.tasks.find(t => t.status === 'RUNNING')?.station_id;
     if (focus) { flyToStation(focus, target); return; }
     const a = avail(), k = target / view.current.s;
     animateTo({ s: target, tx: a.w / 2 - (a.w / 2 - view.current.tx) * k, ty: a.h / 2 - (a.h / 2 - view.current.ty) * k });
@@ -202,10 +209,12 @@ export function Factory({ data, live, onLogout, onRefresh }: {
 
   // ---------- acciones ----------
   const say = useCallback((m: string) => { setToast(m); window.setTimeout(() => setToast(null), 2800); }, []);
-  const runTask = useCallback(async (t: Task, action: string, model?: string) => {
+  const runTask = useCallback(async (t: Task, type: TaskCommandType, model?: AiModel) => {
     try {
-      await api.taskAction(t.id, action, model);
-      const label = action === 'agent' ? `Agente: Claude ${model}` : t.actions.find(a => a.id === action)?.label ?? 'Hecho';
+      await api.taskCommand(t.id, { type, model });
+      const label = type === 'CHANGE_AGENT'
+        ? `Agente: Claude ${AI_MODELS.find(m => m.id === model)?.label ?? model}`
+        : t.available_commands.find(a => a.type === type)?.label ?? 'Hecho';
       say(`${label} · ${t.title}`);
       onRefresh();
     } catch (e) {
@@ -213,10 +222,10 @@ export function Factory({ data, live, onLogout, onRefresh }: {
     }
   }, [onRefresh, say]);
 
-  const runStation = useCallback(async (id: string, action: 'pause' | 'resume') => {
+  const runStation = useCallback(async (id: string, type: StationCommandType) => {
     try {
-      await api.stationAction(id, action);
-      say(action === 'pause' ? 'Estación pausada' : 'Estación reanudada');
+      await api.stationCommand(id, type);
+      say(type === 'PAUSE' ? 'Estación pausada' : 'Estación reanudada');
       onRefresh();
     } catch (e) { say(e instanceof Error ? e.message : 'No se pudo completar la acción.'); }
   }, [onRefresh, say]);
@@ -241,14 +250,14 @@ export function Factory({ data, live, onLogout, onRefresh }: {
     if (!k) return [];
     const out: Hit[] = [];
     data.stations.forEach(s => normalize(`${s.name} ${s.description}`).includes(k) && out.push({ kind: 'Estación', label: s.name, s: s.status, go: () => goStation(s.id) }));
-    data.promotions.forEach(p => normalize(`${p.name} ${brands.get(p.brandId)?.name}`).includes(k)
-      && out.push({ kind: 'Promoción', label: `${brands.get(p.brandId)?.name} · ${p.name}`, go: () => { setSel({ type: null, id: null }); setCc({ promo: p.id, tab: 'resumen', hl: null }); } }));
+    data.promotions.forEach(p => normalize(`${p.name} ${brands.get(p.brand_id)?.name}`).includes(k)
+      && out.push({ kind: 'Promoción', label: `${brands.get(p.brand_id)?.name} · ${p.name}`, go: () => { setSel({ type: null, id: null }); setCc({ promo: p.id, tab: 'resumen', hl: null }); } }));
     data.tasks.forEach(t => normalize(`${t.title} ${t.goal}`).includes(k)
-      && out.push({ kind: `Tarea · ${data.stations.find(s => s.id === t.stationId)?.name}`, label: t.title, s: t.status, go: () => goTask(t.id) }));
+      && out.push({ kind: `Tarea · ${data.stations.find(s => s.id === t.station_id)?.name}`, label: t.title, s: t.status, go: () => goTask(t.id) }));
     data.publications.forEach(x => normalize(`${x.title} ${x.type}`).includes(k)
-      && out.push({ kind: `Publicación · ${brandOf(x.promotionId)?.name} · ${shortDate(x.date)}`, label: x.title,
-        go: () => { setSel({ type: null, id: null }); setCc({ promo: x.promotionId, tab: 'publicaciones', hl: x.id }); } }));
-    data.armory.forEach(r => normalize(`${r.name} ${r.description}`).includes(k)
+      && out.push({ kind: `Publicación · ${brandOf(x.promotion_id)?.name} · ${shortDate(x.scheduled_on)}`, label: x.title,
+        go: () => { setSel({ type: null, id: null }); setCc({ promo: x.promotion_id, tab: 'publicaciones', hl: x.id }); } }));
+    data.armory_items.forEach(r => normalize(`${r.name} ${r.description}`).includes(k)
       && out.push({ kind: 'Herramienta', label: r.name, s: r.status, go: () => { setCc(null); setSel({ type: 'armory', id: r.id }); } }));
     return out.slice(0, 10);
   }, [query, data, brands, brandOf, goStation, goTask]);
@@ -257,14 +266,14 @@ export function Factory({ data, live, onLogout, onRefresh }: {
   // ---------- render ----------
   const selStation = sel.type === 'station' ? data.stations.find(s => s.id === sel.id) : undefined;
   const selTask = sel.type === 'task' ? data.tasks.find(t => t.id === sel.id) : undefined;
-  const selArmory = sel.type === 'armory' ? data.armory.find(a => a.id === sel.id) : undefined;
+  const selArmory = sel.type === 'armory' ? data.armory_items.find(a => a.id === sel.id) : undefined;
   const ccPromotion = cc ? data.promotions.find(p => p.id === cc.promo) : undefined;
 
   const crumbs: { label: string; go?: () => void }[] = [{ label: 'Fábrica', go: home }];
   if (ccPromotion) {
-    crumbs.push({ label: brands.get(ccPromotion.brandId)?.name ?? '' }, { label: ccPromotion.name });
+    crumbs.push({ label: brands.get(ccPromotion.brand_id)?.name ?? '' }, { label: ccPromotion.name });
   } else if (selStation) crumbs.push({ label: selStation.name });
-  else if (selTask) crumbs.push({ label: data.stations.find(s => s.id === selTask.stationId)?.name ?? '', go: () => goStation(selTask.stationId) }, { label: selTask.title });
+  else if (selTask) crumbs.push({ label: data.stations.find(s => s.id === selTask.station_id)?.name ?? '', go: () => goStation(selTask.station_id) }, { label: selTask.title });
   else if (selArmory) crumbs.push({ label: selArmory.name });
 
   return (
@@ -310,14 +319,14 @@ export function Factory({ data, live, onLogout, onRefresh }: {
           <span className="zpct mono">{zoom}%</span>
           <button className="ibtn" onClick={() => { const a = avail(); zoomAt(a.w / 2, a.h / 2, 1.25); }} aria-label="Acercar"><Icon name="plus" /></button>
           <button className="ibtn" onClick={fit} aria-label="Encuadrar todo" title="Encuadrar todo (0)"><Icon name="fit" /></button>
-          <button className="ibtn" onClick={onLogout} title="Cerrar sesión">Salir</button>
+          <button className={`ibtn${ops ? ' on' : ''}`} onClick={() => { setCc(null); setOps(true); }} title="Operaciones externas: llamadas a PostgreSQL, Drive, Publer… y sus fallos">Operaciones</button>
         </div>
       </header>
 
       <main className="vp" ref={vp} data-lod="1">
         <div className="world" ref={world}>
           <World data={data} sel={sel} onStation={goStation} onTask={goTask}
-            onTaskAction={(t, a) => (t.actions.find(x => x.id === a)?.confirm ? goTask(t.id) : runTask(t, a))}
+            onTaskAction={(t, a) => (t.available_commands.find(x => x.type === a)?.needs_confirmation ? goTask(t.id) : runTask(t, a))}
             onArmory={id => { setCc(null); setSel({ type: 'armory', id }); }}
             onPromotion={id => { setSel({ type: null, id: null }); setCc({ promo: id, tab: 'resumen', hl: null }); }} />
         </div>
@@ -326,35 +335,36 @@ export function Factory({ data, live, onLogout, onRefresh }: {
           <div className="float avisos" aria-label="Avisos">
             <h4>Atención</h4>
             {data.alerts.map(a => (
-              <button key={a.kind + a.id} className={`aviso s-${a.kind}`} title={a.detail}
-                onClick={() => (a.target === 'task' ? goTask(a.id) : goStation(a.id))}>
+              <button key={a.kind + a.target_id} className={`aviso s-${alertTone(a.kind)}`} title={a.detail}
+                onClick={() => (a.target_type === 'TASK' ? goTask(a.target_id) : goStation(a.target_id))}>
                 <Dot s={a.kind} /><span><b>{a.title}</b> · {a.detail}</span>
               </button>
             ))}
           </div>
         )}
         <div className="float legend" aria-label="Leyenda de estados">
-          {(['ok', 'run', 'wait', 'block', 'err', 'idle', 'cancel'] as StatusCode[]).map(s => <Pill key={s} s={s} label={STATUS[s].label} />)}
+          {(['OK', 'RUNNING', 'WAITING', 'BLOCKED', 'FAILED', 'IDLE', 'CANCELLED'] as StatusCode[]).map(s => <Pill key={s} s={s} label={STATUS[s].label} />)}
         </div>
         <div className="float hint">Rueda: zoom · Arrastra: mover · Clic: detalle · <span className="mono">0</span>: encuadrar</div>
 
         {selStation && (
-          <StationPanel s={selStation} index={data.stations.indexOf(selStation)} tasks={data.tasks.filter(t => t.stationId === selStation.id)}
+          <StationPanel s={selStation} index={data.stations.indexOf(selStation)} tasks={data.tasks.filter(t => t.station_id === selStation.id)}
             brandOf={brandOf} onClose={() => setSel({ type: null, id: null })} onTask={goTask}
-            onPause={() => runStation(selStation.id, 'pause')} onResume={() => runStation(selStation.id, 'resume')}
+            onPause={() => runStation(selStation.id, 'PAUSE')} onResume={() => runStation(selStation.id, 'RESUME')}
             onZoom={() => flyToStation(selStation.id, 1.7)} />
         )}
         {selTask && (
-          <TaskPanel key={selTask.id} t={selTask} station={data.stations.find(s => s.id === selTask.stationId)} brand={brandOf(selTask.promotionId)}
+          <TaskPanel key={selTask.id} t={selTask} station={data.stations.find(s => s.id === selTask.station_id)} brand={brandOf(selTask.promotion_id)}
             tasks={data.tasks} demo={data.demo} onClose={() => setSel({ type: null, id: null })} onTask={goTask}
             onAction={(a, model) => runTask(selTask, a, model)} />
         )}
         {selArmory && <ArmoryPanel item={selArmory} data={data} onClose={() => setSel({ type: null, id: null })} onStation={goStation} />}
 
         {cc && ccPromotion && (
-          <ControlCenter key={cc.promo + cc.tab + (cc.hl ?? '')} p={ccPromotion} brand={brands.get(ccPromotion.brandId)} data={data}
+          <ControlCenter key={cc.promo + cc.tab + (cc.hl ?? '')} p={ccPromotion} brand={brands.get(ccPromotion.brand_id)} data={data}
             initialTab={cc.tab} highlight={cc.hl} onClose={() => setCc(null)} onTask={goTask} />
         )}
+        {ops && <ExternalOperations onClose={() => setOps(false)} />}
         {toast && <div className="toast" role="status">{toast}</div>}
       </main>
     </>
