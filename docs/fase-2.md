@@ -1,6 +1,6 @@
 # SocialHub — Fase 2: backend, persistencia y frontend React
 
-Estado: **plan aprobado por respuestas de Raúl** · 26 oct 2026
+Estado: **terminada** (2 nov 2026). Bloques 1 y 2 fusionados en `main`. Criterios comprobados más abajo.
 
 ## Decisiones (respuestas de Raúl, una a una)
 
@@ -70,3 +70,16 @@ API first: `contracts/openapi.yaml` es la fuente de la verdad, según las guías
 3. El anillo en React se ve como la propuesta moderna, con los datos de la base de datos marcados como ejemplo.
 4. Las acciones cambian el estado en la base de datos y el anillo se actualiza solo.
 5. Al reiniciar SocialHub, los estados se conservan.
+
+### Comprobación (2 nov 2026)
+
+1. ✅ `mvn verify` en verde en Linux, Windows y macOS (GitHub Actions).
+2. ✅ Arranque real en Windows y macOS (GitHub Actions, prueba bajo demanda):
+   - El jar con la web arranca PostgreSQL y aplica las migraciones.
+   - Sirve la web y la API en `localhost:8686`.
+   - Rechaza las órdenes sin la cabecera de protección y acepta las que la llevan.
+   - Queda pendiente la prueba en el PC de Raúl cuando vuelva a tenerlo.
+3. ✅ El anillo en React se ve como la propuesta moderna, con datos de ejemplo marcados como tales. Revisado con capturas.
+4. ✅ Las órdenes cambian el estado en la base de datos y el anillo se recarga por SSE.
+5. ✅ Al reiniciar se conservan los datos (`EmbeddedPostgresTest`).
+
