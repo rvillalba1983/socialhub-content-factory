@@ -69,10 +69,14 @@ public class TaskEngine {
                     recoverStale();
                     recovered = true;
                 }
-                int free = maxParallel - running.size();
-                if (free <= 0 || executors.isEmpty()) return;
-                for (ProductionService.Claimed claimed : production.claim(executors.keySet(), free)) {
-                    start(claimed);
+                // Tomar de la cola y apuntar como «en marcha» va junto: así recoverStale nunca ve una tarea recién
+                // tomada que aún no figura entre las que se ejecutan
+                synchronized (running) {
+                    int free = maxParallel - running.size();
+                    if (free <= 0 || executors.isEmpty()) return;
+                    for (ProductionService.Claimed claimed : production.claim(executors.keySet(), free)) {
+                        start(claimed);
+                    }
                 }
             } catch (RuntimeException e) {
                 log.warn("Paso del motor omitido: {}", e.toString());
@@ -128,7 +132,10 @@ public class TaskEngine {
      * SocialHub). Se hace al arrancar.
      */
     public int recoverStale() {
-        int n = AppModeHolder.callIn(AppMode.REAL, () -> production.recoverAfterRestart(Set.copyOf(running.keySet())));
+        int n;
+        synchronized (running) {
+            n = AppModeHolder.callIn(AppMode.REAL, () -> production.recoverAfterRestart(Set.copyOf(running.keySet())));
+        }
         if (n > 0) log.info("{} tareas recuperadas tras reiniciar", n);
         return n;
     }
