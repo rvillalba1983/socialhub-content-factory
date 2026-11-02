@@ -52,7 +52,7 @@ public class FfmpegTool implements LocalTool {
     public Check check() throws InterruptedException {
         try {
             String output = run("version", List.of("-hide_banner", "-version"), Duration.ofSeconds(30)).output();
-            String first = output.lines().findFirst().orElse("FFmpeg");
+            String first = output.lines().findFirst().orElse("FFmpeg").replaceFirst("\\s+Copyright.*$", "");
             boolean h264 = output.contains("--enable-libx264");
             return new Check(h264, h264 ? first : first + " · sin H.264");
         } catch (InterruptedException e) {

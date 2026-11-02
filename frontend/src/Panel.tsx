@@ -103,9 +103,11 @@ export function TaskPanel({ t, station, brand, tasks, onClose, onAction, onTask,
         {t.error && <section><h4>Error</h4><p style={{ color: 'var(--err)' }}>{t.error}</p></section>}
         {t.result && <section><h4>Resultado</h4><p>{t.result}</p></section>}
         {t.inputs.length > 0 && <section><h4>Datos de entrada</h4><ul>{t.inputs.map((x, i) => <li key={i}>{x}</li>)}</ul></section>}
-        <section><h4>Plan de ejecución</h4>
-          <ol className="steps">{t.steps.map((s, i) => <li key={i} className={stepClass(s.state)}><StepState state={s.state} />{s.label}</li>)}</ol>
-        </section>
+        {t.steps.length > 0 && (
+          <section><h4>Plan de ejecución</h4>
+            <ol className="steps">{t.steps.map((s, i) => <li key={i} className={stepClass(s.state)}><StepState state={s.state} />{s.label}</li>)}</ol>
+          </section>
+        )}
         {t.checks.length > 0 && (
           <section><h4>Validaciones</h4>
             <ol className="steps">{t.checks.map((c, i) => <li key={i} className={c.passed ? 'd' : ''}><StepState state={c.passed ? 'DONE' : 'PENDING'} />{c.label}</li>)}</ol>
@@ -116,7 +118,7 @@ export function TaskPanel({ t, station, brand, tasks, onClose, onAction, onTask,
             <dt>Usa</dt><dd><AgentChip agent={t.agent} /></dd>
             {t.why && <><dt>Motivo</dt><dd>{t.why}</dd></>}
             <dt>Coste</dt><dd>0 € · {t.agent.kind === 'AI' ? 'incluido en Claude Pro' : 'gratuito'}</dd>
-            <dt>Tokens</dt><dd>Desconocido</dd>
+            {t.agent.kind === 'AI' && <><dt>Tokens</dt><dd>Desconocido</dd></>}
             {t.agent.kind === 'AI' && <><dt>Cuota</dt><dd>No expuesta por el proveedor</dd></>}
             <dt>Intentos</dt><dd className="mono">{t.attempts} de {t.max_attempts}</dd>
             {t.started_at && <><dt>Inicio</dt><dd className="mono">{clockTime(t.started_at)}</dd></>}

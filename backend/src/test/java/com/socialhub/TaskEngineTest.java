@@ -137,7 +137,7 @@ class TaskEngineTest {
         Task check = waitFor("check-local-tools", TaskStatus.COMPLETED);
         assertThat(check.getResult()).isEqualTo("2 herramientas locales funcionan.");
         assertThat(check.getHistory()).extracting(TaskHistoryEntry::message)
-                .anyMatch(m -> m.startsWith("OK · FFmpeg: ffmpeg version"))
+                .anyMatch(m -> m.matches("OK · FFmpeg: ffmpeg version [0-9.]+"))
                 .anyMatch(m -> m.startsWith("OK · Imágenes (Java 2D)"));
         var tools = JdbcClient.create(databases.of(AppMode.REAL))
                 .sql("select id from armory_item where kind = 'TOOL' and status = 'OK' order by id").query(String.class).list();
