@@ -12,6 +12,12 @@ import com.socialhub.api.model.PublicationPageDto;
 import com.socialhub.api.model.PublicationStatusDto;
 import com.socialhub.publishing.PublishingQueries;
 import com.socialhub.publishing.PublishingService;
+import com.socialhub.publishing.QualityService;
+import com.socialhub.publishing.domain.QualityIssue;
+import com.socialhub.api.model.QualityAcceptanceDto;
+import com.socialhub.api.model.QualityIssueDto;
+import com.socialhub.api.model.QualityReportDto;
+import java.time.ZoneOffset;
 import com.socialhub.publishing.domain.PublicationFilter;
 import java.time.LocalDate;
 import java.util.List;
@@ -29,6 +35,7 @@ class PublicationsController implements PublicationsApi {
 
     private final PublishingQueries queries;
     private final PublishingService service;
+    private final QualityService quality;
     private final PublicationWebMapper mapper;
 
     @Override
@@ -83,5 +90,27 @@ class PublicationsController implements PublicationsApi {
     public ResponseEntity<Void> detachPublicationFile(String publicationId, String requestGuard, String path) {
         service.detach(publicationId, path);
         return ResponseEntity.noContent().build();
+    }
+
+    @Override
+    public ResponseEntity<QualityReportDto> getPublicationQuality(String publicationId) {
+        return ResponseEntity.ok(report(quality.issues(publicationId)));
+    }
+
+    @Override
+    public ResponseEntity<QualityReportDto> acceptQualityIssue(String publicationId, String requestGuard,
+                                                               QualityAcceptanceDto acceptance) {
+        return ResponseEntity.ok(report(quality.accept(publicationId, acceptance.getKey(), acceptance.getReason())));
+    }
+
+    private static QualityReportDto report(List<QualityIssue> issues) {
+        List<QualityIssueDto> dtos = issues.stream().map(i -> {
+            QualityIssueDto dto = new QualityIssueDto(i.key(), QualityIssueDto.SourceEnum.valueOf(i.source().name()),
+                    i.message(), !i.open());
+            dto.setAcceptedReason(i.acceptedReason());
+            dto.setAcceptedAt(i.acceptedAt() == null ? null : i.acceptedAt().atOffset(ZoneOffset.UTC));
+            return dto;
+        }).toList();
+        return new QualityReportDto(dtos, (int) issues.stream().filter(QualityIssue::open).count());
     }
 }

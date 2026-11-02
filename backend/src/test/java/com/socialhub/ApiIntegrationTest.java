@@ -109,17 +109,20 @@ class ApiIntegrationTest {
 
     @Test
     @Order(5)
-    void approvingTheReviewUnblocksSchedulingAndApprovesThePublications() throws Exception {
+    void approvingTheReviewUnblocksSchedulingButPublicationsNeedToPassTheQualityControl() throws Exception {
         String inReview = "select count(*) from publication where promotion_id = 'delito-lanzamiento' and status = 'IN_REVIEW'";
         assertThat(count(inReview)).isEqualTo(2);
         command("t11", "{\"type\":\"APPROVE\"}", true)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("COMPLETED"));
         assertThat(taskStatus("t14")).isEqualTo("QUEUED");
-        assertThat(count(inReview)).isZero();
+        // Las publicaciones de ejemplo no tienen texto ni archivos: no se aprueban solas y quedan marcadas
+        assertThat(count(inReview)).isEqualTo(2);
+        assertThat(count("select count(*) from publication where promotion_id = 'delito-lanzamiento' and status = 'IN_REVIEW'"
+                + " and flag = 'Control de calidad pendiente'")).isEqualTo(2);
         // Auditoría de Hibernate Envers: el cambio de estado queda registrado
         assertThat(count("select count(*) from task_aud where id = 't11' and status = 'COMPLETED'")).isEqualTo(1);
-        assertThat(count("select count(*) from publication_aud where status = 'APPROVED'")).isEqualTo(2);
+        assertThat(count("select count(*) from publication_aud where flag = 'Control de calidad pendiente'")).isEqualTo(2);
         assertThat(count("select count(*) from task_event where task_id = 't11' and message = 'Aprobada por Raúl'"))
                 .isEqualTo(1);
     }

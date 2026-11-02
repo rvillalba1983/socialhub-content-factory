@@ -504,6 +504,48 @@ paths:
         "404": { $ref: "#/components/responses/Problem" }
         default: { $ref: "#/components/responses/Problem" }
 
+  /api/publications/{publication_id}/quality:
+    get:
+      tags: [Publications]
+      operationId: getPublicationQuality
+      summary: Control de calidad de una publicación
+      description: >
+        Avisos de las comprobaciones automáticas (en el momento) y de la última revisión de Claude, con las
+        aceptaciones de Raúl. Mientras quede alguno abierto, no pasa a «Aprobada» ni a «Programada».
+      parameters:
+        - $ref: "#/components/parameters/PublicationId"
+      responses:
+        "200":
+          description: Avisos
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/QualityReport" }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/publications/{publication_id}/quality-acceptances:
+    post:
+      tags: [Publications]
+      operationId: acceptQualityIssue
+      summary: Acepta un aviso concreto, con su motivo
+      parameters:
+        - $ref: "#/components/parameters/PublicationId"
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/QualityAcceptance" }
+      responses:
+        "200":
+          description: Avisos después de aceptarlo
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/QualityReport" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
   /api/publications/{publication_id}/status-changes:
     post:
       tags: [Publications]
@@ -1401,6 +1443,31 @@ components:
       required: [path]
       properties:
         path: { type: string, minLength: 1, maxLength: 1000, description: Ruta completa del archivo }
+
+    QualityIssue:
+      type: object
+      required: [key, source, message, accepted]
+      properties:
+        key: { type: string, description: "Identifica el aviso para aceptarlo (por ejemplo, FORBIDDEN:compra ya)" }
+        source: { type: string, enum: [CODE, CLAUDE], description: Comprobación automática o revisión de Claude }
+        message: { type: string }
+        accepted: { type: boolean }
+        accepted_reason: { type: string }
+        accepted_at: { type: string, format: date-time }
+
+    QualityReport:
+      type: object
+      required: [issues, open]
+      properties:
+        issues: { type: array, items: { $ref: "#/components/schemas/QualityIssue" } }
+        open: { type: integer, format: int32, description: Avisos sin aceptar }
+
+    QualityAcceptance:
+      type: object
+      required: [key, reason]
+      properties:
+        key: { type: string, minLength: 1, maxLength: 1500 }
+        reason: { type: string, minLength: 3, maxLength: 1000 }
 
     PublicationStatusChange:
       type: object

@@ -182,7 +182,30 @@ class ModesAndRegistrationTest {
         write(put("/api/publications/2030-01-10-instagram"), publication).andExpect(status().isBadRequest());
         write(put("/api/publications/no-existe"), edited).andExpect(status().isNotFound());
 
-        for (String next : new String[] {"IN_REVIEW", "APPROVED", "SCHEDULED"}) {
+        write(post("/api/publications/2030-01-10-instagram/status-changes"), "{\"status\":\"IN_REVIEW\"}")
+                .andExpect(status().isOk());
+        // Sin texto ni archivos no pasa el control de calidad, salvo que se acepten los avisos uno a uno
+        write(post("/api/publications/2030-01-10-instagram/status-changes"), "{\"status\":\"APPROVED\"}")
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("control de calidad: 2 avisos")));
+        mvc.perform(get("/api/publications/2030-01-10-instagram/quality"))
+                .andExpect(jsonPath("$.open").value(2))
+                .andExpect(jsonPath("$.issues[0].key").value("TEXT_MISSING"))
+                .andExpect(jsonPath("$.issues[1].key").value("FILES_MISSING"))
+                .andExpect(jsonPath("$.issues[1].source").value("CODE"));
+        write(post("/api/publications/2030-01-10-instagram/quality-acceptances"), "{\"key\":\"TEXT_MISSING\",\"reason\":\"x\"}")
+                .andExpect(status().isBadRequest());
+        write(post("/api/publications/2030-01-10-instagram/quality-acceptances"), "{\"key\":\"OTRO\",\"reason\":\"Prueba\"}")
+                .andExpect(status().isBadRequest());
+        for (String key : new String[] {"TEXT_MISSING", "FILES_MISSING"}) {
+            write(post("/api/publications/2030-01-10-instagram/quality-acceptances"),
+                    "{\"key\":\"" + key + "\",\"reason\":\"Prueba del ciclo de vida\"}").andExpect(status().isOk());
+        }
+        mvc.perform(get("/api/publications/2030-01-10-instagram/quality"))
+                .andExpect(jsonPath("$.open").value(0))
+                .andExpect(jsonPath("$.issues[0].accepted").value(true))
+                .andExpect(jsonPath("$.issues[0].accepted_reason").value("Prueba del ciclo de vida"));
+        for (String next : new String[] {"APPROVED", "SCHEDULED"}) {
             write(post("/api/publications/2030-01-10-instagram/status-changes"), "{\"status\":\"" + next + "\"}")
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value(next));

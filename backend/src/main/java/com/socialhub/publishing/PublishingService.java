@@ -35,6 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class PublishingService {
 
     static final String MANUAL_FLAG = "Publicación manual con LEEME";
+    static final String QUALITY_FLAG = "Control de calidad pendiente";
 
     private final PublicationRepository publications;
     private final ApplicationEventPublisher events;
@@ -42,6 +43,7 @@ public class PublishingService {
     private final AppModeHolder mode;
     private final Clock clock;
     private final PublicationFileRepository files;
+    private final QualityService quality;
 
     /** Alta desde el centro de control. El identificador es la fecha y la plataforma: «2026-11-10-instagram». */
     @Transactional
@@ -67,6 +69,14 @@ public class PublishingService {
     @Transactional
     public Publication changeStatus(String id, PublicationStatus status) {
         Publication publication = find(id);
+        if (status == PublicationStatus.APPROVED || status == PublicationStatus.SCHEDULED) {
+            long open = quality.openIssues(id);
+            if (open > 0) {
+                throw new com.socialhub.platform.DomainException("No pasa el control de calidad: " + open
+                        + (open == 1 ? " aviso sin resolver" : " avisos sin resolver")
+                        + ". Corrígelos o acéptalos uno a uno en la publicación.");
+            }
+        }
         publication.changeStatus(status, clock.instant());
         publications.save(publication);
         events.publishEvent(new FactoryChanged("publication", id));
@@ -170,6 +180,12 @@ public class PublishingService {
         if (approved.promotionId() == null) return;
         int count = 0;
         for (Publication p : publications.findByPromotionAndStatus(approved.promotionId(), PublicationStatus.IN_REVIEW)) {
+            if (quality.openIssues(p.getId()) > 0) {
+                // No se aprueba sola: le quedan avisos de calidad
+                p.flag(QUALITY_FLAG);
+                publications.save(p);
+                continue;
+            }
             p.moveTo(PublicationStatus.APPROVED);
             publications.save(p);
             count++;
