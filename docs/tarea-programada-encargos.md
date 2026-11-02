@@ -1,12 +1,13 @@
 # Tarea programada «Encargos de SocialHub»
 
-Propuesta para revisar con Raúl antes de crearla. No se toca ninguna de las tareas programadas que ya existen.
+Creada el 2 nov 2026 con el OK de Raúl. No se ha tocado ninguna de las tareas programadas que ya existían.
 
 - **Cuándo:** todos los días a las 9:40, 14:40 y 20:40 (hora de España).
 - **Dónde:** en la nube, con el conector de Google Drive. No usa el ordenador de Raúl.
 - **Modelo:**
-  - La sesión principal usa Haiku, que solo reparte el trabajo.
   - Cada encargo lo hace un subagente con el modelo que pide el propio encargo (`model`: haiku, sonnet u opus).
+  - La sesión principal solo reparte el trabajo. La herramienta de creación no permite elegir su modelo, así que se creó con Opus. Raúl puede cambiarlo a Haiku en los ajustes de la tarea programada para gastar menos.
+- **Aprobaciones:** se ejecuta sin pedirlas (aprobación automática).
 - **Avisos:** notificación en el móvil al terminar, solo si hubo encargos.
 
 ## Instrucciones de la tarea

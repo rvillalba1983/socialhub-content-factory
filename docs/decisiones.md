@@ -235,4 +235,8 @@ Detalle en `docs/fase-4-5.md`.
 - **Encargos automáticos:** spec el domingo y balance el lunes, desde las 9:00, por promoción activa. El resto, a mano.
 - **Validaciones fuera de transacciones anidadas:** los manejadores comprueban todo antes de llamar a servicios transaccionales. Así un error no deja marcada para deshacer la transacción del resultado de Claude.
 - **Carpeta de salida del spec:** se comprueba al leer el spec, no solo al generar.
+- **Tarea programada «Encargos de SocialHub»:**
+  - Creada con el OK de Raúl: 9:40, 14:40 y 20:40, hora de España, en la nube, con aprobación automática y aviso en el móvil.
+  - Cada encargo lo hace un subagente con el modelo del encargo.
+  - La sesión principal quedó en Opus porque al crearla no se puede elegir su modelo; se puede bajar a Haiku en sus ajustes.
 
