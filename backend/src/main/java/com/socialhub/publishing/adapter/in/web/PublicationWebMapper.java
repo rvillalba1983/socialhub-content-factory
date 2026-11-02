@@ -2,6 +2,7 @@ package com.socialhub.publishing.adapter.in.web;
 
 import com.socialhub.api.model.PlatformDto;
 import com.socialhub.api.model.PublicationDto;
+import com.socialhub.api.model.PublicationInputDto;
 import com.socialhub.api.model.PublicationStatusDto;
 import com.socialhub.publishing.domain.Platform;
 import com.socialhub.publishing.domain.Publication;
@@ -26,4 +27,15 @@ public interface PublicationWebMapper {
     PublicationStatus toDomain(PublicationStatusDto status);
 
     default String toText(LocalTime time) { return time.format(HH_MM); }
+
+    default Publication.Details toDetails(PublicationInputDto input) {
+        return new Publication.Details(Platform.valueOf(input.getPlatform().name()), input.getType(), input.getTitle(),
+                input.getScheduledOn(), LocalTime.parse(input.getScheduledTime(), HH_MM), input.getTimezone(),
+                input.getRoute(), input.getNote());
+    }
+
+    default PublicationStatus initialStatus(PublicationInputDto input) {
+        return input.getInitialStatus() == null ? PublicationStatus.IDEA
+                : PublicationStatus.valueOf(input.getInitialStatus().name());
+    }
 }

@@ -362,6 +362,81 @@ paths:
               schema: { $ref: "#/components/schemas/PublicationPage" }
         "404": { $ref: "#/components/responses/Problem" }
         default: { $ref: "#/components/responses/Problem" }
+    post:
+      tags: [Publications]
+      operationId: createPublication
+      summary: Da de alta una publicación
+      description: Empieza como idea, propuesta, en producción o borrador. El identificador lo asigna SocialHub.
+      parameters:
+        - $ref: "#/components/parameters/PromotionId"
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PublicationInput" }
+      responses:
+        "201":
+          description: Publicación creada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Publication" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/publications/{publication_id}:
+    put:
+      tags: [Publications]
+      operationId: updatePublication
+      summary: Edita los datos de una publicación
+      description: >
+        No cambia el estado. No se puede editar una publicación que se está publicando o ya publicada; si está
+        programada, la nueva hora debe quedar al menos a 6 horas de ahora.
+      parameters:
+        - $ref: "#/components/parameters/PublicationId"
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PublicationInput" }
+      responses:
+        "200":
+          description: Publicación actualizada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Publication" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/publications/{publication_id}/status-changes:
+    post:
+      tags: [Publications]
+      operationId: changePublicationStatus
+      summary: Cambia el estado de una publicación
+      description: >
+        Solo transiciones permitidas por su ciclo de vida. «Publicando», «Publicada» y «Error de publicación» los
+        pone SocialHub al publicar, nunca a mano. Para programarla, la hora debe quedar al menos a 6 horas de ahora.
+      parameters:
+        - $ref: "#/components/parameters/PublicationId"
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PublicationStatusChange" }
+      responses:
+        "200":
+          description: Publicación con su nuevo estado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Publication" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
 
   /api/tasks:
     get:
@@ -541,6 +616,11 @@ components:
       name: limit
       in: query
       schema: { type: integer, format: int32, minimum: 1, maximum: 500, default: 100 }
+    PublicationId:
+      name: publication_id
+      in: path
+      required: true
+      schema: { type: string }
     BrandId:
       name: brand_id
       in: path
@@ -998,6 +1078,29 @@ components:
         note: { type: string }
         confirmation: { type: string, description: Prueba de que se ha publicado de verdad }
         demo: { type: boolean }
+
+    PublicationInput:
+      type: object
+      required: [platform, type, title, scheduled_on, scheduled_time]
+      properties:
+        platform: { $ref: "#/components/schemas/Platform" }
+        type: { type: string, minLength: 1, maxLength: 40, example: Carrusel }
+        title: { type: string, minLength: 1, maxLength: 200 }
+        scheduled_on: { type: string, format: date }
+        scheduled_time: { type: string, pattern: "^([01]\\d|2[0-3]):[0-5]\\d$", example: "19:00" }
+        timezone: { type: string, maxLength: 60, default: Europe/Madrid }
+        route: { type: string, minLength: 1, maxLength: 40, default: Publer }
+        note: { type: string, maxLength: 2000 }
+        initial_status:
+          description: Solo al dar de alta (por defecto, idea). Al editar no se admite.
+          type: string
+          enum: [IDEA, PROPOSAL, IN_PRODUCTION, DRAFT]
+
+    PublicationStatusChange:
+      type: object
+      required: [status]
+      properties:
+        status: { $ref: "#/components/schemas/PublicationStatus" }
 
     ArmoryItemList:
       type: object

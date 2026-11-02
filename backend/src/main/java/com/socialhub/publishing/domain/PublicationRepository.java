@@ -1,6 +1,7 @@
 package com.socialhub.publishing.domain;
 
 import java.util.List;
+import java.util.Optional;
 import org.jmolecules.architecture.hexagonal.SecondaryPort;
 
 /** Puerto de salida: dónde se guardan las publicaciones. */
@@ -16,6 +17,10 @@ public interface PublicationRepository {
     List<Publication> findByPromotionAndStatus(String promotionId, PublicationStatus status);
 
     List<Publication> findFlagged(String promotionId);
+
+    Optional<Publication> findById(String id);
+
+    boolean exists(String id);
 
     Publication save(Publication publication);
 }

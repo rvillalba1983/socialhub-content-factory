@@ -1,7 +1,11 @@
 package com.socialhub.publishing.domain;
 
 import com.socialhub.platform.DomainException;
+import java.time.DateTimeException;
+import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
+import java.util.Set;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.Objects;
@@ -19,16 +23,16 @@ public final class Publication {
     @Identity
     private final String id;
     private final String promotionId;
-    private final Platform platform;
-    private final String type;
-    private final String title;
-    private final LocalDate scheduledOn;
-    private final LocalTime scheduledTime;
-    private final String timezone;
+    private Platform platform;
+    private String type;
+    private String title;
+    private LocalDate scheduledOn;
+    private LocalTime scheduledTime;
+    private String timezone;
     private PublicationStatus status;
-    private final String route;
+    private String route;
     private @Nullable String flag;
-    private final @Nullable String note;
+    private @Nullable String note;
     private @Nullable String externalId;
     private @Nullable String confirmation;
     private @Nullable Instant publishedAt;
@@ -61,6 +65,86 @@ public final class Publication {
         if (status == PublicationStatus.PUBLISHED && (confirmation == null || confirmation.isBlank())) {
             throw new IllegalArgumentException("Una publicación publicada necesita confirmación");
         }
+    }
+
+    /** Margen mínimo entre ahora y la hora de publicación para poder programarla: nunca se publica al instante. */
+    public static final Duration MIN_MARGIN = Duration.ofHours(6);
+
+    /** Estados que solo pone SocialHub al publicar, nunca a mano. */
+    private static final Set<PublicationStatus> AUTOMATIC =
+            Set.of(PublicationStatus.PUBLISHING, PublicationStatus.PUBLISHED, PublicationStatus.PUBLISH_ERROR);
+
+    /** Estados con los que se puede dar de alta una publicación: antes de la revisión. */
+    public static final Set<PublicationStatus> INITIAL = Set.of(PublicationStatus.IDEA, PublicationStatus.PROPOSAL,
+            PublicationStatus.IN_PRODUCTION, PublicationStatus.DRAFT);
+
+    /** Datos editables de una publicación. */
+    public record Details(Platform platform, String type, String title, LocalDate scheduledOn, LocalTime scheduledTime,
+                          String timezone, String route, @Nullable String note) {
+        public Details {
+            Objects.requireNonNull(platform);
+            if (type.isBlank()) throw new IllegalArgumentException("Falta el tipo de publicación");
+            if (title.isBlank()) throw new IllegalArgumentException("Falta el título");
+            try {
+                ZoneId.of(timezone);
+            } catch (DateTimeException e) {
+                throw new IllegalArgumentException("Zona horaria no válida: " + timezone);
+            }
+            if (route.isBlank()) throw new IllegalArgumentException("Falta la vía de publicación");
+        }
+    }
+
+    /** Alta de una publicación nueva desde la app. */
+    public static Publication create(String id, String promotionId, Details details, PublicationStatus status,
+                                     boolean demo) {
+        if (!INITIAL.contains(status)) {
+            throw new IllegalArgumentException("Una publicación nueva empieza como idea, propuesta, en producción o borrador.");
+        }
+        return new Publication(id, promotionId, details.platform(), details.type().strip(), details.title().strip(),
+                details.scheduledOn(), details.scheduledTime(), details.timezone(), status, details.route().strip(), null,
+                blankToNull(details.note()), null, null, null, demo, 0);
+    }
+
+    /** Fecha y hora de publicación en su zona horaria. */
+    public Instant scheduledAt() {
+        return scheduledOn.atTime(scheduledTime).atZone(ZoneId.of(timezone)).toInstant();
+    }
+
+    /** Edita los datos. No se puede una vez que se está publicando; si está programada, respeta el margen. */
+    public void edit(Details details, Instant now) {
+        if (status == PublicationStatus.PUBLISHING || status == PublicationStatus.PUBLISHED) {
+            throw new DomainException("No se puede editar una publicación que se está publicando o ya está publicada.");
+        }
+        Instant when = details.scheduledOn().atTime(details.scheduledTime()).atZone(ZoneId.of(details.timezone())).toInstant();
+        if (status == PublicationStatus.SCHEDULED) requireMargin(when, now);
+        this.platform = details.platform();
+        this.type = details.type().strip();
+        this.title = details.title().strip();
+        this.scheduledOn = details.scheduledOn();
+        this.scheduledTime = details.scheduledTime();
+        this.timezone = details.timezone();
+        this.route = details.route().strip();
+        this.note = blankToNull(details.note());
+    }
+
+    /** Cambio de estado pedido por Raúl. Los estados de publicación los pone solo SocialHub. */
+    public void changeStatus(PublicationStatus next, Instant now) {
+        if (AUTOMATIC.contains(next)) {
+            throw new DomainException("«" + next.label() + "» solo lo pone SocialHub al publicar, con confirmación.");
+        }
+        if (next == PublicationStatus.SCHEDULED) requireMargin(scheduledAt(), now);
+        moveTo(next);
+    }
+
+    private static void requireMargin(Instant when, Instant now) {
+        if (when.isBefore(now.plus(MIN_MARGIN))) {
+            throw new DomainException("Para programarla, la hora de publicación debe quedar al menos a "
+                    + MIN_MARGIN.toHours() + " horas de ahora.");
+        }
+    }
+
+    private static @Nullable String blankToNull(@Nullable String text) {
+        return text == null || text.isBlank() ? null : text.strip();
     }
 
     public void moveTo(PublicationStatus next) {
