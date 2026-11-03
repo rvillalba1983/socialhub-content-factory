@@ -152,6 +152,24 @@ class PublicationsController implements PublicationsApi {
     }
 
     @Override
+    public ResponseEntity<com.socialhub.api.model.PublicationMetricsDto> getPublicationMetrics(String publicationId) {
+        var m = queries.metrics(publicationId)
+                .orElseThrow(() -> new com.socialhub.platform.NotFoundException("Aún no se han pedido sus métricas"));
+        var dto = new com.socialhub.api.model.PublicationMetricsDto(m.publicationId(),
+                com.socialhub.api.model.PublicationMetricsDto.StatusEnum.valueOf(m.status().name()),
+                m.requestedAt().atOffset(ZoneOffset.UTC), m.attempts());
+        if (m.measuredAt() != null) dto.setMeasuredAt(m.measuredAt().atOffset(ZoneOffset.UTC));
+        dto.setViews(m.views());
+        dto.setReach(m.reach());
+        dto.setLikes(m.likes());
+        dto.setComments(m.comments());
+        dto.setSaves(m.saves());
+        dto.setShares(m.shares());
+        dto.setNote(m.note());
+        return ResponseEntity.ok(dto);
+    }
+
+    @Override
     public ResponseEntity<Void> clearPublicationFlag(String publicationId, String requestGuard) {
         service.clearFlag(publicationId);
         return ResponseEntity.noContent().build();

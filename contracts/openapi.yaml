@@ -714,6 +714,23 @@ paths:
         "404": { $ref: "#/components/responses/Problem" }
         default: { $ref: "#/components/responses/Problem" }
 
+  /api/publications/{publication_id}/metrics:
+    get:
+      tags: [Publications]
+      operationId: getPublicationMetrics
+      summary: Métricas de la publicación (se leen una vez, a los 7 días de publicarse)
+      description: Lo que no se pudo ver queda sin dato. 404 si aún no se han pedido.
+      parameters:
+        - $ref: "#/components/parameters/PublicationId"
+      responses:
+        "200":
+          description: Métricas
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublicationMetrics" }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
   /api/publications/{publication_id}/publish-job:
     get:
       tags: [Publications]
@@ -1201,7 +1218,7 @@ components:
       description: Tipo de encargo a Claude
       type: string
       enum: [WEEKLY_SPEC, CAPTIONS, WEEKLY_BALANCE, RESEARCH, QUALITY_REVIEW, WEEKLY_PROPOSALS, PUBLER_SCHEDULE,
-             PUBLISH_CHECK, CALENDAR_READ]
+             PUBLISH_CHECK, CALENDAR_READ, METRICS_READ]
 
     AiTypeModel:
       type: object
@@ -1238,6 +1255,23 @@ components:
         last_error: { type: string }
         manual_file: { type: string, description: LEEME para publicar a mano }
         log: { type: array, items: { type: string } }
+
+    PublicationMetrics:
+      type: object
+      required: [publication_id, status, requested_at, attempts]
+      properties:
+        publication_id: { type: string }
+        status: { type: string, enum: [REQUESTED, DONE, FAILED] }
+        requested_at: { type: string, format: date-time }
+        measured_at: { type: string, format: date-time }
+        attempts: { type: integer, format: int32 }
+        views: { type: integer, format: int64 }
+        reach: { type: integer, format: int64 }
+        likes: { type: integer, format: int64 }
+        comments: { type: integer, format: int64 }
+        saves: { type: integer, format: int64 }
+        shares: { type: integer, format: int64 }
+        note: { type: string }
 
     ExternalCalendar:
       type: object

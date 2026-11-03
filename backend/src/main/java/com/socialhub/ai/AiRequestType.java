@@ -13,7 +13,8 @@ public enum AiRequestType {
     WEEKLY_PROPOSALS("Propuestas de la semana", "est", "socialhub.weekly-proposals"),
     PUBLER_SCHEDULE("Programar en Publer", "prog", "socialhub.publer-schedule", true),
     PUBLISH_CHECK("Comprobar publicación", "pub", "socialhub.publish-check", true),
-    CALENDAR_READ("Leer calendario de Publer y la red", "prog", "socialhub.calendar-read", true);
+    CALENDAR_READ("Leer calendario de Publer y la red", "prog", "socialhub.calendar-read", true),
+    METRICS_READ("Leer métricas", "ana", "socialhub.metrics-read", true);
 
     private final String label;
     private final String stationId;
