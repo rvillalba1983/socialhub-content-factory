@@ -346,6 +346,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/publications/{publication_id}/flag": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Da por resuelta la incidencia anotada en la publicación */
+        delete: operations["clearPublicationFlag"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/publications/{publication_id}/publish-job": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cómo va la publicación de una publicación programada
+         * @description Vía en uso (Publer, Publora o API oficial), estado, próximo intento e historial. 404 si nunca se ha programado.
+         */
+        get: operations["getPublishJob"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/publications/{publication_id}/quality-acceptances": {
         parameters: {
             query?: never;
@@ -648,10 +685,10 @@ export interface components {
             /** @enum {string} */
             kind: "FAILED" | "BLOCKED";
             /**
-             * @description En avisos de la armería (por ejemplo, Drive no disponible), target_id es el elemento de la armería
+             * @description En avisos de la armería (por ejemplo, Drive no disponible), target_id es el elemento de la armería; en los de publicación, la publicación
              * @enum {string}
              */
-            target_type: "TASK" | "STATION" | "ARMORY";
+            target_type: "TASK" | "STATION" | "ARMORY" | "PUBLICATION";
             target_id: string;
             station_id: string;
             title: string;
@@ -688,11 +725,44 @@ export interface components {
          * @description Tipo de encargo a Claude
          * @enum {string}
          */
-        AiRequestType: "WEEKLY_SPEC" | "CAPTIONS" | "WEEKLY_BALANCE" | "RESEARCH" | "QUALITY_REVIEW" | "WEEKLY_PROPOSALS";
+        AiRequestType: "WEEKLY_SPEC" | "CAPTIONS" | "WEEKLY_BALANCE" | "RESEARCH" | "QUALITY_REVIEW" | "WEEKLY_PROPOSALS" | "PUBLER_SCHEDULE" | "PUBLISH_CHECK";
         AiTypeModel: {
             type: components["schemas"]["AiRequestType"];
             label: string;
             model: components["schemas"]["AiModel"];
+            /** @description Lo hace Claude con Chrome en el PC de Raúl (carpeta «para-claude-pc»). Lo encarga SocialHub al publicar, no cuenta en el límite diario y no se puede pedir a mano */
+            on_pc: boolean;
+        };
+        PublishJob: {
+            publication_id: string;
+            /** @enum {string} */
+            status: "WORKING" | "RETRY_WAIT" | "SCHEDULED" | "CHECKING" | "MANUAL" | "PUBLISHED" | "FAILED" | "CANCELLED";
+            status_label: string;
+            /** @description Vía en uso o con la que quedó programada */
+            route?: string;
+            /** @description Vías por orden, con si están configuradas */
+            routes: components["schemas"]["PublishRouteState"][];
+            /** @description Encargo a Claude en curso */
+            task_id?: string;
+            external_id?: string;
+            url?: string;
+            /** Format: date-time */
+            next_try_at?: string;
+            /**
+             * Format: int32
+             * @description Rondas por todas las vías
+             */
+            attempts: number;
+            last_error?: string;
+            /** @description LEEME para publicar a mano */
+            manual_file?: string;
+            log: string[];
+        };
+        PublishRouteState: {
+            /** @enum {string} */
+            id: "PUBLER" | "PUBLORA" | "OFFICIAL";
+            label: string;
+            configured: boolean;
         };
         AiSettings: {
             /** Format: int32 */
@@ -1257,6 +1327,8 @@ export type FolderInput = components['schemas']['FolderInput'];
 export type FolderListInput = components['schemas']['FolderListInput'];
 export type AiRequestType = components['schemas']['AiRequestType'];
 export type AiTypeModel = components['schemas']['AiTypeModel'];
+export type PublishJob = components['schemas']['PublishJob'];
+export type PublishRouteState = components['schemas']['PublishRouteState'];
 export type AiSettings = components['schemas']['AiSettings'];
 export type AiSettingsInput = components['schemas']['AiSettingsInput'];
 export type AiOrderInput = components['schemas']['AiOrderInput'];
@@ -2116,6 +2188,55 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["QualityReport"];
+                };
+            };
+            404: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    clearPublicationFlag: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path: {
+                publication_id: components["parameters"]["PublicationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Incidencia resuelta */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    getPublishJob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publication_id: components["parameters"]["PublicationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tarea de publicación */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublishJob"];
                 };
             };
             404: components["responses"]["Problem"];

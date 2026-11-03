@@ -37,8 +37,9 @@ class CaptionsHandler implements AiTypeHandler {
         for (String id : inputs) {
             Publication p = queries.find(id).filter(x -> x.getPromotionId().equals(promotionId))
                     .orElseThrow(() -> new IllegalArgumentException("La publicación «" + id + "» no existe en esta promoción"));
-            if (p.getStatus() == PublicationStatus.PUBLISHING || p.getStatus() == PublicationStatus.PUBLISHED) {
-                throw new IllegalArgumentException("La publicación «" + id + "» ya se está publicando o está publicada");
+            if (p.getStatus() == PublicationStatus.SCHEDULED || p.getStatus() == PublicationStatus.PUBLISHING
+                    || p.getStatus() == PublicationStatus.PUBLISHED) {
+                throw new IllegalArgumentException("La publicación «" + id + "» ya está programada o publicada: no se le cambia el texto");
             }
         }
     }

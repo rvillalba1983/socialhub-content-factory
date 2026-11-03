@@ -201,6 +201,11 @@ export function Factory({ data, live, onRefresh }: {
     requestAnimationFrame(() => flyToStation(t.station_id, Math.max(1.7, view.current.s)));
   }, [data.tasks, flyToStation]);
 
+  const goPublication = useCallback((id: string) => {
+    const pub = data.publications.find(x => x.id === id);
+    if (!pub) return;
+    setSel({ type: null, id: null }); setCc({ promo: pub.promotion_id, tab: 'publicaciones', hl: id });
+  }, [data.publications]);
   const home = useCallback(() => { setCc(null); setSel({ type: null, id: null }); requestAnimationFrame(fit); }, [fit]);
 
   const setLevel = (l: number) => {
@@ -351,6 +356,7 @@ export function Factory({ data, live, onRefresh }: {
           <World data={data} sel={sel} onStation={goStation} onTask={goTask}
             onTaskAction={(t, a) => (t.available_commands.find(x => x.type === a)?.needs_confirmation ? goTask(t.id) : runTask(t, a))}
             onArmory={id => { setCc(null); setSel({ type: 'armory', id }); }}
+            onPublication={goPublication}
             onPromotion={id => { setSel({ type: null, id: null }); setCc({ promo: id, tab: 'resumen', hl: null }); }}
             onRegister={() => setReg(null)} />
         </div>
@@ -360,7 +366,7 @@ export function Factory({ data, live, onRefresh }: {
             <h4>Atención</h4>
             {byPriority(data.alerts).slice(0, 3).map(a => (
               <button key={a.kind + a.target_id} className={`aviso s-${alertTone(a.kind)}`} title={a.detail}
-                onClick={() => openAlert(a, { onTask: goTask, onStation: goStation, onArmory: id => { setCc(null); setSel({ type: 'armory', id }); } })}>
+                onClick={() => openAlert(a, { onTask: goTask, onStation: goStation, onPublication: goPublication, onArmory: id => { setCc(null); setSel({ type: 'armory', id }); } })}>
                 <Dot s={a.kind} /><span><b>{a.title}</b> · {a.detail}</span>
               </button>
             ))}

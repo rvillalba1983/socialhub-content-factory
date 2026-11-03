@@ -92,7 +92,7 @@ class AiDispatcher {
             return false;
         }
         int limit = settings.dailyLimit();
-        if (settings.usedToday() >= limit) {
+        if (!type.get().onPc() && settings.usedToday() >= limit) {
             production.keepQueued(task.id(), "Límite diario de encargos a Claude alcanzado (" + limit
                     + "). Sale mañana, o sube el límite en «Claude».");
             return false;
@@ -127,7 +127,7 @@ class AiDispatcher {
     private Path write(String ordersFolder, AiTask task, AiRequestType type, String brandId, ClaudeModel model,
                        String requestId) {
         try {
-            Path dir = Files.createDirectories(Path.of(ordersFolder).resolve(AiFolders.TO_CLAUDE));
+            Path dir = Files.createDirectories(Path.of(ordersFolder).resolve(type.onPc() ? AiFolders.TO_CLAUDE_PC : AiFolders.TO_CLAUDE));
             Files.createDirectories(Path.of(ordersFolder).resolve(AiFolders.FROM_CLAUDE));
             Map<String, Object> request = new LinkedHashMap<>();
             request.put("contract", "socialhub.task-request");
@@ -149,6 +149,7 @@ class AiDispatcher {
             request.put("inputs", inputs);
             request.put("rules", promotions.rulesFor(task.promotionId()));
             request.put("model", model.name().toLowerCase(java.util.Locale.ROOT));
+            handlers.of(type).map(h -> h.deadline(job)).ifPresent(d -> request.put("deadline", d.toString()));
             request.put("idempotencyKey", requestId);
             Path target = fresh(dir, task.id() + "-" + task.attempt());
             Path partial = dir.resolve("." + target.getFileName() + ".part");

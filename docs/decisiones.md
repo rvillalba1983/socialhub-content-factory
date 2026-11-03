@@ -258,3 +258,33 @@ Detalle en `docs/fase-6.md`.
 - **Revisión:** cada propuesta se aprueba (pasa a «En producción») o se rechaza con motivo (se cancela y queda en la memoria editorial).
 - **El spec semanal** solo tiene en cuenta las publicaciones aprobadas.
 
+## 2026-11-03 · Fases 7, 8 y 9: decisiones (respuestas de Raúl)
+- **Publicación:**
+  - Vías por orden: Publer, Publora y API oficial. El calendario cuenta con lo que haya en las tres.
+  - Publer se programa con Claude y Chrome en el PC de Raúl, porque su API es de pago.
+  - Solo se programa lo que Raúl pasa a «Programada».
+  - Claude confirma «Publicada» comprobándolo.
+  - Si fallan las tres vías, se reintenta mientras haya margen y luego pasa a manual con LEEME.
+- **Métricas:** de Metricool y, si se puede, de Publora o la API oficial. Sin inventar.
+- **Autonomía:** SocialHub reintenta encargos y pide textos y revisiones solo. Todo lo demás lo decide Raúl.
+- **Avisos:** en la app y en un resumen diario.
+- **Distribución:**
+  - Instalador para Windows y macOS.
+  - Copia diaria en Drive, guardando 14.
+  - SocialHub no arranca solo.
+
+Detalle en `docs/fases-7-9.md`.
+
+
+## 2026-11-03 · Fase 7, bloque 1: motor de publicación
+- **Respuestas de Raúl:** los encargos con Chrome van a `Encargos/para-claude-pc` (la tarea de la nube no los ve); la clave de Publora, en un archivo local fuera de la base; los encargos de publicación no cuentan en el límite diario.
+- **Encargos nuevos:** «Programar en Publer» (estación Programación) y «Comprobar publicación» (estación Publicación). Los crea SocialHub; no se piden a mano. Sonnet por defecto.
+- **Tiempos de Publer:** Claude debe programarla antes de 8 h de la hora (la «deadline» del encargo). SocialHub espera su resultado hasta 7 h antes y después prueba Publora y la API oficial hasta 6 h antes. Si se programa con menos de 8 h, Publer se salta.
+- **Reintentos:** si fallan todas las vías, se vuelve a empezar cada hora mientras el siguiente intento quede antes de las 6 h. Si no, LEEME en la carpeta de aprobados (o generados, o la primera que haya), incidencia en la publicación y aviso.
+- **Comprobación:** a la hora pasa a «Publicando»; 15 min después (2 h si es a mano) se encarga la comprobación. «Publicada» solo con enlace https o identificador. Si no aparece, o la comprobación no llega en 24 h, «Error de publicación» y aviso.
+- **Resultados tardíos:** si Publer la programa cuando SocialHub ya siguió por otra vía, la publicación queda marcada como «Posible duplicado» y avisa.
+- **Sacarla de «Programada»** detiene la publicación. Si ya estaba programada en Publer, avisa para borrarla allí a mano (SocialHub no la borra).
+- **Incidencias:** Raúl las da por resueltas desde la publicación.
+- **Programada no se edita** (respuesta de Raúl): ni datos, ni texto, ni archivos. Para cambiarla, vuelve a «Aprobada» (avisa si hay que borrarla en Publer) y se programa otra vez. Las piezas generadas no se asocian a una publicación ya programada.
+
+Detalle en `docs/fase-7.md`.

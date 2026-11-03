@@ -51,12 +51,20 @@ class FactoryController implements FactoryApi {
                 publicationMapper.toDtos(publishing.all()),
                 armoryItems,
                 promotions.commonRules(),
-                alerts(snapshot.alerts(), armoryItems)));
+                alerts(snapshot.alerts(), armoryItems, publishing.publishAlerts())));
     }
 
-    /** A los avisos de producción se suman los servicios reales no disponibles (por ejemplo, Drive sin montar). */
-    private static List<AlertDto> alerts(List<AlertDto> production, List<ArmoryItemDto> items) {
+    /**
+     * A los avisos de producción se suman los de publicación (a mano, con error o con posible duplicado) y los servicios
+     * reales no disponibles (por ejemplo, Drive sin montar).
+     */
+    private static List<AlertDto> alerts(List<AlertDto> production, List<ArmoryItemDto> items,
+                                         List<PublishingQueries.PublishAlert> publishing) {
         List<AlertDto> alerts = new ArrayList<>(production);
+        for (var a : publishing) {
+            alerts.add(new AlertDto(a.failed() ? AlertDto.KindEnum.FAILED : AlertDto.KindEnum.BLOCKED,
+                    AlertDto.TargetTypeEnum.PUBLICATION, a.publicationId(), "pub", a.title(), a.detail()));
+        }
         for (ArmoryItemDto item : items) {
             if (!item.getDemo() && item.getKind() == ArmoryItemDto.KindEnum.SERVICE
                     && item.getStatus() == StatusLevelDto.BLOCKED) {

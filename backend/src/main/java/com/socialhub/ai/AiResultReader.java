@@ -110,6 +110,7 @@ class AiResultReader {
             String detail = "No cumple el contrato task-result.v1: " + String.join("; ", errors.subList(0, Math.min(5, errors.size())));
             if (request.isPresent() && production.waitingAiTask(taskId).isPresent()) {
                 transactions.executeWithoutResult(s -> {
+                    failed(request.get(), "Resultado no válido: " + detail);
                     finish(request.get(), AiRequestEntity.Status.INVALID, file, result, detail);
                     production.aiFailed(taskId, "Resultado no válido (" + file.getFileName() + "): " + detail);
                     record(file, modified, request.get().getId(), "INVALID", detail);
@@ -135,6 +136,7 @@ class AiResultReader {
                         applied = apply(sent, type, result, file);
                     } catch (IllegalArgumentException | IllegalStateException e) {
                         String error = "El resultado no sirve: " + e.getMessage();
+                        failed(sent, error);
                         finish(sent, AiRequestEntity.Status.INVALID, file, result, error);
                         production.aiFailed(taskId, error + " (" + file.getFileName() + ")");
                         break;
@@ -146,11 +148,13 @@ class AiResultReader {
                 }
                 case "failed" -> {
                     String error = text(result.path("error"), "Claude no indica el motivo");
+                    failed(sent, error);
                     finish(sent, AiRequestEntity.Status.FAILED, file, result, error);
                     production.aiFailed(taskId, error);
                 }
                 default -> {
                     String reason = text(result.path("error"), String.join(" · ", warnings(result)));
+                    if (type.onPc()) failed(sent, "Claude pide ayuda: " + reason);
                     finish(sent, AiRequestEntity.Status.NEEDS_HUMAN, file, result, reason);
                     production.aiNeedsHuman(taskId, reason.isBlank() ? "Claude necesita que lo revises." : reason);
                 }
@@ -158,6 +162,21 @@ class AiResultReader {
             record(file, modified, sent.getId(), "APPLIED", status);
         });
         log.info("Resultado de Claude para {}: {} ({})", taskId, status, file);
+    }
+
+    /** Avisa al manejador del tipo de que el encargo no salió, para que su módulo siga por otro camino. */
+    private void failed(AiRequestEntity sent, String reason) {
+        AiRequestType type;
+        try {
+            type = AiRequestType.valueOf(sent.getType());
+        } catch (IllegalArgumentException e) {
+            return;
+        }
+        var handler = handlers.of(type);
+        if (handler.isEmpty() || sent.getPromotionId() == null) return;
+        production.waitingAiTask(sent.getTaskId()).ifPresent(task -> handler.get().onFailed(
+                new AiJob(task.id(), type, sent.getPromotionId(), sent.getBrandId(), task.title(), task.goal(), task.inputs()),
+                reason));
     }
 
     /** El manejador del tipo hace lo suyo con el resultado; sin manejador, vale el resumen. */

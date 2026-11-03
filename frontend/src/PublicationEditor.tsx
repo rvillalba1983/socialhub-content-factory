@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { api } from './api';
+import { ApiError, api } from './api';
 import { Icon } from './icons';
 import {
-  PUBLICATION_NEXT, PUBLICATION_STATUS, REJECTION_REASONS, dateTime, type RejectionReason, type Publication, type QualityReport, type PublicationFile, type PublicationInput,
-  type PublicationStatus,
+  PUBLICATION_NEXT, PUBLICATION_STATUS, REJECTION_REASONS, dateTime, type RejectionReason, type Publication, type PublishJob, type QualityReport, type PublicationFile, type PublicationInput,
+  type PublicationStatus, type StatusCode,
 } from './model';
 import { Pill } from './ui';
 
@@ -33,7 +33,8 @@ export function PublicationEditor({ promotionId, publication, onClose, onSaved }
   useEffect(() => {
     if (!textsTouched) setForm(f => ({ ...f, caption: publication?.caption ?? '', hashtags: publication?.hashtags ?? '' }));
   }, [publication?.caption, publication?.hashtags, textsTouched]);
-  const locked = publication?.status === 'PUBLISHING' || publication?.status === 'PUBLISHED';
+  /** Programada, publicándose o publicada: la vía ya tiene esta versión y no se cambia. */
+  const locked = publication?.status === 'SCHEDULED' || publication?.status === 'PUBLISHING' || publication?.status === 'PUBLISHED';
   const set = <K extends keyof PublicationInput>(k: K, v: PublicationInput[K]) => setForm({ ...form, [k]: v });
 
   const run = async (action: () => Promise<Publication>, message: string) => {
@@ -109,6 +110,9 @@ export function PublicationEditor({ promotionId, publication, onClose, onSaved }
         )}
         <label className="field"><span>Observaciones</span>
           <textarea rows={2} disabled={locked} maxLength={2000} value={form.note ?? ''} onChange={e => set('note', e.target.value)} /></label>
+        {publication?.status === 'SCHEDULED' && (
+          <p className="src">Está programada: para cambiar algo, vuelve a «Aprobada» y prográmala otra vez.</p>
+        )}
         <div className="form-actions">
           {error && <p className="error" role="alert">{error}</p>}
           {!locked && <button className="btn primary" disabled={busy}>{busy ? 'Guardando…' : 'Guardar'}</button>}
@@ -141,15 +145,21 @@ export function PublicationEditor({ promotionId, publication, onClose, onSaved }
               }} />
           )}
           <p className="src">Programar exige al menos 6 horas de margen. «Publicada» solo llega con la confirmación de la plataforma.</p>
+          {publication.flag && (
+            <p className="flag-row" role="status"><Icon name="alert" /> <span>{publication.flag}</span>{' '}
+              <button type="button" className="btn" disabled={busy}
+                onClick={() => void run(() => api.clearPublicationFlag(publication.id).then(() => ({ ...publication, flag: undefined })), 'Incidencia resuelta')}>Resuelto</button></p>
+          )}
+          <PublishPanel publication={publication} />
           <QualityPanel publication={publication} promotionId={promotionId} />
-          <PublicationFiles id={publication.id} />
+          <PublicationFiles id={publication.id} locked={locked} />
         </>
       )}
     </div>
   );
 }
 
-function PublicationFiles({ id }: { id: string }) {
+function PublicationFiles({ id, locked }: { id: string; locked: boolean }) {
   const [files, setFiles] = useState<PublicationFile[] | null>(null);
   const [path, setPath] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -170,15 +180,60 @@ function PublicationFiles({ id }: { id: string }) {
           <span className="mono file-path" title={f.path}>{f.path}</span>
           <small className="src nowrap">{f.origin === 'SPEC' ? 'Del spec' : 'A mano'} · {dateTime(f.added_at)}</small>
           {!f.available && <Pill s="BLOCKED" label="No disponible" />}
-          <button type="button" className="ibtn" aria-label="Quitar archivo" title="Quitar de la publicación (no se borra)"
-            onClick={() => void act(() => api.detachPublicationFile(id, f.path))}><Icon name="x" /></button>
+          {!locked && <button type="button" className="ibtn" aria-label="Quitar archivo" title="Quitar de la publicación (no se borra)"
+            onClick={() => void act(() => api.detachPublicationFile(id, f.path))}><Icon name="x" /></button>}
         </div>
       ))}
-      <form className="file-add" onSubmit={e => { e.preventDefault(); void act(() => api.attachPublicationFile(id, path.trim())).then(ok => { if (ok) setPath(''); }); }}>
-        <input aria-label="Ruta del archivo" placeholder="G:\Mi unidad\…\pieza.jpg" value={path} onChange={e => setPath(e.target.value)} />
-        <button className="btn" disabled={!path.trim()}>Añadir archivo</button>
-      </form>
+      {!locked && (
+        <form className="file-add" onSubmit={e => { e.preventDefault(); void act(() => api.attachPublicationFile(id, path.trim())).then(ok => { if (ok) setPath(''); }); }}>
+          <input aria-label="Ruta del archivo" placeholder="G:\Mi unidad\…\pieza.jpg" value={path} onChange={e => setPath(e.target.value)} />
+          <button className="btn" disabled={!path.trim()}>Añadir archivo</button>
+        </form>
+      )}
       {error && <p className="error" role="alert">{error}</p>}
+    </fieldset>
+  );
+}
+
+const JOB_STATUS: Record<PublishJob['status'], StatusCode> = {
+  WORKING: 'RUNNING', RETRY_WAIT: 'WAITING', SCHEDULED: 'OK', CHECKING: 'RUNNING', MANUAL: 'BLOCKED',
+  PUBLISHED: 'OK', FAILED: 'FAILED', CANCELLED: 'WAITING',
+};
+
+/** Publicación: vía en uso, próximo intento, LEEME si hay que hacerla a mano e historial. */
+function PublishPanel({ publication }: { publication: Publication }) {
+  const [job, setJob] = useState<PublishJob | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const live = ['SCHEDULED', 'PUBLISHING', 'PUBLISHED', 'PUBLISH_ERROR'].includes(publication.status);
+  useEffect(() => {
+    if (!live) { setJob(null); return; }
+    api.publishJob(publication.id).then(setJob)
+      .catch(e => { if (e instanceof ApiError && e.status === 404) setJob(null); else setError(e instanceof Error ? e.message : String(e)); });
+  }, [publication, live]);
+  if (!live || (!job && !error)) return null;
+  return (
+    <fieldset className="rows" aria-label="Publicación">
+      <legend>Publicación</legend>
+      {error && <p className="error">{error}</p>}
+      {job && (
+        <>
+          <div className="status-row">
+            <Pill s={JOB_STATUS[job.status]} label={job.status_label} />
+            {job.route && <span>Vía: <b>{job.route}</b></span>}
+            {job.attempts > 1 && <small className="src">Ronda {job.attempts}</small>}
+            {job.next_try_at && <small className="src">Próximo intento: {dateTime(job.next_try_at)}</small>}
+          </div>
+          <p className="src">Vías por orden: {job.routes.map(r => `${r.label}${r.configured ? '' : ' (no configurada)'}`).join(' → ')}</p>
+          {job.url && <p>Enlace: <a href={job.url} target="_blank" rel="noreferrer">{job.url}</a></p>}
+          {job.external_id && <p className="src">Identificador: <span className="mono">{job.external_id}</span></p>}
+          {job.manual_file && <p>LEEME para publicarla a mano: <span className="mono">{job.manual_file}</span></p>}
+          {job.last_error && job.status !== 'PUBLISHED' && <p className="src">Último problema: {job.last_error}</p>}
+          <details>
+            <summary>Historial</summary>
+            <ul className="src">{job.log.map((line, n) => <li key={n}>{line}</li>)}</ul>
+          </details>
+        </>
+      )}
     </fieldset>
   );
 }

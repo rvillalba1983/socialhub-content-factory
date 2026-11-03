@@ -46,6 +46,7 @@ public class PublishingService {
     private final PublicationFileRepository files;
     private final QualityService quality;
     private final com.socialhub.publishing.domain.EditorialMemoryRepository memory;
+    private final PublishingEngine engine;
 
     /** Alta desde el centro de control. El identificador es la fecha y la plataforma: «2026-11-10-instagram». */
     @Transactional
@@ -95,7 +96,12 @@ public class PublishingService {
                         + ". Corrígelos o acéptalos uno a uno en la publicación.");
             }
         }
+        PublicationStatus before = publication.getStatus();
         publication.changeStatus(status, clock.instant());
+        if (!mode.isDemo()) {
+            if (status == PublicationStatus.SCHEDULED) engine.start(publication);
+            else if (before == PublicationStatus.SCHEDULED) engine.stop(publication, "Raúl la ha pasado a «" + status.label() + "»");
+        }
         if (status == PublicationStatus.CANCELLED) {
             memory.add(new com.socialhub.publishing.domain.EditorialMemoryRepository.Rejection(
                     promotions.brandOf(publication.getPromotionId()), publication.getPromotionId(), id,
@@ -107,10 +113,21 @@ public class PublishingService {
         return publication;
     }
 
+    /** Raúl da por resuelta la incidencia anotada. */
+    @Transactional
+    public void clearFlag(String id) {
+        Publication publication = find(id);
+        if (publication.getFlag() == null) return;
+        publication.flag(null);
+        publications.save(publication);
+        events.publishEvent(new FactoryChanged("publication", id));
+    }
+
     /** Asocia a mano un archivo de las carpetas de la promoción. */
     @Transactional
     public PublicationFile attachManually(String publicationId, String path) {
         Publication publication = find(publicationId);
+        publication.requireEditable();
         Path real = insideFolders(publication.getPromotionId(), path);
         var file = new PublicationFile(real.toString(), PublicationFile.Origin.MANUAL, clock.instant());
         if (!files.add(publicationId, file)) throw new IllegalArgumentException("Ese archivo ya está asociado");
@@ -126,6 +143,11 @@ public class PublishingService {
             throw new IllegalArgumentException("La publicación " + publicationId + " no es de esta promoción");
         }
         int added = 0;
+        if (publication.getStatus() == PublicationStatus.SCHEDULED || publication.getStatus() == PublicationStatus.PUBLISHING
+                || publication.getStatus() == PublicationStatus.PUBLISHED) {
+            log.info("Piezas generadas sin asociar: {} ya está programada o publicada", publicationId);
+            return 0;
+        }
         for (Path path : generated) {
             Path real = insideFolders(promotionId, path.toString());
             if (files.add(publicationId, new PublicationFile(real.toString(), PublicationFile.Origin.SPEC, clock.instant()))) {
@@ -139,7 +161,7 @@ public class PublishingService {
     /** Quita la asociación. El archivo no se toca. */
     @Transactional
     public void detach(String publicationId, String path) {
-        find(publicationId);
+        find(publicationId).requireEditable();
         if (!files.remove(publicationId, path)) throw new NotFoundException("Ese archivo no está asociado");
         events.publishEvent(new FactoryChanged("publication", publicationId));
     }

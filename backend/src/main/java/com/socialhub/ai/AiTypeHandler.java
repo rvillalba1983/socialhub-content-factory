@@ -20,6 +20,15 @@ public interface AiTypeHandler {
      */
     default void validateOrder(String promotionId, java.util.List<String> inputs) {}
 
+    /** Hora límite del encargo («deadline» del contrato): pasada esa hora, Claude no debe hacerlo. */
+    default java.time.@org.jspecify.annotations.Nullable Instant deadline(AiJob job) { return null; }
+
+    /**
+     * Claude no pudo hacerlo (falló, pidió ayuda o devolvió algo que no cumple el contrato). Para que el módulo que lo
+     * pidió pueda seguir por otro camino.
+     */
+    default void onFailed(AiJob job, String reason) {}
+
     /** Datos que se añaden a «inputs» del encargo, además del título y los datos de entrada. */
     default Map<String, Object> inputs(AiJob job) { return Map.of(); }
 

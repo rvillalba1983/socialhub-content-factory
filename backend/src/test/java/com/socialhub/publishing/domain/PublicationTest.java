@@ -78,8 +78,11 @@ class PublicationTest {
         Publication late = at(PublicationStatus.APPROVED);
         assertThatThrownBy(() -> late.changeStatus(PublicationStatus.SCHEDULED, NOON.plusSeconds(3600 + 1)))
                 .isInstanceOf(DomainException.class).hasMessageContaining("6 horas");
-        // Ya programada: no se puede acercar la hora a menos de 6 horas
-        assertThatThrownBy(() -> p.edit(details(LocalTime.of(17, 0)), NOON)).isInstanceOf(DomainException.class);
+        // Ya programada: no se cambia nada (la vía tiene esta versión); para cambiarla se vuelve a «Aprobada»
+        assertThatThrownBy(() -> p.edit(details(LocalTime.of(20, 0)), NOON)).isInstanceOf(DomainException.class)
+                .hasMessageContaining("vuelve a «Aprobada»");
+        assertThatThrownBy(() -> p.setTexts("Otro", null)).isInstanceOf(DomainException.class);
+        p.changeStatus(PublicationStatus.APPROVED, NOON);
         p.edit(details(LocalTime.of(20, 0)), NOON);
         assertThat(p.getPlatform()).isEqualTo(Platform.TIKTOK);
         assertThat(p.getNote()).isNull();

@@ -23,6 +23,13 @@ public class AiOrders {
     /** @return identificador de la tarea */
     @Transactional
     public String submit(String promotionId, AiRequestType type, String title, String goal, List<String> inputs) {
+        if (type.onPc()) throw new IllegalArgumentException("«" + type.label() + "» lo encarga SocialHub al publicar");
+        return submitInternal(promotionId, type, title, goal, inputs);
+    }
+
+    /** Alta de un encargo desde otro módulo (también los de publicación con Chrome en el PC). */
+    @Transactional
+    public String submitInternal(String promotionId, AiRequestType type, String title, String goal, List<String> inputs) {
         promotions.promotion(promotionId);
         if (goal.isBlank()) throw new IllegalArgumentException("Falta el objetivo del encargo");
         String name = title.isBlank() ? type.label() : title.strip();

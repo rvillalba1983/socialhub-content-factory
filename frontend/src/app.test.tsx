@@ -252,7 +252,47 @@ describe('Publicaciones', () => {
   });
 });
 
+describe('Publicación programada', () => {
+  const publication: Publication = {
+    id: 'p-3', promotion_id: 'p', platform: 'INSTAGRAM', type: 'Historia', title: 'Historia del jueves',
+    scheduled_on: '2026-11-12', scheduled_time: '11:00', timezone: 'Europe/Madrid', status: 'PUBLISHING', route: 'Publer',
+    flag: 'Posible duplicado: se programó tarde', demo: false,
+  };
+
+  it('muestra la vía, el LEEME y el historial; la incidencia se da por resuelta', async () => {
+    vi.spyOn(api, 'publicationFiles').mockResolvedValue({ items: [] });
+    vi.spyOn(api, 'publicationQuality').mockResolvedValue({ open: 0, issues: [] });
+    vi.spyOn(api, 'publishJob').mockResolvedValue({
+      publication_id: 'p-3', status: 'MANUAL', status_label: 'Publicar a mano', route: 'A mano', attempts: 2,
+      routes: [{ id: 'PUBLER', label: 'Publer', configured: true }, { id: 'PUBLORA', label: 'Publora', configured: false }],
+      manual_file: 'G:/Aprobados/LEEME-publicar-a-mano-p-3.txt', last_error: 'Claude no lo hizo a tiempo',
+      log: ['03/11 09:00 · Programada por Raúl: empieza la publicación'],
+    });
+    const clear = vi.spyOn(api, 'clearPublicationFlag').mockResolvedValue(undefined);
+    const onSaved = vi.fn();
+    render(<PublicationEditor promotionId="p" publication={publication} onClose={() => {}} onSaved={onSaved} />);
+    expect(await screen.findByText('Publicar a mano')).toBeInTheDocument();
+    expect(screen.getByText('A mano')).toBeInTheDocument();
+    expect(screen.getByText(/Publer → Publora \(no configurada\)/)).toBeInTheDocument();
+    expect(screen.getByText('G:/Aprobados/LEEME-publicar-a-mano-p-3.txt')).toBeInTheDocument();
+    expect(screen.getByText(/Programada por Raúl/)).toBeInTheDocument();
+    // Publicándose no se cambia nada
+    expect(screen.queryByRole('button', { name: 'Guardar' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Añadir archivo' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Resuelto' }));
+    await waitFor(() => expect(clear).toHaveBeenCalledWith('p-3'));
+    await waitFor(() => expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({ id: 'p-3', flag: undefined }), 'Incidencia resuelta'));
+  });
+});
+
 describe('Avisos', () => {
+  it('un aviso de publicación abre la publicación', () => {
+    const go = { onTask: vi.fn(), onStation: vi.fn(), onPublication: vi.fn() };
+    openAlert({ kind: 'FAILED', target_type: 'PUBLICATION', target_id: '2026-11-12-instagram', station_id: 'pub', title: 'Error', detail: 'x' }, go);
+    expect(go.onPublication).toHaveBeenCalledWith('2026-11-12-instagram');
+    expect(go.onStation).not.toHaveBeenCalled();
+  });
+
   it('un aviso de Drive abre la armería', () => {
     const go = { onTask: vi.fn(), onStation: vi.fn(), onArmory: vi.fn() };
     openAlert({ kind: 'BLOCKED', target_type: 'ARMORY', target_id: 'google-drive', station_id: 'gen', title: 'Drive', detail: 'No disponible' }, go);
@@ -265,8 +305,9 @@ describe('Encargos a Claude', () => {
   it('guarda el límite y encarga un trabajo; tokens y coste figuran como desconocidos', async () => {
     const settings = {
       daily_limit: 10, used_today: 3, models: [
-        { type: 'RESEARCH' as const, label: 'Investigación', model: 'SONNET' as const },
-        { type: 'WEEKLY_BALANCE' as const, label: 'Balance semanal', model: 'OPUS' as const },
+        { type: 'RESEARCH' as const, label: 'Investigación', model: 'SONNET' as const, on_pc: false },
+        { type: 'WEEKLY_BALANCE' as const, label: 'Balance semanal', model: 'OPUS' as const, on_pc: false },
+        { type: 'PUBLER_SCHEDULE' as const, label: 'Programar en Publer', model: 'SONNET' as const, on_pc: true },
       ],
     };
     vi.spyOn(api, 'aiSettings').mockResolvedValue(settings);
@@ -286,8 +327,11 @@ describe('Encargos a Claude', () => {
     fireEvent.change(screen.getByLabelText(/Encargos al día/), { target: { value: '5' } });
     fireEvent.click(screen.getByRole('button', { name: 'Guardar ajustes' }));
     await waitFor(() => expect(save).toHaveBeenCalledWith({ daily_limit: 5, models: [
-      { type: 'RESEARCH', model: 'SONNET' }, { type: 'WEEKLY_BALANCE', model: 'OPUS' },
+      { type: 'RESEARCH', model: 'SONNET' }, { type: 'WEEKLY_BALANCE', model: 'OPUS' }, { type: 'PUBLER_SCHEDULE', model: 'SONNET' },
     ] }));
+    // Los encargos con Chrome en el PC no se piden a mano
+    expect(screen.getByText(/con Chrome en tu PC; no cuenta en el límite/)).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: /Programar en Publer/ })).toBeNull();
 
     fireEvent.change(screen.getByLabelText('Qué tiene que hacer'), { target: { value: 'Salas de poesía' } });
     fireEvent.change(screen.getByLabelText('Datos de entrada (uno por línea)'), { target: { value: 'Granada\n\nJaén' } });

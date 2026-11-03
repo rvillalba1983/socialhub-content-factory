@@ -591,6 +591,38 @@ paths:
         "404": { $ref: "#/components/responses/Problem" }
         default: { $ref: "#/components/responses/Problem" }
 
+  /api/publications/{publication_id}/flag:
+    delete:
+      tags: [Publications]
+      operationId: clearPublicationFlag
+      summary: Da por resuelta la incidencia anotada en la publicación
+      parameters:
+        - $ref: "#/components/parameters/PublicationId"
+        - $ref: "#/components/parameters/RequestGuard"
+      responses:
+        "204": { description: Incidencia resuelta }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/publications/{publication_id}/publish-job:
+    get:
+      tags: [Publications]
+      operationId: getPublishJob
+      summary: Cómo va la publicación de una publicación programada
+      description: >
+        Vía en uso (Publer, Publora o API oficial), estado, próximo intento e historial. 404 si nunca se ha
+        programado.
+      parameters:
+        - $ref: "#/components/parameters/PublicationId"
+      responses:
+        "200":
+          description: Tarea de publicación
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublishJob" }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
   /api/publications/{publication_id}/quality-acceptances:
     post:
       tags: [Publications]
@@ -1010,8 +1042,10 @@ components:
         kind: { type: string, enum: [FAILED, BLOCKED] }
         target_type:
           type: string
-          enum: [TASK, STATION, ARMORY]
-          description: En avisos de la armería (por ejemplo, Drive no disponible), target_id es el elemento de la armería
+          enum: [TASK, STATION, ARMORY, PUBLICATION]
+          description: >
+            En avisos de la armería (por ejemplo, Drive no disponible), target_id es el elemento de la armería; en los
+            de publicación, la publicación
         target_id: { type: string }
         station_id: { type: string }
         title: { type: string }
@@ -1056,15 +1090,52 @@ components:
     AiRequestType:
       description: Tipo de encargo a Claude
       type: string
-      enum: [WEEKLY_SPEC, CAPTIONS, WEEKLY_BALANCE, RESEARCH, QUALITY_REVIEW, WEEKLY_PROPOSALS]
+      enum: [WEEKLY_SPEC, CAPTIONS, WEEKLY_BALANCE, RESEARCH, QUALITY_REVIEW, WEEKLY_PROPOSALS, PUBLER_SCHEDULE,
+             PUBLISH_CHECK]
 
     AiTypeModel:
       type: object
-      required: [type, label, model]
+      required: [type, label, model, on_pc]
       properties:
         type: { $ref: "#/components/schemas/AiRequestType" }
         label: { type: string }
         model: { $ref: "#/components/schemas/AiModel" }
+        on_pc:
+          type: boolean
+          description: >
+            Lo hace Claude con Chrome en el PC de Raúl (carpeta «para-claude-pc»). Lo encarga SocialHub al publicar, no
+            cuenta en el límite diario y no se puede pedir a mano
+
+    PublishJob:
+      type: object
+      required: [publication_id, status, status_label, routes, attempts, log]
+      properties:
+        publication_id: { type: string }
+        status:
+          type: string
+          enum: [WORKING, RETRY_WAIT, SCHEDULED, CHECKING, MANUAL, PUBLISHED, FAILED, CANCELLED]
+        status_label: { type: string }
+        route: { type: string, description: Vía en uso o con la que quedó programada }
+        routes:
+          type: array
+          description: Vías por orden, con si están configuradas
+          items: { $ref: "#/components/schemas/PublishRouteState" }
+        task_id: { type: string, description: Encargo a Claude en curso }
+        external_id: { type: string }
+        url: { type: string }
+        next_try_at: { type: string, format: date-time }
+        attempts: { type: integer, format: int32, description: Rondas por todas las vías }
+        last_error: { type: string }
+        manual_file: { type: string, description: LEEME para publicar a mano }
+        log: { type: array, items: { type: string } }
+
+    PublishRouteState:
+      type: object
+      required: [id, label, configured]
+      properties:
+        id: { type: string, enum: [PUBLER, PUBLORA, OFFICIAL] }
+        label: { type: string }
+        configured: { type: boolean }
 
     AiSettings:
       type: object

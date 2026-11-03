@@ -10,17 +10,31 @@ public enum AiRequestType {
     WEEKLY_BALANCE("Balance semanal", "ana", "socialhub.weekly-balance"),
     RESEARCH("Investigación", "inv", "socialhub.research"),
     QUALITY_REVIEW("Revisión de calidad", "rev", "socialhub.quality-review"),
-    WEEKLY_PROPOSALS("Propuestas de la semana", "est", "socialhub.weekly-proposals");
+    WEEKLY_PROPOSALS("Propuestas de la semana", "est", "socialhub.weekly-proposals"),
+    PUBLER_SCHEDULE("Programar en Publer", "prog", "socialhub.publer-schedule", true),
+    PUBLISH_CHECK("Comprobar publicación", "pub", "socialhub.publish-check", true);
 
     private final String label;
     private final String stationId;
     private final String contractType;
+    private final boolean onPc;
 
     AiRequestType(String label, String stationId, String contractType) {
+        this(label, stationId, contractType, false);
+    }
+
+    AiRequestType(String label, String stationId, String contractType, boolean onPc) {
         this.label = label;
         this.stationId = stationId;
         this.contractType = contractType;
+        this.onPc = onPc;
     }
+
+    /**
+     * Lo hace Claude con Chrome en el PC de Raúl (va a «para-claude-pc»). Lo crea SocialHub al publicar, no Raúl, y no
+     * cuenta en el límite diario: tiene hora fija y no puede esperar.
+     */
+    public boolean onPc() { return onPc; }
 
     public String label() { return label; }
 

@@ -41,6 +41,8 @@ export interface WorldProps {
   onTask: (id: string) => void;
   onTaskAction: (task: Task, command: TaskCommandType) => void;
   onArmory: (id: string) => void;
+  /** Abre una publicación en el centro de control de su promoción (avisos de publicación). */
+  onPublication?: (id: string) => void;
   onPromotion: (id: string) => void;
   onRegister: () => void;
 }
@@ -51,7 +53,7 @@ export function stationVisual(s: Station) {
   return { alert, running: s.counts.running > 0 && !s.paused } as const;
 }
 
-export function World({ data, sel, onStation, onTask, onTaskAction, onArmory, onPromotion, onRegister }: WorldProps) {
+export function World({ data, sel, onStation, onTask, onTaskAction, onArmory, onPublication, onPromotion, onRegister }: WorldProps) {
   const brands = new Map(data.brands.map(b => [b.id, b]));
   const brandOfPromotion = (pid?: string | null) => {
     const p = data.promotions.find(x => x.id === pid);
@@ -82,7 +84,7 @@ export function World({ data, sel, onStation, onTask, onTaskAction, onArmory, on
             <button className="open-cc" onClick={e => { e.stopPropagation(); onRegister(); }}>Marcas y promociones →</button>
           </article>
         )}
-        <AttentionCard data={data} onStation={onStation} onTask={onTask} onArmory={onArmory} />
+        <AttentionCard data={data} onStation={onStation} onTask={onTask} onArmory={onArmory} onPublication={onPublication} />
       </div>
       <section className="res" style={{ left: TR.x1 + 140, top: TR.y0 - 300, width: 380 }} aria-label="Agentes y herramientas">
         <h2>Agentes y herramientas</h2>
@@ -195,15 +197,19 @@ function PromotionCard({ p, brand, data, onOpen }: { p: Promotion; brand?: Brand
 /** Cuántos avisos caben en la tarjeta sin tapar las estaciones de abajo. */
 const ATTENTION_MAX = 2;
 
-/** Abre lo que señala un aviso: la tarea, la estación o el elemento de la armería (por ejemplo, Drive). */
-export function openAlert(a: Alert, go: { onTask: (id: string) => void; onStation: (id: string) => void; onArmory?: (id: string) => void }) {
+/** Abre lo que señala un aviso: la tarea, la estación, el elemento de la armería (por ejemplo, Drive) o la publicación. */
+export function openAlert(a: Alert, go: {
+  onTask: (id: string) => void; onStation: (id: string) => void; onArmory?: (id: string) => void; onPublication?: (id: string) => void;
+}) {
   if (a.target_type === 'TASK') go.onTask(a.target_id);
+  else if (a.target_type === 'PUBLICATION') (go.onPublication ? go.onPublication(a.target_id) : go.onStation(a.station_id));
   else if (a.target_type === 'ARMORY') (go.onArmory ? go.onArmory(a.target_id) : go.onStation(a.station_id));
   else go.onStation(a.target_id);
 }
 
-export function AttentionCard({ data, onStation, onTask, onArmory }: {
+export function AttentionCard({ data, onStation, onTask, onArmory, onPublication }: {
   data: Snapshot; onStation: (id: string) => void; onTask: (id: string) => void; onArmory?: (id: string) => void;
+  onPublication?: (id: string) => void;
 }) {
   const blockedByDeps = data.tasks.filter(t => t.status === 'BLOCKED').length;
   const waitingRaul = data.tasks.filter(t => t.human && t.status !== 'COMPLETED' && t.status !== 'CANCELLED').length;
@@ -212,7 +218,7 @@ export function AttentionCard({ data, onStation, onTask, onArmory }: {
       <h2>Necesita atención {data.alerts.length > 0 && <span className="count">{data.alerts.length}</span>}</h2>
       {data.alerts.length === 0 && <p className="src">Todo en orden.</p>}
       {byPriority(data.alerts).slice(0, ATTENTION_MAX).map(a => (
-        <button key={a.kind + a.target_id} className={`aitem s-${alertTone(a.kind)}`} onClick={() => openAlert(a, { onTask, onStation, onArmory })}>
+        <button key={a.kind + a.target_id} className={`aitem s-${alertTone(a.kind)}`} onClick={() => openAlert(a, { onTask, onStation, onArmory, onPublication })}>
           <Dot s={a.kind} /><span><b>{a.title}</b>{a.detail}</span>
         </button>
       ))}
