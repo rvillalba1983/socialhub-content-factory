@@ -12,7 +12,7 @@ import { BrandForm, PromotionForm } from './Registration';
 import { PieceOrders } from './PieceOrders';
 import type { ExternalOperationPage, Snapshot, Station, Task } from './model';
 import { TaskPanel } from './Panel';
-import { World, openAlert } from './World';
+import { TodayCard, World, openAlert } from './World';
 import type { Publication } from './model';
 
 const counts = (o: Partial<Station['counts']> = {}): Station['counts'] =>
@@ -283,6 +283,25 @@ describe('Publicación programada', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Resuelto' }));
     await waitFor(() => expect(clear).toHaveBeenCalledWith('p-3'));
     await waitFor(() => expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({ id: 'p-3', flag: undefined }), 'Incidencia resuelta'));
+  });
+});
+
+describe('Resumen de hoy', () => {
+  it('cuenta lo de hoy y lo que espera por Raúl', () => {
+    const pub = (id: string, day: string, status: Publication['status']): Publication => ({
+      id, promotion_id: 'p', platform: 'INSTAGRAM', type: 'Reel', title: id, scheduled_on: day, scheduled_time: '19:00',
+      timezone: 'Europe/Madrid', status, route: 'Publer', demo: false,
+    });
+    render(<TodayCard data={{ ...snapshot, now: '2026-11-03T10:00:00+01:00', tasks: [], publications: [
+      pub('a', '2026-11-03', 'PUBLISHED'), pub('b', '2026-11-03', 'SCHEDULED'), pub('c', '2026-11-03', 'PUBLISH_ERROR'),
+      pub('d', '2026-11-04', 'SCHEDULED'), pub('e', '2026-11-05', 'SCHEDULED'),
+    ] }} />);
+    const value = (label: string) => screen.getByText(label).nextSibling?.textContent;
+    expect(value('Publicadas hoy')).toBe('1');
+    expect(value('Por publicar hoy')).toBe('1');
+    expect(value('Programadas para mañana')).toBe('1');
+    expect(value('Con error de publicación')).toBe('1');
+    expect(value('Esperan por ti')).toBe('0');
   });
 });
 

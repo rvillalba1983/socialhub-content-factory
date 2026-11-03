@@ -1,6 +1,6 @@
 # SocialHub · Fase 8: métricas y autonomía
 
-Estado: **bloque 1 en PR #18; bloque 2 (rama `fase-8/textos-solos`) y bloque 3 (rama `fase-8/metricas`) hechos** · 3 nov 2026
+Estado: **bloque 1 en PR #18; bloque 2 (rama `fase-8/textos-solos`) bloque 3 (rama `fase-8/metricas`) y bloque 4 (rama `fase-8/resumen`) hechos** · 3 nov 2026
 
 Decisiones de Raúl en `docs/fases-7-9.md`.
 
@@ -40,3 +40,9 @@ Decisiones de Raúl en `docs/fases-7-9.md`.
 - **Dónde se usan:** el panel «Métricas» de cada publicación publicada y el balance semanal, que ahora recibe las métricas de cada publicación.
 - **Datos:** V20, `publication_metric`. **API:** `GET /api/publications/{id}/metrics`. Pruebas en `PublishingEngineTest` y en el frontal.
 - **Pendiente:** añadir `socialhub.metrics-read` a las instrucciones de la tarea del PC, con el OK de Raúl.
+
+## Bloque 4: resumen de hoy
+
+- Respuesta de Raúl: **solo en la app**, sin notificación.
+- Tarjeta «Resumen de hoy» en el mapa, debajo de «Necesita atención». Muestra: publicadas hoy, por publicar hoy, programadas para mañana, con error de publicación, tareas fallidas y lo que espera por Raúl. En rojo lo que necesita atención.
+- Solo frontal: sale de los datos que ya tiene el mapa. Prueba en el frontal; falta verla en pantalla con datos reales.
