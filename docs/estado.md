@@ -17,7 +17,7 @@
   - Arrancar SocialHub en Windows.
   - Dar de alta sus marcas y promociones con sus carpetas reales de G:, incluida la de «Encargos».
   - Probar un encargo de verdad con la tarea programada.
-- **Siguiente:** fase 9 (instaladores y copias). Pendiente del OK de Raúl: añadir «Leer métricas» a la tarea del PC.
+- **Siguiente:** fase 9 (instaladores y copias).
   - Hace falta que Raúl pegue la clave de API de Publora en la app (Marcas › editar › Publora) y elija la cuenta de cada marca.
   - Tarea programada «Publicar con Chrome (SocialHub)» creada en su PC (cada hora de 8:40 a 22:40). Necesita Chrome abierto con la sesión de Publer.
 
