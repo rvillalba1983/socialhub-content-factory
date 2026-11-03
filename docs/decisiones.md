@@ -311,3 +311,10 @@ Detalle en `docs/fase-7.md`.
 - Los de publicación con Chrome y los que piden ayuda a Raúl no se reintentan solos.
 
 Detalle en `docs/fase-8.md`.
+
+## 2026-11-03 · Fase 8: respuestas de Raúl y bloque 2
+- **Textos solos** para lo que está en producción sin texto; **revisión sola** al pasar a «Pendiente de revisión», una vez por versión del texto.
+- **Métricas:** sin Metricool. API de Publora y Claude con Chrome; cada publicación se mide una vez, a los 7 días.
+- **Resumen diario:** solo en la app.
+
+Detalle en `docs/fase-8.md`.

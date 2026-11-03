@@ -1,6 +1,6 @@
 # SocialHub · Fase 8: métricas y autonomía
 
-Estado: **bloque 1 (reintentos automáticos) hecho, pendiente de PR** (rama `fase-8/autonomia`) · 3 nov 2026
+Estado: **bloque 1 (reintentos) en PR #18; bloque 2 (textos y revisión solos) hecho** (rama `fase-8/textos-solos`) · 3 nov 2026
 
 Decisiones de Raúl en `docs/fases-7-9.md`.
 
@@ -14,8 +14,18 @@ Decisiones de Raúl en `docs/fases-7-9.md`.
 - Queda en el historial de la tarea: «Reintentado por SocialHub sin esperar a Raúl».
 - Código: `AiAutoRetry` (cada 5 min) y `Task.autoRetry`. Prueba: `AiAutoRetryTest`.
 
-## Pendiente de preguntar a Raúl
+## Respuestas de Raúl (3 nov, de madrugada)
 
-1. **Pedir textos y revisión de calidad solo:** ¿qué publicaciones? Las «Aprobadas» ya han pasado el control de calidad, que exige texto. Lo más probable es que se refiera a las que están en producción (propuestas ya aprobadas) sin texto, o sin revisión de Claude antes de pasar a «Aprobada».
-2. **Métricas de Metricool:** SocialHub no puede usar el conector de Metricool. Lo haría un encargo nuevo para la tarea de la nube, con su conector. Falta saber cada cuánto y qué métricas guardar. Publora tiene `post-statistics`, que se puede leer por API.
-3. **Resumen diario:** ¿en qué tarea programada y a qué hora? Hay que cambiar las instrucciones de una tarea programada, y eso necesita el OK de Raúl.
+1. **Textos solos:** para las publicaciones en producción que no tienen texto.
+2. **Revisión sola:** al pasar a «Pendiente de revisión», si Claude aún no ha revisado ese texto.
+3. **Métricas:** sin Metricool, por scripts (API de Publora) o con el navegador (Claude con Chrome). Cada publicación se mide una vez, a los 7 días.
+4. **Resumen diario:** solo en la app, sin notificación.
+
+## Bloque 2: textos y revisión solos
+
+- **Textos:** cada 5 minutos, las publicaciones «En producción» o «Borrador» sin texto (salvo historias) reciben un encargo de textos, uno por promoción y como mucho 10 publicaciones por encargo.
+- **Revisión:** las que están en «Pendiente de revisión» con texto (o historias) reciben un encargo de revisión de calidad.
+  - Solo una vez por versión del texto: si Raúl cambia el texto y la vuelve a pasar, se revisa de nuevo.
+  - La primera vez también se revisan las que ya estaban en «Pendiente de revisión».
+- Cada encargo se apunta (V19, `auto_ai_request`) para no repetirlo. Cuentan en el límite diario.
+- Código: `AutoRequests`. Prueba: `AutoRequestsTest`.
