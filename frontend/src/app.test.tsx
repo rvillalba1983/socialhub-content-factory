@@ -287,7 +287,7 @@ describe('Publicación programada', () => {
 });
 
 describe('Resumen de hoy', () => {
-  it('cuenta lo de hoy y lo que espera por Raúl', () => {
+  it('cuenta lo publicado hoy, lo pendiente y lo de mañana', () => {
     const pub = (id: string, day: string, status: Publication['status']): Publication => ({
       id, promotion_id: 'p', platform: 'INSTAGRAM', type: 'Reel', title: id, scheduled_on: day, scheduled_time: '19:00',
       timezone: 'Europe/Madrid', status, route: 'Publer', demo: false,
@@ -299,9 +299,8 @@ describe('Resumen de hoy', () => {
     const value = (label: string) => screen.getByText(label).nextSibling?.textContent;
     expect(value('Publicadas hoy')).toBe('1');
     expect(value('Por publicar hoy')).toBe('1');
-    expect(value('Programadas para mañana')).toBe('1');
-    expect(value('Con error de publicación')).toBe('1');
-    expect(value('Esperan por ti')).toBe('0');
+    expect(value('Para mañana')).toBe('1');
+    expect(screen.getByText('1 publicación de hoy con error')).toBeInTheDocument();
   });
 });
 
