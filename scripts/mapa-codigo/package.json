@@ -1,0 +1,12 @@
+{
+  "name": "socialhub-mapa-codigo",
+  "private": true,
+  "description": "Genera el mapa 3D del código de SocialHub (docs/mapa-codigo): módulos como islas hexagonales con sus capas.",
+  "type": "module",
+  "scripts": {
+    "generar": "node generar.mjs"
+  },
+  "dependencies": {
+    "three": "0.170.0"
+  }
+}

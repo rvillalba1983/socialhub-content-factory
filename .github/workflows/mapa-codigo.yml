@@ -1,0 +1,56 @@
+name: Mapa 3D del código
+
+# En cada PR genera el mapa 3D del código (un único index.html) y deja un comentario con el enlace.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  mapa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # el historial da los cambios por archivo
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: scripts/mapa-codigo/package-lock.json
+      - name: Generar el mapa
+        working-directory: scripts/mapa-codigo
+        run: |
+          npm ci
+          node generar.mjs ../../mapa-del-codigo
+      - name: Subir el mapa
+        id: subir
+        uses: actions/upload-artifact@v4
+        with:
+          name: mapa-del-codigo
+          path: mapa-del-codigo/index.html
+          retention-days: 30
+      - name: Comentar en la PR
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+          URL: ${{ steps.subir.outputs.artifact-url }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          marca='<!-- mapa-del-codigo -->'
+          cuerpo="$marca
+          ### 🗺️ Mapa 3D del código
+          [Descargar el mapa](${URL}) (commit \`${SHA:0:7}\`). Descomprime el zip y abre \`index.html\` en el navegador.
+
+          Cada módulo es una isla hexagonal: dominio en el centro, aplicación alrededor, adaptadores de entrada a la izquierda y de salida a la derecha. Acerca la cámara para ver carpetas, archivos y, al final, el código."
+          id=$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" --paginate --jq ".[] | select(.body | startswith(\"$marca\")) | .id" | head -n1)
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${id}" -f body="$cuerpo" > /dev/null
+          else
+            gh api -X POST "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" -f body="$cuerpo" > /dev/null
+          fi
