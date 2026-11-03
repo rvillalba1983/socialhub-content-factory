@@ -275,3 +275,15 @@ Detalle en `docs/fase-6.md`.
 
 Detalle en `docs/fases-7-9.md`.
 
+
+## 2026-11-03 · Fase 7, bloque 1: motor de publicación
+- **Respuestas de Raúl:** los encargos con Chrome van a `Encargos/para-claude-pc` (la tarea de la nube no los ve); la clave de Publora, en un archivo local fuera de la base; los encargos de publicación no cuentan en el límite diario.
+- **Encargos nuevos:** «Programar en Publer» (estación Programación) y «Comprobar publicación» (estación Publicación). Los crea SocialHub; no se piden a mano. Sonnet por defecto.
+- **Tiempos de Publer:** Claude debe programarla antes de 8 h de la hora (la «deadline» del encargo). SocialHub espera su resultado hasta 7 h antes y después prueba Publora y la API oficial hasta 6 h antes. Si se programa con menos de 8 h, Publer se salta.
+- **Reintentos:** si fallan todas las vías, se vuelve a empezar cada hora mientras el siguiente intento quede antes de las 6 h. Si no, LEEME en la carpeta de aprobados (o generados, o la primera que haya), incidencia en la publicación y aviso.
+- **Comprobación:** a la hora pasa a «Publicando»; 15 min después (2 h si es a mano) se encarga la comprobación. «Publicada» solo con enlace https o identificador. Si no aparece, o la comprobación no llega en 24 h, «Error de publicación» y aviso.
+- **Resultados tardíos:** si Publer la programa cuando SocialHub ya siguió por otra vía, la publicación queda marcada como «Posible duplicado» y avisa.
+- **Sacarla de «Programada»** detiene la publicación. Si ya estaba programada en Publer, avisa para borrarla allí a mano (SocialHub no la borra).
+- **Incidencias:** Raúl las da por resueltas desde la publicación.
+
+Detalle en `docs/fase-7.md`.

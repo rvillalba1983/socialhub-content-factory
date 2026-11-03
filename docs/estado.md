@@ -1,20 +1,21 @@
 # SocialHub · estado actual (para retomar)
 
-Última actualización: 3 nov 2026, 00:30.
+Última actualización: 3 nov 2026, 02:30.
 
 ## Dónde estamos
 
 - **Fases 0 a 5:** terminadas y en `main`. Detalle en `docs/fase-3.md` y `docs/fase-4-5.md`.
   - Tarea programada «Encargos de SocialHub» creada (9:40, 14:40 y 20:40), en la nube.
 - **Fase 6:** terminada y en `main` (`docs/fase-6.md`).
-- **Fases 7, 8 y 9:** preguntas respondidas (`docs/fases-7-9.md`). La rama es `fase-7/publicacion`.
+- **Fases 7, 8 y 9:** preguntas respondidas (`docs/fases-7-9.md`).
+- **Fase 7, bloque 1** (motor de publicación y vía Publer): hecho en la rama `fase-7/publicacion` (`docs/fase-7.md`).
 - **Pendiente en el PC de Raúl:**
   - Arrancar SocialHub en Windows.
   - Dar de alta sus marcas y promociones con sus carpetas reales de G:, incluida la de «Encargos».
   - Probar un encargo de verdad con la tarea programada.
-- **Siguiente:** fase 7, publicación.
+- **Siguiente:** fase 7, bloque 2 (Publora).
   - Hace falta que Raúl ponga la clave de API de Publora en su PC (nunca en el repositorio).
-  - También hace falta crear la tarea programada de Publer con Chrome, con su OK.
+  - También hace falta crear la tarea programada «Publicar con Chrome» en su PC, con su OK (instrucciones propuestas en `docs/tarea-programada-encargos.md`).
 
 ## Cómo se trabaja
 
