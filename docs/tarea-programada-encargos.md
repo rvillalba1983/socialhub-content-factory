@@ -76,7 +76,7 @@ La tarea de la nube **no los hace**: sus instrucciones le dicen que ignore «par
 
 ### Tarea programada del PC «Publicar con Chrome (SocialHub)»
 
-Creada el 3 nov 2026 con el OK de Raúl (`trig_014nnFujJueopTgUV2thEttY`). Ese mismo día, también con su OK, se le añadió «Leer calendario» (`socialhub.calendar-read`, solo lectura).
+Creada el 3 nov 2026 con el OK de Raúl (`trig_014nnFujJueopTgUV2thEttY`). Ese mismo día, también con su OK, se le añadió «Leer calendario» (`socialhub.calendar-read`, solo lectura) y, el 3 nov por la mañana, «Leer métricas» (`socialhub.metrics-read`, solo lectura).
 
 - **Dónde:** en el PC de Raúl (PORT-408), con Claude in Chrome. Necesita el PC encendido y Chrome abierto con la sesión de Publer iniciada por Raúl.
 - **Cuándo:** cada hora a y 40, de 8:40 a 22:40 (hora de España). Publer tiene que quedar programado 8 h antes de la hora de publicación.

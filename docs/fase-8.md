@@ -1,13 +1,13 @@
 # SocialHub · Fase 8: métricas y autonomía
 
-Estado: **bloque 1 en PR #18; bloque 2 (rama `fase-8/textos-solos`) y bloque 3 (rama `fase-8/metricas`) hechos** · 3 nov 2026
+Estado: **bloque 1 en PR #18; bloque 2 (rama `fase-8/textos-solos`) bloque 3 (rama `fase-8/metricas`) y bloque 4 (rama `fase-8/resumen`) hechos** · 3 nov 2026
 
 Decisiones de Raúl en `docs/fases-7-9.md`.
 
 ## Bloque 1: reintentos automáticos
 
 - Un encargo a Claude que falla se reintenta solo, sin pulsar «Reintentar», hasta el tercer intento. El tercero sube un nivel de modelo, igual que el reintento a mano.
-- SocialHub espera **30 minutos** desde el fallo antes de reintentar, para no gastar los intentos seguidos por un problema pasajero (decisión técnica, a confirmar por Raúl).
+- SocialHub espera **30 minutos** desde el fallo antes de reintentar, para no gastar los intentos seguidos por un problema pasajero (confirmado por Raúl).
 - No se reintentan solos:
   - Los encargos de publicación con Chrome en el PC: el motor de publicación ya sigue por otra vía.
   - Los encargos en los que Claude pide ayuda: no son un fallo.
@@ -39,4 +39,10 @@ Decisiones de Raúl en `docs/fases-7-9.md`.
 - **Si falla:** se vuelve a pedir al día siguiente, hasta 3 veces. Una cifra que no sea un entero ≥ 0 invalida el resultado.
 - **Dónde se usan:** el panel «Métricas» de cada publicación publicada y el balance semanal, que ahora recibe las métricas de cada publicación.
 - **Datos:** V20, `publication_metric`. **API:** `GET /api/publications/{id}/metrics`. Pruebas en `PublishingEngineTest` y en el frontal.
-- **Pendiente:** añadir `socialhub.metrics-read` a las instrucciones de la tarea del PC, con el OK de Raúl.
+- **Tarea del PC:** sus instrucciones ya incluyen `socialhub.metrics-read` (con el OK de Raúl, 3 nov), solo lectura.
+
+## Bloque 4: resumen de hoy
+
+- Respuesta de Raúl: **solo en la app**, sin notificación.
+- Tarjeta «Resumen de hoy» en el mapa, debajo de «Necesita atención». Muestra: publicadas hoy, por publicar hoy, programadas para mañana, con error de publicación, tareas fallidas y lo que espera por Raúl. En rojo lo que necesita atención.
+- Solo frontal: sale de los datos que ya tiene el mapa. Prueba en el frontal; falta verla en pantalla con datos reales.
