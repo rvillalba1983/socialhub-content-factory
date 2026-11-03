@@ -45,6 +45,7 @@ A la hora → «Publicando»; 15 min después (2 h si es a mano) → encargo «C
 - **Pantalla:** en la publicación, el panel «Publicación» (vía, ronda, próximo intento, enlace, LEEME e historial) y la incidencia con el botón «Resuelto». Los avisos de publicación abren la publicación.
 - **Pruebas:** `PublishingEngineTest`, con un reloj que se adelanta: programar y comprobar, hora equivocada, reintento, sin tiempo (LEEME), resultado tardío, comprobación sin prueba y cancelación.
 
-### Pendiente del bloque 1
+### Tareas programadas
 
-- **Tarea programada en el PC** («Publicar con Chrome»): recoge `para-claude-pc` con Chrome. Las instrucciones propuestas están en `docs/tarea-programada-encargos.md`. Se crea solo con el OK de Raúl.
+- **«Publicar con Chrome (SocialHub)»**, en el PC de Raúl: recoge `para-claude-pc` cada hora de 8:40 a 22:40. Creada con su OK (`docs/tarea-programada-encargos.md`).
+- **«Encargos de SocialHub»**, en la nube: ahora ignora `para-claude-pc` (con su OK).

@@ -74,13 +74,15 @@ REGLAS PARA CADA ENCARGO
 La tarea de la nube **no los hace**: sus instrucciones le dicen que ignore «para-claude-pc». Los encargos «Programar en Publer» y
 «Comprobar publicación» van a «para-claude-pc» porque necesitan Chrome con la sesión de Raúl en Publer.
 
-### Tarea programada del PC «Publicar con Chrome» (propuesta, sin crear)
+### Tarea programada del PC «Publicar con Chrome (SocialHub)»
 
-Se crea solo con el OK de Raúl.
+Creada el 3 nov 2026 con el OK de Raúl (`trig_014nnFujJueopTgUV2thEttY`).
 
-- **Dónde:** en el PC de Raúl, con Claude in Chrome. Necesita el PC encendido y Chrome abierto con la sesión de Publer iniciada por Raúl.
-- **Cuándo (propuesta):** cada hora en punto menos unos minutos, de 8:00 a 23:00 (hora de España). Publer tiene que quedar programado 8 h antes de la hora de publicación.
-- **Modelo:** el del encargo (Sonnet por defecto).
+- **Dónde:** en el PC de Raúl (PORT-408), con Claude in Chrome. Necesita el PC encendido y Chrome abierto con la sesión de Publer iniciada por Raúl.
+- **Cuándo:** cada hora a y 40, de 8:40 a 22:40 (hora de España). Publer tiene que quedar programado 8 h antes de la hora de publicación.
+- **Aprobaciones:** automática. **Avisos:** notificación en el móvil.
+- **Modelo:** la herramienta de creación no deja elegirlo: quedó con Opus. Raúl puede bajarlo a Sonnet en los ajustes de la tarea para gastar menos.
+- Texto vigente: el de la propia tarea programada. Resumen:
 
 ```
 Eres el agente «Publicar con Chrome» de SocialHub, la app de Raúl Villalba (Lito). Háblale de tú y en español.

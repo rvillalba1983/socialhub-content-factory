@@ -15,7 +15,7 @@
   - Probar un encargo de verdad con la tarea programada.
 - **Siguiente:** fase 7, bloque 2 (Publora).
   - Hace falta que Raúl ponga la clave de API de Publora en su PC (nunca en el repositorio).
-  - También hace falta crear la tarea programada «Publicar con Chrome» en su PC, con su OK (instrucciones propuestas en `docs/tarea-programada-encargos.md`).
+  - Tarea programada «Publicar con Chrome (SocialHub)» creada en su PC (cada hora de 8:40 a 22:40). Necesita Chrome abierto con la sesión de Publer.
 
 ## Cómo se trabaja
 
