@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mapa del código · SocialHub</title>
+<style>
+  :root{
+    --bg:#F4F5F7; --surface:#FFFFFF; --surface-2:#F0F2F5; --line:#E2E5EA; --line-2:#D2D7DE;
+    --ink:#0D1117; --ink-2:#4A5361; --ink-3:#8A93A1;
+    --ok:#0F9A50; --ok-bg:#E5F5EC; --run:#2F67E8; --run-bg:#E8EEFD; --wait:#B57D06; --wait-bg:#FBF2D9;
+    --block:#DD5F0B; --block-bg:#FDEDE1; --err:#DF3B3B; --idle:#8A93A1; --idle-bg:#EDEFF2; --cancel:#6A7280;
+    --f:"Geist","Helvetica Neue","Segoe UI",system-ui,sans-serif; --mono:"Geist Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:var(--f);overflow:hidden}
+  #scene{position:fixed;inset:0}
+  .bar{position:fixed;top:12px;left:12px;right:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;pointer-events:none}
+  .bar>*{pointer-events:auto}
+  .brand{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 14px;display:flex;gap:10px;align-items:baseline;box-shadow:0 1px 2px rgba(13,17,23,.06)}
+  .brand b{font-size:16px}
+  .brand small{color:var(--ink-3);font-family:var(--mono);font-size:12px}
+  .seg{display:flex;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:3px;gap:2px}
+  .seg button{border:0;background:transparent;font:500 13px var(--f);padding:6px 12px;border-radius:9px;color:var(--ink-2);cursor:pointer}
+  .seg button.on{background:var(--ink);color:#fff}
+  .search{flex:1 1 260px;max-width:420px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 12px;font:14px var(--f);color:var(--ink)}
+  .legend{position:fixed;left:12px;bottom:12px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;font-size:13px;display:grid;gap:6px;max-width:300px;box-shadow:0 1px 2px rgba(13,17,23,.06)}
+  .legend h4{margin:0 0 2px;font-size:13px}
+  .legend div{display:flex;gap:8px;align-items:center;color:var(--ink-2)}
+  .sw{width:14px;height:14px;border-radius:4px;flex:none;border:2px solid}
+  .legend .src{color:var(--ink-3);font-size:12px;line-height:1.4}
+  .hint{position:fixed;right:12px;bottom:12px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 12px;font-size:12px;color:var(--ink-3)}
+  #level{font-weight:600;color:var(--ink)}
+  #tip{position:fixed;pointer-events:none;background:rgba(13,17,23,.92);color:#fff;border-radius:10px;padding:8px 10px;font-size:12px;line-height:1.45;display:none;max-width:420px;z-index:5}
+  #tip .m{font-family:var(--mono);font-size:11px;color:#c9cdd4}
+  #code{position:fixed;top:64px;right:12px;bottom:56px;width:min(46vw,720px);background:var(--surface);border:1px solid var(--line);border-radius:16px;
+    box-shadow:0 10px 30px -12px rgba(13,17,23,.25);display:none;flex-direction:column;overflow:hidden;z-index:4}
+  #code header{padding:12px 14px;border-bottom:1px solid var(--line);display:grid;gap:4px}
+  #code header .p{font-family:var(--mono);font-size:13px;word-break:break-all}
+  #code header .meta{display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:12px;color:var(--ink-2)}
+  .pill{border-radius:999px;padding:2px 9px;font-size:12px;font-weight:600;border:1px solid}
+  #code .x{position:absolute;top:10px;right:10px;border:1px solid var(--line);background:var(--surface);border-radius:9px;width:30px;height:30px;cursor:pointer;font-size:16px}
+  #code pre{margin:0;padding:12px 0;overflow:auto;flex:1;font:12.5px/1.55 var(--mono);counter-reset:l;tab-size:4}
+  #code pre span.ln{display:block;padding:0 14px 0 0;white-space:pre}
+  #code pre span.ln::before{counter-increment:l;content:counter(l);display:inline-block;width:46px;padding-right:12px;text-align:right;color:var(--ink-3);user-select:none}
+  .k{color:#8A3FC6}.s{color:#0F7A43}.c{color:#8A93A1;font-style:italic}.n{color:#B05A00}.a{color:#2F67E8}.t{color:#0B6E8A}
+  @media (max-width:760px){#code{width:auto;left:12px;top:auto;height:55vh}.legend{display:none}}
+</style>
+<script type="importmap">{"imports":{"three":"__THREE__","three/addons/controls/OrbitControls.js":"__ORBIT__"}}</script>
+<script>window.MAPA = /*__DATA__*/null;</script>
+</head>
+<body>
+<div id="scene"></div>
+<div class="bar">
+  <div class="brand"><b>Mapa del código</b><span>SocialHub</span><small id="rev"></small></div>
+  <div class="seg" role="group" aria-label="Nivel de zoom">
+    <button data-go="general">General</button><button data-go="isla">Isla</button><button data-go="archivos">Archivos</button><button data-go="codigo">Código</button>
+  </div>
+  <input class="search" id="search" list="paths" placeholder="Buscar un archivo… (Intro para ir)" autocomplete="off">
+  <datalist id="paths"></datalist>
+</div>
+<div class="legend" aria-label="Leyenda">
+  <h4>Arquitectura hexagonal por módulo</h4>
+  <div><span class="sw" style="background:var(--ok-bg);border-color:var(--ok)"></span>Dominio · centro de cada isla</div>
+  <div><span class="sw" style="background:var(--run-bg);border-color:var(--run)"></span>Aplicación · servicios y puertos</div>
+  <div><span class="sw" style="background:var(--wait-bg);border-color:var(--wait)"></span>Adaptadores de entrada · web, pantallas</div>
+  <div><span class="sw" style="background:var(--block-bg);border-color:var(--block)"></span>Adaptadores de salida · base, Drive, Publora</div>
+  <div><span class="sw" style="background:var(--idle-bg);border-color:var(--idle)"></span>Pruebas y configuración · anillo exterior</div>
+  <div class="src">Islas: módulos del monolito modular (Spring Modulith), el frontal React y los contratos. Puentes: un módulo usa a otro (más grueso, más usos). De cerca, en azul lo que usa la isla y en verde quién la usa. Altura: líneas del archivo.</div>
+</div>
+<div class="hint">Nivel: <span id="level">General</span> · rueda: zoom · arrastrar: girar · clic derecho: mover · clic: ir</div>
+<div id="tip"></div>
+<section id="code" aria-label="Código"><button class="x" aria-label="Cerrar código">×</button><header><div class="p" id="cpath"></div><div class="meta" id="cmeta"></div></header><pre id="cpre"></pre></section>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const D = window.MAPA;
+const LAYERS = {
+  dominio:    { label: 'Dominio',                 c: '#0F9A50', bg: '#E5F5EC', order: 0 },
+  aplicacion: { label: 'Aplicación',              c: '#2F67E8', bg: '#E8EEFD', order: 1 },
+  entrada:    { label: 'Adaptadores de entrada',  c: '#B57D06', bg: '#FBF2D9', order: 2 },
+  salida:     { label: 'Adaptadores de salida',   c: '#DD5F0B', bg: '#FDEDE1', order: 2 },
+  pruebas:    { label: 'Pruebas',                 c: '#8A93A1', bg: '#EDEFF2', order: 3 },
+  config:     { label: 'Configuración',           c: '#6A7280', bg: '#ECEDEF', order: 3 },
+};
+// En el frontal, las capas tienen otro sentido
+const FRONT = { entrada: 'Pantallas (componentes)', salida: 'Cliente de la API y modelo', aplicacion: 'Arranque', dominio: 'Estilos' };
+document.getElementById('rev').textContent = `${D.branch} · ${D.commit} · ${new Date(D.generated).toLocaleString('es-ES')}`;
+
+// ---------------------------------------------------------------- Escena
+const host = document.getElementById('scene');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+host.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#F4F5F7');
+scene.fog = new THREE.Fog('#F4F5F7', 700, 1600);
+const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.5, 4000);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.maxPolarAngle = Math.PI * 0.47;
+controls.minDistance = 8;
+controls.maxDistance = 900;
+scene.add(new THREE.HemisphereLight('#ffffff', '#d8dde4', 1.6));
+const sun = new THREE.DirectionalLight('#ffffff', 1.4);
+sun.position.set(200, 400, 150);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -500, right: 500, top: 500, bottom: -500, far: 1200 });
+scene.add(sun);
+const ground = new THREE.Mesh(new THREE.CircleGeometry(1500, 64), new THREE.MeshLambertMaterial({ color: '#EEF0F3' }));
+ground.rotation.x = -Math.PI / 2; ground.position.y = -0.6; ground.receiveShadow = true;
+scene.add(ground);
+
+// ---------------------------------------------------------------- Islas hexagonales
+const SQ3 = Math.sqrt(3);
+const CELL = 1;           // radio de cada celda
+const toWorld = (q, r) => ({ x: CELL * SQ3 * (q + r / 2), z: CELL * 1.5 * r });
+/** Celdas de una rejilla hexagonal por anillos desde el centro. */
+function spiral(maxRing) {
+  const cells = [{ q: 0, r: 0, ring: 0 }];
+  const dirs = [[1, 0], [1, -1], [0, -1], [-1, 0], [-1, 1], [0, 1]];
+  for (let k = 1; k <= maxRing; k++) {
+    let q = -k, r = k; // empieza abajo a la izquierda
+    for (let side = 0; side < 6; side++) for (let step = 0; step < k; step++) {
+      cells.push({ q, r, ring: k });
+      q += dirs[side][0]; r += dirs[side][1];
+    }
+  }
+  return cells.map(c => { const w = toWorld(c.q, c.r); return { ...c, ...w, ang: Math.atan2(w.z, w.x) }; });
+}
+/** Reparte los archivos de una isla en anillos: dominio dentro, aplicación, adaptadores (entrada a la izquierda y salida a la derecha), y fuera pruebas y configuración. */
+function layout(files) {
+  const by = l => files.filter(f => f.layer === l).sort((a, b) => b.lines - a.lines);
+  const need = files.length;
+  let maxRing = 1; while (3 * maxRing * (maxRing + 1) + 1 < need * 1.6 + 12) maxRing++;
+  const cells = spiral(maxRing + 3);
+  const free = cells.slice();
+  const take = (n, pred) => { const out = []; for (let i = 0; i < free.length && out.length < n; i++) if (!pred || pred(free[i])) { out.push(free[i]); free.splice(i--, 1); } return out; };
+  const placed = [];
+  const put = (list, cs) => list.forEach((f, i) => cs[i] && placed.push({ f, cell: cs[i] }));
+  put(by('dominio'), take(by('dominio').length));
+  put(by('aplicacion'), take(by('aplicacion').length));
+  // Un anillo vacío entre capas no hace falta: el color del suelo ya separa. Entrada a la izquierda (oeste), salida a la derecha (este)
+  const west = c => Math.abs(c.ang) > Math.PI / 2;
+  const ent = by('entrada'), sal = by('salida');
+  put(ent, take(ent.length, west));
+  put(sal, take(sal.length, c => !west(c)));
+  const rest = [...by('pruebas'), ...by('config')];
+  put(rest, take(rest.length));
+  const radius = Math.max(4, ...placed.map(p => Math.hypot(p.cell.x, p.cell.z))) + 2.2;
+  return { placed, radius };
+}
+
+const islands = Object.entries(D.islands).map(([id, info]) => {
+  const fs = D.files.filter(f => f.island === id);
+  const lines = fs.reduce((s, f) => s + f.lines, 0);
+  return { id, ...info, files: fs, lines, ...layout(fs) };
+});
+// Colocación: la isla más grande del backend en el centro, el resto en un anillo; el frontal y los contratos a un lado; la documentación al otro
+const backend = islands.filter(i => i.kind === 'backend' || i.kind === 'datos').sort((a, b) => b.lines - a.lines);
+const center = backend[0];
+center.pos = new THREE.Vector3(0, 0, 0);
+const others = backend.slice(1);
+const ringR = center.radius + Math.max(...others.map(o => o.radius)) * 1.15 + 28;
+others.forEach((o, i) => { const a = (i / others.length) * Math.PI * 2 + 0.3; o.pos = new THREE.Vector3(Math.cos(a) * ringR, 0, Math.sin(a) * ringR); });
+const outer = ringR + Math.max(...others.map(o => o.radius));
+const byId = Object.fromEntries(islands.map(i => [i.id, i]));
+if (byId.frontal) byId.frontal.pos = new THREE.Vector3(-(outer + byId.frontal.radius + 70), 0, 0);
+if (byId.contratos) byId.contratos.pos = new THREE.Vector3(-(outer + 32), 0, 0);
+let dx = outer + 40;
+for (const id of ['docs', 'herramientas']) if (byId[id]) { dx += byId[id].radius; byId[id].pos = new THREE.Vector3(dx, 0, 0); dx += byId[id].radius + 34; }
+islands.filter(i => !i.pos).forEach((i, k) => { i.pos = new THREE.Vector3(0, 0, outer + 40 + k * 30); });
+
+const hexGeo = new THREE.CylinderGeometry(1, 1, 1, 6);
+hexGeo.rotateY(Math.PI / 6);  // celdas en punta, alineadas con la rejilla
+const unitPrism = hexGeo.clone(); unitPrism.translate(0, 0.5, 0);
+const mats = {}, floorMats = {};
+for (const [k, l] of Object.entries(LAYERS)) {
+  mats[k] = new THREE.MeshLambertMaterial({ color: l.c });
+  floorMats[k] = new THREE.MeshLambertMaterial({ color: l.bg });
+}
+const baseMat = new THREE.MeshLambertMaterial({ color: '#FFFFFF' });
+const edgeMat = new THREE.LineBasicMaterial({ color: '#D2D7DE' });
+const pickables = [], fileMeshes = [], islandBases = [];
+const H = lines => 0.3 + Math.log2(lines + 1) * 0.42;
+
+for (const isl of islands) {
+  const g = new THREE.Group(); g.position.copy(isl.pos); scene.add(g); isl.group = g;
+  const base = new THREE.Mesh(hexGeo, baseMat);
+  base.scale.set(isl.radius, 0.8, isl.radius); base.position.y = -0.4; base.receiveShadow = true;
+  base.userData = { island: isl }; g.add(base); islandBases.push(base);
+  const rim = new THREE.LineSegments(new THREE.EdgesGeometry(hexGeo), edgeMat); rim.scale.copy(base.scale); rim.position.copy(base.position); g.add(rim);
+  isl.layerCells = {};
+  for (const { f, cell } of isl.placed) {
+    const floor = new THREE.Mesh(hexGeo, floorMats[f.layer]);
+    floor.scale.set(CELL * 0.98, 0.12, CELL * 0.98); floor.position.set(cell.x, 0.06, cell.z); floor.receiveShadow = true;
+    g.add(floor);
+    const h = H(f.lines);
+    const m = new THREE.Mesh(unitPrism, mats[f.layer]);
+    m.scale.set(CELL * 0.78, h, CELL * 0.78); m.position.set(cell.x, 0.12, cell.z);
+    m.castShadow = true; m.receiveShadow = true;
+    m.userData = { file: f, island: isl, top: h };
+    f.mesh = m; f.world = new THREE.Vector3(cell.x, h, cell.z).add(isl.pos);
+    g.add(m); pickables.push(m); fileMeshes.push(m);
+    (isl.layerCells[f.layer] ??= []).push(cell);
+  }
+}
+
+// ---------------------------------------------------------------- Rótulos (sprites de texto)
+function label(text, { size = 28, color = '#0D1117', bg = 'rgba(255,255,255,.92)', border = '#E2E5EA', weight = 700, scale = 1 } = {}) {
+  const pad = 14, font = `${weight} ${size}px Geist, Helvetica Neue, Segoe UI, sans-serif`;
+  const c = document.createElement('canvas'), x = c.getContext('2d');
+  x.font = font; const w = Math.ceil(x.measureText(text).width) + pad * 2, h = size + pad * 1.4;
+  c.width = w * 2; c.height = h * 2; x.scale(2, 2); x.font = font;
+  x.fillStyle = bg; x.strokeStyle = border; x.lineWidth = 2;
+  const r = 10; x.beginPath(); x.roundRect(1, 1, w - 2, h - 2, r); x.fill(); x.stroke();
+  x.fillStyle = color; x.textBaseline = 'middle'; x.fillText(text, pad, h / 2 + 1);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, transparent: true }));
+  s.renderOrder = 10; s.userData.aspect = w / h; s.userData.base = scale;
+  s.scale.set(scale * w / h, scale, 1);
+  return s;
+}
+const islandLabels = [], layerLabels = [];
+for (const isl of islands) {
+  const lab = label(isl.label, { size: 34, scale: 1 });
+  lab.position.copy(isl.pos).add(new THREE.Vector3(0, 9, 0));
+  lab.userData.island = isl; lab.userData.kind = 'island'; scene.add(lab); islandLabels.push(lab);
+  const n = label(`${isl.files.length} archivos · ${isl.lines.toLocaleString('es-ES')} líneas`, { size: 22, weight: 500, color: '#4A5361', scale: 1 });
+  n.position.copy(lab.position).add(new THREE.Vector3(0, -2.6, 0)); n.userData.island = isl; n.userData.kind = 'islandSub'; scene.add(n); islandLabels.push(n);
+  for (const [layer, cells] of Object.entries(isl.layerCells)) {
+    const cx = cells.reduce((s, c) => s + c.x, 0) / cells.length, cz = cells.reduce((s, c) => s + c.z, 0) / cells.length;
+    const name = isl.id === 'frontal' && FRONT[layer] ? FRONT[layer] : LAYERS[layer].label;
+    const l = label(`${name} · ${cells.length}`, { size: 24, color: LAYERS[layer].c, border: LAYERS[layer].c, weight: 600, scale: 1 });
+    // Dominio encima del centro; el resto, fuera de la isla en la dirección de su anillo
+    const fixed = { entrada: Math.PI, salida: 0, pruebas: Math.PI / 2, config: Math.PI / 2 + 0.6, aplicacion: -Math.PI / 2 };
+    if (layer === 'dominio') l.position.set(isl.pos.x + cx, 7, isl.pos.z + cz);
+    else { const a = fixed[layer] ?? Math.atan2(cz, cx); l.position.set(isl.pos.x + Math.cos(a) * (isl.radius + 4), 3, isl.pos.z + Math.sin(a) * (isl.radius + 4)); }
+    l.userData.kind = 'layer'; l.userData.island = isl;
+    scene.add(l); layerLabels.push(l);
+  }
+}
+
+// ---------------------------------------------------------------- Puentes entre módulos
+const bridges = [];
+const maxN = Math.max(...D.deps.map(d => d.n));
+for (const d of D.deps) {
+  const a = byId[d.from], b = byId[d.to];
+  if (!a || !b) continue;
+  const dir = b.pos.clone().sub(a.pos).normalize();
+  const p0 = a.pos.clone().add(dir.clone().multiplyScalar(a.radius * 0.85)).setY(2);
+  const p2 = b.pos.clone().sub(dir.clone().multiplyScalar(b.radius * 0.85)).setY(2);
+  const mid = p0.clone().lerp(p2, 0.5).setY(8 + p0.distanceTo(p2) * 0.22);
+  const curve = new THREE.QuadraticBezierCurve3(p0, mid, p2);
+  const w = 0.12 + 0.7 * Math.sqrt(d.n / maxN);
+  const mat = new THREE.MeshLambertMaterial({ color: '#4A5361', transparent: true, opacity: 0.55 });
+  const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, 40, w, 8), mat);
+  const cone = new THREE.Mesh(new THREE.ConeGeometry(w * 2.4, w * 6, 12), mat);
+  const end = curve.getPoint(1), before = curve.getPoint(0.96);
+  cone.position.copy(end); cone.lookAt(before); cone.rotateX(-Math.PI / 2);
+  scene.add(tube, cone);
+  bridges.push({ d, tube, cone, mat });
+}
+
+// ---------------------------------------------------------------- Zoom semántico
+const levelEl = document.getElementById('level');
+const fileLabels = new Map();
+let level = '', focused = null;
+function setLevel(l) {
+  if (l === level) return; level = l;
+  levelEl.textContent = { general: 'General', isla: 'Isla', archivos: 'Archivos', codigo: 'Código' }[l];
+  document.querySelectorAll('.seg button').forEach(b => b.classList.toggle('on', b.dataset.go === l));
+}
+function update() {
+  const dist = camera.position.distanceTo(controls.target);
+  setLevel(dist > 200 ? 'general' : dist > 80 ? 'isla' : dist > 30 ? 'archivos' : 'codigo');
+  const k = dist / 60;
+  for (const s of [...islandLabels, ...layerLabels]) {
+    const isl = s.userData.island;
+    const near = isl.pos.distanceTo(controls.target) < isl.radius + 25;
+    let visible = true, sc = 1;
+    if (s.userData.kind === 'island') { sc = Math.max(2.5, Math.min(dist / 40, 10)); visible = level === 'general' || level === 'isla' || (level === 'archivos' && near); }
+    else if (s.userData.kind === 'islandSub') { sc = Math.max(1.6, Math.min(dist / 70, 7)); visible = near && level === 'isla'; }
+    else { sc = Math.max(1.2, Math.min(dist / 55, 3.2)); visible = (level === 'isla' || level === 'archivos') && near; }
+    s.visible = visible;
+    s.scale.set(sc * s.userData.aspect, sc, 1);
+  }
+  // Puentes: todos en la vista general; de cerca, solo los de la isla que miras
+  const here = islands.reduce((a, c) => c.pos.distanceTo(controls.target) < a.pos.distanceTo(controls.target) ? c : a);
+  for (const b of bridges) {
+    const mine = b.d.from === here.id || b.d.to === here.id;
+    const op = level === 'general' ? 0.45 : level === 'isla' ? (mine ? 0.6 : 0.06) : (mine ? 0.25 : 0);
+    b.mat.opacity = op; b.tube.visible = b.cone.visible = op > 0;
+    b.mat.color.set(mine && level !== 'general' ? (b.d.from === here.id ? '#2F67E8' : '#0F9A50') : '#4A5361');
+  }
+  // Nombres de archivo cerca del centro de la vista
+  const show = new Set();
+  if (level === 'archivos' || level === 'codigo') {
+    const near = fileMeshes.map(m => [m, m.userData.file.world.distanceTo(controls.target)])
+      .filter(([, d]) => d < 16).sort((a, b) => a[1] - b[1]).slice(0, level === 'codigo' ? 6 : 14);
+    for (const [m] of near) show.add(m);
+  }
+  for (const [m, s] of fileLabels) if (!show.has(m)) { s.visible = false; }
+  for (const m of show) {
+    let s = fileLabels.get(m);
+    if (!s) {
+      const f = m.userData.file;
+      s = label(f.path.split('/').pop(), { size: 22, weight: 600, color: '#0D1117', border: LAYERS[f.layer].c, scale: 1 });
+      s.position.copy(f.world).add(new THREE.Vector3(0, 0.9, 0)); scene.add(s); fileLabels.set(m, s);
+    }
+    const sc = Math.max(0.45, Math.min(dist / 60, 1.1));
+    s.scale.set(sc * s.userData.aspect, sc, 1); s.visible = true;
+  }
+  // A nivel de código, el archivo más cercano al centro de la vista se abre solo
+  if (level === 'codigo') {
+    const nearest = fileMeshes.reduce((best, m) => {
+      const d = m.userData.file.world.distanceTo(controls.target);
+      return !best || d < best[1] ? [m, d] : best;
+    }, null);
+    if (nearest && nearest[1] < 6 && nearest[0].userData.file !== focused) openCode(nearest[0].userData.file);
+  }
+}
+
+// ---------------------------------------------------------------- Código
+const TOKENS = {
+  java: /(\/\/[^\n]*|\/\*[\s\S]*?\*\/)|("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])')|(@\w+)|\b(package|import|public|private|protected|static|final|class|interface|record|enum|sealed|permits|extends|implements|return|new|if|else|for|while|switch|case|default|yield|throw|throws|try|catch|finally|var|void|this|super|null|true|false|instanceof)\b|\b(\d[\d_.]*[LlFfDd]?)\b|\b([A-Z]\w*)\b/g,
+  ts: /(\/\/[^\n]*|\/\*[\s\S]*?\*\/)|(`(?:\\.|[^`\\])*`|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')|(@\w+)|\b(import|export|from|const|let|var|function|return|if|else|for|while|switch|case|default|type|interface|async|await|new|typeof|as|null|undefined|true|false|this|class|extends|of|in)\b|\b(\d[\d_.]*)\b|\b([A-Z]\w*)\b/g,
+  sql: /(--[^\n]*)|('(?:''|[^'])*')|()|\b(create|table|index|insert|into|values|primary|key|references|not|null|default|on|delete|cascade|set|unique|text|integer|bigint|boolean|timestamptz|date|generated|always|as|identity|conflict|do|nothing|alter|add|column|drop|if|exists|check)\b|\b(\d+)\b|()/gi,
+  yaml: /(#[^\n]*)|("(?:\\.|[^"\\])*"|'[^']*')|()|^(\s*[\w.-]+)(?=:)|\b(\d+)\b|()/gm,
+};
+TOKENS.tsx = TOKENS.ts; TOKENS.js = TOKENS.ts; TOKENS.mjs = TOKENS.ts; TOKENS.yml = TOKENS.yaml; TOKENS.d2 = TOKENS.yaml;
+const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+function highlight(text, ext) {
+  const re = TOKENS[ext];
+  if (!re) return esc(text);
+  let out = '', last = 0;
+  text.replace(re, (m, c, s, a, k, n, t, offset) => {
+    out += esc(text.slice(last, offset));
+    const cls = c ? 'c' : s ? 's' : a ? 'a' : k ? 'k' : n ? 'n' : t ? 't' : '';
+    out += cls ? `<span class="${cls}">${esc(m)}</span>` : esc(m);
+    last = offset + m.length; return m;
+  });
+  return out + esc(text.slice(last));
+}
+const codeEl = document.getElementById('code');
+function openCode(f) {
+  focused = f;
+  document.getElementById('cpath').textContent = f.path;
+  const L = LAYERS[f.layer], isl = byId[f.island];
+  const layerName = f.island === 'frontal' && FRONT[f.layer] ? FRONT[f.layer] : L.label;
+  document.getElementById('cmeta').innerHTML =
+    `<span class="pill" style="color:${L.c};border-color:${L.c};background:${L.bg}">${esc(layerName)}</span>` +
+    `<span>${esc(isl.label)}</span><span>· ${f.lines.toLocaleString('es-ES')} líneas</span><span>· ${f.churn} ${f.churn === 1 ? 'cambio' : 'cambios'} en git</span>`;
+  const html = highlight(f.text, f.ext).split('\n').map(l => `<span class="ln">${l || ' '}</span>`).join('');
+  const pre = document.getElementById('cpre'); pre.innerHTML = html; pre.scrollTop = 0;
+  codeEl.style.display = 'flex';
+  fileMeshes.forEach(m => m.material = mats[m.userData.file.layer]);
+  if (f.mesh) f.mesh.material = new THREE.MeshLambertMaterial({ color: '#0D1117' });
+}
+document.querySelector('#code .x').onclick = () => { codeEl.style.display = 'none'; focused = null; fileMeshes.forEach(m => m.material = mats[m.userData.file.layer]); };
+
+// ---------------------------------------------------------------- Navegación
+let anim = null;
+function flyTo(target, dist, then) {
+  const from = { t: controls.target.clone(), p: camera.position.clone() };
+  const dir = camera.position.clone().sub(controls.target).normalize();
+  if (dir.y < 0.35) { dir.y = 0.6; dir.normalize(); }
+  const to = { t: target.clone(), p: target.clone().add(dir.multiplyScalar(dist)) };
+  const t0 = performance.now(), dur = 900;
+  anim = now => {
+    const k = Math.min(1, (now - t0) / dur), e = k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+    controls.target.lerpVectors(from.t, to.t, e); camera.position.lerpVectors(from.p, to.p, e);
+    if (k >= 1) { anim = null; then?.(); }
+  };
+}
+const ray = new THREE.Raycaster(), mouse = new THREE.Vector2(), tip = document.getElementById('tip');
+let down = null;
+renderer.domElement.addEventListener('pointerdown', e => { down = [e.clientX, e.clientY]; });
+renderer.domElement.addEventListener('pointerup', e => {
+  if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 5) return;
+  const hit = pick(e);
+  if (!hit) return;
+  if (hit.userData.file) { const f = hit.userData.file; flyTo(f.world.clone().setY(f.world.y * 0.5), 22, () => openCode(f)); }
+  else if (hit.userData.island) flyTo(hit.userData.island.pos.clone(), Math.max(110, hit.userData.island.radius * 5.5));
+});
+function pick(e) {
+  mouse.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
+  ray.setFromCamera(mouse, camera);
+  const hits = ray.intersectObjects([...pickables, ...islandBases, ...islandLabels], false);
+  return hits[0]?.object ?? null;
+}
+renderer.domElement.addEventListener('pointermove', e => {
+  const hit = pick(e);
+  if (hit?.userData.file) {
+    const f = hit.userData.file, L = LAYERS[f.layer];
+    tip.innerHTML = `<b>${esc(f.path.split('/').pop())}</b><div class="m">${esc(f.path)}</div>${esc(byId[f.island].label)} · ${esc(f.island === 'frontal' && FRONT[f.layer] ? FRONT[f.layer] : L.label)} · ${f.lines} líneas · ${f.churn} cambios`;
+  } else if (hit?.userData.island) {
+    const i = hit.userData.island, out = D.deps.filter(d => d.from === i.id).map(d => byId[d.to]?.label).filter(Boolean);
+    tip.innerHTML = `<b>${esc(i.label)}</b><br>${i.files.length} archivos · ${i.lines.toLocaleString('es-ES')} líneas${out.length ? `<br>Usa: ${esc(out.join(', '))}` : ''}`;
+  } else { tip.style.display = 'none'; return; }
+  tip.style.display = 'block'; tip.style.left = Math.min(e.clientX + 14, innerWidth - 430) + 'px'; tip.style.top = (e.clientY + 14) + 'px';
+});
+const home = () => flyTo(new THREE.Vector3(-40, 0, 0), 300);
+document.querySelectorAll('.seg button').forEach(b => b.onclick = () => {
+  const target = focused?.world ?? controls.target;
+  if (b.dataset.go === 'general') home();
+  else if (b.dataset.go === 'isla') { const isl = focused ? byId[focused.island] : islands.reduce((a, c) => c.pos.distanceTo(controls.target) < a.pos.distanceTo(controls.target) ? c : a); flyTo(isl.pos.clone(), Math.max(110, isl.radius * 5.5)); }
+  else if (b.dataset.go === 'archivos') flyTo(target.clone().setY(0), 55);
+  else flyTo(target.clone().setY(focused ? focused.world.y * 0.5 : 2), 22, () => focused && openCode(focused));
+});
+const list = document.getElementById('paths');
+list.innerHTML = D.files.map(f => `<option value="${esc(f.path)}">`).join('');
+document.getElementById('search').addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  const q = e.target.value.trim().toLowerCase();
+  const f = D.files.find(x => x.path.toLowerCase() === q) ?? D.files.find(x => x.path.toLowerCase().includes(q));
+  if (f) flyTo(f.world.clone().setY(f.world.y * 0.5), 22, () => openCode(f));
+});
+addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+
+camera.position.set(-40, 210, 215); controls.target.set(-40, 0, 0);
+renderer.setAnimationLoop(now => { if (anim) anim(now); controls.update(); update(); renderer.render(scene, camera); });
+window.__mapa = { flyTo, openCode, byId, D, THREE };
+</script>
+</body>
+</html>

@@ -34,6 +34,7 @@ SocialHub corre en el ordenador de Raúl. No llama a la API de Claude: deja los 
   - `ciclo-publicacion`: los estados de una publicación.
   - `vias-publicacion`: Publer → Publora → a mano.
   - `encargos-claude`: encargos y tareas programadas.
+- [`scripts/mapa-codigo/`](scripts/mapa-codigo/): mapa 3D del código con zoom semántico. Cada módulo es una isla hexagonal con sus capas (dominio, aplicación, adaptadores de entrada y de salida). Se genera solo en cada PR (comentario con el enlace) o a mano con `npm ci && node generar.mjs` en esa carpeta.
 - [`docs/especificacion.md`](docs/especificacion.md): especificación maestra del producto, la fuente de verdad original.
 - [`docs/decisiones.md`](docs/decisiones.md): registro de decisiones.
 - [`docs/estado.md`](docs/estado.md): estado actual, para retomar el trabajo.
