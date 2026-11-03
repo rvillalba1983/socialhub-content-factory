@@ -305,3 +305,9 @@ Detalle en `docs/fase-7.md`.
 - El identificador de la vía (p. ej. el grupo de Publora) se conserva al confirmar «Publicada».
 
 Detalle en `docs/fase-7.md`.
+
+## 2026-11-03 · Fase 8, bloque 1: reintentos automáticos
+- Los encargos a Claude que fallan se reintentan solos hasta el tercer intento (con subida de modelo), 30 minutos después del fallo.
+- Los de publicación con Chrome y los que piden ayuda a Raúl no se reintentan solos.
+
+Detalle en `docs/fase-8.md`.

@@ -342,6 +342,23 @@ public final class Task {
         record(now, "Claude pide a Raúl: " + reasonText);
     }
 
+    /** Un encargo a Claude fallido que SocialHub puede reintentar solo (quedan intentos). */
+    public boolean canAutoRetry() {
+        return status == FAILED && isAiRequest() && attempts < maxAttempts;
+    }
+
+    /** SocialHub lo reintenta solo (fase 8): el tercer intento sube de modelo como el reintento a mano. */
+    public void autoRetry(Instant now) {
+        if (!canAutoRetry()) throw new DomainException("No se puede reintentar solo");
+        execute(TaskCommandType.RETRY, null, now);
+        record(now, "Reintentado por SocialHub sin esperar a Raúl");
+    }
+
+    /** Cuándo pasó a su estado actual (último apunte del historial). */
+    public Instant lastChangeAt() {
+        return history.isEmpty() ? Instant.EPOCH : history.getLast().at();
+    }
+
     /** Está esperando el resultado de Claude (y no lo está mirando Raúl). */
     public boolean isWaitingForAi() { return status == WAITING && isAiRequest() && !human && !paused; }
 
