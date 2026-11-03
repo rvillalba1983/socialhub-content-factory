@@ -188,6 +188,25 @@ public class ProductionService {
                 .toList();
     }
 
+    /** Encargo a Claude fallido que aún tiene intentos, con cuándo falló. */
+    public record RetryableAi(String id, String type, java.time.Instant failedAt) {}
+
+    @Transactional(readOnly = true)
+    public List<RetryableAi> retryableAiTasks() {
+        return tasks.findByStatusIn(List.of(TaskStatus.FAILED)).stream()
+                .filter(Task::canAutoRetry)
+                .map(t -> new RetryableAi(t.getId(), t.getType(), t.lastChangeAt()))
+                .toList();
+    }
+
+    /** Reintento automático de un encargo a Claude (fase 8). */
+    @Transactional
+    public void autoRetry(String taskId) {
+        Task task = task(taskId);
+        task.autoRetry(clock.instant());
+        persist(task);
+    }
+
     /** El encargo que espera un resultado de Claude, si lo hay con ese identificador. */
     @Transactional(readOnly = true)
     public java.util.Optional<AiTask> waitingAiTask(String taskId) {
