@@ -101,6 +101,9 @@ public final class PublishJob {
         updatedAt = now;
     }
 
+    /** Se ha vuelto a mirar sin novedad. */
+    public void touch(Instant now) { updatedAt = now; }
+
     /** Se está probando la vía {@code index}. */
     public void trying(int index, String routeLabel, Instant now) {
         requireOpen();

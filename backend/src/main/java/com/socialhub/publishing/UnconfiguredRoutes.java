@@ -7,12 +7,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 
-/** Publora y la API oficial llegan en los bloques 2 y 3 de la fase 7: hasta entonces figuran como «no configurada». */
+/** La API oficial llega en el bloque 3 de la fase 7: hasta entonces figura como «no configurada». */
 @Configuration
 class UnconfiguredRoutes {
-
-    @Bean @Order(2)
-    PublishRoute publoraRoute() { return new Unconfigured(PublishRoute.Id.PUBLORA); }
 
     @Bean @Order(3)
     PublishRoute officialRoute() { return new Unconfigured(PublishRoute.Id.OFFICIAL); }

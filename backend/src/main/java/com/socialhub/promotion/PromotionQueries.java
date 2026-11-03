@@ -91,6 +91,11 @@ public class PromotionQueries {
     }
 
     /** Identidad de la marca (vacía si no se ha rellenado). */
+    /** Falla con 404 si la marca no existe. */
+    public void requireBrand(String brandId) {
+        if (repository.brand(brandId).isEmpty()) throw new NotFoundException("No existe la marca " + brandId);
+    }
+
     public BrandIdentity identity(String brandId) {
         if (repository.brand(brandId).isEmpty()) throw new NotFoundException("No existe la marca " + brandId);
         return identities.identity(brandId).orElse(BrandIdentity.EMPTY);

@@ -49,6 +49,8 @@ class PublishingEngine {
     static final Duration CHECK_AFTER_MANUAL = Duration.ofHours(2);
     /** Si la comprobación no llega en este tiempo, queda en error. */
     static final Duration CHECK_TIMEOUT = Duration.ofHours(24);
+    /** Cada cuánto se vuelve a consultar una vía con API mientras sigue publicando. */
+    static final Duration RECHECK = Duration.ofMinutes(5);
     static final String LATE_FLAG = "Posible duplicado: ";
     static final String STILL_SCHEDULED = "Estaba programada en ";
     static final String ERROR_FLAG = "Error de publicación: ";
@@ -107,8 +109,20 @@ class PublishingEngine {
             String route = job.getRoute();
             job.cancel(reason, now);
             if (scheduledSomewhere) {
-                p.flag(STILL_SCHEDULED + route + ": bórrala allí a mano");
-                job.note(now, "Sigue programada en " + route + ": hay que borrarla allí a mano");
+                PublishRoute owner = route(route);
+                boolean removed;
+                try {
+                    removed = owner != null && owner.unschedule(p, job);
+                } catch (RuntimeException e) {
+                    removed = false;
+                    job.note(now, route + ": no se pudo quitar (" + e.getMessage() + ")");
+                }
+                if (removed) {
+                    job.note(now, "Quitada de " + route);
+                } else {
+                    p.flag(STILL_SCHEDULED + route + ": bórrala allí a mano");
+                    job.note(now, "Sigue programada en " + route + ": hay que borrarla allí a mano");
+                }
             }
             jobs.save(job);
         });
@@ -250,7 +264,12 @@ class PublishingEngine {
                 yield true;
             }
             case CHECKING -> {
-                if (now.isBefore(at.plus(CHECK_TIMEOUT))) yield false;
+                if (now.isBefore(at.plus(CHECK_TIMEOUT))) {
+                    // Las vías con API se vuelven a consultar cada pocos minutos; las de Claude esperan su resultado
+                    if (job.getTaskId() != null || now.isBefore(job.getUpdatedAt().plus(RECHECK))) yield false;
+                    check(job, p, now);
+                    yield true;
+                }
                 fail(job, p, "No llegó la comprobación en " + CHECK_TIMEOUT.toHours() + " h", now);
                 yield true;
             }
@@ -298,6 +317,7 @@ class PublishingEngine {
                 }
                 case PublishRoute.Outcome.Failed f -> job.routeFailed(f.reason(), now);
                 case PublishRoute.Outcome.Published pub -> job.routeFailed("respuesta inesperada al programar", now);
+                case PublishRoute.Outcome.NotYet n -> job.routeFailed("respuesta inesperada al programar", now);
             }
         }
         Instant next = now.plus(RETRY);
@@ -310,9 +330,18 @@ class PublishingEngine {
         p.flag(PublishingService.MANUAL_FLAG + ": " + leeme);
     }
 
+    private @Nullable PublishRoute route(@Nullable String label) {
+        return routes.stream().filter(r -> r.id().label().equals(label)).findFirst().orElse(null);
+    }
+
     private void check(PublishJob job, Publication p, Instant now) {
-        PublishRoute route = routes.stream().filter(r -> r.id().label().equals(job.getRoute())).findFirst().orElse(null);
-        Optional<PublishRoute.Outcome> direct = route == null ? Optional.empty() : route.check(p, job, now);
+        PublishRoute route = route(job.getRoute());
+        Optional<PublishRoute.Outcome> direct;
+        try {
+            direct = route == null ? Optional.empty() : route.check(p, job, now);
+        } catch (RuntimeException e) {
+            direct = Optional.of(new PublishRoute.Outcome.NotYet(e.getMessage() == null ? e.toString() : e.getMessage()));
+        }
         if (direct.isPresent()) {
             switch (direct.get()) {
                 case PublishRoute.Outcome.Published pub -> {
@@ -328,6 +357,10 @@ class PublishingEngine {
                 case PublishRoute.Outcome.Scheduled s -> {
                     job.checking(null, now);
                     fail(job, p, "Sigue programada en " + job.getRoute() + " pasada la hora", now);
+                }
+                case PublishRoute.Outcome.NotYet n -> {
+                    if (job.getStatus() != PublishJob.Status.CHECKING) job.checking(null, now);
+                    job.touch(now);
                 }
             }
         } else {

@@ -31,6 +31,8 @@ public interface PublishRoute {
         /** Ya está publicada (solo al comprobar). */
         record Published(@Nullable String externalId, @Nullable String url) implements Outcome {}
         record Failed(String reason) implements Outcome {}
+        /** Al comprobar: aún no se sabe (la vía sigue publicando). Se vuelve a mirar más tarde. */
+        record NotYet(String reason) implements Outcome {}
     }
 
     Id id();
@@ -49,4 +51,11 @@ public interface PublishRoute {
      * sin API.
      */
     default Optional<Outcome> check(Publication publication, PublishJob job, Instant now) { return Optional.empty(); }
+
+    /**
+     * Quita de la vía lo que programó SocialHub (Raúl la ha sacado de «Programada»).
+     *
+     * @return {@code true} si la ha quitado; {@code false} si hay que quitarla a mano
+     */
+    default boolean unschedule(Publication publication, PublishJob job) { return false; }
 }
