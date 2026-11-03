@@ -258,3 +258,20 @@ Detalle en `docs/fase-6.md`.
 - **Revisión:** cada propuesta se aprueba (pasa a «En producción») o se rechaza con motivo (se cancela y queda en la memoria editorial).
 - **El spec semanal** solo tiene en cuenta las publicaciones aprobadas.
 
+## 2026-11-03 · Fases 7, 8 y 9: decisiones (respuestas de Raúl)
+- **Publicación:**
+  - Vías por orden: Publer, Publora y API oficial. El calendario cuenta con lo que haya en las tres.
+  - Publer se programa con Claude y Chrome en el PC de Raúl, porque su API es de pago.
+  - Solo se programa lo que Raúl pasa a «Programada».
+  - Claude confirma «Publicada» comprobándolo.
+  - Si fallan las tres vías, se reintenta mientras haya margen y luego pasa a manual con LEEME.
+- **Métricas:** de Metricool y, si se puede, de Publora o la API oficial. Sin inventar.
+- **Autonomía:** SocialHub reintenta encargos y pide textos y revisiones solo. Todo lo demás lo decide Raúl.
+- **Avisos:** en la app y en un resumen diario.
+- **Distribución:**
+  - Instalador para Windows y macOS.
+  - Copia diaria en Drive, guardando 14.
+  - SocialHub no arranca solo.
+
+Detalle en `docs/fases-7-9.md`.
+
