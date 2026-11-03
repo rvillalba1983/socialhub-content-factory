@@ -276,6 +276,9 @@ describe('Publicación programada', () => {
     expect(screen.getByText(/Publer → Publora \(no configurada\)/)).toBeInTheDocument();
     expect(screen.getByText('G:/Aprobados/LEEME-publicar-a-mano-p-3.txt')).toBeInTheDocument();
     expect(screen.getByText(/Programada por Raúl/)).toBeInTheDocument();
+    // Publicándose no se cambia nada
+    expect(screen.queryByRole('button', { name: 'Guardar' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Añadir archivo' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Resuelto' }));
     await waitFor(() => expect(clear).toHaveBeenCalledWith('p-3'));
     await waitFor(() => expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({ id: 'p-3', flag: undefined }), 'Incidencia resuelta'));

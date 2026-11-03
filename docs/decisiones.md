@@ -285,5 +285,6 @@ Detalle en `docs/fases-7-9.md`.
 - **Resultados tardíos:** si Publer la programa cuando SocialHub ya siguió por otra vía, la publicación queda marcada como «Posible duplicado» y avisa.
 - **Sacarla de «Programada»** detiene la publicación. Si ya estaba programada en Publer, avisa para borrarla allí a mano (SocialHub no la borra).
 - **Incidencias:** Raúl las da por resueltas desde la publicación.
+- **Programada no se edita** (respuesta de Raúl): ni datos, ni texto, ni archivos. Para cambiarla, vuelve a «Aprobada» (avisa si hay que borrarla en Publer) y se programa otra vez. Las piezas generadas no se asocian a una publicación ya programada.
 
 Detalle en `docs/fase-7.md`.

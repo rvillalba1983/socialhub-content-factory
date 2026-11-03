@@ -251,6 +251,12 @@ class PublishingEngineTest {
         result(task, completed(task, "{\"scheduled\":true,\"scheduled_for\":\"%s\"}".formatted(at)));
         waitFor(() -> "SCHEDULED".equals(job(id).get("status").asString()), "programada");
 
+        // Programada no se edita: ni datos ni archivos
+        write(put("/api/publications/" + id), """
+                {"platform":"INSTAGRAM","type":"Historia","title":"Otra","scheduled_on":"%s","scheduled_time":"12:00"}"""
+                .formatted(DAY)).andExpect(status().isConflict());
+        write(delete("/api/publications/" + id + "/files").param("path", story.toString()), "").andExpect(status().isConflict());
+
         write(post("/api/publications/" + id + "/status-changes"), "{\"status\":\"APPROVED\"}").andExpect(status().isOk());
         assertThat(job(id).get("status").asString()).isEqualTo("CANCELLED");
         assertThat(publication(id).get("flag").asString()).startsWith("Estaba programada en Publer");

@@ -33,7 +33,8 @@ export function PublicationEditor({ promotionId, publication, onClose, onSaved }
   useEffect(() => {
     if (!textsTouched) setForm(f => ({ ...f, caption: publication?.caption ?? '', hashtags: publication?.hashtags ?? '' }));
   }, [publication?.caption, publication?.hashtags, textsTouched]);
-  const locked = publication?.status === 'PUBLISHING' || publication?.status === 'PUBLISHED';
+  /** Programada, publicándose o publicada: la vía ya tiene esta versión y no se cambia. */
+  const locked = publication?.status === 'SCHEDULED' || publication?.status === 'PUBLISHING' || publication?.status === 'PUBLISHED';
   const set = <K extends keyof PublicationInput>(k: K, v: PublicationInput[K]) => setForm({ ...form, [k]: v });
 
   const run = async (action: () => Promise<Publication>, message: string) => {
@@ -109,6 +110,9 @@ export function PublicationEditor({ promotionId, publication, onClose, onSaved }
         )}
         <label className="field"><span>Observaciones</span>
           <textarea rows={2} disabled={locked} maxLength={2000} value={form.note ?? ''} onChange={e => set('note', e.target.value)} /></label>
+        {publication?.status === 'SCHEDULED' && (
+          <p className="src">Está programada: para cambiar algo, vuelve a «Aprobada» y prográmala otra vez.</p>
+        )}
         <div className="form-actions">
           {error && <p className="error" role="alert">{error}</p>}
           {!locked && <button className="btn primary" disabled={busy}>{busy ? 'Guardando…' : 'Guardar'}</button>}
@@ -148,14 +152,14 @@ export function PublicationEditor({ promotionId, publication, onClose, onSaved }
           )}
           <PublishPanel publication={publication} />
           <QualityPanel publication={publication} promotionId={promotionId} />
-          <PublicationFiles id={publication.id} />
+          <PublicationFiles id={publication.id} locked={locked} />
         </>
       )}
     </div>
   );
 }
 
-function PublicationFiles({ id }: { id: string }) {
+function PublicationFiles({ id, locked }: { id: string; locked: boolean }) {
   const [files, setFiles] = useState<PublicationFile[] | null>(null);
   const [path, setPath] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -176,14 +180,16 @@ function PublicationFiles({ id }: { id: string }) {
           <span className="mono file-path" title={f.path}>{f.path}</span>
           <small className="src nowrap">{f.origin === 'SPEC' ? 'Del spec' : 'A mano'} · {dateTime(f.added_at)}</small>
           {!f.available && <Pill s="BLOCKED" label="No disponible" />}
-          <button type="button" className="ibtn" aria-label="Quitar archivo" title="Quitar de la publicación (no se borra)"
-            onClick={() => void act(() => api.detachPublicationFile(id, f.path))}><Icon name="x" /></button>
+          {!locked && <button type="button" className="ibtn" aria-label="Quitar archivo" title="Quitar de la publicación (no se borra)"
+            onClick={() => void act(() => api.detachPublicationFile(id, f.path))}><Icon name="x" /></button>}
         </div>
       ))}
-      <form className="file-add" onSubmit={e => { e.preventDefault(); void act(() => api.attachPublicationFile(id, path.trim())).then(ok => { if (ok) setPath(''); }); }}>
-        <input aria-label="Ruta del archivo" placeholder="G:\Mi unidad\…\pieza.jpg" value={path} onChange={e => setPath(e.target.value)} />
-        <button className="btn" disabled={!path.trim()}>Añadir archivo</button>
-      </form>
+      {!locked && (
+        <form className="file-add" onSubmit={e => { e.preventDefault(); void act(() => api.attachPublicationFile(id, path.trim())).then(ok => { if (ok) setPath(''); }); }}>
+          <input aria-label="Ruta del archivo" placeholder="G:\Mi unidad\…\pieza.jpg" value={path} onChange={e => setPath(e.target.value)} />
+          <button className="btn" disabled={!path.trim()}>Añadir archivo</button>
+        </form>
+      )}
       {error && <p className="error" role="alert">{error}</p>}
     </fieldset>
   );

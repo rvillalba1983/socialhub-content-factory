@@ -127,6 +127,7 @@ public class PublishingService {
     @Transactional
     public PublicationFile attachManually(String publicationId, String path) {
         Publication publication = find(publicationId);
+        publication.requireEditable();
         Path real = insideFolders(publication.getPromotionId(), path);
         var file = new PublicationFile(real.toString(), PublicationFile.Origin.MANUAL, clock.instant());
         if (!files.add(publicationId, file)) throw new IllegalArgumentException("Ese archivo ya está asociado");
@@ -142,6 +143,11 @@ public class PublishingService {
             throw new IllegalArgumentException("La publicación " + publicationId + " no es de esta promoción");
         }
         int added = 0;
+        if (publication.getStatus() == PublicationStatus.SCHEDULED || publication.getStatus() == PublicationStatus.PUBLISHING
+                || publication.getStatus() == PublicationStatus.PUBLISHED) {
+            log.info("Piezas generadas sin asociar: {} ya está programada o publicada", publicationId);
+            return 0;
+        }
         for (Path path : generated) {
             Path real = insideFolders(promotionId, path.toString());
             if (files.add(publicationId, new PublicationFile(real.toString(), PublicationFile.Origin.SPEC, clock.instant()))) {
@@ -155,7 +161,7 @@ public class PublishingService {
     /** Quita la asociación. El archivo no se toca. */
     @Transactional
     public void detach(String publicationId, String path) {
-        find(publicationId);
+        find(publicationId).requireEditable();
         if (!files.remove(publicationId, path)) throw new NotFoundException("Ese archivo no está asociado");
         events.publishEvent(new FactoryChanged("publication", publicationId));
     }

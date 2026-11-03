@@ -132,11 +132,7 @@ public final class Publication {
      * @return la corrección, si Raúl ha cambiado el texto o los hashtags que propuso Claude
      */
     public @Nullable TextCorrection edit(Details details, Instant now) {
-        if (status == PublicationStatus.PUBLISHING || status == PublicationStatus.PUBLISHED) {
-            throw new DomainException("No se puede editar una publicación que se está publicando o ya está publicada.");
-        }
-        Instant when = details.scheduledOn().atTime(details.scheduledTime()).atZone(ZoneId.of(details.timezone())).toInstant();
-        if (status == PublicationStatus.SCHEDULED) requireMargin(when, now);
+        requireEditable();
         this.platform = details.platform();
         this.type = details.type().strip();
         this.title = details.title().strip();
@@ -176,11 +172,22 @@ public final class Publication {
         return discarded.strip();
     }
 
-    /** Texto y hashtags propuestos (por Claude o por Raúl). No se cambian una vez que se está publicando. */
-    public void setTexts(@Nullable String caption, @Nullable String hashtags) {
-        if (status == PublicationStatus.PUBLISHING || status == PublicationStatus.PUBLISHED) {
-            throw new DomainException("No se cambia el texto de una publicación que se está publicando o ya está publicada.");
+    /**
+     * Mientras está programada (o publicándose, o publicada) no se cambia nada: la vía ya tiene esta versión. Para
+     * cambiarla, Raúl la vuelve a «Aprobada».
+     */
+    public void requireEditable() {
+        if (status == PublicationStatus.SCHEDULED) {
+            throw new DomainException("Está programada: para cambiarla, vuelve a «Aprobada» y prográmala otra vez.");
         }
+        if (status == PublicationStatus.PUBLISHING || status == PublicationStatus.PUBLISHED) {
+            throw new DomainException("No se cambia una publicación que se está publicando o ya está publicada.");
+        }
+    }
+
+    /** Texto y hashtags propuestos (por Claude o por Raúl). No se cambian mientras está programada o publicándose. */
+    public void setTexts(@Nullable String caption, @Nullable String hashtags) {
+        requireEditable();
         this.caption = blankToNull(caption);
         this.hashtags = blankToNull(hashtags);
     }
