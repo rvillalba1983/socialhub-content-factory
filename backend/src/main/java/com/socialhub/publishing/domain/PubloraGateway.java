@@ -29,7 +29,13 @@ public interface PubloraGateway {
         public PubloraException(String message) { super(message); }
     }
 
+    /** Una publicación de Publora en una de sus cuentas. */
+    record Listed(String postGroupId, String connectionId, Instant at, String status, @Nullable String content) {}
+
     List<Connection> connections(String key);
+
+    /** Lo programado o publicado en Publora con hora entre {@code from} y {@code to}. */
+    List<Listed> list(String key, Instant from, Instant to);
 
     /**
      * Crea el borrador, sube los archivos y lo programa a esa hora. Si algo falla por el camino, borra el borrador.

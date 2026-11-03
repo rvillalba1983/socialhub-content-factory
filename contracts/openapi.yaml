@@ -179,6 +179,27 @@ paths:
         "404": { $ref: "#/components/responses/Problem" }
         default: { $ref: "#/components/responses/Problem" }
 
+  /api/promotions/{promotion_id}/external-calendar:
+    get:
+      tags: [Publications]
+      operationId: getExternalCalendar
+      summary: Lo programado o publicado fuera de SocialHub (Publora, Publer y la red) para la marca de la promoción
+      description: >
+        Publora se lee por su API cada hora; Publer y lo publicado en la red, con el encargo diario «Leer calendario»
+        a Claude con Chrome. Lo que corresponde a una publicación de SocialHub lleva su publication_id.
+      parameters:
+        - $ref: "#/components/parameters/PromotionId"
+        - { name: from, in: query, required: true, schema: { type: string, format: date } }
+        - { name: to, in: query, required: true, schema: { type: string, format: date } }
+      responses:
+        "200":
+          description: Calendario de fuera
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ExternalCalendar" }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
   /api/publora:
     get:
       tags: [Publora]
@@ -1180,7 +1201,7 @@ components:
       description: Tipo de encargo a Claude
       type: string
       enum: [WEEKLY_SPEC, CAPTIONS, WEEKLY_BALANCE, RESEARCH, QUALITY_REVIEW, WEEKLY_PROPOSALS, PUBLER_SCHEDULE,
-             PUBLISH_CHECK]
+             PUBLISH_CHECK, CALENDAR_READ]
 
     AiTypeModel:
       type: object
@@ -1217,6 +1238,40 @@ components:
         last_error: { type: string }
         manual_file: { type: string, description: LEEME para publicar a mano }
         log: { type: array, items: { type: string } }
+
+    ExternalCalendar:
+      type: object
+      required: [items, sources]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/ExternalPost" } }
+        sources: { type: array, items: { $ref: "#/components/schemas/ExternalSource" } }
+
+    ExternalSourceId:
+      type: string
+      enum: [PUBLORA, PUBLER, NETWORK]
+
+    ExternalPost:
+      type: object
+      required: [source, source_label, platform, at, status]
+      properties:
+        source: { $ref: "#/components/schemas/ExternalSourceId" }
+        source_label: { type: string }
+        platform: { $ref: "#/components/schemas/Platform" }
+        at: { type: string, format: date-time }
+        status: { type: string, enum: [SCHEDULED, PUBLISHED, FAILED] }
+        text: { type: string }
+        url: { type: string }
+        external_id: { type: string }
+        publication_id: { type: string, description: "Publicación de SocialHub a la que corresponde, si es de SocialHub" }
+
+    ExternalSource:
+      type: object
+      required: [source, label]
+      properties:
+        source: { $ref: "#/components/schemas/ExternalSourceId" }
+        label: { type: string }
+        synced_at: { type: string, format: date-time, description: Última lectura buena }
+        error: { type: string, description: Por qué falló la última lectura }
 
     PubloraStatus:
       type: object

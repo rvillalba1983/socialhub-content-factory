@@ -9,12 +9,14 @@
 - **Fase 6:** terminada y en `main` (`docs/fase-6.md`).
 - **Fases 7, 8 y 9:** preguntas respondidas (`docs/fases-7-9.md`).
 - **Fase 7, bloque 1** (motor de publicación y vía Publer): en `main`.
-- **Fase 7, bloque 2** (Publora): hecho en la rama `fase-7/publora` (`docs/fase-7.md`).
+- **Fase 7, bloque 2** (Publora): en `main`.
+- **Fase 7, bloque 3** (API oficial): aparcado por decisión de Raúl.
+- **Fase 7, bloque 4** (calendario con las tres vías): hecho en la rama `fase-7/calendario`.
 - **Pendiente en el PC de Raúl:**
   - Arrancar SocialHub en Windows.
   - Dar de alta sus marcas y promociones con sus carpetas reales de G:, incluida la de «Encargos».
   - Probar un encargo de verdad con la tarea programada.
-- **Siguiente:** fase 7, bloque 3 (API oficial).
+- **Siguiente:** fase 8 (métricas y autonomía).
   - Hace falta que Raúl pegue la clave de API de Publora en la app (Marcas › editar › Publora) y elija la cuenta de cada marca.
   - Tarea programada «Publicar con Chrome (SocialHub)» creada en su PC (cada hora de 8:40 a 22:40). Necesita Chrome abierto con la sesión de Publer.
 

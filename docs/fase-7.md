@@ -1,6 +1,6 @@
 # SocialHub · Fase 7: publicación
 
-Estado: **bloque 1 en `main`; bloque 2 hecho, pendiente de PR** (rama `fase-7/publora`) · 3 nov 2026
+Estado: **bloques 1 y 2 en `main`; bloque 4 hecho, pendiente de PR** (rama `fase-7/calendario`); bloque 3 aparcado · 3 nov 2026
 
 Decisiones generales en `docs/fases-7-9.md`. Respuestas de Raúl al empezar esta fase:
 
@@ -71,3 +71,26 @@ Cómo funciona:
 - **Pruebas:** `PubloraRouteTest`, contra un Publora de mentira: clave, cuentas, programar con subida de archivos, comprobar, quitarla al desprogramar y cuota agotada.
 
 Sin comprobar todavía con la cuenta real de Raúl: las historias de imagen por la API personal de Publora (la documentación solo habla de vídeo en `videoType`).
+
+## Bloque 3: API oficial (aparcado)
+
+Raúl decidió hacer antes el bloque 4. Pegas encontradas ([Meta · Content Publishing](https://developers.facebook.com/docs/instagram-platform/content-publishing)):
+- Instagram solo publica imágenes desde una URL pública, y SocialHub corre en el PC de Raúl.
+- La API no programa: SocialHub tendría que estar abierto justo a la hora.
+- TikTok, hasta que revise la app, solo publica en privado.
+
+Hasta entonces la API oficial figura como «no configurada».
+
+## Bloque 4: calendario con las tres vías
+
+Respuesta de Raúl: Publer y lo publicado en la red se leen con un **encargo diario con Chrome**.
+
+- **Publora:** se lee por su API cada hora (`list-posts`), de las cuentas elegidas en la marca, de dos semanas atrás a dos meses adelante. Lo que creó SocialHub se reconoce por el grupo de Publora.
+- **Publer y la red:** cada día, desde las 7:00, SocialHub deja «Leer calendario» en `para-claude-pc`, uno por marca con una promoción activa. No cuenta en el límite diario.
+  - La tarea del PC mira Publer (próximos 14 días) y los perfiles de la marca (últimos 14 días).
+  - Si algo es de SocialHub, Claude pone su `publication_id`.
+- **En pantalla:** en el calendario de cada promoción aparece, con borde discontinuo, lo de fuera de SocialHub, con su fuente y su hora. Arriba se indica cuándo se leyó cada fuente y si falló. Lo que ya es de SocialHub no se repite.
+- **Propuestas de la semana:** reciben también lo de fuera (`planned_outside_socialhub`) para no pisarlo.
+- **Datos:** V18, tablas `external_post` y `external_calendar_state`. **API:** `GET /api/promotions/{id}/external-calendar?from&to`.
+- **Pruebas:** en `PubloraRouteTest` (Publora de mentira y resultado del encargo) y en el frontal.
+- **Tarea del PC:** sus instrucciones ya incluyen `socialhub.calendar-read` (con el OK de Raúl), solo lectura.

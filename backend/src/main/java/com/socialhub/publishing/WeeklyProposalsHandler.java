@@ -36,6 +36,7 @@ class WeeklyProposalsHandler implements AiTypeHandler {
     private final PublishingQueries queries;
     private final PublishingService service;
     private final Clock clock;
+    private final ExternalCalendar external;
 
     @Override public AiRequestType type() { return AiRequestType.WEEKLY_PROPOSALS; }
 
@@ -58,6 +59,9 @@ class WeeklyProposalsHandler implements AiTypeHandler {
         inputs.put("week", Map.of("from", from.toString(), "to", from.plusDays(6).toString()));
         inputs.put("promotion", promotions.summaryForAi(job.promotionId()));
         inputs.put("already_planned", queries.forAi(job.promotionId(), from, from.plusDays(6)));
+        // Lo programado o publicado fuera de SocialHub (Publer, Publora o la red) también ocupa la semana
+        List<Map<String, Object>> outside = external.forAi(job.promotionId(), from, from.plusDays(6));
+        if (!outside.isEmpty()) inputs.put("planned_outside_socialhub", outside);
         inputs.put("expected_outputs", "proposals: [{scheduled_on (yyyy-mm-dd, dentro de la semana), scheduled_time (HH:mm), "
                 + "platform (INSTAGRAM o TIKTOK), type (Carrusel, Historia, Reel…), title, idea, why}] (máximo " + MAX
                 + ", siguiendo la cadencia de la promoción y sin repetir lo ya planificado) y summary.");

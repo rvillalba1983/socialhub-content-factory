@@ -79,6 +79,7 @@ class PubloraRouteTest {
     @TempDir static Path drive;
     static Path dataDir;
     static Path approved;
+    static Path orders;
     static Path story;
     static HttpServer publora;
     /** Lo que ha recibido el Publora de mentira: «MÉTODO ruta» y cuerpo. */
@@ -89,6 +90,7 @@ class PubloraRouteTest {
 
     @Autowired MockMvc mvc;
     @Autowired PublishingEngine engine;
+    @Autowired ExternalCalendar external;
     private final JsonMapper json = JsonMapper.builder().build();
 
     @TestConfiguration
@@ -137,6 +139,19 @@ class PubloraRouteTest {
         } else if (path.equals("/api/v1/get-upload-url")) {
             reply = "{\"success\":true,\"uploadUrl\":\"http://127.0.0.1:" + publora.getAddress().getPort()
                     + "/upload/m-1\",\"mediaId\":\"m-1\"}";
+        } else if (path.equals("/api/v1/list-posts")) {
+            Instant base = LocalDateTime.of(DAY, java.time.LocalTime.of(9, 0)).atZone(MADRID).toInstant();
+            reply = """
+                    {"success":true,"posts":[
+                      {"postGroupId":"g-1","content":"De SocialHub","status":"published","scheduledTime":"%s",
+                       "platforms":[{"platformId":"111","platform":"instagram","status":"published"}]},
+                      {"postGroupId":"g-9","content":"Hecha a mano en Publora","status":"scheduled","scheduledTime":"%s",
+                       "platforms":[{"platformId":"instagram-111","platform":"instagram","status":"scheduled"}]},
+                      {"postGroupId":"g-8","content":"Otra cuenta","status":"scheduled","scheduledTime":"%s",
+                       "platforms":[{"platformId":"tiktok-222","platform":"tiktok","status":"scheduled"}]},
+                      {"postGroupId":"g-7","content":"Borrador","status":"draft","scheduledTime":"%s",
+                       "platforms":[{"platformId":"instagram-111","platform":"instagram","status":"draft"}]}]}"""
+                    .formatted(base, base.plusSeconds(86400), base.plusSeconds(3600), base.plusSeconds(7200));
         } else if (path.startsWith("/api/v1/get-post/")) {
             reply = "published".equals(postStatus)
                     ? "{\"success\":true,\"status\":\"published\",\"posts\":[{\"platform\":\"instagram\",\"status\":\"published\","
@@ -155,6 +170,7 @@ class PubloraRouteTest {
     @BeforeAll
     static void folders() throws Exception {
         approved = Files.createDirectories(drive.resolve("DeLito/aprobados"));
+        orders = Files.createDirectories(drive.resolve("DeLito/encargos"));
         BufferedImage image = new BufferedImage(1080, 1920, BufferedImage.TYPE_INT_RGB);
         Graphics2D g = image.createGraphics();
         g.setColor(new Color(178, 34, 34));
@@ -171,7 +187,8 @@ class PubloraRouteTest {
         write(post("/api/promotions"), """
                 {"brand_id":"el-delito","name":"Poemario","starts_on":"%s","ends_on":"%s","status":"ACTIVE"}"""
                 .formatted(LocalDate.now(MADRID), DAY.plusDays(30))).andExpect(status().isCreated());
-        write(put("/api/brands/el-delito/folders"), "{\"items\":[{\"role\":\"APPROVED\",\"location\":" + q(approved) + "}]}")
+        write(put("/api/brands/el-delito/folders"), "{\"items\":[{\"role\":\"APPROVED\",\"location\":" + q(approved)
+                + "},{\"role\":\"ORDERS\",\"location\":" + q(orders) + "}]}")
                 .andExpect(status().isOk());
 
         assertThat(get("/api/publora").get("configured").asBoolean()).isFalse();
@@ -268,6 +285,57 @@ class PubloraRouteTest {
 
     @Test
     @Order(5)
+    void theCalendarShowsWhatIsOutsideSocialHub() throws Exception {
+        CLOCK.reset();
+        external.syncPublora("el-delito");
+        JsonNode calendar = get("/api/promotions/poemario/external-calendar?from=" + DAY + "&to=" + DAY.plusDays(2));
+        JsonNode items = calendar.get("items");
+        assertThat(items.size()).isEqualTo(2);
+        // La de SocialHub (g-1) lleva su publicación; la hecha a mano no; la de otra cuenta y el borrador no salen
+        assertThat(items.get(0).get("external_id").asString()).isEqualTo("g-1");
+        assertThat(items.get(0).get("publication_id").asString()).isEqualTo(DAY + "-instagram");
+        assertThat(items.get(1).get("external_id").asString()).isEqualTo("g-9");
+        assertThat(items.get(1).has("publication_id") && !items.get(1).get("publication_id").isNull()).isFalse();
+        assertThat(items.get(1).get("status").asString()).isEqualTo("SCHEDULED");
+        assertThat(calendar.get("sources").toString()).contains("PUBLORA").contains("synced_at");
+
+        // Encargo diario con Chrome: Publer y la red
+        CLOCK.set(LocalDate.now(MADRID).atTime(8, 0).atZone(MADRID).toInstant());
+        external.requestDaily("el-delito");
+        external.requestDaily("el-delito"); // una vez al día
+        Path pc = orders.resolve("para-claude-pc");
+        waitFor(() -> Files.isDirectory(pc) && Files.list(pc).anyMatch(f -> f.getFileName().toString().endsWith(".json")), "encargo enviado");
+        List<Path> sent;
+        try (var s = Files.list(pc)) { sent = s.filter(f -> f.getFileName().toString().endsWith(".json")).toList(); }
+        assertThat(sent).hasSize(1);
+        JsonNode request = json.readTree(Files.readString(sent.getFirst()));
+        assertThat(request.get("type").asString()).isEqualTo("socialhub.calendar-read");
+        assertThat(request.get("inputs").get("brand").get("handle").asString()).isEqualTo("@elde_lito");
+        String task = request.get("taskId").asString();
+
+        Instant publerAt = LocalDate.now(MADRID).plusDays(3).atTime(19, 0).atZone(MADRID).toInstant();
+        Instant networkAt = LocalDate.now(MADRID).minusDays(2).atTime(12, 0).atZone(MADRID).toInstant();
+        Path result = Files.createDirectories(orders.resolve("de-claude")).resolve(task + "-1.json");
+        Files.writeString(result, """
+                {"contract":"socialhub.task-result","version":1,"taskId":"%s","status":"completed",
+                 "outputs":{"items":[
+                   {"source":"publer","platform":"INSTAGRAM","at":"%s","status":"scheduled","text":"Reel del jueves"},
+                   {"source":"network","platform":"TIKTOK","at":"%s","status":"published","url":"https://www.tiktok.com/@litoques/video/1"}],
+                  "summary":"2 encontradas"},
+                 "agent":{"runtime":"tarea programada en el PC","model":"sonnet"}}""".formatted(task, publerAt, networkAt));
+        Files.setLastModifiedTime(result, java.nio.file.attribute.FileTime.from(Instant.now().minusSeconds(30)));
+        LocalDate today = LocalDate.now(MADRID);
+        waitFor(() -> get("/api/promotions/poemario/external-calendar?from=" + today.minusDays(3) + "&to=" + today.plusDays(4))
+                .get("items").size() == 2, "calendario leído");
+        JsonNode read = get("/api/promotions/poemario/external-calendar?from=" + today.minusDays(3) + "&to=" + today.plusDays(4));
+        assertThat(read.get("items").get(0).get("source").asString()).isEqualTo("NETWORK");
+        assertThat(read.get("items").get(1).get("source_label").asString()).isEqualTo("Publer");
+        assertThat(read.get("sources").toString()).contains("PUBLER").contains("NETWORK");
+        CLOCK.reset();
+    }
+
+    @Test
+    @Order(6)
     void publoraErrorsGoToTheNextRoute() throws Exception {
         Instant at = LocalDateTime.of(DAY, java.time.LocalTime.of(11, 0)).atZone(MADRID).toInstant();
         CLOCK.set(at.minus(Duration.ofHours(7)));
@@ -321,6 +389,14 @@ class PubloraRouteTest {
     }
 
     private String q(Object text) throws Exception { return json.writeValueAsString(text.toString()); }
+
+    private void waitFor(java.util.concurrent.Callable<Boolean> condition, String what) throws Exception {
+        long deadline = System.currentTimeMillis() + 30_000;
+        while (!condition.call()) {
+            assertThat(System.currentTimeMillis()).as(what).isLessThan(deadline);
+            Thread.sleep(150);
+        }
+    }
 
     private ResultActions write(MockHttpServletRequestBuilder request, String body) throws Exception {
         return mvc.perform(request.header("X-SocialHub-Request", "1").contentType(MediaType.APPLICATION_JSON).content(body));

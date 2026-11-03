@@ -12,7 +12,8 @@ public enum AiRequestType {
     QUALITY_REVIEW("Revisión de calidad", "rev", "socialhub.quality-review"),
     WEEKLY_PROPOSALS("Propuestas de la semana", "est", "socialhub.weekly-proposals"),
     PUBLER_SCHEDULE("Programar en Publer", "prog", "socialhub.publer-schedule", true),
-    PUBLISH_CHECK("Comprobar publicación", "pub", "socialhub.publish-check", true);
+    PUBLISH_CHECK("Comprobar publicación", "pub", "socialhub.publish-check", true),
+    CALENDAR_READ("Leer calendario de Publer y la red", "prog", "socialhub.calendar-read", true);
 
     private final String label;
     private final String stationId;

@@ -286,6 +286,30 @@ describe('Publicación programada', () => {
   });
 });
 
+describe('Calendario con lo de fuera', () => {
+  it('muestra lo programado fuera de SocialHub y cuándo se leyó cada fuente', async () => {
+    const ext = vi.spyOn(api, 'externalCalendar').mockResolvedValue({
+      items: [
+        { source: 'PUBLER', source_label: 'Publer', platform: 'INSTAGRAM', at: '2026-10-28T18:00:00Z', status: 'SCHEDULED', text: 'Reel del miércoles' },
+        { source: 'PUBLORA', source_label: 'Publora', platform: 'INSTAGRAM', at: '2026-10-29T18:00:00Z', status: 'SCHEDULED', text: 'Ya está en SocialHub', publication_id: 'x' },
+        { source: 'NETWORK', source_label: 'La red', platform: 'TIKTOK', at: '2026-10-27T11:00:00Z', status: 'PUBLISHED', url: 'https://www.tiktok.com/@litoques/video/1' },
+      ],
+      sources: [
+        { source: 'PUBLORA', label: 'Publora', synced_at: '2026-10-26T09:00:00Z' },
+        { source: 'PUBLER', label: 'Publer', error: 'Publer pide iniciar sesión' },
+      ],
+    });
+    render(<ControlCenter p={snapshot.promotions[0]} data={snapshot} initialTab="calendario"
+      highlight={null} onClose={() => {}} onTask={() => {}} onEdit={() => {}} onMessage={() => {}} />);
+    expect(await screen.findByText('Reel del miércoles')).toBeInTheDocument();
+    expect(ext).toHaveBeenCalledWith('p', '2026-10-26', '2026-11-01');
+    expect(screen.getByText('19:00')).toBeInTheDocument();
+    expect(screen.queryByText('Ya está en SocialHub')).toBeNull();
+    expect(screen.getByRole('link', { name: /La red · TikTok/ })).toHaveAttribute('href', 'https://www.tiktok.com/@litoques/video/1');
+    expect(screen.getByText(/falló: Publer pide iniciar sesión/)).toBeInTheDocument();
+  });
+});
+
 describe('Publora', () => {
   it('guarda la clave sin mostrarla y elige la cuenta de cada red', async () => {
     const connections = [
