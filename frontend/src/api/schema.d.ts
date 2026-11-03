@@ -97,6 +97,68 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/publora": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Si Publora está configurada y qué cuentas tiene conectadas
+         * @description La clave nunca sale de SocialHub: solo se indican sus últimos caracteres. Con clave, consulta a Publora sus cuentas conectadas; si falla, lo dice en «error».
+         */
+        get: operations["getPublora"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/publora/key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Guarda la clave de la API de Publora
+         * @description Antes de guardarla comprueba con Publora que es válida. Se guarda en un archivo de la carpeta de datos de SocialHub, legible solo por el usuario; nunca en la base de datos.
+         */
+        put: operations["savePubloraKey"];
+        post?: never;
+        /** Borra la clave de Publora (la vía queda sin configurar) */
+        delete: operations["deletePubloraKey"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/brands/{brand_id}/publora-accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Qué cuenta de Publora usa la marca en cada red */
+        get: operations["getBrandPubloraAccounts"];
+        /**
+         * Elige la cuenta de Publora de la marca en cada red
+         * @description Cada cuenta tiene que estar conectada en Publora y ser de esa red. Una lista vacía las quita.
+         */
+        put: operations["saveBrandPubloraAccounts"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/brands/{brand_id}/identity": {
         parameters: {
             query?: never;
@@ -758,6 +820,41 @@ export interface components {
             manual_file?: string;
             log: string[];
         };
+        PubloraStatus: {
+            configured: boolean;
+            /** @description Últimos 4 caracteres de la clave */
+            key_hint?: string;
+            connections: components["schemas"]["PubloraConnection"][];
+            /** @description Si Publora no respondió o no aceptó la clave */
+            error?: string;
+        };
+        PubloraConnection: {
+            /** @description Identificador en Publora («instagram-123») */
+            id: string;
+            /** @description Red en Publora (instagram, tiktok…) */
+            platform: string;
+            label: string;
+            /** @description false si Publora pide volver a conectarla */
+            usable: boolean;
+        };
+        PubloraKeyInput: {
+            key: string;
+        };
+        PubloraAccount: {
+            platform: components["schemas"]["Platform"];
+            connection_id: string;
+            label: string;
+        };
+        PubloraAccountList: {
+            items: components["schemas"]["PubloraAccount"][];
+        };
+        PubloraAccountInput: {
+            platform: components["schemas"]["Platform"];
+            connection_id: string;
+        };
+        PubloraAccountListInput: {
+            items: components["schemas"]["PubloraAccountInput"][];
+        };
         PublishRouteState: {
             /** @enum {string} */
             id: "PUBLER" | "PUBLORA" | "OFFICIAL";
@@ -1328,6 +1425,13 @@ export type FolderListInput = components['schemas']['FolderListInput'];
 export type AiRequestType = components['schemas']['AiRequestType'];
 export type AiTypeModel = components['schemas']['AiTypeModel'];
 export type PublishJob = components['schemas']['PublishJob'];
+export type PubloraStatus = components['schemas']['PubloraStatus'];
+export type PubloraConnection = components['schemas']['PubloraConnection'];
+export type PubloraKeyInput = components['schemas']['PubloraKeyInput'];
+export type PubloraAccount = components['schemas']['PubloraAccount'];
+export type PubloraAccountList = components['schemas']['PubloraAccountList'];
+export type PubloraAccountInput = components['schemas']['PubloraAccountInput'];
+export type PubloraAccountListInput = components['schemas']['PubloraAccountListInput'];
 export type PublishRouteState = components['schemas']['PublishRouteState'];
 export type AiSettings = components['schemas']['AiSettings'];
 export type AiSettingsInput = components['schemas']['AiSettingsInput'];
@@ -1599,6 +1703,134 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FolderList"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    getPublora: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Estado de Publora */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PubloraStatus"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    savePubloraKey: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PubloraKeyInput"];
+            };
+        };
+        responses: {
+            /** @description Clave guardada */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PubloraStatus"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    deletePubloraKey: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Clave borrada */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getBrandPubloraAccounts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                brand_id: components["parameters"]["BrandId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cuentas elegidas */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PubloraAccountList"];
+                };
+            };
+            404: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    saveBrandPubloraAccounts: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path: {
+                brand_id: components["parameters"]["BrandId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PubloraAccountListInput"];
+            };
+        };
+        responses: {
+            /** @description Cuentas guardadas */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PubloraAccountList"];
                 };
             };
             400: components["responses"]["Problem"];

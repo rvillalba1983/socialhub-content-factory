@@ -7,6 +7,7 @@ import { ExternalOperations } from './ExternalOperations';
 import { FolderRoles } from './Folders';
 import { MemoryCard } from './Memory';
 import { PublicationEditor } from './PublicationEditor';
+import { PubloraCard } from './Publora';
 import { BrandForm, PromotionForm } from './Registration';
 import { PieceOrders } from './PieceOrders';
 import type { ExternalOperationPage, Snapshot, Station, Task } from './model';
@@ -282,6 +283,34 @@ describe('Publicación programada', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Resuelto' }));
     await waitFor(() => expect(clear).toHaveBeenCalledWith('p-3'));
     await waitFor(() => expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({ id: 'p-3', flag: undefined }), 'Incidencia resuelta'));
+  });
+});
+
+describe('Publora', () => {
+  it('guarda la clave sin mostrarla y elige la cuenta de cada red', async () => {
+    const connections = [
+      { id: 'instagram-111', platform: 'instagram', label: 'instagram · elde_lito', usable: true },
+      { id: 'tiktok-222', platform: 'tiktok', label: 'tiktok · litoques', usable: false },
+    ];
+    const status = vi.spyOn(api, 'publora')
+      .mockResolvedValueOnce({ configured: false, connections: [] })
+      .mockResolvedValue({ configured: true, key_hint: '…6789', connections });
+    vi.spyOn(api, 'brandPubloraAccounts').mockResolvedValue({ items: [] });
+    const saveKey = vi.spyOn(api, 'savePubloraKey').mockResolvedValue({ configured: true, key_hint: '…6789', connections });
+    const saveAccounts = vi.spyOn(api, 'saveBrandPubloraAccounts').mockResolvedValue({ items: [] });
+    render(<PubloraCard brandId="el-delito" />);
+    expect(await screen.findByText('Sin clave')).toBeInTheDocument();
+    const input = screen.getByLabelText('Clave de la API de Publora');
+    expect(input).toHaveAttribute('type', 'password');
+    fireEvent.change(input, { target: { value: ' sk_123.abcdef0123456789 ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Comprobar y guardar' }));
+    await waitFor(() => expect(saveKey).toHaveBeenCalledWith('sk_123.abcdef0123456789'));
+    expect(await screen.findByText('Clave …6789')).toBeInTheDocument();
+    expect(status).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole('option', { name: /tiktok · litoques \(hay que volver a conectarla/ })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Cuenta de Publora para Instagram'), { target: { value: 'instagram-111' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cuentas' }));
+    await waitFor(() => expect(saveAccounts).toHaveBeenCalledWith('el-delito', [{ platform: 'INSTAGRAM', connection_id: 'instagram-111' }]));
   });
 });
 

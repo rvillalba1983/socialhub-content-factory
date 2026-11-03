@@ -288,3 +288,12 @@ Detalle en `docs/fases-7-9.md`.
 - **Programada no se edita** (respuesta de Raúl): ni datos, ni texto, ni archivos. Para cambiarla, vuelve a «Aprobada» (avisa si hay que borrarla en Publer) y se programa otra vez. Las piezas generadas no se asocian a una publicación ya programada.
 
 Detalle en `docs/fase-7.md`.
+
+## 2026-11-03 · Fase 7, bloque 2: Publora
+- **Cuenta de cada marca** (respuesta de Raúl): la elige él en la marca, una por red, de las conectadas en Publora.
+- **Desprogramar** (respuesta de Raúl): SocialHub borra en Publora la publicación que creó y lo anota.
+- **Clave:** en `secretos/publora.key` de la carpeta de datos, solo legible por el usuario; se comprueba con Publora antes de guardarla.
+- **Cliente HTTP:** el de Java; ninguna librería nueva.
+- **Comprobación:** consulta a Publora cada 5 minutos desde 15 minutos después de la hora, hasta 24 h.
+
+Detalle en `docs/fase-7.md`.

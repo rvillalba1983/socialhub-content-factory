@@ -1,5 +1,5 @@
 import type {
-  AiOrder, AiOrderInput, BrandIdentity, PublishJob, QualityReport, RejectionReason, EditorialDecision, EditorialMemory, AiRequestPage, AiSettings, AiSettingsInput, AppMode, AppModeState, Brand, FolderInput, FolderList, Publication, PublicationFile, PublicationFileList, PublicationInput, PublicationStatus, PieceOrder, PieceSpecList, BrandInput, ExternalOperationPage, Promotion, PromotionInput, OperationOutcome, Snapshot, Station, StationCommandType, Task, TaskCommand,
+  AiOrder, AiOrderInput, BrandIdentity, PublishJob, PubloraStatus, PubloraAccountList, PubloraAccountInput, QualityReport, RejectionReason, EditorialDecision, EditorialMemory, AiRequestPage, AiSettings, AiSettingsInput, AppMode, AppModeState, Brand, FolderInput, FolderList, Publication, PublicationFile, PublicationFileList, PublicationInput, PublicationStatus, PieceOrder, PieceSpecList, BrandInput, ExternalOperationPage, Promotion, PromotionInput, OperationOutcome, Snapshot, Station, StationCommandType, Task, TaskCommand,
 } from './model';
 
 export class ApiError extends Error {
@@ -66,6 +66,12 @@ export const api = {
   saveBrandIdentity: (id: string, identity: BrandIdentity) =>
     putJson<BrandIdentity>(`/api/brands/${encodeURIComponent(id)}/identity`, identity),
   publicationQuality: (id: string) => call<QualityReport>(`/api/publications/${encodeURIComponent(id)}/quality`),
+  publora: () => call<PubloraStatus>('/api/publora'),
+  savePubloraKey: (key: string) => putJson<PubloraStatus>('/api/publora/key', { key }),
+  deletePubloraKey: () => call<void>('/api/publora/key', { method: 'DELETE' }),
+  brandPubloraAccounts: (id: string) => call<PubloraAccountList>(`/api/brands/${encodeURIComponent(id)}/publora-accounts`),
+  saveBrandPubloraAccounts: (id: string, items: PubloraAccountInput[]) =>
+    putJson<PubloraAccountList>(`/api/brands/${encodeURIComponent(id)}/publora-accounts`, { items }),
   publishJob: (id: string) => call<PublishJob>(`/api/publications/${encodeURIComponent(id)}/publish-job`),
   clearPublicationFlag: (id: string) =>
     call<void>(`/api/publications/${encodeURIComponent(id)}/flag`, { method: 'DELETE' }),

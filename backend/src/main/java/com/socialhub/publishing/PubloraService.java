@@ -1,0 +1,100 @@
+package com.socialhub.publishing;
+
+import com.socialhub.promotion.PromotionQueries;
+import com.socialhub.publishing.domain.Platform;
+import com.socialhub.publishing.domain.PubloraAccountRepository;
+import com.socialhub.publishing.domain.PubloraGateway;
+import com.socialhub.publishing.domain.SecretStore;
+import java.util.ArrayList;
+import java.util.EnumSet;
+import java.util.List;
+import java.util.Locale;
+import lombok.RequiredArgsConstructor;
+import org.jmolecules.architecture.hexagonal.PrimaryPort;
+import org.jspecify.annotations.Nullable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+/** Clave de Publora (en un archivo local, nunca en la base) y cuenta de Publora de cada marca en cada red. */
+@PrimaryPort
+@Service
+@RequiredArgsConstructor
+public class PubloraService {
+
+    public record Status(boolean configured, @Nullable String keyHint, List<PubloraGateway.Connection> connections,
+                         @Nullable String error) {}
+
+    public record Choice(Platform platform, String connectionId) {}
+
+    private final SecretStore secrets;
+    private final PubloraGateway publora;
+    private final PubloraAccountRepository accounts;
+    private final PromotionQueries promotions;
+
+    public Status status() {
+        String key = secrets.get(PubloraRoute.KEY).orElse(null);
+        if (key == null) return new Status(false, null, List.of(), null);
+        try {
+            return new Status(true, hint(key), publora.connections(key), null);
+        } catch (PubloraGateway.PubloraException e) {
+            return new Status(true, hint(key), List.of(), e.getMessage());
+        }
+    }
+
+    /** Comprueba la clave con Publora y, si vale, la guarda. */
+    public Status saveKey(String key) {
+        String clean = key.strip();
+        if (clean.length() < 10 || clean.chars().anyMatch(Character::isWhitespace)) {
+            throw new IllegalArgumentException("La clave no tiene buena forma: pégala entera, sin espacios");
+        }
+        List<PubloraGateway.Connection> connections;
+        try {
+            connections = publora.connections(clean);
+        } catch (PubloraGateway.PubloraException e) {
+            throw new IllegalArgumentException("No se ha guardado: " + e.getMessage());
+        }
+        secrets.put(PubloraRoute.KEY, clean);
+        return new Status(true, hint(clean), connections, null);
+    }
+
+    public void deleteKey() { secrets.delete(PubloraRoute.KEY); }
+
+    @Transactional(readOnly = true)
+    public List<PubloraAccountRepository.Account> accounts(String brandId) {
+        promotions.requireBrand(brandId);
+        return accounts.accounts(brandId);
+    }
+
+    /** Cada cuenta tiene que estar conectada en Publora y ser de su red. */
+    @Transactional
+    public List<PubloraAccountRepository.Account> saveAccounts(String brandId, List<Choice> choices) {
+        promotions.requireBrand(brandId);
+        EnumSet<Platform> seen = EnumSet.noneOf(Platform.class);
+        for (Choice c : choices) {
+            if (!seen.add(c.platform())) throw new IllegalArgumentException("Una sola cuenta por red");
+        }
+        List<PubloraAccountRepository.Account> list = new ArrayList<>();
+        if (!choices.isEmpty()) {
+            String key = secrets.get(PubloraRoute.KEY)
+                    .orElseThrow(() -> new IllegalArgumentException("Primero pega la clave de la API de Publora"));
+            List<PubloraGateway.Connection> connections;
+            try {
+                connections = publora.connections(key);
+            } catch (PubloraGateway.PubloraException e) {
+                throw new IllegalArgumentException("No se pueden comprobar las cuentas: " + e.getMessage());
+            }
+            for (Choice c : choices) {
+                var connection = connections.stream().filter(x -> x.id().equals(c.connectionId())).findFirst()
+                        .orElseThrow(() -> new IllegalArgumentException("Esa cuenta no está conectada en Publora: " + c.connectionId()));
+                if (!connection.platform().equals(c.platform().name().toLowerCase(Locale.ROOT))) {
+                    throw new IllegalArgumentException("«" + connection.label() + "» no es de " + PubloraRoute.label(c.platform()));
+                }
+                list.add(new PubloraAccountRepository.Account(c.platform(), connection.id(), connection.label()));
+            }
+        }
+        accounts.replace(brandId, list);
+        return accounts.accounts(brandId);
+    }
+
+    private static String hint(String key) { return "…" + key.substring(Math.max(0, key.length() - 4)); }
+}

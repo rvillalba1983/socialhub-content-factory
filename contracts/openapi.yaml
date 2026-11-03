@@ -39,6 +39,8 @@ tags:
     description: Agentes, herramientas locales y servicios
   - name: ExternalOperations
     description: Seguimiento de las operaciones con sistemas externos
+  - name: Publora
+    description: Vía de publicación por la API de Publora (con la clave de Raúl)
 
 paths:
   /api/factory:
@@ -173,6 +175,93 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/FolderList" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/publora:
+    get:
+      tags: [Publora]
+      operationId: getPublora
+      summary: Si Publora está configurada y qué cuentas tiene conectadas
+      description: >
+        La clave nunca sale de SocialHub: solo se indican sus últimos caracteres. Con clave, consulta a Publora sus
+        cuentas conectadas; si falla, lo dice en «error».
+      responses:
+        "200":
+          description: Estado de Publora
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PubloraStatus" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/publora/key:
+    put:
+      tags: [Publora]
+      operationId: savePubloraKey
+      summary: Guarda la clave de la API de Publora
+      description: >
+        Antes de guardarla comprueba con Publora que es válida. Se guarda en un archivo de la carpeta de datos de
+        SocialHub, legible solo por el usuario; nunca en la base de datos.
+      parameters:
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PubloraKeyInput" }
+      responses:
+        "200":
+          description: Clave guardada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PubloraStatus" }
+        "400": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+    delete:
+      tags: [Publora]
+      operationId: deletePubloraKey
+      summary: Borra la clave de Publora (la vía queda sin configurar)
+      parameters:
+        - $ref: "#/components/parameters/RequestGuard"
+      responses:
+        "204": { description: Clave borrada }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/brands/{brand_id}/publora-accounts:
+    get:
+      tags: [Publora]
+      operationId: getBrandPubloraAccounts
+      summary: Qué cuenta de Publora usa la marca en cada red
+      parameters:
+        - $ref: "#/components/parameters/BrandId"
+      responses:
+        "200":
+          description: Cuentas elegidas
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PubloraAccountList" }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+    put:
+      tags: [Publora]
+      operationId: saveBrandPubloraAccounts
+      summary: Elige la cuenta de Publora de la marca en cada red
+      description: Cada cuenta tiene que estar conectada en Publora y ser de esa red. Una lista vacía las quita.
+      parameters:
+        - $ref: "#/components/parameters/BrandId"
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PubloraAccountListInput" }
+      responses:
+        "200":
+          description: Cuentas guardadas
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PubloraAccountList" }
         "400": { $ref: "#/components/responses/Problem" }
         "404": { $ref: "#/components/responses/Problem" }
         default: { $ref: "#/components/responses/Problem" }
@@ -1128,6 +1217,57 @@ components:
         last_error: { type: string }
         manual_file: { type: string, description: LEEME para publicar a mano }
         log: { type: array, items: { type: string } }
+
+    PubloraStatus:
+      type: object
+      required: [configured, connections]
+      properties:
+        configured: { type: boolean }
+        key_hint: { type: string, description: "Últimos 4 caracteres de la clave" }
+        connections: { type: array, items: { $ref: "#/components/schemas/PubloraConnection" } }
+        error: { type: string, description: Si Publora no respondió o no aceptó la clave }
+
+    PubloraConnection:
+      type: object
+      required: [id, platform, label, usable]
+      properties:
+        id: { type: string, description: "Identificador en Publora («instagram-123»)" }
+        platform: { type: string, description: "Red en Publora (instagram, tiktok…)" }
+        label: { type: string }
+        usable: { type: boolean, description: "false si Publora pide volver a conectarla" }
+
+    PubloraKeyInput:
+      type: object
+      required: [key]
+      properties:
+        key: { type: string, minLength: 10, maxLength: 200 }
+
+    PubloraAccount:
+      type: object
+      required: [platform, connection_id, label]
+      properties:
+        platform: { $ref: "#/components/schemas/Platform" }
+        connection_id: { type: string }
+        label: { type: string }
+
+    PubloraAccountList:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/PubloraAccount" } }
+
+    PubloraAccountInput:
+      type: object
+      required: [platform, connection_id]
+      properties:
+        platform: { $ref: "#/components/schemas/Platform" }
+        connection_id: { type: string, minLength: 1, maxLength: 200 }
+
+    PubloraAccountListInput:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, maxItems: 2, items: { $ref: "#/components/schemas/PubloraAccountInput" } }
 
     PublishRouteState:
       type: object
