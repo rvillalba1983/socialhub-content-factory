@@ -300,7 +300,13 @@ class PubloraRouteTest {
         assertThat(calendar.get("sources").toString()).contains("PUBLORA").contains("synced_at");
 
         // Encargo diario con Chrome: Publer y la red
-        CLOCK.set(LocalDate.now(MADRID).atTime(8, 0).atZone(MADRID).toInstant());
+        // El encargo diario sale desde las 7:00. El reloj nunca va por detrás del real: el lector de resultados
+        // espera a que el archivo lleve un rato sin cambiar, y con el reloj atrasado no lo leería nunca.
+        if (java.time.LocalTime.now(MADRID).isBefore(java.time.LocalTime.of(7, 5))) {
+            CLOCK.set(LocalDate.now(MADRID).atTime(8, 0).atZone(MADRID).toInstant());
+        } else {
+            CLOCK.reset();
+        }
         external.requestDaily("el-delito");
         external.requestDaily("el-delito"); // una vez al día
         Path pc = orders.resolve("para-claude-pc");
