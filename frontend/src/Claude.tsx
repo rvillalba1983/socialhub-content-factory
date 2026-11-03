@@ -18,6 +18,7 @@ const INPUT_HINT: Record<AiRequestType, string> = {
   WEEKLY_PROPOSALS: 'Opcional: un día de la semana. Sin fecha, la que viene. Sale solo los lunes a las 18:00.',
   PUBLER_SCHEDULE: 'Lo encarga SocialHub al pasar una publicación a «Programada».',
   PUBLISH_CHECK: 'Lo encarga SocialHub pasada la hora de publicación.',
+  CALENDAR_READ: 'Lo encarga SocialHub cada día, desde las 7:00.',
 };
 
 const REQUEST_STATUS: Record<AiRequest['status'], { label: string; s: StatusCode }> = {

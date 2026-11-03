@@ -97,6 +97,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/promotions/{promotion_id}/external-calendar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lo programado o publicado fuera de SocialHub (Publora, Publer y la red) para la marca de la promoción
+         * @description Publora se lee por su API cada hora; Publer y lo publicado en la red, con el encargo diario «Leer calendario» a Claude con Chrome. Lo que corresponde a una publicación de SocialHub lleva su publication_id.
+         */
+        get: operations["getExternalCalendar"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/publora": {
         parameters: {
             query?: never;
@@ -787,7 +807,7 @@ export interface components {
          * @description Tipo de encargo a Claude
          * @enum {string}
          */
-        AiRequestType: "WEEKLY_SPEC" | "CAPTIONS" | "WEEKLY_BALANCE" | "RESEARCH" | "QUALITY_REVIEW" | "WEEKLY_PROPOSALS" | "PUBLER_SCHEDULE" | "PUBLISH_CHECK";
+        AiRequestType: "WEEKLY_SPEC" | "CAPTIONS" | "WEEKLY_BALANCE" | "RESEARCH" | "QUALITY_REVIEW" | "WEEKLY_PROPOSALS" | "PUBLER_SCHEDULE" | "PUBLISH_CHECK" | "CALENDAR_READ";
         AiTypeModel: {
             type: components["schemas"]["AiRequestType"];
             label: string;
@@ -819,6 +839,37 @@ export interface components {
             /** @description LEEME para publicar a mano */
             manual_file?: string;
             log: string[];
+        };
+        ExternalCalendar: {
+            items: components["schemas"]["ExternalPost"][];
+            sources: components["schemas"]["ExternalSource"][];
+        };
+        /** @enum {string} */
+        ExternalSourceId: "PUBLORA" | "PUBLER" | "NETWORK";
+        ExternalPost: {
+            source: components["schemas"]["ExternalSourceId"];
+            source_label: string;
+            platform: components["schemas"]["Platform"];
+            /** Format: date-time */
+            at: string;
+            /** @enum {string} */
+            status: "SCHEDULED" | "PUBLISHED" | "FAILED";
+            text?: string;
+            url?: string;
+            external_id?: string;
+            /** @description Publicación de SocialHub a la que corresponde, si es de SocialHub */
+            publication_id?: string;
+        };
+        ExternalSource: {
+            source: components["schemas"]["ExternalSourceId"];
+            label: string;
+            /**
+             * Format: date-time
+             * @description Última lectura buena
+             */
+            synced_at?: string;
+            /** @description Por qué falló la última lectura */
+            error?: string;
         };
         PubloraStatus: {
             configured: boolean;
@@ -1425,6 +1476,10 @@ export type FolderListInput = components['schemas']['FolderListInput'];
 export type AiRequestType = components['schemas']['AiRequestType'];
 export type AiTypeModel = components['schemas']['AiTypeModel'];
 export type PublishJob = components['schemas']['PublishJob'];
+export type ExternalCalendar = components['schemas']['ExternalCalendar'];
+export type ExternalSourceId = components['schemas']['ExternalSourceId'];
+export type ExternalPost = components['schemas']['ExternalPost'];
+export type ExternalSource = components['schemas']['ExternalSource'];
 export type PubloraStatus = components['schemas']['PubloraStatus'];
 export type PubloraConnection = components['schemas']['PubloraConnection'];
 export type PubloraKeyInput = components['schemas']['PubloraKeyInput'];
@@ -1706,6 +1761,33 @@ export interface operations {
                 };
             };
             400: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    getExternalCalendar: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+            };
+            header?: never;
+            path: {
+                promotion_id: components["parameters"]["PromotionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Calendario de fuera */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExternalCalendar"];
+                };
+            };
             404: components["responses"]["Problem"];
             default: components["responses"]["Problem"];
         };

@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from './icons';
 import {
-  PROMOTION_STATUS, PUBLICATION_STATUS, STATUS, addDays, dayLabel, hhmm, isoDay, parseDay, shortDate, statusClass, weekday,
-  type Brand, type Promotion, type Publication, type PublicationStatus, type Snapshot,
+  PROMOTION_STATUS, PUBLICATION_STATUS, STATUS, addDays, dateTime, dayLabel, hhmm, isoDay, parseDay, shortDate, statusClass, weekday,
+  type Brand, type ExternalCalendar, type ExternalPost, type ExternalSource, type Promotion, type Publication,
+  type PublicationStatus, type Snapshot,
 } from './model';
 import { AgentChip, Dot, Pill } from './ui';
 import { FolderRoles } from './Folders';
@@ -49,6 +50,16 @@ export function ControlCenter({ p, brand, data, initialTab, highlight, onClose, 
     const i = weeks.findIndex(w => t >= w.getTime() && t < addDays(w, 7).getTime());
     return i < 0 ? 0 : i;
   });
+  /** Lo programado o publicado fuera de SocialHub en la semana que se ve (Publora, Publer y la red). */
+  const [outside, setOutside] = useState<ExternalCalendar | null>(null);
+  useEffect(() => {
+    if (tab !== 'calendario' || weeks.length === 0) return;
+    const w = weeks[Math.min(week, weeks.length - 1)];
+    let live = true;
+    api.externalCalendar(p.id, isoDay(w), isoDay(addDays(w, 6)))
+      .then(c => { if (live) setOutside(c); }).catch(() => { if (live) setOutside(null); });
+    return () => { live = false; };
+  }, [tab, week, weeks, p.id]);
   const ref = useRef<HTMLElement>(null);
   useEffect(() => { ref.current?.scrollTo?.({ top: 0 }); }, [p.id]);
   useEffect(() => {
@@ -112,16 +123,19 @@ export function ControlCenter({ p, brand, data, initialTab, highlight, onClose, 
                 <button className="btn" disabled={week >= weeks.length - 1} onClick={() => setWeek(week + 1)}>Semana siguiente</button>
                 <span className="src">{p.cadence} · Europe/Madrid</span>
               </div>
+              {outside && <OutsideSources sources={outside.sources} />}
               <div className="cal">
                 {days.map(d => {
                   const iso = isoDay(d);
                   const ev = pubs.filter(x => x.scheduled_on === iso);
+                  const ext = (outside?.items ?? []).filter(x => !x.publication_id && madridDay(x.at) === iso);
                   const free = freeDays && iso >= freeDays.starts_on && iso <= (freeDays.ends_on ?? freeDays.starts_on);
                   return (
                     <div key={iso} className={`day${iso === today ? ' today' : ''}`}>
                       <header><span>{weekday(d)}{iso === today ? ' · hoy' : ''}</span><b>{d.getUTCDate()}</b></header>
                       {free && <span className="pill s-ok" style={{ justifySelf: 'start' }}>Días gratis</span>}
-                      {ev.length ? ev.map(x => <PubEvent key={x.id} x={x} onClick={() => jump(x.id)} />) : <span className="empty">Sin publicaciones</span>}
+                      {ev.length ? ev.map(x => <PubEvent key={x.id} x={x} onClick={() => jump(x.id)} />) : !ext.length && <span className="empty">Sin publicaciones</span>}
+                      {ext.map((x, i) => <OutsideEvent key={`${x.source}-${x.at}-${i}`} x={x} />)}
                     </div>
                   );
                 })}
@@ -278,6 +292,36 @@ export function ControlCenter({ p, brand, data, initialTab, highlight, onClose, 
         )}
       </div>
     </section>
+  );
+}
+
+const MADRID_DAY = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit' });
+const MADRID_TIME = new Intl.DateTimeFormat('es-ES', { timeZone: 'Europe/Madrid', hour: '2-digit', minute: '2-digit' });
+const madridDay = (at: string) => MADRID_DAY.format(new Date(at));
+const OUTSIDE_STATUS: Record<ExternalPost['status'], string> = { SCHEDULED: 'Programada', PUBLISHED: 'Publicada', FAILED: 'Falló' };
+
+/** Algo programado o publicado fuera de SocialHub: se ve, pero no se edita aquí. */
+function OutsideEvent({ x }: { x: ExternalPost }) {
+  const label = `${x.source_label} · ${x.platform === 'INSTAGRAM' ? 'Instagram' : 'TikTok'}`;
+  const body = (
+    <>
+      <span className="t"><span className="mono">{MADRID_TIME.format(new Date(x.at))}</span> · {label}</span>
+      <span className="x">{x.text ?? 'Sin texto'}</span>
+      <span className="t">{OUTSIDE_STATUS[x.status]} fuera de SocialHub</span>
+    </>
+  );
+  return x.url
+    ? <a className="ev outside" href={x.url} target="_blank" rel="noreferrer">{body}</a>
+    : <div className="ev outside" role="note">{body}</div>;
+}
+
+/** Cuándo se leyó por última vez cada fuente de fuera y si falló. */
+function OutsideSources({ sources }: { sources: ExternalSource[] }) {
+  if (!sources.length) return <p className="src">Fuera de SocialHub: aún no se ha leído Publora, Publer ni la red.</p>;
+  return (
+    <p className="src outside-sources">Fuera de SocialHub: {sources.map(s => (
+      <span key={s.source}>{s.label} {s.error ? <b className="error-text">· falló: {s.error}</b> : s.synced_at ? `· leído ${dateTime(s.synced_at)}` : '· pendiente'}</span>
+    ))}</p>
   );
 }
 

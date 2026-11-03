@@ -419,3 +419,5 @@ tr.op-detail td{background:var(--surface-2)}
 .flag-row span{flex:1 1 200px;min-width:0}
 .reason-form{margin:10px 0;border-color:var(--line-2)}
 .memory-list{margin:0;padding-left:18px;display:grid;gap:6px}
+.ev.outside{border-style:dashed;background:transparent;opacity:.85;text-decoration:none;color:inherit}
+.outside-sources span+span::before{content:" · "}

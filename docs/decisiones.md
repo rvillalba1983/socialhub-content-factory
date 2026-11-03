@@ -297,3 +297,11 @@ Detalle en `docs/fase-7.md`.
 - **Comprobación:** consulta a Publora cada 5 minutos desde 15 minutos después de la hora, hasta 24 h.
 
 Detalle en `docs/fase-7.md`.
+
+## 2026-11-03 · Fase 7, bloques 3 y 4
+- **Bloque 3 aparcado** (respuesta de Raúl): primero el calendario. La API oficial tiene pegas (URL pública para imágenes, sin programación, TikTok privado hasta revisar la app).
+- **Calendario** (respuesta de Raúl): Publora por su API cada hora; Publer y la red con el encargo diario «Leer calendario» con Chrome en el PC, que no cuenta en el límite diario.
+- Lo de fuera de SocialHub también se pasa a las propuestas de la semana, para no pisarlo.
+- El identificador de la vía (p. ej. el grupo de Publora) se conserva al confirmar «Publicada».
+
+Detalle en `docs/fase-7.md`.

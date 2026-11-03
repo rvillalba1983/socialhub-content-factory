@@ -1,5 +1,5 @@
 import type {
-  AiOrder, AiOrderInput, BrandIdentity, PublishJob, PubloraStatus, PubloraAccountList, PubloraAccountInput, QualityReport, RejectionReason, EditorialDecision, EditorialMemory, AiRequestPage, AiSettings, AiSettingsInput, AppMode, AppModeState, Brand, FolderInput, FolderList, Publication, PublicationFile, PublicationFileList, PublicationInput, PublicationStatus, PieceOrder, PieceSpecList, BrandInput, ExternalOperationPage, Promotion, PromotionInput, OperationOutcome, Snapshot, Station, StationCommandType, Task, TaskCommand,
+  AiOrder, AiOrderInput, BrandIdentity, ExternalCalendar, PublishJob, PubloraStatus, PubloraAccountList, PubloraAccountInput, QualityReport, RejectionReason, EditorialDecision, EditorialMemory, AiRequestPage, AiSettings, AiSettingsInput, AppMode, AppModeState, Brand, FolderInput, FolderList, Publication, PublicationFile, PublicationFileList, PublicationInput, PublicationStatus, PieceOrder, PieceSpecList, BrandInput, ExternalOperationPage, Promotion, PromotionInput, OperationOutcome, Snapshot, Station, StationCommandType, Task, TaskCommand,
 } from './model';
 
 export class ApiError extends Error {
@@ -66,6 +66,8 @@ export const api = {
   saveBrandIdentity: (id: string, identity: BrandIdentity) =>
     putJson<BrandIdentity>(`/api/brands/${encodeURIComponent(id)}/identity`, identity),
   publicationQuality: (id: string) => call<QualityReport>(`/api/publications/${encodeURIComponent(id)}/quality`),
+  externalCalendar: (promotionId: string, from: string, to: string) =>
+    call<ExternalCalendar>(`/api/promotions/${encodeURIComponent(promotionId)}/external-calendar?from=${from}&to=${to}`),
   publora: () => call<PubloraStatus>('/api/publora'),
   savePubloraKey: (key: string) => putJson<PubloraStatus>('/api/publora/key', { key }),
   deletePubloraKey: () => call<void>('/api/publora/key', { method: 'DELETE' }),
