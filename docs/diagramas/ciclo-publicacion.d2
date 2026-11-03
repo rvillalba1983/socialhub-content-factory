@@ -1,0 +1,28 @@
+...@estilo
+direction: down
+
+idea: Idea {class: idle}
+propuesta: "Propuesta\n(de Claude o tuya)" {class: idle}
+produccion: En producción {class: run}
+borrador: Borrador {class: run}
+revision: Pendiente de revisión {class: wait}
+aprobada: Aprobada {class: ok}
+programada: Programada {class: ok}
+publicando: Publicando {class: run}
+publicada: Publicada {class: ok}
+error: Error de publicación {class: err}
+cancelada: "Cancelada\n(con motivo)" {class: cancel}
+
+idea -> propuesta {class: flecha}
+propuesta -> produccion: "Tú la apruebas" {class: flecha}
+produccion -> borrador {class: flecha}
+borrador -> revision {class: flecha}
+revision -> aprobada: "Sin avisos de calidad abiertos" {class: flecha}
+aprobada -> programada: "Tú, con 6 h de margen" {class: flecha}
+programada -> publicando: "A la hora · SocialHub" {class: flecha}
+publicando -> publicada: "Con enlace o identificador" {class: flecha}
+publicando -> error: "No aparece" {class: flecha}
+error -> programada: "Reprogramar" {class: manual}
+programada -> aprobada: "Para cambiarla" {class: manual}
+revision -> borrador: "Corregir" {class: manual}
+propuesta -> cancelada: "Rechazar" {class: manual}
