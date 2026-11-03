@@ -1232,7 +1232,7 @@ components:
       required: [id, platform, label, usable]
       properties:
         id: { type: string, description: "Identificador en Publora («instagram-123»)" }
-        platform: { type: string, description: Red en Publora (instagram, tiktok…) }
+        platform: { type: string, description: "Red en Publora (instagram, tiktok…)" }
         label: { type: string }
         usable: { type: boolean, description: "false si Publora pide volver a conectarla" }
 
