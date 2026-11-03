@@ -21,6 +21,53 @@ public class PublishingQueries {
 
     private final PublicationRepository publications;
     private final PublicationFileRepository files;
+    private final com.socialhub.publishing.domain.PublishJobRepository jobs;
+    private final List<PublishRoute> routes;
+
+    /** Vía de publicación y si está lista. */
+    public record RouteState(PublishRoute.Id id, String label, boolean configured) {}
+
+    /** Aviso de publicación para «Necesita atención». */
+    public record PublishAlert(String publicationId, boolean failed, String title, String detail) {}
+
+    /** Cómo va la publicación (solo si alguna vez se programó). */
+    public java.util.Optional<com.socialhub.publishing.domain.PublishJob> publishJob(String publicationId) {
+        if (!publications.exists(publicationId)) throw new NotFoundException("No existe la publicación " + publicationId);
+        return jobs.find(publicationId);
+    }
+
+    public List<RouteState> routes() {
+        return routes.stream().sorted(java.util.Comparator.comparing(PublishRoute::id))
+                .map(r -> new RouteState(r.id(), r.id().label(), r.configured())).toList();
+    }
+
+    /**
+     * Lo que Raúl tiene que mirar: publicaciones para hacer a mano, con error de publicación o con un posible
+     * duplicado en otra vía.
+     */
+    public List<PublishAlert> publishAlerts() {
+        List<PublishAlert> alerts = new java.util.ArrayList<>();
+        var statuses = java.util.EnumSet.of(com.socialhub.publishing.domain.PublishJob.Status.MANUAL,
+                com.socialhub.publishing.domain.PublishJob.Status.FAILED);
+        for (var job : jobs.withStatus(statuses)) {
+            publications.findById(job.getPublicationId()).ifPresent(p -> {
+                if (job.getStatus() == com.socialhub.publishing.domain.PublishJob.Status.MANUAL) {
+                    alerts.add(new PublishAlert(p.getId(), false, "Publicar a mano: " + p.getTitle(),
+                            "Ninguna vía pudo programarla a tiempo. LEEME: " + job.getManualFile()));
+                } else if (p.getStatus() == com.socialhub.publishing.domain.PublicationStatus.PUBLISH_ERROR) {
+                    alerts.add(new PublishAlert(p.getId(), true, "Error de publicación: " + p.getTitle(),
+                            job.getLastError() == null ? "Revisa la publicación" : job.getLastError()));
+                }
+            });
+        }
+        for (Publication p : publications.findAll()) {
+            String flag = p.getFlag();
+            if (flag != null && (flag.startsWith(PublishingEngine.LATE_FLAG) || flag.startsWith(PublishingEngine.STILL_SCHEDULED))) {
+                alerts.add(new PublishAlert(p.getId(), false, "Revisa la programación: " + p.getTitle(), flag));
+            }
+        }
+        return alerts;
+    }
 
     public PublicationPage page(PublicationFilter filter, long offset, int limit) {
         return publications.find(filter, offset, limit);

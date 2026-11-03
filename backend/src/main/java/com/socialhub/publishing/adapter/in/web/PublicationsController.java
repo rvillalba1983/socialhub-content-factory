@@ -102,6 +102,33 @@ class PublicationsController implements PublicationsApi {
     }
 
     @Override
+    public ResponseEntity<com.socialhub.api.model.PublishJobDto> getPublishJob(String publicationId) {
+        var job = queries.publishJob(publicationId)
+                .orElseThrow(() -> new com.socialhub.platform.NotFoundException("Esta publicación no se ha programado todavía"));
+        var routes = queries.routes().stream()
+                .map(r -> new com.socialhub.api.model.PublishRouteStateDto(
+                        com.socialhub.api.model.PublishRouteStateDto.IdEnum.valueOf(r.id().name()), r.label(), r.configured()))
+                .toList();
+        var dto = new com.socialhub.api.model.PublishJobDto(job.getPublicationId(),
+                com.socialhub.api.model.PublishJobDto.StatusEnum.valueOf(job.getStatus().name()), job.getStatus().label(),
+                routes, job.getAttempts(), job.getLog());
+        dto.setRoute(job.getRoute());
+        dto.setTaskId(job.getTaskId());
+        dto.setExternalId(job.getExternalId());
+        dto.setUrl(job.getUrl());
+        if (job.getNextTryAt() != null) dto.setNextTryAt(job.getNextTryAt().atOffset(ZoneOffset.UTC));
+        dto.setLastError(job.getLastError());
+        dto.setManualFile(job.getManualFile());
+        return ResponseEntity.ok(dto);
+    }
+
+    @Override
+    public ResponseEntity<Void> clearPublicationFlag(String publicationId, String requestGuard) {
+        service.clearFlag(publicationId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @Override
     public ResponseEntity<QualityReportDto> acceptQualityIssue(String publicationId, String requestGuard,
                                                                QualityAcceptanceDto acceptance) {
         return ResponseEntity.ok(report(quality.accept(publicationId, acceptance.getKey(), acceptance.getReason())));

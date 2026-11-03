@@ -232,5 +232,5 @@ public final class Publication {
         this.status = PublicationStatus.PUBLISHED;
     }
 
-    public void flag(String text) { this.flag = text; }
+    public void flag(@Nullable String text) { this.flag = text; }
 }

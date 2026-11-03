@@ -10,6 +10,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 interface AiRequestRepository extends JpaRepository<AiRequestEntity, String> {
     long countBySentAtGreaterThanEqual(Instant since);
 
+    long countBySentAtGreaterThanEqualAndTypeNotIn(Instant since, java.util.Collection<String> types);
+
     Optional<AiRequestEntity> findFirstByTaskIdAndStatusOrderBySentAtDesc(String taskId, AiRequestEntity.Status status);
 
     List<AiRequestEntity> findByTaskIdOrderBySentAt(String taskId);

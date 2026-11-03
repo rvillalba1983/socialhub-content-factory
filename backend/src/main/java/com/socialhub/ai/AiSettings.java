@@ -56,11 +56,12 @@ public class AiSettings {
         return settings.findById(key(type)).map(s -> ClaudeModel.valueOf(s.getValue())).orElse(ClaudeModel.SONNET);
     }
 
-    /** Encargos enviados hoy (día de España). */
+    /** Encargos enviados hoy (día de España) que cuentan en el límite (los de publicación no cuentan). */
     @Transactional(readOnly = true)
     public long usedToday() {
         Instant startOfDay = LocalDate.now(clock).atStartOfDay(clock.getZone()).toInstant();
-        return requests.countBySentAtGreaterThanEqual(startOfDay);
+        var pc = java.util.Arrays.stream(AiRequestType.values()).filter(AiRequestType::onPc).map(Enum::name).toList();
+        return requests.countBySentAtGreaterThanEqualAndTypeNotIn(startOfDay, pc);
     }
 
     private static String key(AiRequestType type) { return "model." + type.name(); }
