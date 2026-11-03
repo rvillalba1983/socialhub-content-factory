@@ -192,7 +192,8 @@ public final class PublishJob {
     public void published(@Nullable String external, @Nullable String link, Instant now) {
         status = Status.PUBLISHED;
         taskId = null;
-        if (blankToNull(external) != null) externalId = blankToNull(external);
+        // El identificador de la vía (p. ej. el grupo de Publora) se conserva: con él se reconoce en su calendario
+        if (externalId == null && blankToNull(external) != null) externalId = blankToNull(external);
         if (blankToNull(link) != null) url = blankToNull(link);
         note(now, "Publicada" + (url == null ? "" : ": " + url));
     }

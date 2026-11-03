@@ -38,6 +38,7 @@ class PublicationsController implements PublicationsApi {
     private final QualityService quality;
     private final com.socialhub.publishing.EditorialMemory memory;
     private final PublicationWebMapper mapper;
+    private final com.socialhub.publishing.ExternalCalendar externalCalendar;
 
     @Override
     public ResponseEntity<PublicationPageDto> listPublications(String promotionId,
@@ -120,6 +121,34 @@ class PublicationsController implements PublicationsApi {
         dto.setLastError(job.getLastError());
         dto.setManualFile(job.getManualFile());
         return ResponseEntity.ok(dto);
+    }
+
+    @Override
+    public ResponseEntity<com.socialhub.api.model.ExternalCalendarDto> getExternalCalendar(String promotionId,
+            LocalDate from, LocalDate to) {
+        if (to.isBefore(from) || from.plusDays(62).isBefore(to)) {
+            throw new IllegalArgumentException("Rango de fechas no válido (máximo dos meses)");
+        }
+        var view = externalCalendar.view(promotionId, from, to);
+        var items = view.items().stream().map(i -> {
+            var dto = new com.socialhub.api.model.ExternalPostDto(
+                    com.socialhub.api.model.ExternalSourceIdDto.valueOf(i.source().name()), i.source().label(),
+                    PlatformDto.valueOf(i.platform().name()), i.at().atOffset(ZoneOffset.UTC),
+                    com.socialhub.api.model.ExternalPostDto.StatusEnum.valueOf(i.status().name()));
+            dto.setText(i.text());
+            dto.setUrl(i.url());
+            dto.setExternalId(i.externalId());
+            dto.setPublicationId(i.publicationId());
+            return dto;
+        }).toList();
+        var sources = view.states().stream().map(st -> {
+            var dto = new com.socialhub.api.model.ExternalSourceDto(
+                    com.socialhub.api.model.ExternalSourceIdDto.valueOf(st.source().name()), st.source().label());
+            if (st.syncedAt() != null) dto.setSyncedAt(st.syncedAt().atOffset(ZoneOffset.UTC));
+            dto.setError(st.error());
+            return dto;
+        }).toList();
+        return ResponseEntity.ok(new com.socialhub.api.model.ExternalCalendarDto(items, sources));
     }
 
     @Override

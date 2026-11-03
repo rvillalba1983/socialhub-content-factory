@@ -91,6 +91,11 @@ public class PromotionQueries {
     }
 
     /** Identidad de la marca (vacía si no se ha rellenado). */
+    /** Usuario de la marca en las redes («@elde_lito»); vacío si no existe. */
+    public String handleOf(String brandId) {
+        return repository.brand(brandId).map(b -> b.handle()).orElse("");
+    }
+
     /** Falla con 404 si la marca no existe. */
     public void requireBrand(String brandId) {
         if (repository.brand(brandId).isEmpty()) throw new NotFoundException("No existe la marca " + brandId);

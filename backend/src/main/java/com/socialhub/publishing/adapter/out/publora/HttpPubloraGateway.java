@@ -119,6 +119,39 @@ class HttpPubloraGateway implements PubloraGateway {
     }
 
     @Override
+    public List<Listed> list(String key, Instant from, Instant to) {
+        List<Listed> list = new ArrayList<>();
+        for (int page = 1; page <= 10; page++) {
+            String query = "/list-posts?page=" + page + "&limit=100&sortBy=scheduledTime&sortOrder=asc&fromDate="
+                    + enc(from.toString()) + "&toDate=" + enc(to.toString());
+            JsonNode body = calls.call(SYSTEM, "list-posts", "página " + page, () -> send(key, "GET", query, null, null));
+            JsonNode posts = body.path("posts");
+            for (JsonNode p : posts) {
+                String when = text(p.path("scheduledTime"));
+                if (when == null) continue;
+                Instant at;
+                try {
+                    at = Instant.parse(when);
+                } catch (java.time.format.DateTimeParseException e) {
+                    continue;
+                }
+                if (at.isBefore(from) || !at.isBefore(to)) continue;
+                for (JsonNode target : p.path("platforms")) {
+                    String id = text(target.path("platformId"));
+                    String platform = text(target.path("platform"));
+                    if (id == null) continue;
+                    String connection = platform != null && !id.startsWith(platform + "-") ? platform + "-" + id : id;
+                    String status = text(target.path("status"));
+                    list.add(new Listed(p.path("postGroupId").asString(""), connection, at,
+                            status != null ? status : p.path("status").asString(""), text(p.path("content"))));
+                }
+            }
+            if (posts.size() < 100) break;
+        }
+        return list;
+    }
+
+    @Override
     public PostState post(String key, String postGroupId) {
         JsonNode body = calls.call(SYSTEM, "get-post", postGroupId, () -> send(key, "GET", "/get-post/" + enc(postGroupId), null, null));
         String status = body.path("status").asString("");
