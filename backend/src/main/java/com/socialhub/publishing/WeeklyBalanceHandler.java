@@ -27,6 +27,7 @@ class WeeklyBalanceHandler implements AiTypeHandler {
     private final PublishingQueries queries;
     private final AiReports reports;
     private final Clock clock;
+    private final PublicationMetrics metrics;
 
     @Override public AiRequestType type() { return AiRequestType.WEEKLY_BALANCE; }
 
@@ -46,9 +47,16 @@ class WeeklyBalanceHandler implements AiTypeHandler {
     public Map<String, Object> inputs(AiJob job) {
         LocalDate from = weekStart(job.inputs());
         LocalDate to = from.plusDays(6);
-        var list = queries.forAi(job.promotionId(), from, to);
+        var list = new java.util.ArrayList<Map<String, Object>>();
+        for (var p : queries.forAi(job.promotionId(), from, to)) {
+            var withMetrics = new java.util.LinkedHashMap<String, Object>(p);
+            var measured = metrics.forAi(String.valueOf(p.get("id")));
+            if (!measured.isEmpty()) withMetrics.put("metrics", measured);
+            list.add(withMetrics);
+        }
         return Map.of("week", Map.of("from", from.toString(), "to", to.toString()), "publications", list,
-                "expected_outputs", "report (Markdown) y summary. No inventes cifras: si faltan métricas, dilo.");
+                "expected_outputs", "report (Markdown) y summary. Usa las métricas de cada publicación (se miden a los 7 días); "
+                        + "no inventes cifras: si faltan métricas, dilo.");
     }
 
     @Override

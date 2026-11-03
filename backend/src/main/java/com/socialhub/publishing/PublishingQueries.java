@@ -23,12 +23,19 @@ public class PublishingQueries {
     private final PublicationFileRepository files;
     private final com.socialhub.publishing.domain.PublishJobRepository jobs;
     private final List<PublishRoute> routes;
+    private final com.socialhub.publishing.domain.MetricsRepository metricsRepository;
 
     /** Vía de publicación y si está lista. */
     public record RouteState(PublishRoute.Id id, String label, boolean configured) {}
 
     /** Aviso de publicación para «Necesita atención». */
     public record PublishAlert(String publicationId, boolean failed, String title, String detail) {}
+
+    /** Métricas de la publicación, si ya se pidieron. */
+    public java.util.Optional<com.socialhub.publishing.domain.MetricsRepository.Metrics> metrics(String publicationId) {
+        if (!publications.exists(publicationId)) throw new NotFoundException("No existe la publicación " + publicationId);
+        return metricsRepository.find(publicationId);
+    }
 
     /** Cómo va la publicación (solo si alguna vez se programó). */
     public java.util.Optional<com.socialhub.publishing.domain.PublishJob> publishJob(String publicationId) {

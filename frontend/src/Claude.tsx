@@ -19,6 +19,7 @@ const INPUT_HINT: Record<AiRequestType, string> = {
   PUBLER_SCHEDULE: 'Lo encarga SocialHub al pasar una publicación a «Programada».',
   PUBLISH_CHECK: 'Lo encarga SocialHub pasada la hora de publicación.',
   CALENDAR_READ: 'Lo encarga SocialHub cada día, desde las 7:00.',
+  METRICS_READ: 'Lo encarga SocialHub a los 7 días de cada publicación.',
 };
 
 const REQUEST_STATUS: Record<AiRequest['status'], { label: string; s: StatusCode }> = {

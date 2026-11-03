@@ -286,6 +286,27 @@ describe('Publicación programada', () => {
   });
 });
 
+describe('Métricas', () => {
+  it('muestra las cifras leídas y «Sin dato» en lo que no se vio', async () => {
+    const publication: Publication = {
+      id: 'p-9', promotion_id: 'p', platform: 'INSTAGRAM', type: 'Historia', title: 'Historia publicada',
+      scheduled_on: '2026-11-12', scheduled_time: '11:00', timezone: 'Europe/Madrid', status: 'PUBLISHED', route: 'Publer', demo: false,
+    };
+    vi.spyOn(api, 'publicationFiles').mockResolvedValue({ items: [] });
+    vi.spyOn(api, 'publicationQuality').mockResolvedValue({ open: 0, issues: [] });
+    vi.spyOn(api, 'publishJob').mockResolvedValue({ publication_id: 'p-9', status: 'PUBLISHED', status_label: 'Publicada', attempts: 1, routes: [], log: [] });
+    vi.spyOn(api, 'publicationMetrics').mockResolvedValue({
+      publication_id: 'p-9', status: 'DONE', requested_at: '2026-11-19T10:00:00Z', measured_at: '2026-11-19T12:00:00Z', attempts: 1,
+      reach: 1812, likes: 64, comments: 5, saves: 9, shares: 3, note: 'Historia: sin reproducciones',
+    });
+    render(<PublicationEditor promotionId="p" publication={publication} onClose={() => {}} onSaved={() => {}} />);
+    expect(await screen.findByText('64')).toBeInTheDocument();
+    expect(screen.getByText('Alcance')).toBeInTheDocument();
+    expect(screen.getByText('Sin dato')).toBeInTheDocument();
+    expect(screen.getByText(/Historia: sin reproducciones/)).toBeInTheDocument();
+  });
+});
+
 describe('Calendario con lo de fuera', () => {
   it('muestra lo programado fuera de SocialHub y cuándo se leyó cada fuente', async () => {
     const ext = vi.spyOn(api, 'externalCalendar').mockResolvedValue({

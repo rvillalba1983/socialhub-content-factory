@@ -445,6 +445,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/publications/{publication_id}/metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Métricas de la publicación (se leen una vez, a los 7 días de publicarse)
+         * @description Lo que no se pudo ver queda sin dato. 404 si aún no se han pedido.
+         */
+        get: operations["getPublicationMetrics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/publications/{publication_id}/publish-job": {
         parameters: {
             query?: never;
@@ -807,7 +827,7 @@ export interface components {
          * @description Tipo de encargo a Claude
          * @enum {string}
          */
-        AiRequestType: "WEEKLY_SPEC" | "CAPTIONS" | "WEEKLY_BALANCE" | "RESEARCH" | "QUALITY_REVIEW" | "WEEKLY_PROPOSALS" | "PUBLER_SCHEDULE" | "PUBLISH_CHECK" | "CALENDAR_READ";
+        AiRequestType: "WEEKLY_SPEC" | "CAPTIONS" | "WEEKLY_BALANCE" | "RESEARCH" | "QUALITY_REVIEW" | "WEEKLY_PROPOSALS" | "PUBLER_SCHEDULE" | "PUBLISH_CHECK" | "CALENDAR_READ" | "METRICS_READ";
         AiTypeModel: {
             type: components["schemas"]["AiRequestType"];
             label: string;
@@ -839,6 +859,30 @@ export interface components {
             /** @description LEEME para publicar a mano */
             manual_file?: string;
             log: string[];
+        };
+        PublicationMetrics: {
+            publication_id: string;
+            /** @enum {string} */
+            status: "REQUESTED" | "DONE" | "FAILED";
+            /** Format: date-time */
+            requested_at: string;
+            /** Format: date-time */
+            measured_at?: string;
+            /** Format: int32 */
+            attempts: number;
+            /** Format: int64 */
+            views?: number;
+            /** Format: int64 */
+            reach?: number;
+            /** Format: int64 */
+            likes?: number;
+            /** Format: int64 */
+            comments?: number;
+            /** Format: int64 */
+            saves?: number;
+            /** Format: int64 */
+            shares?: number;
+            note?: string;
         };
         ExternalCalendar: {
             items: components["schemas"]["ExternalPost"][];
@@ -1476,6 +1520,7 @@ export type FolderListInput = components['schemas']['FolderListInput'];
 export type AiRequestType = components['schemas']['AiRequestType'];
 export type AiTypeModel = components['schemas']['AiTypeModel'];
 export type PublishJob = components['schemas']['PublishJob'];
+export type PublicationMetrics = components['schemas']['PublicationMetrics'];
 export type ExternalCalendar = components['schemas']['ExternalCalendar'];
 export type ExternalSourceId = components['schemas']['ExternalSourceId'];
 export type ExternalPost = components['schemas']['ExternalPost'];
@@ -2528,6 +2573,30 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            404: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    getPublicationMetrics: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publication_id: components["parameters"]["PublicationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Métricas */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicationMetrics"];
+                };
             };
             404: components["responses"]["Problem"];
             default: components["responses"]["Problem"];

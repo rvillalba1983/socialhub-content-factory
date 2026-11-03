@@ -9,7 +9,7 @@ export type {
   PublicationInput, PublicationFile, PublicationFileList, AiRequestType, AiSettings, AiSettingsInput, AiRequest,
   AiRequestPage, AiOrderInput, AiOrder, BrandIdentity, QualityIssue, QualityReport,
   RejectionReason, EditorialDecision, EditorialMemory, PublishJob, PublishRouteState,
-  ExternalCalendar, ExternalPost, ExternalSource, PubloraStatus, PubloraConnection, PubloraAccount, PubloraAccountList, PubloraAccountInput,
+  PublicationMetrics, ExternalCalendar, ExternalPost, ExternalSource, PubloraStatus, PubloraConnection, PubloraAccount, PubloraAccountList, PubloraAccountInput,
 } from './schema';
 
 import type { TaskStep } from './schema';

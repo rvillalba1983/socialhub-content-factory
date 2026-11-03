@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { ApiError, api } from './api';
 import { Icon } from './icons';
 import {
-  PUBLICATION_NEXT, PUBLICATION_STATUS, REJECTION_REASONS, dateTime, type RejectionReason, type Publication, type PublishJob, type QualityReport, type PublicationFile, type PublicationInput,
+  PUBLICATION_NEXT, PUBLICATION_STATUS, REJECTION_REASONS, dateTime, type RejectionReason, type Publication, type PublicationMetrics, type PublishJob, type QualityReport, type PublicationFile, type PublicationInput,
   type PublicationStatus, type StatusCode,
 } from './model';
 import { Pill } from './ui';
@@ -151,6 +151,7 @@ export function PublicationEditor({ promotionId, publication, onClose, onSaved }
                 onClick={() => void run(() => api.clearPublicationFlag(publication.id).then(() => ({ ...publication, flag: undefined })), 'Incidencia resuelta')}>Resuelto</button></p>
           )}
           <PublishPanel publication={publication} />
+          <MetricsPanel publication={publication} />
           <QualityPanel publication={publication} promotionId={promotionId} />
           <PublicationFiles id={publication.id} locked={locked} />
         </>
@@ -232,6 +233,39 @@ function PublishPanel({ publication }: { publication: Publication }) {
             <summary>Historial</summary>
             <ul className="src">{job.log.map((line, n) => <li key={n}>{line}</li>)}</ul>
           </details>
+        </>
+      )}
+    </fieldset>
+  );
+}
+
+const METRICS: [keyof PublicationMetrics & ('views' | 'reach' | 'likes' | 'comments' | 'saves' | 'shares'), string][] = [
+  ['views', 'Reproducciones'], ['reach', 'Alcance'], ['likes', 'Me gusta'], ['comments', 'Comentarios'],
+  ['saves', 'Guardados'], ['shares', 'Compartidos'],
+];
+
+/** Métricas: se leen una vez, a los 7 días de publicarse. Lo que no se vio queda «Sin dato». */
+function MetricsPanel({ publication }: { publication: Publication }) {
+  const [m, setM] = useState<PublicationMetrics | null>(null);
+  useEffect(() => {
+    if (publication.status !== 'PUBLISHED') { setM(null); return; }
+    api.publicationMetrics(publication.id).then(setM).catch(() => setM(null));
+  }, [publication]);
+  if (publication.status !== 'PUBLISHED') return null;
+  return (
+    <fieldset className="rows" aria-label="Métricas">
+      <legend>Métricas</legend>
+      {!m && <p className="src">Se leen solas a los 7 días de publicarse.</p>}
+      {m?.status === 'REQUESTED' && <p className="src">Pedidas a Claude el {dateTime(m.requested_at)}.</p>}
+      {m?.status === 'FAILED' && <p className="src">No se pudieron leer{m.note ? `: ${m.note}` : ''}. Se reintenta al día siguiente (máximo 3 veces).</p>}
+      {m?.status === 'DONE' && (
+        <>
+          <div className="metrics">
+            {METRICS.map(([k, label]) => (
+              <div key={k}><small>{label}</small><b>{m[k] == null ? 'Sin dato' : (m[k] as number).toLocaleString('es-ES')}</b></div>
+            ))}
+          </div>
+          <p className="src">Leídas el {dateTime(m.measured_at!)}{m.note ? ` · ${m.note}` : ''}</p>
         </>
       )}
     </fieldset>

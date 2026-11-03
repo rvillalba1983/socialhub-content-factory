@@ -1,6 +1,6 @@
 # SocialHub · Fase 8: métricas y autonomía
 
-Estado: **bloque 1 (reintentos) en PR #18; bloque 2 (textos y revisión solos) hecho** (rama `fase-8/textos-solos`) · 3 nov 2026
+Estado: **bloque 1 en PR #18; bloque 2 (rama `fase-8/textos-solos`) y bloque 3 (rama `fase-8/metricas`) hechos** · 3 nov 2026
 
 Decisiones de Raúl en `docs/fases-7-9.md`.
 
@@ -29,3 +29,14 @@ Decisiones de Raúl en `docs/fases-7-9.md`.
   - La primera vez también se revisan las que ya estaban en «Pendiente de revisión».
 - Cada encargo se apunta (V19, `auto_ai_request`) para no repetirlo. Cuentan en el límite diario.
 - Código: `AutoRequests`. Prueba: `AutoRequestsTest`.
+
+## Bloque 3: métricas
+
+- **Sin Metricool.** La API de Publora solo da estadísticas de Mastodon y Bluesky, y en planes de pago, así que no sirve para Instagram ni TikTok.
+- **Cómo se leen:** con el encargo «Leer métricas» (Claude con Chrome en el PC, carpeta `para-claude-pc`). No cuenta en el límite diario.
+- **Cuándo:** cada publicación «Publicada» se mide una vez, a los 7 días. Va un encargo por promoción, con como mucho 10 publicaciones.
+- **Qué se guarda:** reproducciones, alcance, me gusta, comentarios, guardados y compartidos, más una nota. Lo que Claude no ve queda en null («Sin dato»); nunca se estima.
+- **Si falla:** se vuelve a pedir al día siguiente, hasta 3 veces. Una cifra que no sea un entero ≥ 0 invalida el resultado.
+- **Dónde se usan:** el panel «Métricas» de cada publicación publicada y el balance semanal, que ahora recibe las métricas de cada publicación.
+- **Datos:** V20, `publication_metric`. **API:** `GET /api/publications/{id}/metrics`. Pruebas en `PublishingEngineTest` y en el frontal.
+- **Pendiente:** añadir `socialhub.metrics-read` a las instrucciones de la tarea del PC, con el OK de Raúl.

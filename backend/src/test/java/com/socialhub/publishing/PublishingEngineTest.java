@@ -73,6 +73,7 @@ class PublishingEngineTest {
 
     @Autowired MockMvc mvc;
     @Autowired PublishingEngine engine;
+    @Autowired PublicationMetrics metrics;
     private final JsonMapper json = JsonMapper.builder().build();
 
     @TestConfiguration
@@ -273,6 +274,61 @@ class PublishingEngineTest {
         CLOCK.set(at.plusSeconds(3600));
         engine.tick();
         assertThat(publication(id).get("status").asString()).isEqualTo("APPROVED");
+    }
+
+    @Test
+    @Order(6)
+    void aWeekLaterItsMetricsAreRead() throws Exception {
+        String id = DAY + "-instagram-2"; // la publicada en confirmedWithTheLink
+        Instant at = DAY.atTime(10, 0).atZone(MADRID).toInstant();
+        assertThat(publication(id).get("status").asString()).isEqualTo("PUBLISHED");
+        CLOCK.set(at.plus(Duration.ofDays(6)));
+        assertThat(metrics.requestDue()).isZero();
+        CLOCK.set(at.plus(Duration.ofDays(7)).plus(Duration.ofHours(1)));
+        assertThat(metrics.requestDue()).isEqualTo(1);
+        assertThat(metrics.requestDue()).isZero(); // una sola vez
+        JsonNode m = get("/api/publications/" + id + "/metrics");
+        assertThat(m.get("status").asString()).isEqualTo("REQUESTED");
+        String taskId = metricsOrder(null);
+        JsonNode request = pcRequest(taskId);
+        assertThat(request.get("inputs").get("publications").get(0).get("url").asString()).contains("instagram.com");
+
+        // Una cifra negativa no vale; null es «sin dato»
+        result(taskId, completed(taskId, "{\"metrics\":[{\"publication_id\":\"" + id + "\",\"likes\":-3}]}"));
+        waitFor(() -> "FAILED".equals(task(taskId).get("status").asString()), "cifra no válida");
+        assertThat(get("/api/publications/" + id + "/metrics").get("status").asString()).isEqualTo("FAILED");
+
+        // Al día siguiente se vuelve a pedir
+        CLOCK.set(at.plus(Duration.ofDays(8)).plus(Duration.ofHours(2)));
+        assertThat(metrics.requestDue()).isEqualTo(1);
+        String second = metricsOrder(taskId);
+        waitFor(() -> "WAITING".equals(task(second).get("status").asString()), "segundo encargo");
+        result(second, completed(second, "{\"metrics\":[{\"publication_id\":\"" + id
+                + "\",\"views\":null,\"reach\":812,\"likes\":64,\"comments\":5,\"saves\":9,\"shares\":3,\"note\":\"Historia: sin reproducciones\"}],\"summary\":\"ok\"}"));
+        waitFor(() -> "DONE".equals(get("/api/publications/" + id + "/metrics").get("status").asString()), "métricas guardadas");
+        m = get("/api/publications/" + id + "/metrics");
+        assertThat(m.get("reach").asLong()).isEqualTo(812);
+        assertThat(m.get("likes").asLong()).isEqualTo(64);
+        assertThat(m.get("attempts").asInt()).isEqualTo(2);
+        assertThat(m.has("views") && !m.get("views").isNull()).isFalse();
+        CLOCK.reset();
+    }
+
+    /** Espera al encargo «Leer métricas» enviado a para-claude-pc (distinto de {@code besides}) y devuelve su tarea. */
+    private String metricsOrder(String besides) throws Exception {
+        String[] found = new String[1];
+        waitFor(() -> {
+            for (Path f : list(orders.resolve("para-claude-pc"))) {
+                String name = f.getFileName().toString();
+                if (besides != null && name.startsWith(besides)) continue;
+                if (Files.readString(f).contains("socialhub.metrics-read")) {
+                    found[0] = name.substring(0, name.lastIndexOf('-'));
+                    return true;
+                }
+            }
+            return false;
+        }, "encargo de métricas enviado");
+        return found[0];
     }
 
     // ---------------------------------------------------------------- utilidades

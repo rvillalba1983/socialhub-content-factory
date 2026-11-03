@@ -318,3 +318,8 @@ Detalle en `docs/fase-8.md`.
 - **Resumen diario:** solo en la app.
 
 Detalle en `docs/fase-8.md`.
+
+## 2026-11-03 · Fase 8, bloque 3: métricas
+- Las lee Claude con Chrome (encargo «Leer métricas», no cuenta en el límite diario), una vez por publicación, a los 7 días. La API de Publora no sirve: sus estadísticas son solo de Mastodon y Bluesky, y de pago.
+- Hasta 3 intentos, uno al día. Lo que no se ve, sin dato.
+- El balance semanal recibe las métricas.

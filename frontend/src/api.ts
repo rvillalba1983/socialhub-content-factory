@@ -1,5 +1,5 @@
 import type {
-  AiOrder, AiOrderInput, BrandIdentity, ExternalCalendar, PublishJob, PubloraStatus, PubloraAccountList, PubloraAccountInput, QualityReport, RejectionReason, EditorialDecision, EditorialMemory, AiRequestPage, AiSettings, AiSettingsInput, AppMode, AppModeState, Brand, FolderInput, FolderList, Publication, PublicationFile, PublicationFileList, PublicationInput, PublicationStatus, PieceOrder, PieceSpecList, BrandInput, ExternalOperationPage, Promotion, PromotionInput, OperationOutcome, Snapshot, Station, StationCommandType, Task, TaskCommand,
+  AiOrder, AiOrderInput, BrandIdentity, ExternalCalendar, PublicationMetrics, PublishJob, PubloraStatus, PubloraAccountList, PubloraAccountInput, QualityReport, RejectionReason, EditorialDecision, EditorialMemory, AiRequestPage, AiSettings, AiSettingsInput, AppMode, AppModeState, Brand, FolderInput, FolderList, Publication, PublicationFile, PublicationFileList, PublicationInput, PublicationStatus, PieceOrder, PieceSpecList, BrandInput, ExternalOperationPage, Promotion, PromotionInput, OperationOutcome, Snapshot, Station, StationCommandType, Task, TaskCommand,
 } from './model';
 
 export class ApiError extends Error {
@@ -74,6 +74,7 @@ export const api = {
   brandPubloraAccounts: (id: string) => call<PubloraAccountList>(`/api/brands/${encodeURIComponent(id)}/publora-accounts`),
   saveBrandPubloraAccounts: (id: string, items: PubloraAccountInput[]) =>
     putJson<PubloraAccountList>(`/api/brands/${encodeURIComponent(id)}/publora-accounts`, { items }),
+  publicationMetrics: (id: string) => call<PublicationMetrics>(`/api/publications/${encodeURIComponent(id)}/metrics`),
   publishJob: (id: string) => call<PublishJob>(`/api/publications/${encodeURIComponent(id)}/publish-job`),
   clearPublicationFlag: (id: string) =>
     call<void>(`/api/publications/${encodeURIComponent(id)}/flag`, { method: 'DELETE' }),
