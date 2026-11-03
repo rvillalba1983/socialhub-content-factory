@@ -129,7 +129,7 @@ class PublishingEngineTest {
         assertThat(request.get("type").asString()).isEqualTo("socialhub.publer-schedule");
         assertThat(Instant.parse(request.get("deadline").asString())).isEqualTo(at.minus(Duration.ofHours(8)));
         assertThat(request.get("inputs").get("publication").get("scheduled_at").asString()).isEqualTo(at.toString());
-        assertThat(request.get("inputs").get("publication").get("files").get(0).asString()).isEqualTo(story.toString());
+        assertThat(request.get("inputs").get("publication").get("files").get(0).asString()).isEqualTo(story.toRealPath().toString());
         assertThat(Files.exists(orders.resolve("para-claude"))
                 ? list(orders.resolve("para-claude")).stream().noneMatch(p -> p.getFileName().toString().startsWith(task)) : true)
                 .isTrue();
@@ -214,8 +214,10 @@ class PublishingEngineTest {
         JsonNode job = job(id);
         assertThat(job.get("status").asString()).isEqualTo("MANUAL");
         Path leeme = Path.of(job.get("manual_file").asString());
-        assertThat(leeme.getParent()).isEqualTo(approved);
-        assertThat(Files.readString(leeme)).contains("PUBLICAR A MANO").contains(story.toString()).contains("no lo hizo a tiempo");
+        // Rutas reales: en Windows y macOS la carpeta temporal tiene dos nombres (RUNNER~1, /private/var…)
+        assertThat(Files.isSameFile(leeme.getParent(), approved)).isTrue();
+        assertThat(Files.readString(leeme)).contains("PUBLICAR A MANO").contains(story.toRealPath().toString())
+                .contains("no lo hizo a tiempo");
         assertThat(publication(id).get("flag").asString()).startsWith("Publicación manual con LEEME");
         assertThat(alerts()).anyMatch(a -> a.get("target_id").asString().equals(id) && a.get("kind").asString().equals("BLOCKED"));
 
