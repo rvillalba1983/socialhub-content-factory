@@ -27,6 +27,8 @@ public class AppModeHolder {
     private final boolean demoEnabled;
     private final ApplicationEventPublisher events;
     private static final ThreadLocal<AppMode> PINNED = new ThreadLocal<>();
+    /** Motivo por el que SocialHub está parado (por ejemplo, tras restaurar una copia), o null. */
+    private static volatile @org.jspecify.annotations.Nullable String halted;
 
     private volatile AppMode current;
 
@@ -61,9 +63,19 @@ public class AppModeHolder {
         }
     }
 
+    /** Trabajo en segundo plano con ese modo. No hace nada si SocialHub está parado (ver {@link #halt}). */
     public static void runIn(AppMode mode, Runnable action) {
+        if (halted != null) return;
         callIn(mode, () -> { action.run(); return null; });
     }
+
+    /**
+     * Para el trabajo en segundo plano y los cambios desde la interfaz hasta reabrir SocialHub (tras restaurar una
+     * copia, para que nada escriba sobre los datos recién cargados).
+     */
+    public static void halt(String reason) { halted = reason; }
+
+    public static @org.jspecify.annotations.Nullable String haltedReason() { return halted; }
 
     public boolean demoEnabled() { return demoEnabled; }
 

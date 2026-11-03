@@ -326,3 +326,11 @@ Detalle en `docs/fase-8.md`.
 
 ## 2026-11-03 · Fase 8, bloque 4: resumen de hoy
 - Solo en la app (respuesta de Raúl): tarjeta «Resumen de hoy» en el mapa.
+
+## 2026-11-03 · Fase 9: respuestas de Raúl
+- **Copias:** al abrir SocialHub, si hoy no hay copia; se guardan 14; carpeta única en los ajustes generales.
+- **Formato:** exportación de tablas con el driver de PostgreSQL (el PostgreSQL incluido no trae `pg_dump`).
+- **Restaurar:** copia previa y confirmación escribiendo el nombre; después SocialHub se para y pide reabrirlo.
+- **Instaladores:** `.msi` y `.dmg` sin firmar.
+
+Detalle en `docs/fase-9.md`.
