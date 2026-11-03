@@ -6,6 +6,7 @@ import {
   type PromotionResource, type PublishingRoute, type Setting, type Snapshot,
 } from './model';
 import { Pill } from './ui';
+import { PubloraCard } from './Publora';
 import { FolderRoles } from './Folders';
 import { IdentityForm } from './Identity';
 import { MemoryCard } from './Memory';
@@ -42,6 +43,7 @@ export function Registration({ data, initial, onClose, onSaved }: {
         {editing?.kind === 'brand' && editing.id && <IdentityForm brandId={editing.id} onSaved={onSaved} />}
         {editing?.kind === 'brand' && editing.id && <MemoryCard brandId={editing.id} onSaved={onSaved} />}
         {editing?.kind === 'brand' && editing.id && <FolderRoles owner="brand" id={editing.id} onSaved={onSaved} />}
+        {editing?.kind === 'brand' && editing.id && <PubloraCard brandId={editing.id} onSaved={onSaved} />}
         {editing?.kind === 'promotion' && (
           <PromotionForm data={data} promotion={editing.id ? data.promotions.find(p => p.id === editing.id) : undefined}
             onCancel={() => setEditing(null)} onSaved={p => { setEditing(null); onSaved(`Promoción guardada · ${p.name}`); }} />

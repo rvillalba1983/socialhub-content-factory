@@ -1,6 +1,6 @@
 # SocialHub · Fase 7: publicación
 
-Estado: **bloque 1 hecho, pendiente de PR** (rama `fase-7/publicacion`) · 3 nov 2026
+Estado: **bloque 1 en `main`; bloque 2 hecho, pendiente de PR** (rama `fase-7/publora`) · 3 nov 2026
 
 Decisiones generales en `docs/fases-7-9.md`. Respuestas de Raúl al empezar esta fase:
 
@@ -49,3 +49,25 @@ A la hora → «Publicando»; 15 min después (2 h si es a mano) → encargo «C
 
 - **«Publicar con Chrome (SocialHub)»**, en el PC de Raúl: recoge `para-claude-pc` cada hora de 8:40 a 22:40. Creada con su OK (`docs/tarea-programada-encargos.md`).
 - **«Encargos de SocialHub»**, en la nube: ahora ignora `para-claude-pc` (con su OK).
+
+## Bloque 2: Publora
+
+Respuestas de Raúl:
+- **Cuenta de cada marca:** la elige Raúl en la marca (Marcas › editar), de las cuentas que Publora tiene conectadas: una para Instagram y otra para TikTok. Sin cuenta elegida, Publora no se usa en esa red.
+- **Al sacarla de «Programada»:** SocialHub la borra él solo en Publora (solo la que creó para esa publicación) y lo anota en el historial.
+
+Cómo funciona:
+- **Clave:** Raúl la pega en la marca, en la tarjeta «Publora». SocialHub la comprueba con Publora antes de guardarla.
+  - Se guarda en `<datos de SocialHub>/secretos/publora.key`, legible solo por su usuario (permisos 600 en macOS; en Windows, una ACL solo para el propietario).
+  - Nunca va a la base de datos, a las copias de Drive ni al repositorio. La pantalla solo muestra los 4 últimos caracteres.
+- **Programar** (`PubloraRoute`), hasta 6 h antes:
+  - Crea el borrador con texto y hashtags (las historias van sin texto y como `STORIES`).
+  - Sube los archivos (máx. 25 MB por imagen y 150 MB por vídeo) y la programa a su hora.
+  - Si algo falla por el camino, borra el borrador. Cada ronda lleva su clave de idempotencia, para que un reintento no la duplique.
+- **Errores de Publora** (cuota del plan gratuito, cuenta desconectada…): la vía falla con el mensaje de Publora y se sigue con la siguiente.
+- **Comprobar:** pasada la hora consulta `get-post` cada 5 minutos. «Publicada» llega con el identificador y el enlace; si Publora la marca como fallida, «Error de publicación».
+- **Cliente:** el `HttpClient` de Java, sin librerías nuevas. Cada llamada queda en «Operaciones externas» con el sistema «Publora».
+- **API:** `GET /api/publora`, `PUT|DELETE /api/publora/key` y `GET|PUT /api/brands/{id}/publora-accounts` (V17: `brand_publora_account`).
+- **Pruebas:** `PubloraRouteTest`, contra un Publora de mentira: clave, cuentas, programar con subida de archivos, comprobar, quitarla al desprogramar y cuota agotada.
+
+Sin comprobar todavía con la cuenta real de Raúl: las historias de imagen por la API personal de Publora (la documentación solo habla de vídeo en `videoType`).
