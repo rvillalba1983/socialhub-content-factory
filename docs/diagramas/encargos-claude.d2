@@ -1,0 +1,22 @@
+...@estilo
+direction: right
+
+socialhub: "SocialHub\n(en tu PC)" {class: ink}
+
+drive: "Carpeta «Encargos» de cada marca en Google Drive" {
+  class: grupo
+  para: "para-claude\nespecificaciones, textos, revisiones,\nbalances, investigación, propuestas" {class: base}
+  parapc: "para-claude-pc\nprogramar en Publer, comprobar,\nleer calendario y métricas" {class: base}
+  de: "de-claude\nresultados" {class: ok}
+}
+
+nube: "Tarea programada «Encargos de SocialHub»\nen la nube · 9:40, 14:40 y 20:40" {class: run}
+pc: "Tarea programada «Publicar con Chrome»\nen tu PC · cada hora de 8:40 a 22:40" {class: run}
+
+socialhub -> drive.para: "deja el encargo" {class: flecha}
+socialhub -> drive.parapc: "deja el encargo" {class: flecha}
+drive.para -> nube {class: flecha}
+drive.parapc -> pc {class: flecha}
+nube -> drive.de: "resultado" {class: flecha}
+pc -> drive.de: "resultado" {class: flecha}
+drive.de -> socialhub: "lo comprueba y lo aplica" {class: flecha}

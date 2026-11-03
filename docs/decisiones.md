@@ -326,3 +326,7 @@ Detalle en `docs/fase-8.md`.
 
 ## 2026-11-03 · Fase 8, bloque 4: resumen de hoy
 - Solo en la app (respuesta de Raúl): tarjeta «Resumen de hoy» en el mapa.
+
+## 2026-11-03 · Documentación funcional
+- Manual funcional en `MANUAL.md` (petición de Raúl), con capturas del vídeo demo en `docs/manual/img/`.
+- Diagramas en D2 con los colores de la web (`docs/diagramas/`, estilo común en `estilo.d2`). Los SVG se generan con `generar.sh` y se suben al repositorio. D2 es solo una herramienta de documentación (gratuita): no forma parte de la app.
