@@ -16,6 +16,8 @@ const INPUT_HINT: Record<AiRequestType, string> = {
   RESEARCH: 'Lo que Claude deba tener en cuenta: lugares, nombres, enlaces…',
   QUALITY_REVIEW: 'El identificador de una publicación. También desde la propia publicación.',
   WEEKLY_PROPOSALS: 'Opcional: un día de la semana. Sin fecha, la que viene. Sale solo los lunes a las 18:00.',
+  PUBLER_SCHEDULE: 'Lo encarga SocialHub al pasar una publicación a «Programada».',
+  PUBLISH_CHECK: 'Lo encarga SocialHub pasada la hora de publicación.',
 };
 
 const REQUEST_STATUS: Record<AiRequest['status'], { label: string; s: StatusCode }> = {
@@ -135,7 +137,7 @@ function SettingsCard({ settings, onSaved }: { settings: AiSettings; onSaved: (s
       <label className="field"><span>Encargos al día (hoy: {settings.used_today})</span>
         <input type="number" min={0} max={100} required value={limit} onChange={e => setLimit(Number(e.target.value))} /></label>
       {models.map(m => (
-        <label key={m.type} className="field"><span>Modelo para «{m.label}»</span>
+        <label key={m.type} className="field"><span>Modelo para «{m.label}»{m.on_pc && <small className="src"> · con Chrome en tu PC; no cuenta en el límite</small>}</span>
           <select value={m.model} onChange={e => setModels(models.map(x => (x.type === m.type ? { ...x, model: e.target.value as AiModel } : x)))}>
             {AI_MODELS.map(a => <option key={a.id} value={a.id}>{a.label}</option>)}
           </select></label>
@@ -180,7 +182,7 @@ function OrderCard({ data, settings, onOrdered }: { data: Snapshot; settings: Ai
           {data.promotions.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
       <label className="field"><span>Tipo</span>
         <select value={type} onChange={e => setType(e.target.value as AiRequestType)}>
-          {settings.models.map(m => <option key={m.type} value={m.type}>{m.label} · {AI_MODELS.find(a => a.id === m.model)?.label}</option>)}</select></label>
+          {settings.models.filter(m => !m.on_pc).map(m => <option key={m.type} value={m.type}>{m.label} · {AI_MODELS.find(a => a.id === m.model)?.label}</option>)}</select></label>
       <label className="field"><span>Título (opcional)</span><input maxLength={120} value={title} onChange={e => setTitle(e.target.value)} /></label>
       <label className="field"><span>Qué tiene que hacer</span>
         <textarea required rows={3} maxLength={4000} value={goal} onChange={e => setGoal(e.target.value)} /></label>

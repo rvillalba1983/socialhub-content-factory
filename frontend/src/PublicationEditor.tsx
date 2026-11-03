@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { api } from './api';
+import { ApiError, api } from './api';
 import { Icon } from './icons';
 import {
-  PUBLICATION_NEXT, PUBLICATION_STATUS, REJECTION_REASONS, dateTime, type RejectionReason, type Publication, type QualityReport, type PublicationFile, type PublicationInput,
-  type PublicationStatus,
+  PUBLICATION_NEXT, PUBLICATION_STATUS, REJECTION_REASONS, dateTime, type RejectionReason, type Publication, type PublishJob, type QualityReport, type PublicationFile, type PublicationInput,
+  type PublicationStatus, type StatusCode,
 } from './model';
 import { Pill } from './ui';
 
@@ -141,6 +141,12 @@ export function PublicationEditor({ promotionId, publication, onClose, onSaved }
               }} />
           )}
           <p className="src">Programar exige al menos 6 horas de margen. «Publicada» solo llega con la confirmación de la plataforma.</p>
+          {publication.flag && (
+            <p className="flag-row" role="status"><Icon name="alert" /> <span>{publication.flag}</span>{' '}
+              <button type="button" className="btn" disabled={busy}
+                onClick={() => void run(() => api.clearPublicationFlag(publication.id).then(() => ({ ...publication, flag: undefined })), 'Incidencia resuelta')}>Resuelto</button></p>
+          )}
+          <PublishPanel publication={publication} />
           <QualityPanel publication={publication} promotionId={promotionId} />
           <PublicationFiles id={publication.id} />
         </>
@@ -179,6 +185,49 @@ function PublicationFiles({ id }: { id: string }) {
         <button className="btn" disabled={!path.trim()}>Añadir archivo</button>
       </form>
       {error && <p className="error" role="alert">{error}</p>}
+    </fieldset>
+  );
+}
+
+const JOB_STATUS: Record<PublishJob['status'], StatusCode> = {
+  WORKING: 'RUNNING', RETRY_WAIT: 'WAITING', SCHEDULED: 'OK', CHECKING: 'RUNNING', MANUAL: 'BLOCKED',
+  PUBLISHED: 'OK', FAILED: 'FAILED', CANCELLED: 'WAITING',
+};
+
+/** Publicación: vía en uso, próximo intento, LEEME si hay que hacerla a mano e historial. */
+function PublishPanel({ publication }: { publication: Publication }) {
+  const [job, setJob] = useState<PublishJob | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const live = ['SCHEDULED', 'PUBLISHING', 'PUBLISHED', 'PUBLISH_ERROR'].includes(publication.status);
+  useEffect(() => {
+    if (!live) { setJob(null); return; }
+    api.publishJob(publication.id).then(setJob)
+      .catch(e => { if (e instanceof ApiError && e.status === 404) setJob(null); else setError(e instanceof Error ? e.message : String(e)); });
+  }, [publication, live]);
+  if (!live || (!job && !error)) return null;
+  return (
+    <fieldset className="rows" aria-label="Publicación">
+      <legend>Publicación</legend>
+      {error && <p className="error">{error}</p>}
+      {job && (
+        <>
+          <div className="status-row">
+            <Pill s={JOB_STATUS[job.status]} label={job.status_label} />
+            {job.route && <span>Vía: <b>{job.route}</b></span>}
+            {job.attempts > 1 && <small className="src">Ronda {job.attempts}</small>}
+            {job.next_try_at && <small className="src">Próximo intento: {dateTime(job.next_try_at)}</small>}
+          </div>
+          <p className="src">Vías por orden: {job.routes.map(r => `${r.label}${r.configured ? '' : ' (no configurada)'}`).join(' → ')}</p>
+          {job.url && <p>Enlace: <a href={job.url} target="_blank" rel="noreferrer">{job.url}</a></p>}
+          {job.external_id && <p className="src">Identificador: <span className="mono">{job.external_id}</span></p>}
+          {job.manual_file && <p>LEEME para publicarla a mano: <span className="mono">{job.manual_file}</span></p>}
+          {job.last_error && job.status !== 'PUBLISHED' && <p className="src">Último problema: {job.last_error}</p>}
+          <details>
+            <summary>Historial</summary>
+            <ul className="src">{job.log.map((line, n) => <li key={n}>{line}</li>)}</ul>
+          </details>
+        </>
+      )}
     </fieldset>
   );
 }

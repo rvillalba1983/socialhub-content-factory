@@ -301,7 +301,7 @@ class PublishingEngine {
             }
         }
         Instant next = now.plus(RETRY);
-        if (!next.isAfter(at.minus(Publication.MIN_MARGIN))) {
+        if (next.isBefore(at.minus(Publication.MIN_MARGIN))) {
             job.retryAt(next, now);
             return;
         }

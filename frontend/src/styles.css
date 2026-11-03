@@ -415,5 +415,7 @@ tr.op-detail td{background:var(--surface-2)}
 .error-text{color:var(--err)}
 .quality-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:4px 0}
 .quality-row .file-add{grid-column:1/-1}
+.flag-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 10px;border-radius:8px;color:var(--block);background:var(--block-bg)}
+.flag-row span{flex:1 1 200px;min-width:0}
 .reason-form{margin:10px 0;border-color:var(--line-2)}
 .memory-list{margin:0;padding-left:18px;display:grid;gap:6px}
