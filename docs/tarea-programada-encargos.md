@@ -9,7 +9,7 @@ Creada el 2 nov 2026 con el OK de Raúl. No se ha tocado ninguna de las tareas p
   - La sesión principal solo reparte el trabajo. La herramienta de creación no permite elegir su modelo, así que se creó con Opus. Raúl puede cambiarlo a Haiku en los ajustes de la tarea programada para gastar menos.
 - **Aprobaciones:** se ejecuta sin pedirlas (aprobación automática).
 - **Avisos:** notificación en el móvil al terminar, solo si hubo encargos.
-- **Actualizada el 3 nov 2026** (con el OK de Raúl): revisión de calidad, identidad de la marca, memoria editorial y propuestas de la semana. El texto de abajo resume las instrucciones; el texto completo vigente está en la propia tarea programada.
+- **Actualizada el 3 nov 2026** (con el OK de Raúl): revisión de calidad, identidad de la marca, memoria editorial y propuestas de la semana. Ese mismo día, también con su OK, se le añadió que ignore las carpetas «para-claude-pc». El texto de abajo resume las instrucciones; el texto completo vigente está en la propia tarea programada.
 
 ## Instrucciones de la tarea
 
@@ -21,6 +21,7 @@ NO USES EL ORDENADOR DE RAÚL: nada de herramientas remote-devices, navegador in
 Todo se hace desde la nube con el conector de Google Drive, WebSearch y WebFetch.
 
 1. Busca en Google Drive las carpetas llamadas «para-claude». Cada una tiene al lado una carpeta «de-claude».
+   Ignora las carpetas «para-claude-pc» y sus encargos: esos los hace la tarea del PC con Chrome.
 2. En cada «para-claude», cada archivo «<tarea>-<intento>.json» es un encargo (contrato socialhub.task-request v1).
    Está pendiente si en su «de-claude» no hay ningún archivo cuyo nombre empiece por «<tarea>-<intento>».
    Si no hay ninguno pendiente, termina con «Sin encargos» sin hacer más llamadas.
@@ -70,7 +71,7 @@ REGLAS PARA CADA ENCARGO
 
 ## Encargos de publicación: carpeta «para-claude-pc» (fase 7)
 
-La tarea de la nube **no los hace**: solo mira las carpetas «para-claude». Los encargos «Programar en Publer» y
+La tarea de la nube **no los hace**: sus instrucciones le dicen que ignore «para-claude-pc». Los encargos «Programar en Publer» y
 «Comprobar publicación» van a «para-claude-pc» porque necesitan Chrome con la sesión de Raúl en Publer.
 
 ### Tarea programada del PC «Publicar con Chrome» (propuesta, sin crear)
