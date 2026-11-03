@@ -93,4 +93,4 @@ Respuesta de Raúl: Publer y lo publicado en la red se leen con un **encargo dia
 - **Propuestas de la semana:** reciben también lo de fuera (`planned_outside_socialhub`) para no pisarlo.
 - **Datos:** V18, tablas `external_post` y `external_calendar_state`. **API:** `GET /api/promotions/{id}/external-calendar?from&to`.
 - **Pruebas:** en `PubloraRouteTest` (Publora de mentira y resultado del encargo) y en el frontal.
-- **Pendiente:** añadir `socialhub.calendar-read` a las instrucciones de la tarea del PC, con el OK de Raúl.
+- **Tarea del PC:** sus instrucciones ya incluyen `socialhub.calendar-read` (con el OK de Raúl), solo lectura.
