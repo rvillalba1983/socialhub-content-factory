@@ -54,7 +54,7 @@
 <div class="bar">
   <div class="brand"><b>Mapa del código</b><span>SocialHub</span><small id="rev"></small></div>
   <div class="seg" role="group" aria-label="Nivel de zoom">
-    <button data-go="general">General</button><button data-go="isla">Isla</button><button data-go="archivos">Archivos</button><button data-go="codigo">Código</button>
+    <button data-go="general">General</button><button data-go="isla">Isla</button><button data-go="capa">Capa</button><button data-go="codigo">Código</button>
   </div>
   <input class="search" id="search" list="paths" placeholder="Buscar un archivo… (Intro para ir)" autocomplete="off">
   <datalist id="paths"></datalist>
@@ -66,7 +66,7 @@
   <div><span class="sw" style="background:var(--wait-bg);border-color:var(--wait)"></span>Adaptadores de entrada · web, pantallas</div>
   <div><span class="sw" style="background:var(--block-bg);border-color:var(--block)"></span>Adaptadores de salida · base, Drive, Publora</div>
   <div><span class="sw" style="background:var(--idle-bg);border-color:var(--idle)"></span>Pruebas y configuración · anillo exterior</div>
-  <div class="src">Islas: módulos del monolito modular (Spring Modulith), el frontal React y los contratos. Puentes: un módulo usa a otro (más grueso, más usos). De cerca, en azul lo que usa la isla y en verde quién la usa. Altura: líneas del archivo.</div>
+  <div class="src">Islas: módulos del monolito modular (Spring Modulith), el frontal React y los contratos. Puentes: un módulo usa a otro (más grueso, más usos). De cerca, en azul lo que usa la isla y en verde quién la usa. Cada capa es un bloque: su superficie es su número de clases. Acércate a una capa y salen sus clases; la altura de cada clase son sus líneas.</div>
 </div>
 <div class="hint">Nivel: <span id="level">General</span> · rueda: zoom · arrastrar: girar · clic derecho: mover · clic: ir</div>
 <div id="tip"></div>
@@ -176,39 +176,97 @@ let dx = outer + 40;
 for (const id of ['docs', 'herramientas']) if (byId[id]) { dx += byId[id].radius; byId[id].pos = new THREE.Vector3(dx, 0, 0); dx += byId[id].radius + 34; }
 islands.filter(i => !i.pos).forEach((i, k) => { i.pos = new THREE.Vector3(0, 0, outer + 40 + k * 30); });
 
+// Celdas con la punta hacia z: encajan sin huecos con la rejilla (filas separadas √3 en x)
 const hexGeo = new THREE.CylinderGeometry(1, 1, 1, 6);
-hexGeo.rotateY(Math.PI / 6);  // celdas en punta, alineadas con la rejilla
+const baseGeo = hexGeo.clone(); baseGeo.rotateY(Math.PI / 6);
 const unitPrism = hexGeo.clone(); unitPrism.translate(0, 0.5, 0);
-const mats = {}, floorMats = {};
+const CORNERS = [0, 1, 2, 3, 4, 5].map(i => [Math.sin(i * Math.PI / 3) * CELL, Math.cos(i * Math.PI / 3) * CELL]);
+const mats = {}, floorMats = {}, blockMats = {}, rimMats = {};
 for (const [k, l] of Object.entries(LAYERS)) {
   mats[k] = new THREE.MeshLambertMaterial({ color: l.c });
   floorMats[k] = new THREE.MeshLambertMaterial({ color: l.bg });
+  blockMats[k] = new THREE.MeshLambertMaterial({ color: new THREE.Color(l.c).lerp(new THREE.Color(l.bg), 0.18) });
+  rimMats[k] = new THREE.LineBasicMaterial({ color: new THREE.Color(l.c).multiplyScalar(0.62) });
 }
 const baseMat = new THREE.MeshLambertMaterial({ color: '#FFFFFF' });
 const edgeMat = new THREE.LineBasicMaterial({ color: '#D2D7DE' });
-const pickables = [], fileMeshes = [], islandBases = [];
+const fileMeshes = [], islandBases = [], units = [];
 const H = lines => 0.3 + Math.log2(lines + 1) * 0.42;
+// Altura de cada capa cerrada: escalonada hacia el centro, como un hexágono por capas
+const LH = { dominio: 2.6, aplicacion: 2.0, entrada: 1.4, salida: 1.4, pruebas: 0.8, config: 0.8 };
+const LABEL_DIR = { entrada: Math.PI, salida: 0, pruebas: Math.PI / 2, config: Math.PI / 4, aplicacion: -3 * Math.PI / 4 };
+const angDiff = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
+const noun = (isl, n) => isl.kind === 'backend' ? `${n} ${n === 1 ? 'clase' : 'clases'}` : `${n} ${n === 1 ? 'archivo' : 'archivos'}`;
 
+/** Borde exterior de un conjunto de celdas: las aristas que no comparten con otra celda de la misma capa. */
+function outline(cells, y) {
+  const key = (x, z) => `${Math.round(x * 100)},${Math.round(z * 100)}`;
+  const edges = new Map();
+  for (const c of cells) for (let i = 0; i < 6; i++) {
+    const a = CORNERS[i], b = CORNERS[(i + 1) % 6];
+    const p = [c.x + a[0], c.z + a[1]], q = [c.x + b[0], c.z + b[1]];
+    const k = [key(...p), key(...q)].sort().join('|');
+    const e = edges.get(k); if (e) e.n++; else edges.set(k, { p, q, n: 1 });
+  }
+  const pts = [];
+  for (const { p, q, n } of edges.values()) if (n === 1) pts.push(p[0], y, p[1], q[0], y, q[1]);
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+  return g;
+}
+
+const m4 = new THREE.Matrix4(), q0 = new THREE.Quaternion();
 for (const isl of islands) {
   const g = new THREE.Group(); g.position.copy(isl.pos); scene.add(g); isl.group = g;
-  const base = new THREE.Mesh(hexGeo, baseMat);
+  const base = new THREE.Mesh(baseGeo, baseMat);
   base.scale.set(isl.radius, 0.8, isl.radius); base.position.y = -0.4; base.receiveShadow = true;
   base.userData = { island: isl }; g.add(base); islandBases.push(base);
-  const rim = new THREE.LineSegments(new THREE.EdgesGeometry(hexGeo), edgeMat); rim.scale.copy(base.scale); rim.position.copy(base.position); g.add(rim);
-  isl.layerCells = {};
-  for (const { f, cell } of isl.placed) {
-    const floor = new THREE.Mesh(hexGeo, floorMats[f.layer]);
-    floor.scale.set(CELL * 0.98, 0.12, CELL * 0.98); floor.position.set(cell.x, 0.06, cell.z); floor.receiveShadow = true;
-    g.add(floor);
-    const h = H(f.lines);
-    const m = new THREE.Mesh(unitPrism, mats[f.layer]);
-    m.scale.set(CELL * 0.78, h, CELL * 0.78); m.position.set(cell.x, 0.12, cell.z);
-    m.castShadow = true; m.receiveShadow = true;
-    m.userData = { file: f, island: isl, top: h };
-    f.mesh = m; f.world = new THREE.Vector3(cell.x, h, cell.z).add(isl.pos);
-    g.add(m); pickables.push(m); fileMeshes.push(m);
-    (isl.layerCells[f.layer] ??= []).push(cell);
+  const rim = new THREE.LineSegments(new THREE.EdgesGeometry(baseGeo), edgeMat); rim.scale.copy(base.scale); rim.position.copy(base.position); g.add(rim);
+  // Una unidad por capa: un bloque macizo con una celda por clase, de modo que su superficie es su número de clases
+  const groups = {};
+  for (const p of isl.placed) (groups[p.f.layer] ??= []).push(p);
+  isl.units = [];
+  for (const [layer, list] of Object.entries(groups)) {
+    const cells = list.map(p => p.cell), h = LH[layer];
+    const block = new THREE.InstancedMesh(unitPrism, blockMats[layer], cells.length);
+    cells.forEach((c, i) => block.setMatrixAt(i, m4.compose(new THREE.Vector3(c.x, 0, c.z), q0, new THREE.Vector3(CELL, h, CELL))));
+    block.castShadow = true; block.receiveShadow = true;
+    const edge = new THREE.LineSegments(outline(cells, 0), rimMats[layer]);
+    edge.position.y = h + 0.01;
+    const inner = new THREE.Group(); inner.visible = false;
+    const name = isl.id === 'frontal' && FRONT[layer] ? FRONT[layer] : LAYERS[layer].label;
+    const unit = { layer, name, island: isl, cells, files: list.map(p => p.f), block, edge, inner, open: false, h };
+    block.userData = { unit, island: isl };
+    for (const { f, cell } of list) {
+      const floor = new THREE.Mesh(hexGeo, floorMats[layer]);
+      floor.scale.set(CELL, 0.12, CELL); floor.position.set(cell.x, 0.06, cell.z); floor.receiveShadow = true;
+      inner.add(floor);
+      const fh = H(f.lines);
+      const m = new THREE.Mesh(unitPrism, mats[layer]);
+      m.scale.set(CELL * 0.78, fh, CELL * 0.78); m.position.set(cell.x, 0.12, cell.z);
+      m.castShadow = true; m.receiveShadow = true;
+      m.userData = { file: f, island: isl, unit, top: fh };
+      f.mesh = m; f.unit = unit; f.world = new THREE.Vector3(cell.x, fh, cell.z).add(isl.pos);
+      inner.add(m); fileMeshes.push(m);
+    }
+    // Punto del rótulo: el centro para el dominio y las mitades; en los anillos, la celda que mira hacia su lado
+    let anchor;
+    if (layer === 'dominio' || layer === 'entrada' || layer === 'salida') {
+      anchor = { x: cells.reduce((s, c) => s + c.x, 0) / cells.length, z: cells.reduce((s, c) => s + c.z, 0) / cells.length };
+    } else {
+      const dir = LABEL_DIR[layer] ?? 0;
+      anchor = cells.slice().sort((a, b) => angDiff(a.ang, dir) - angDiff(b.ang, dir) || Math.hypot(a.x, a.z) - Math.hypot(b.x, b.z))[0];
+    }
+    unit.anchor = new THREE.Vector3(anchor.x, 0, anchor.z).add(isl.pos);
+    g.add(block, edge, inner);
+    isl.units.push(unit); units.push(unit);
   }
+}
+/** Distancia de un punto a la celda más cercana de una capa. */
+const unitDist = (u, p) => Math.min(...u.cells.map(c => Math.hypot(u.island.pos.x + c.x - p.x, u.island.pos.z + c.z - p.z)));
+function setOpen(u, open) {
+  if (u.open === open) return; u.open = open;
+  u.block.visible = !open; u.inner.visible = open;
+  u.edge.position.y = open ? 0.14 : u.h + 0.01;
 }
 
 // ---------------------------------------------------------------- Rótulos (sprites de texto)
@@ -229,19 +287,17 @@ function label(text, { size = 28, color = '#0D1117', bg = 'rgba(255,255,255,.92)
 const islandLabels = [], layerLabels = [];
 for (const isl of islands) {
   const lab = label(isl.label, { size: 34, scale: 1 });
-  lab.position.copy(isl.pos).add(new THREE.Vector3(0, 9, 0));
+  lab.position.copy(isl.pos).add(new THREE.Vector3(0, 6, -(isl.radius + 1)));
   lab.userData.island = isl; lab.userData.kind = 'island'; scene.add(lab); islandLabels.push(lab);
-  const n = label(`${isl.files.length} archivos · ${isl.lines.toLocaleString('es-ES')} líneas`, { size: 22, weight: 500, color: '#4A5361', scale: 1 });
+  const n = label(`${noun(isl, isl.files.length)} · ${isl.lines.toLocaleString('es-ES')} líneas`, { size: 22, weight: 500, color: '#4A5361', scale: 1 });
   n.position.copy(lab.position).add(new THREE.Vector3(0, -2.6, 0)); n.userData.island = isl; n.userData.kind = 'islandSub'; scene.add(n); islandLabels.push(n);
-  for (const [layer, cells] of Object.entries(isl.layerCells)) {
-    const cx = cells.reduce((s, c) => s + c.x, 0) / cells.length, cz = cells.reduce((s, c) => s + c.z, 0) / cells.length;
-    const name = isl.id === 'frontal' && FRONT[layer] ? FRONT[layer] : LAYERS[layer].label;
-    const l = label(`${name} · ${cells.length}`, { size: 24, color: LAYERS[layer].c, border: LAYERS[layer].c, weight: 600, scale: 1 });
-    // Dominio encima del centro; el resto, fuera de la isla en la dirección de su anillo
-    const fixed = { entrada: Math.PI, salida: 0, pruebas: Math.PI / 2, config: Math.PI / 2 + 0.6, aplicacion: -Math.PI / 2 };
-    if (layer === 'dominio') l.position.set(isl.pos.x + cx, 7, isl.pos.z + cz);
-    else { const a = fixed[layer] ?? Math.atan2(cz, cx); l.position.set(isl.pos.x + Math.cos(a) * (isl.radius + 4), 3, isl.pos.z + Math.sin(a) * (isl.radius + 4)); }
-    l.userData.kind = 'layer'; l.userData.island = isl;
+  for (const u of isl.units) {
+    const lines = u.files.reduce((a, f) => a + f.lines, 0);
+    const l = label(`${u.name} · ${noun(isl, u.files.length)}`, { size: 24, color: LAYERS[u.layer].c, border: LAYERS[u.layer].c, weight: 600, scale: 1 });
+    // Dominio encima del centro; el resto, fuera de la isla, del lado de su capa
+    if (u.layer === 'dominio') l.position.copy(u.anchor).setY(u.h + 1.6);
+    else { const ang = LABEL_DIR[u.layer]; l.position.set(isl.pos.x + Math.cos(ang) * (isl.radius + 5), 2.5, isl.pos.z + Math.sin(ang) * (isl.radius + 5)); }
+    l.userData.kind = 'layer'; l.userData.island = isl; l.userData.unit = u; l.userData.lines = lines;
     scene.add(l); layerLabels.push(l);
   }
 }
@@ -273,25 +329,31 @@ const fileLabels = new Map();
 let level = '', focused = null;
 function setLevel(l) {
   if (l === level) return; level = l;
-  levelEl.textContent = { general: 'General', isla: 'Isla', archivos: 'Archivos', codigo: 'Código' }[l];
+  levelEl.textContent = { general: 'General', isla: 'Isla', capa: 'Capa', codigo: 'Código' }[l];
   document.querySelectorAll('.seg button').forEach(b => b.classList.toggle('on', b.dataset.go === l));
 }
 function update() {
   const dist = camera.position.distanceTo(controls.target);
-  setLevel(dist > 200 ? 'general' : dist > 80 ? 'isla' : dist > 30 ? 'archivos' : 'codigo');
+  setLevel(dist > 200 ? 'general' : dist > 80 ? 'isla' : dist > 30 ? 'capa' : 'codigo');
+  const here = islands.reduce((a, c) => c.pos.distanceTo(controls.target) < a.pos.distanceTo(controls.target) ? c : a);
+  // Al acercarte a una capa, el bloque se abre y salen sus clases
+  let openUnit = null;
+  if ((level === 'capa' || level === 'codigo') && here.pos.distanceTo(controls.target) < here.radius + 12) {
+    openUnit = here.units.reduce((best, u) => { const d = unitDist(u, controls.target); return !best || d < best[1] ? [u, d] : best; }, null)?.[0] ?? null;
+  }
+  for (const u of units) setOpen(u, u === openUnit);
   const k = dist / 60;
   for (const s of [...islandLabels, ...layerLabels]) {
     const isl = s.userData.island;
     const near = isl.pos.distanceTo(controls.target) < isl.radius + 25;
     let visible = true, sc = 1;
-    if (s.userData.kind === 'island') { sc = Math.max(2.5, Math.min(dist / 40, 10)); visible = level === 'general' || level === 'isla' || (level === 'archivos' && near); }
+    if (s.userData.kind === 'island') { sc = Math.max(2.5, Math.min(dist / 40, 10)); visible = level === 'general' || level === 'isla' || (level === 'capa' && near); }
     else if (s.userData.kind === 'islandSub') { sc = Math.max(1.6, Math.min(dist / 70, 7)); visible = near && level === 'isla'; }
-    else { sc = Math.max(1.2, Math.min(dist / 55, 3.2)); visible = (level === 'isla' || level === 'archivos') && near; }
+    else { sc = Math.max(1.2, Math.min(dist / 55, 3.2)); visible = near && (level === 'isla' || (level === 'capa' && !s.userData.unit.open)); }
     s.visible = visible;
     s.scale.set(sc * s.userData.aspect, sc, 1);
   }
   // Puentes: todos en la vista general; de cerca, solo los de la isla que miras
-  const here = islands.reduce((a, c) => c.pos.distanceTo(controls.target) < a.pos.distanceTo(controls.target) ? c : a);
   for (const b of bridges) {
     const mine = b.d.from === here.id || b.d.to === here.id;
     const op = level === 'general' ? 0.45 : level === 'isla' ? (mine ? 0.6 : 0.06) : (mine ? 0.25 : 0);
@@ -300,9 +362,9 @@ function update() {
   }
   // Nombres de archivo cerca del centro de la vista
   const show = new Set();
-  if (level === 'archivos' || level === 'codigo') {
-    const near = fileMeshes.map(m => [m, m.userData.file.world.distanceTo(controls.target)])
-      .filter(([, d]) => d < 16).sort((a, b) => a[1] - b[1]).slice(0, level === 'codigo' ? 6 : 14);
+  if (openUnit) {
+    const near = openUnit.inner.children.filter(m => m.userData.file).map(m => [m, m.userData.file.world.distanceTo(controls.target)])
+      .filter(([, d]) => d < 16).sort((a, b) => a[1] - b[1]).slice(0, level === 'codigo' ? 5 : 8);
     for (const [m] of near) show.add(m);
   }
   for (const [m, s] of fileLabels) if (!show.has(m)) { s.visible = false; }
@@ -318,7 +380,7 @@ function update() {
   }
   // A nivel de código, el archivo más cercano al centro de la vista se abre solo
   if (level === 'codigo') {
-    const nearest = fileMeshes.reduce((best, m) => {
+    const nearest = (openUnit?.inner.children ?? []).filter(m => m.userData.file).reduce((best, m) => {
       const d = m.userData.file.world.distanceTo(controls.target);
       return !best || d < best[1] ? [m, d] : best;
     }, null);
@@ -386,12 +448,14 @@ renderer.domElement.addEventListener('pointerup', e => {
   const hit = pick(e);
   if (!hit) return;
   if (hit.userData.file) { const f = hit.userData.file; flyTo(f.world.clone().setY(f.world.y * 0.5), 22, () => openCode(f)); }
+  else if (hit.userData.unit) flyTo(hit.userData.unit.anchor.clone(), 50);
   else if (hit.userData.island) flyTo(hit.userData.island.pos.clone(), Math.max(110, hit.userData.island.radius * 5.5));
 });
 function pick(e) {
   mouse.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
   ray.setFromCamera(mouse, camera);
-  const hits = ray.intersectObjects([...pickables, ...islandBases, ...islandLabels], false);
+  const objs = [...units.flatMap(u => u.open ? u.inner.children.filter(m => m.userData.file) : [u.block]), ...islandBases, ...islandLabels.filter(l => l.visible)];
+  const hits = ray.intersectObjects(objs, false);
   return hits[0]?.object ?? null;
 }
 renderer.domElement.addEventListener('pointermove', e => {
@@ -399,9 +463,12 @@ renderer.domElement.addEventListener('pointermove', e => {
   if (hit?.userData.file) {
     const f = hit.userData.file, L = LAYERS[f.layer];
     tip.innerHTML = `<b>${esc(f.path.split('/').pop())}</b><div class="m">${esc(f.path)}</div>${esc(byId[f.island].label)} · ${esc(f.island === 'frontal' && FRONT[f.layer] ? FRONT[f.layer] : L.label)} · ${f.lines} líneas · ${f.churn} cambios`;
+  } else if (hit?.userData.unit) {
+    const u = hit.userData.unit, top = u.files.slice().sort((a, b) => b.lines - a.lines).slice(0, 4).map(f => f.path.split('/').pop().replace(/\.\w+$/, ''));
+    tip.innerHTML = `<b>${esc(u.name)}</b> · ${esc(u.island.label)}<br>${noun(u.island, u.files.length)} · ${u.files.reduce((a, f) => a + f.lines, 0).toLocaleString('es-ES')} líneas<br><span class="m">${esc(top.join(', '))}${u.files.length > 4 ? '…' : ''}</span><br>Clic para abrir la capa`;
   } else if (hit?.userData.island) {
     const i = hit.userData.island, out = D.deps.filter(d => d.from === i.id).map(d => byId[d.to]?.label).filter(Boolean);
-    tip.innerHTML = `<b>${esc(i.label)}</b><br>${i.files.length} archivos · ${i.lines.toLocaleString('es-ES')} líneas${out.length ? `<br>Usa: ${esc(out.join(', '))}` : ''}`;
+    tip.innerHTML = `<b>${esc(i.label)}</b><br>${noun(i, i.files.length)} · ${i.lines.toLocaleString('es-ES')} líneas${out.length ? `<br>Usa: ${esc(out.join(', '))}` : ''}`;
   } else { tip.style.display = 'none'; return; }
   tip.style.display = 'block'; tip.style.left = Math.min(e.clientX + 14, innerWidth - 430) + 'px'; tip.style.top = (e.clientY + 14) + 'px';
 });
@@ -410,7 +477,7 @@ document.querySelectorAll('.seg button').forEach(b => b.onclick = () => {
   const target = focused?.world ?? controls.target;
   if (b.dataset.go === 'general') home();
   else if (b.dataset.go === 'isla') { const isl = focused ? byId[focused.island] : islands.reduce((a, c) => c.pos.distanceTo(controls.target) < a.pos.distanceTo(controls.target) ? c : a); flyTo(isl.pos.clone(), Math.max(110, isl.radius * 5.5)); }
-  else if (b.dataset.go === 'archivos') flyTo(target.clone().setY(0), 55);
+  else if (b.dataset.go === 'capa') flyTo(target.clone().setY(0), 50);
   else flyTo(target.clone().setY(focused ? focused.world.y * 0.5 : 2), 22, () => focused && openCode(focused));
 });
 const list = document.getElementById('paths');
