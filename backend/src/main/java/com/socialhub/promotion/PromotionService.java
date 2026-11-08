@@ -38,6 +38,7 @@ public class PromotionService {
     private final com.socialhub.promotion.domain.IdentityRepository identities;
     private final com.socialhub.promotion.domain.DecisionRepository decisions;
     private final java.time.Clock clock;
+    private final com.socialhub.promotion.domain.FolderMaker folderMaker;
 
     public Brand createBrand(BrandDraft draft) {
         String id = Slugs.of(draft.name(), repository::brandIdTaken);
@@ -83,6 +84,41 @@ public class PromotionService {
         if (repository.brand(brandId).isEmpty()) throw new NotFoundException("No existe la marca " + brandId);
         folders.replaceBrandFolders(brandId, clean(assignments));
         events.publishEvent(new FactoryChanged("brand", brandId));
+        return queries.brandFolders(brandId);
+    }
+
+    /**
+     * Carpetas de la marca: con una carpeta base, los papeles sin carpeta pasan a ser subcarpetas suyas con su nombre
+     * (Material, Borradores…). Después se crean las carpetas asignadas que no existan. Nunca se borra ni se mueve nada.
+     */
+    public List<FolderAssignment> createBrandFolders(String brandId, @org.jspecify.annotations.Nullable String base) {
+        if (repository.brand(brandId).isEmpty()) throw new NotFoundException("No existe la marca " + brandId);
+        Map<FolderRole, String> current = new EnumMap<>(FolderRole.class);
+        current.putAll(folders.brandFolders(brandId));
+        if (base != null && !base.isBlank()) {
+            String root = clean(Map.of(FolderRole.MATERIAL, base)).get(FolderRole.MATERIAL);
+            for (FolderRole role : FolderRole.values()) {
+                current.computeIfAbsent(role, r -> Path.of(root).resolve(r.label()).toString());
+            }
+        }
+        if (current.isEmpty()) {
+            throw new com.socialhub.platform.DomainException("Escribe una carpeta base o la ruta de cada papel antes de crear las carpetas.");
+        }
+        Map<FolderRole, String> assigned = clean(current);
+        java.util.List<String> failed = new java.util.ArrayList<>();
+        for (Map.Entry<FolderRole, String> f : assigned.entrySet()) {
+            try {
+                folderMaker.ensure(f.getValue());
+            } catch (RuntimeException e) {
+                failed.add(f.getKey().label() + " (" + e.getMessage() + ")");
+            }
+        }
+        folders.replaceBrandFolders(brandId, assigned);
+        events.publishEvent(new FactoryChanged("brand", brandId));
+        if (!failed.isEmpty()) {
+            throw new com.socialhub.platform.DomainException("No se pudieron crear: " + String.join("; ", failed)
+                    + ". ¿Está abierto Google Drive para ordenador?");
+        }
         return queries.brandFolders(brandId);
     }
 

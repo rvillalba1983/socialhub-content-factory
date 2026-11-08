@@ -36,6 +36,7 @@ export const api = {
     post<PieceOrder>(`/api/promotions/${encodeURIComponent(promotionId)}/piece-orders`, { spec_path: specPath }),
   updatePromotion: (id: string, input: PromotionInput) => putJson<Promotion>(`/api/promotions/${encodeURIComponent(id)}`, input),
   brandFolders: (id: string) => call<FolderList>(`/api/brands/${encodeURIComponent(id)}/folders`),
+  createBrandFolders: (id: string, base?: string) => post<FolderList>(`/api/brands/${encodeURIComponent(id)}/folders/creation`, base ? { base } : {}),
   saveBrandFolders: (id: string, items: FolderInput[]) => putJson<FolderList>(`/api/brands/${encodeURIComponent(id)}/folders`, { items }),
   promotionFolders: (id: string) => call<FolderList>(`/api/promotions/${encodeURIComponent(id)}/folders`),
   savePromotionFolders: (id: string, items: FolderInput[]) =>

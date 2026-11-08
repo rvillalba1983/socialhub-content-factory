@@ -97,6 +97,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/brands/{brand_id}/folders/creation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Crea las carpetas de la marca que falten
+         * @description Con «base», los papeles sin carpeta pasan a ser subcarpetas suyas (Material, Borradores, Generados, Aprobados, Publicados, Informes y Encargos). Después crea las carpetas asignadas que no existan. Nunca borra, mueve ni cambia carpetas que ya existan.
+         */
+        post: operations["createBrandFolders"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/promotions/{promotion_id}/external-calendar": {
         parameters: {
             query?: never;
@@ -882,6 +902,10 @@ export interface components {
          * @enum {string}
          */
         FolderRole: "MATERIAL" | "DRAFTS" | "GENERATED" | "APPROVED" | "PUBLISHED" | "REPORTS" | "ORDERS";
+        FolderCreationInput: {
+            /** @description Carpeta base de la marca (opcional), por ejemplo G:/Mi unidad/SocialHub/Litoques */
+            base?: string;
+        };
         Folder: {
             role: components["schemas"]["FolderRole"];
             /** @description Ruta completa en este ordenador */
@@ -1634,6 +1658,7 @@ export type OperationOutcome = components['schemas']['OperationOutcome'];
 export type Factory = components['schemas']['Factory'];
 export type Alert = components['schemas']['Alert'];
 export type FolderRole = components['schemas']['FolderRole'];
+export type FolderCreationInput = components['schemas']['FolderCreationInput'];
 export type Folder = components['schemas']['Folder'];
 export type FolderList = components['schemas']['FolderList'];
 export type FolderInput = components['schemas']['FolderInput'];
@@ -1933,6 +1958,38 @@ export interface operations {
             };
             400: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    createBrandFolders: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path: {
+                brand_id: components["parameters"]["BrandId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FolderCreationInput"];
+            };
+        };
+        responses: {
+            /** @description Carpetas de la marca, ya creadas */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FolderList"];
+                };
+            };
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
             default: components["responses"]["Problem"];
         };
     };

@@ -27,6 +27,8 @@ import org.springframework.transaction.support.TransactionTemplate;
  *   <li>Lunes desde las 9:00: balance de la semana pasada. Si estaba cerrado, se pide el martes o el miércoles.</li>
  *   <li>Lunes desde las 18:00: propuestas de la semana siguiente. Si estaba cerrado, se piden el martes o el miércoles.</li>
  * </ul>
+ * Además, una promoción nueva pide enseguida las propuestas de su primera semana si ya pasó el lunes en que se habrían
+ * pedido (si empieza a mitad de semana, para los días que quedan).
  * Cada encargo se crea una sola vez por promoción y semana. Los demás tipos se piden a mano.
  */
 @Slf4j
@@ -64,7 +66,52 @@ class AiAutoOrders {
         if (balance.isPresent()) n += create(AiRequestType.WEEKLY_BALANCE, balance.get());
         Optional<LocalDate> proposals = proposalsWeek(now);
         if (proposals.isPresent()) n += create(AiRequestType.WEEKLY_PROPOSALS, proposals.get());
+        n += createFirstWeeks(now);
         return n;
+    }
+
+    /**
+     * Primera semana de una promoción: sus propuestas se habrían pedido el lunes anterior a las 18:00. Si esa hora ya
+     * pasó (la promoción se dio de alta después) y la semana no ha terminado, se piden ya, solo para los días que quedan.
+     */
+    int createFirstWeeks(ZonedDateTime now) {
+        int n = 0;
+        for (PromotionQueries.ActiveDates p : promotions.activeDates()) {
+            Optional<FirstWeek> first = firstWeek(now, p.startsOn(), p.endsOn());
+            if (first.isEmpty()) continue;
+            LocalDate week = first.get().week(), from = first.get().from(), to = first.get().to();
+            var key = new AiAutoOrderEntity.Key(p.id(), AiRequestType.WEEKLY_PROPOSALS.name(), week);
+            if (done.existsById(key)) continue;
+            transactions.executeWithoutResult(s -> {
+                String title = "Propuestas de la primera semana · del " + from.getDayOfMonth() + " al " + to.getDayOfMonth()
+                        + " " + to.getMonth().getDisplayName(TextStyle.SHORT, Locale.of("es", "ES"));
+                String goal = "La promoción empieza ahora: propón sus publicaciones del " + from + " al " + to
+                        + ", según su cadencia, sus objetivos, sus hitos y su memoria editorial. No propongas nada antes del "
+                        + from + ".";
+                String taskId = orders.submit(p.id(), AiRequestType.WEEKLY_PROPOSALS, title, goal, List.of(week.toString()));
+                done.save(new AiAutoOrderEntity(p.id(), AiRequestType.WEEKLY_PROPOSALS.name(), week, taskId, clock.instant()));
+            });
+            log.info("Propuestas de la primera semana pedidas: {} (del {} al {})", p.id(), from, to);
+            n++;
+        }
+        return n;
+    }
+
+    /** Primera semana de una promoción: su lunes y los días que quedan por proponer. */
+    record FirstWeek(LocalDate week, LocalDate from, LocalDate to) {}
+
+    /**
+     * La primera semana toca pedirla ya si pasó el lunes anterior a las 18:00 (cuando se habría pedido sola) y la semana
+     * no ha terminado.
+     */
+    static Optional<FirstWeek> firstWeek(ZonedDateTime now, LocalDate startsOn, LocalDate endsOn) {
+        LocalDate today = now.toLocalDate();
+        LocalDate week = startsOn.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        ZonedDateTime usual = week.minusWeeks(1).atTime(PROPOSALS_FROM).atZone(now.getZone());
+        if (now.isBefore(usual) || !today.isBefore(week.plusWeeks(1)) || endsOn.isBefore(today)) return Optional.empty();
+        LocalDate from = startsOn.isAfter(today) ? startsOn : today;
+        LocalDate sunday = week.plusDays(6);
+        return Optional.of(new FirstWeek(week, from, sunday.isAfter(endsOn) ? endsOn : sunday));
     }
 
     /** Lunes de la semana cuyo spec toca pedir ahora, si toca alguno. */

@@ -87,7 +87,7 @@ A la derecha, **Agentes y herramientas** lista lo que usa la fábrica (Claude, p
 
 ![Necesita atención](docs/manual/img/02-atencion.jpg)
 
-La tarjeta **Necesita atención** reúne lo que te toca mirar: errores, bloqueos, publicaciones para hacer a mano o con un posible duplicado. Al pulsar un aviso vas directo a la tarea, la estación o la publicación.
+La tarjeta **Necesita atención** reúne lo que te toca mirar: errores, bloqueos, publicaciones para hacer a mano o con un posible duplicado, y encargos a Claude que no pueden salir hasta que arregles algo (por ejemplo, la marca sin carpeta de «Encargos»). Al pulsar un aviso vas directo a la tarea, la estación o la publicación.
 
 Encima, el **resumen de hoy** dice cuántas publicaciones han salido hoy, cuántas faltan y cuántas hay programadas para mañana. Solo está en la app: no manda notificaciones.
 
@@ -130,7 +130,7 @@ Cada promoción tiene su centro de control («Abrir centro de control →» en s
 
   ![Publicaciones](docs/manual/img/07-publicaciones.jpg)
 
-- **Propuestas:** cada lunes desde las 18:00, Claude propone las publicaciones de la semana siguiente.
+- **Propuestas:** cada lunes desde las 18:00, Claude propone las publicaciones de la semana siguiente. Una promoción nueva pide además, en unos minutos, las de su primera semana (si empieza a mitad de semana, solo los días que quedan).
   - Al aprobar una, pasa a «En producción».
   - Al rechazarla, se pide un motivo, y ese motivo va a la memoria editorial.
 
@@ -272,7 +272,10 @@ Tiene las decisiones editoriales de la marca, lo rechazado con su motivo y tus c
 
 ![Carpetas de Drive y Publora](docs/manual/img/19-carpetas-y-publora.jpg)
 
-- **Carpetas:** qué carpeta de Drive hace cada papel (material, borradores, generados, aprobados, publicados, informes y encargos). Las promociones las heredan y solo cambian las que necesiten. SocialHub no crea, mueve ni borra carpetas.
+- **Carpetas:** qué carpeta de Drive hace cada papel (material, borradores, generados, aprobados, publicados, informes y encargos). Las promociones las heredan y solo cambian las que necesiten.
+  - Al dar de alta la marca puedes indicar una **carpeta base** (por ejemplo, `G:\Mi unidad\SocialHub\Litoques`). SocialHub crea dentro las siete carpetas y las asigna.
+  - Después, **Crear las que faltan** crea las carpetas asignadas que no existan. Con una carpeta base, también rellena los papeles vacíos.
+  - SocialHub nunca borra ni mueve carpetas.
 - **Publora:** la clave de la API, que vale para todas las marcas, y la cuenta de Publora de la marca en cada red. La clave se comprueba antes de guardarla. Se guarda solo en tu ordenador, legible solo por tu usuario: nunca en la base de datos, en Drive ni en el repositorio.
 
 ## 9. Operaciones externas

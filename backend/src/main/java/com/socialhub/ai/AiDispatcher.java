@@ -42,6 +42,9 @@ class AiDispatcher {
     private final TransactionTemplate transactions;
     private final AiHandlers handlers;
     private final java.util.List<AiContextProvider> contexts;
+    private final AiHeldOrders held;
+    /** Encargos de esta ronda que esperan a Raúl. */
+    private java.util.Map<String, AiHeldOrders.Held> holding = AiHeldOrders.collector();
 
     @Scheduled(initialDelayString = "${socialhub.ai.initial-delay-millis:10000}",
                fixedDelayString = "${socialhub.ai.dispatch-millis:30000}")
@@ -58,32 +61,34 @@ class AiDispatcher {
     /** @return cuántos encargos han salido */
     int dispatchQueued() {
         int sent = 0;
+        holding = AiHeldOrders.collector();
         for (AiTask task : production.queuedAiTasks()) {
             try {
                 if (dispatch(task)) sent++;
             } catch (RuntimeException e) {
                 log.warn("El encargo {} no ha podido salir: {}", task.id(), e.toString());
-                production.keepQueued(task.id(), "No se ha podido dejar en Drive: " + e.getMessage()
+                hold(task, "No se ha podido dejar en Drive: " + e.getMessage()
                         + ". Se vuelve a intentar en el siguiente envío.");
             }
         }
+        held.replace(holding);
         return sent;
     }
 
     private boolean dispatch(AiTask task) {
         Optional<AiRequestType> type = AiRequestType.ofTaskType(task.type());
         if (type.isEmpty()) {
-            production.keepQueued(task.id(), "Tipo de encargo desconocido: " + task.type());
+            hold(task, "Tipo de encargo desconocido: " + task.type());
             return false;
         }
         if (task.promotionId() == null) {
-            production.keepQueued(task.id(), "El encargo no tiene promoción: no se sabe a qué marca enviarlo.");
+            hold(task, "El encargo no tiene promoción: no se sabe a qué marca enviarlo.");
             return false;
         }
         String brandId = promotions.brandOf(task.promotionId());
         Optional<String> orders = promotions.brandOrdersFolder(brandId);
         if (orders.isEmpty()) {
-            production.keepQueued(task.id(), "La marca no tiene carpeta de «Encargos». Indícala en Marcas → Carpetas de Drive.");
+            hold(task, "La marca no tiene carpeta de «Encargos». Indícala o créala en Marcas → Carpetas de Drive.");
             return false;
         }
         if (!AiFolders.available(orders.get())) {
@@ -121,6 +126,13 @@ class AiDispatcher {
         });
         log.info("Encargo {} ({}) enviado a Claude {}: {}", task.id(), type.get(), model.label(), file);
         return true;
+    }
+
+    /** Sigue en cola por algo que tiene que arreglar Raúl: queda anotado en la tarea y sale en «Necesita atención». */
+    private void hold(AiTask task, String reason) {
+        production.keepQueued(task.id(), reason);
+        String station = AiRequestType.ofTaskType(task.type()).map(AiRequestType::stationId).orElse("gen");
+        holding.put(task.id(), new AiHeldOrders.Held(task.id(), station, task.title(), reason));
     }
 
     /** Escribe el encargo con otro nombre y lo renombra al final, para que nadie lea un archivo a medias. */

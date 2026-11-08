@@ -38,7 +38,7 @@ export function Registration({ data, initial, onClose, onSaved }: {
 
         {editing?.kind === 'brand' && (
           <BrandForm brand={editing.id ? brands.get(editing.id) : undefined} onCancel={() => setEditing(null)}
-            onSaved={b => { setEditing(null); onSaved(`Marca guardada · ${b.name}`); }} />
+            onSaved={(b, note) => { setEditing(null); onSaved(`Marca guardada · ${b.name}${note ? ` · ${note}` : ''}`); }} />
         )}
         {editing?.kind === 'brand' && editing.id && <IdentityForm brandId={editing.id} onSaved={onSaved} />}
         {editing?.kind === 'brand' && editing.id && <MemoryCard brandId={editing.id} onSaved={onSaved} />}
@@ -95,10 +95,21 @@ function useSave<T>(save: () => Promise<T>, onSaved: (value: T) => void) {
   return { busy, error, submit };
 }
 
-export function BrandForm({ brand, onCancel, onSaved }: { brand?: Brand; onCancel: () => void; onSaved: (b: Brand) => void }) {
+export function BrandForm({ brand, onCancel, onSaved }: { brand?: Brand; onCancel: () => void; onSaved: (b: Brand, note?: string) => void }) {
   const [form, setForm] = useState<BrandInput>({ name: brand?.name ?? '', handle: brand?.handle ?? '@', color: brand?.color ?? '#D23A2E' });
-  const { busy, error, submit } = useSave(
-    () => (brand ? api.updateBrand(brand.id, form) : api.createBrand(form)), onSaved);
+  const [base, setBase] = useState('');
+  // Al dar de alta, con una carpeta base se crean sus 7 carpetas. Si eso falla, la marca ya está creada: se avisa sin repetir el alta.
+  const { busy, error, submit } = useSave(async (): Promise<[Brand, string | undefined]> => {
+    if (brand) return [await api.updateBrand(brand.id, form), undefined];
+    const created = await api.createBrand(form);
+    if (!base.trim()) return [created, undefined];
+    try {
+      await api.createBrandFolders(created.id, base.trim());
+      return [created, 'carpetas creadas'];
+    } catch (e) {
+      return [created, `no se pudieron crear las carpetas (${e instanceof Error ? e.message : String(e)}); créalas en «Carpetas de Drive»`];
+    }
+  }, ([b, note]) => onSaved(b, note));
   return (
     <form className="card form" onSubmit={submit} aria-label={brand ? 'Editar marca' : 'Nueva marca'}>
       <h3>{brand ? `Editar marca · ${brand.name}` : 'Nueva marca'}</h3>
@@ -108,6 +119,10 @@ export function BrandForm({ brand, onCancel, onSaved }: { brand?: Brand; onCance
         <span className="color-row"><input type="color" aria-label="Color de la marca" value={form.color} onChange={e => setForm({ ...form, color: e.target.value.toUpperCase() })} />
           <span className="mono">{form.color}</span></span>
       </Field>
+      {!brand && <Field label="Carpeta base de Drive (opcional)">
+        <input value={base} onChange={e => setBase(e.target.value)} placeholder="G:\Mi unidad\SocialHub\Litoques" spellCheck={false} />
+        <small className="src">Dentro se crean Material, Borradores, Generados, Aprobados, Publicados, Informes y Encargos.</small>
+      </Field>}
       <FormActions busy={busy} error={error} onCancel={onCancel} />
     </form>
   );

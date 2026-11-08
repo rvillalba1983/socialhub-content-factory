@@ -14,6 +14,7 @@ export function FolderRoles({ owner, id, onSaved }: {
   const [inherited, setInherited] = useState<Partial<Record<FolderRole, string>>>({});
   const [values, setValues] = useState<Partial<Record<FolderRole, string>>>({});
   const [busy, setBusy] = useState(false);
+  const [base, setBase] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const load = (list: Folder[]) => {
@@ -52,13 +53,29 @@ export function FolderRoles({ owner, id, onSaved }: {
     }
   };
 
+  // Crea las carpetas asignadas que no existan (y, con carpeta base, las de los papeles vacíos)
+  const create = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await api.createBrandFolders(id, base.trim() || undefined);
+      load(r.items);
+      setBase('');
+      onSaved?.('Carpetas creadas');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const byRole = new Map((folders ?? []).map(f => [f.role, f]));
   return (
     <form className="card form" onSubmit={save} aria-label="Carpetas de Drive">
       <h3>Carpetas de Drive</h3>
       <p className="src">
         {owner === 'brand'
-          ? 'Qué carpeta hace cada papel. Las promociones de la marca las heredan. SocialHub no crea ni mueve carpetas.'
+          ? 'Qué carpeta hace cada papel. Las promociones de la marca las heredan. SocialHub crea las que falten, pero nunca borra ni mueve nada.'
           : 'Las vacías se heredan de la marca. Escribe una ruta solo para el papel que cambie en esta promoción.'}
       </p>
       {folders === null && !error && <p className="src">Cargando…</p>}
@@ -80,6 +97,13 @@ export function FolderRoles({ owner, id, onSaved }: {
         {error && <p className="error" role="alert">{error}</p>}
         <button className="btn primary" disabled={busy || folders === null}>{busy ? 'Guardando…' : 'Guardar carpetas'}</button>
       </div>
+      {owner === 'brand' && folders !== null && (
+        <div className="folder-create">
+          <label className="field"><span>Carpeta base <small className="src">· los papeles vacíos pasan a ser subcarpetas suyas</small></span>
+            <input aria-label="Carpeta base" value={base} onChange={e => setBase(e.target.value)} placeholder="G:\Mi unidad\SocialHub\…" spellCheck={false} /></label>
+          <button type="button" className="btn" disabled={busy} onClick={create}>Crear las que faltan</button>
+        </div>
+      )}
     </form>
   );
 }

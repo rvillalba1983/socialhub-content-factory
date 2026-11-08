@@ -90,6 +90,17 @@ public class PromotionQueries {
                 .toList();
     }
 
+    /** Fechas de una promoción activa. */
+    public record ActiveDates(String id, java.time.LocalDate startsOn, java.time.LocalDate endsOn) {}
+
+    /** Promociones activas con sus fechas. */
+    public List<ActiveDates> activeDates() {
+        return repository.promotions().stream()
+                .filter(p -> "ACTIVE".equals(p.status()))
+                .map(p -> new ActiveDates(p.id(), p.startsOn(), p.endsOn()))
+                .toList();
+    }
+
     /** Identidad de la marca (vacía si no se ha rellenado). */
     /** Usuario de la marca en las redes («@elde_lito»); vacío si no existe. */
     public String handleOf(String brandId) {

@@ -35,6 +35,7 @@ class FactoryController implements FactoryApi {
     private final ArmoryWebMapper armoryMapper;
     private final AppModeHolder mode;
     private final Clock clock;
+    private final com.socialhub.ai.AiHeldOrders heldOrders;
 
     @Override
     @Transactional(readOnly = true)
@@ -51,7 +52,8 @@ class FactoryController implements FactoryApi {
                 publicationMapper.toDtos(publishing.all()),
                 armoryItems,
                 promotions.commonRules(),
-                alerts(snapshot.alerts(), armoryItems, publishing.publishAlerts())));
+                alerts(snapshot.alerts(), armoryItems, publishing.publishAlerts(),
+                        mode.selected() == com.socialhub.platform.AppMode.REAL ? heldOrders.current() : List.of())));
     }
 
     /**
@@ -59,8 +61,14 @@ class FactoryController implements FactoryApi {
      * reales no disponibles (por ejemplo, Drive sin montar).
      */
     private static List<AlertDto> alerts(List<AlertDto> production, List<ArmoryItemDto> items,
-                                         List<PublishingQueries.PublishAlert> publishing) {
+                                         List<PublishingQueries.PublishAlert> publishing,
+                                         List<com.socialhub.ai.AiHeldOrders.Held> held) {
         List<AlertDto> alerts = new ArrayList<>(production);
+        // Encargos a Claude que no pueden salir hasta que Raúl arregle algo (por ejemplo, una carpeta)
+        for (var h : held) {
+            alerts.add(new AlertDto(AlertDto.KindEnum.BLOCKED, AlertDto.TargetTypeEnum.TASK, h.taskId(), h.stationId(),
+                    "En cola: " + h.title(), h.reason()));
+        }
         for (var a : publishing) {
             alerts.add(new AlertDto(a.failed() ? AlertDto.KindEnum.FAILED : AlertDto.KindEnum.BLOCKED,
                     AlertDto.TargetTypeEnum.PUBLICATION, a.publicationId(), "pub", a.title(), a.detail()));

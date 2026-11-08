@@ -4,6 +4,7 @@ import com.socialhub.api.BrandsApi;
 import com.socialhub.api.model.BrandDto;
 import com.socialhub.api.model.BrandInputDto;
 import com.socialhub.api.model.BrandListDto;
+import com.socialhub.api.model.FolderCreationInputDto;
 import com.socialhub.api.model.FolderListDto;
 import com.socialhub.api.model.FolderListInputDto;
 import com.socialhub.api.model.BrandIdentityDto;
@@ -46,6 +47,11 @@ class BrandsController implements BrandsApi {
     @Override
     public ResponseEntity<FolderListDto> listBrandFolders(String brandId) {
         return ResponseEntity.ok(mapper.toFolderList(queries.brandFolders(brandId)));
+    }
+
+    @Override
+    public ResponseEntity<FolderListDto> createBrandFolders(String brandId, String requestGuard, FolderCreationInputDto input) {
+        return ResponseEntity.ok(mapper.toFolderList(service.createBrandFolders(brandId, input.getBase())));
     }
 
     @Override

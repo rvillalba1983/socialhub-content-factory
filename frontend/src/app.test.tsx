@@ -608,3 +608,27 @@ describe('Cerrar SocialHub', () => {
     expect(await screen.findByRole('alertdialog', { name: 'SocialHub cerrado' })).toBeInTheDocument();
   });
 });
+
+describe('Carpetas de la marca', () => {
+  it('crea las que faltan desde una carpeta base', async () => {
+    const { FolderRoles } = await import('./Folders');
+    vi.spyOn(api, 'brandFolders').mockResolvedValue({ items: [] });
+    const created = { items: [{ role: 'ORDERS' as const, location: 'G:\\SH\\Litoques\\Encargos', origin: 'BRAND' as const, available: true }] };
+    const create = vi.spyOn(api, 'createBrandFolders').mockResolvedValue(created);
+    const onSaved = vi.fn();
+    render(<FolderRoles owner="brand" id="litoques" onSaved={onSaved} />);
+    fireEvent.change(await screen.findByLabelText('Carpeta base'), { target: { value: 'G:\\SH\\Litoques' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Crear las que faltan' }));
+    await waitFor(() => expect(create).toHaveBeenCalledWith('litoques', 'G:\\SH\\Litoques'));
+    expect(onSaved).toHaveBeenCalledWith('Carpetas creadas');
+    expect(screen.getByLabelText('Carpeta de Encargos')).toHaveValue('G:\\SH\\Litoques\\Encargos');
+  });
+
+  it('las promociones no tienen el botón de crear', async () => {
+    const { FolderRoles } = await import('./Folders');
+    vi.spyOn(api, 'promotionFolders').mockResolvedValue({ items: [] });
+    render(<FolderRoles owner="promotion" id="test" />);
+    await screen.findByRole('button', { name: 'Guardar carpetas' });
+    expect(screen.queryByRole('button', { name: 'Crear las que faltan' })).toBeNull();
+  });
+});

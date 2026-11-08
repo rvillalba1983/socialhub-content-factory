@@ -41,4 +41,18 @@ class AiAutoOrdersTest {
         assertThat(AiAutoOrders.proposalsWeek(at(11, 10))).contains(LocalDate.of(2026, 11, 16));
         assertThat(AiAutoOrders.proposalsWeek(at(12, 10))).isEmpty();
     }
+
+    @Test
+    void aNewPromotionAsksForItsFirstWeekIfTheUsualMondayHasPassed() {
+        // Empieza el lunes 9 y se da de alta el domingo 8: el lunes 2 a las 18:00 ya pasó, así que se pide ya
+        assertThat(AiAutoOrders.firstWeek(at(8, 19), LocalDate.of(2026, 11, 9), LocalDate.of(2026, 12, 31)))
+                .contains(new AiAutoOrders.FirstWeek(LocalDate.of(2026, 11, 9), LocalDate.of(2026, 11, 9), LocalDate.of(2026, 11, 15)));
+        // Empieza el miércoles 11 y se da de alta el jueves 12: solo los días que quedan
+        assertThat(AiAutoOrders.firstWeek(at(12, 10), LocalDate.of(2026, 11, 11), LocalDate.of(2026, 11, 13)))
+                .contains(new AiAutoOrders.FirstWeek(LocalDate.of(2026, 11, 9), LocalDate.of(2026, 11, 12), LocalDate.of(2026, 11, 13)));
+        // Empieza dentro de tres semanas: se pedirá sola el lunes anterior
+        assertThat(AiAutoOrders.firstWeek(at(8, 19), LocalDate.of(2026, 11, 30), LocalDate.of(2026, 12, 31))).isEmpty();
+        // Su primera semana ya terminó
+        assertThat(AiAutoOrders.firstWeek(at(16, 10), LocalDate.of(2026, 11, 9), LocalDate.of(2026, 12, 31))).isEmpty();
+    }
 }
