@@ -1,0 +1,32 @@
+...@estilo
+direction: down
+
+material: "Tú aportas: marcas, promociones y material en Drive" {class: ink}
+
+anillo: "Anillo de producción · 8 estaciones" {
+  class: grupo
+  grid-rows: 2
+  grid-gap: 40
+  # Fila de arriba: 01-04; fila de abajo, de izquierda a derecha: 08-05
+  inv: "01 · Investigación\nperfiles, salas y oportunidades" {class: base}
+  est: "02 · Selección y estrategia\npropuestas y spec semanal" {class: base}
+  gen: "03 · Generación de contenido\npiezas, textos y hashtags" {class: base}
+  rev: "04 · Revisión y calidad\ncomprobaciones y tu aprobación" {class: wait}
+  ret: "08 · Retroalimentación\nbalance y memoria editorial" {class: base}
+  ana: "07 · Análisis de resultados\nmétricas a los 7 días" {class: base}
+  pub: "06 · Publicación\nconfirmación con enlace" {class: base}
+  prog: "05 · Programación\nPubler → Publora → a mano" {class: base}
+}
+
+redes: "Instagram y TikTok" {class: ok}
+
+material -> anillo {class: flecha}
+anillo.inv -> anillo.est {class: flecha}
+anillo.est -> anillo.gen {class: flecha}
+anillo.gen -> anillo.rev {class: flecha}
+anillo.rev -> anillo.prog {class: flecha}
+anillo.prog -> anillo.pub {class: flecha}
+anillo.pub -> anillo.ana {class: flecha}
+anillo.ana -> anillo.ret {class: flecha}
+anillo.ret -> anillo.inv {class: manual}
+anillo -> redes: "publica" {class: flecha}

@@ -327,6 +327,17 @@ Detalle en `docs/fase-8.md`.
 ## 2026-11-03 · Fase 8, bloque 4: resumen de hoy
 - Solo en la app (respuesta de Raúl): tarjeta «Resumen de hoy» en el mapa.
 
+## 2026-11-03 · Documentación funcional
+- Manual funcional en `MANUAL.md` (petición de Raúl), con capturas del vídeo demo en `docs/manual/img/`.
+- Diagramas en D2 con los colores de la web (`docs/diagramas/`, estilo común en `estilo.d2`). Los SVG se generan con `generar.sh` y se suben al repositorio. D2 es solo una herramienta de documentación (gratuita): no forma parte de la app.
+
+## 2026-11-03 · Mapa 3D del código
+- Petición de Raúl: vista 3D de todo el código con zoom semántico (isla → capas → archivos → código), generada por un script en cada PR.
+- Se ve la arquitectura (respuesta de Raúl: «Hexágonos por capas»): cada módulo del monolito es una isla hexagonal, con el dominio en el centro, la aplicación alrededor y los adaptadores fuera (entrada a la izquierda, salida a la derecha). El frontal React es otra isla y los contratos, el puente. Los puentes entre islas salen de los `import` entre módulos.
+- Script Node en `scripts/mapa-codigo/` con Three.js (gratuito, MIT) incrustado: el resultado es un único `index.html` que funciona sin servidor ni internet. Es una herramienta de desarrollo: no forma parte de la app.
+- Workflow `mapa-codigo.yml`: solo en Linux, sube el mapa como artefacto (30 días) y deja o actualiza un comentario en la PR con el enlace.
+- **Capas como unidades** (petición de Raúl): cada capa es un bloque macizo con una celda por clase, así que su superficie es su número de clases (respuesta de Raúl: clases, no líneas). Al acercarte a una capa, el bloque se abre y salen sus clases. Los niveles pasan a General → Isla → Capa → Código.
+
 ## 2026-11-03 · Fase 9: respuestas de Raúl
 - **Copias:** al abrir SocialHub, si hoy no hay copia; se guardan 14; carpeta única en los ajustes generales.
 - **Formato:** exportación de tablas con el driver de PostgreSQL (el PostgreSQL incluido no trae `pg_dump`).
@@ -334,3 +345,6 @@ Detalle en `docs/fase-8.md`.
 - **Instaladores:** `.msi` y `.dmg` sin firmar.
 
 Detalle en `docs/fase-9.md`.
+
+## 2026-11-08 · Pruebas en otros sistemas
+- Respuesta de Raúl: hasta tener una versión utilizable, cada PR se prueba en Linux y Windows (`otros_sistemas=windows`). Después, también en macOS.

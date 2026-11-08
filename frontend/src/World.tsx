@@ -85,7 +85,6 @@ export function World({ data, sel, onStation, onTask, onTaskAction, onArmory, on
           </article>
         )}
         <AttentionCard data={data} onStation={onStation} onTask={onTask} onArmory={onArmory} onPublication={onPublication} />
-        <TodayCard data={data} />
       </div>
       <section className="res" style={{ left: TR.x1 + 140, top: TR.y0 - 300, width: 380 }} aria-label="Agentes y herramientas">
         <h2>Agentes y herramientas</h2>
@@ -196,8 +195,8 @@ function PromotionCard({ p, brand, data, onOpen }: { p: Promotion; brand?: Brand
 }
 
 /**
- * Resumen de hoy (fase 8): lo publicado, lo que queda por publicar, los fallos y lo que espera por Raúl. Solo en la
- * app, sin notificación (decisión de Raúl).
+ * Resumen de hoy (fase 8): lo publicado y lo que queda por publicar. Va dentro de «Necesita atención», que ya cuenta
+ * los fallos y lo que espera por Raúl. Solo en la app, sin notificación (decisión de Raúl).
  */
 export function TodayCard({ data }: { data: Snapshot }) {
   const today = data.now.slice(0, 10);
@@ -207,23 +206,18 @@ export function TodayCard({ data }: { data: Snapshot }) {
   const failed = pubs.filter(p => p.status === 'PUBLISH_ERROR').length;
   const tomorrow = new Date(Date.parse(`${today}T12:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
   const next = data.publications.filter(p => p.scheduled_on === tomorrow && p.status === 'SCHEDULED').length;
-  const failedTasks = data.tasks.filter(t => t.status === 'FAILED').length;
-  const waiting = data.tasks.filter(t => t.human && t.status !== 'COMPLETED' && t.status !== 'CANCELLED').length;
   const rows: [string, number, boolean][] = [
     ['Publicadas hoy', published, false],
     ['Por publicar hoy', pending, false],
-    ['Programadas para mañana', next, false],
-    ['Con error de publicación', failed, failed > 0],
-    ['Tareas fallidas', failedTasks, failedTasks > 0],
-    ['Esperan por ti', waiting, waiting > 0],
+    ['Para mañana', next, false],
   ];
   return (
-    <section className="attn-card today-card" aria-label="Resumen de hoy">
-      <h2>Resumen de hoy</h2>
+    <div className="today" aria-label="Resumen de hoy">
       <div className="promo-facts">
         {rows.map(([label, n, bad]) => <div key={label} className={bad ? 'bad' : ''}><small>{label}</small><b>{n}</b></div>)}
       </div>
-    </section>
+      {failed > 0 && <p className="src error-text">{failed === 1 ? '1 publicación de hoy con error' : `${failed} publicaciones de hoy con error`}</p>}
+    </div>
   );
 }
 
@@ -249,6 +243,7 @@ export function AttentionCard({ data, onStation, onTask, onArmory, onPublication
   return (
     <section className="attn-card" aria-label="Necesita tu atención">
       <h2>Necesita atención {data.alerts.length > 0 && <span className="count">{data.alerts.length}</span>}</h2>
+      <TodayCard data={data} />
       {data.alerts.length === 0 && <p className="src">Todo en orden.</p>}
       {byPriority(data.alerts).slice(0, ATTENTION_MAX).map(a => (
         <button key={a.kind + a.target_id} className={`aitem s-${alertTone(a.kind)}`} onClick={() => openAlert(a, { onTask, onStation, onArmory, onPublication })}>
