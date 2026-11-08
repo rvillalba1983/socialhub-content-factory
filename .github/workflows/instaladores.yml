@@ -77,19 +77,18 @@ jobs:
             --vendor "$FABRICANTE" --description "$DESCRIPCION" \
             --input entrada --main-jar socialhub.jar --dest salida \
             --java-options "-Dsocialhub.desktop=true" \
-            --win-per-user-install --install-dir "Programs\\SocialHub" \
             --win-menu --win-menu-group SocialHub --win-shortcut \
             --win-upgrade-uuid "$UPGRADE_UUID" --verbose
           ls -la salida
-      # Prueba real: se instala sin permisos de administrador, se abre, responde, no arranca dos veces y se cierra desde la web
+      # Prueba real: se instala (en Archivos de programa), se abre, responde, no arranca dos veces y se cierra desde la web
       - name: Instalar y probar el .msi
         shell: pwsh
         run: |
           $msi = Get-ChildItem salida\*.msi | Select-Object -First 1
           $p = Start-Process msiexec.exe -ArgumentList "/i `"$($msi.FullName)`" /qn /l*v `"$env:RUNNER_TEMP\instalar.log`"" -Wait -PassThru
           if ($p.ExitCode -ne 0) { Get-Content "$env:RUNNER_TEMP\instalar.log" -Tail 40; throw "msiexec terminó con $($p.ExitCode)" }
-          $exe = Join-Path $env:LOCALAPPDATA "Programs\SocialHub\SocialHub.exe"
-          if (-not (Test-Path $exe)) { Get-ChildItem -Recurse $env:LOCALAPPDATA\Programs | Select-Object -First 30; throw "No está $exe" }
+          $exe = Join-Path $env:ProgramFiles "SocialHub\SocialHub.exe"
+          if (-not (Test-Path $exe)) { Get-ChildItem $env:ProgramFiles | Select-Object -First 40; throw "No está $exe" }
           $app = Start-Process $exe -PassThru
           $ok = $false
           for ($i = 0; $i -lt 90; $i++) {
