@@ -379,3 +379,14 @@ Detalle en `docs/fase-9.md`.
   - El workflow lo prueba borrando `zlib1.dll`.
 - Una carpeta de datos a medias (initdb que no terminó) se aparta como `pgdata-incompleta-…`, sin borrarla, y se vuelve a crear.
 - **Respuesta de Raúl:** no se abre una página de espera al arrancar. El navegador se abre cuando SocialHub está listo.
+
+## 2026-11-08 · Puesta en marcha de marcas y promociones
+Tras la primera prueba de Raúl con una marca y una promoción nuevas:
+- **Carpetas** (respuesta de Raúl: «las dos cosas»):
+  - Al dar de alta la marca, una carpeta base opcional: SocialHub crea dentro Material, Borradores, Generados, Aprobados, Publicados, Informes y Encargos, y las asigna.
+  - En «Carpetas de Drive», el botón «Crear las que faltan».
+  - Cambia la decisión anterior de que SocialHub no crea carpetas: ahora crea las que falten, pero nunca borra ni mueve nada.
+- **Avisos** (respuesta de Raúl: solo los avisos, sin lista de puesta en marcha): un encargo a Claude que no puede salir por algo que tiene que arreglar Raúl sale en «Necesita atención», con el motivo. Por ejemplo, la marca sin carpeta de «Encargos».
+  - El límite diario no cuenta, porque es lo esperado.
+  - La lista se recalcula en cada envío (cada 30 s), sin guardarla.
+- **Primera semana** (respuesta de Raúl: pedirlas al crearla): si al dar de alta (o activar) una promoción ya pasó el lunes a las 18:00 en que se habrían pedido sus primeras propuestas, se piden enseguida, solo para los días que quedan de esa semana. Se pide una sola vez, con la misma clave que el encargo semanal.
