@@ -1,6 +1,6 @@
 # SocialHub · Manual funcional
 
-Cómo funciona SocialHub hoy (8 nov 2026, fases 0 a 8 y copias de la 9), sin detalles técnicos. Las capturas salen del vídeo demo del 3 nov 2026 y usan los datos de ejemplo del modo Demo.
+Cómo funciona SocialHub hoy (8 nov 2026, fases 0 a 9; falta el instalador de macOS), sin detalles técnicos. Las capturas salen del vídeo demo del 3 nov 2026 y usan los datos de ejemplo del modo Demo.
 
 **Índice**
 
@@ -32,6 +32,15 @@ SocialHub es la fábrica de contenido de **El DeLito** (el poemario) y **Litoque
 - **Aprende**: los rechazos, tus correcciones y los balances vuelven a Claude en cada encargo.
 
 SocialHub **no llama a la API de Claude**. Deja los encargos en una carpeta de Google Drive y los recogen tus tareas programadas de Claude ([sección 7](#7-encargos-a-claude-y-tareas-programadas)).
+
+### Instalar y cerrar
+
+- **Instalar:** abre `SocialHub-<versión>.msi`.
+  - Windows avisa con «Windows protegió tu PC» porque el instalador no está firmado: pulsa «Más información» y luego «Ejecutar de todas formas».
+  - Pide permiso de administrador y crea un acceso directo en el escritorio y en el menú Inicio.
+- **Abrir:** con el acceso directo. SocialHub arranca y se abre en el navegador (`http://localhost:8686`). Si ya estaba abierto, solo se abre el navegador.
+- **Cerrar:** botón **Cerrar** en la barra de arriba, y confirma. Se paran el motor, la base de datos y el servidor. Lo que quedó a medias sigue al volver a abrirlo.
+- **Actualizar:** instala el `.msi` de la versión nueva encima. Tus datos están en `%LOCALAPPDATA%\SocialHub` y no se tocan al instalar, actualizar ni desinstalar.
 
 ## 2. Ideas básicas
 
@@ -312,6 +321,6 @@ El modo Demo no tiene copias: sus datos son de ejemplo.
 ## 13. Lo que aún no está
 
 - **Fase 9:**
-  - Instaladores para Windows (`.msi`) y macOS (`.dmg`). Plan en [`docs/fase-9.md`](docs/fase-9.md).
+  - Instalador de macOS (`.dmg`): preparado, pendiente de probar en macOS ([`docs/fase-9.md`](docs/fase-9.md)).
 - **API oficial** de Instagram y TikTok: aparcada ([`docs/fase-7.md`](docs/fase-7.md)).
 - **Sin probar con tus cuentas reales:** Publer y Publora, incluidas las historias de imagen en Publora.

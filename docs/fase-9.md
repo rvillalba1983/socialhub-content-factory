@@ -1,6 +1,6 @@
 # SocialHub · Fase 9: distribución
 
-Estado: **bloque 1 (copias) hecho** · 8 nov 2026. Falta el bloque 2 (instaladores).
+Estado: **copias e instalador de Windows hechos** · 8 nov 2026. Falta el `.dmg` de macOS.
 
 Decisiones generales en `docs/fases-7-9.md`.
 
@@ -56,6 +56,36 @@ Decisiones generales en `docs/fases-7-9.md`.
   - Frontal.
   - Prueba a mano con la app: copia diaria sola, carpeta, copia ahora, restaurar y pantalla de parado.
 
-## Bloque 2 · Instaladores (pendiente)
+## Bloque 2 · Instalador de Windows (hecho, 8 nov)
 
-Workflow manual con jpackage para `.msi` y `.dmg`.
+**Respuestas de Raúl:** de momento solo el `.msi`; el `.dmg` queda preparado y se lanza cuando se pase a probar en macOS. Para cerrar SocialHub, un botón en la web, sin icono en la bandeja.
+
+- **Workflow `instaladores.yml`:**
+  - Se lanza a mano con la versión, los sistemas y si se publica en una release. También corre en las PR que lo cambian, sin publicar.
+  - jpackage crea el `.msi` con su Java dentro. PostgreSQL y FFmpeg van dentro del jar, en su versión de Windows.
+  - Usa WiX 3.14, que es gratuito y ya viene en la máquina de Windows de GitHub.
+- **Instalación:**
+  - En `C:\Archivos de programa\SocialHub`, con acceso directo en el escritorio y en el menú Inicio. Pide permiso de administrador una vez.
+  - La instalación solo para el usuario choca con una comprobación de WiX (ICE64) al usar otra carpeta, y la carpeta por defecto coincidiría con la de datos.
+  - Los datos siguen en `%LOCALAPPDATA%\SocialHub`: no se borran al desinstalar ni al actualizar. El instalador de una versión nueva sustituye al anterior (mismo `UPGRADE_UUID`).
+- **Modo instalado** (`-Dsocialhub.desktop=true`):
+  - Al arrancar abre el navegador.
+  - Si ya está abierto, el acceso directo solo abre el navegador.
+  - Sin consola: el registro va a `%LOCALAPPDATA%\SocialHub\logs\socialhub.log`.
+- **Cerrar SocialHub:**
+  - Botón «Cerrar» en la barra, con confirmación, que llama a `POST /api/app/shutdown`.
+  - También está en la pantalla «SocialHub está parado»: funciona aunque esté parado.
+  - Cierra Spring, el motor, PostgreSQL y el servidor.
+- **Pruebas:**
+  - En la máquina de Windows de GitHub, el workflow:
+    1. Instala el `.msi`.
+    2. Abre SocialHub y comprueba que responde y sirve la web.
+    3. Comprueba que un segundo arranque termina enseguida.
+    4. Lo cierra desde la web y comprueba que se para PostgreSQL.
+    5. Lo desinstala y comprueba que los datos siguen.
+  - El mismo recorrido, probado a mano en Linux.
+- **Sin firmar:** Windows avisa con «Windows protegió tu PC». Pulsa «Más información» y luego «Ejecutar de todas formas».
+
+## Pendiente
+
+- `.dmg` de macOS: cuando haya minutos de macOS y se pase a probar en macOS (ver `docs/decisiones.md`).

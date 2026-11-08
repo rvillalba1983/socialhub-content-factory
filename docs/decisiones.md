@@ -357,3 +357,12 @@ Detalle en `docs/fase-9.md`.
 - Si la restauración falla antes del cambio de esquema, los datos actuales no se tocan y SocialHub sigue trabajando.
 
 Detalle en `docs/fase-9.md`.
+
+## 2026-11-08 · Fase 9, bloque 2: instalador de Windows
+- **Solo `.msi` por ahora** (respuesta de Raúl). El workflow ya tiene el `.dmg`, que se lanzará al pasar a probar en macOS.
+- **Cerrar desde la web** (respuesta de Raúl): botón «Cerrar» en la barra, sin icono en la bandeja. El acceso directo abre el navegador, y si SocialHub ya está abierto, solo abre el navegador.
+- Se instala en Archivos de programa (pide permiso de administrador una vez). La instalación solo para el usuario no vale: WiX la rechaza (ICE64) en otra carpeta, y la carpeta por defecto coincide con la de datos.
+- WiX 3.14 (gratuito) para crear el `.msi`. Los textos del instalador van sin tildes, porque WiX usa la página de códigos 1252.
+- Los datos (`%LOCALAPPDATA%\SocialHub`) no se tocan al instalar, actualizar ni desinstalar.
+
+Detalle en `docs/fase-9.md`.
