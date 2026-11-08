@@ -13,12 +13,12 @@
 - **Fase 7, bloque 3** (API oficial): aparcado por decisión de Raúl.
 - **Fase 7, bloque 4** (calendario con las tres vías): en `main`.
 - **Fase 8** (`docs/fase-8.md`): terminada y en `main` (PR #18 a #21).
-- **Fase 9** (`docs/fase-9.md`): preguntas respondidas y empezada en la rama `fase-9/copias`, sin terminar. Raúl sigue el domingo.
+- **Fase 9** (`docs/fase-9.md`): bloque 1 (copias) hecho en la rama `fase-9/copias`. Las PR se prueban en Linux y Windows hasta tener una versión utilizable.
 - **Pendiente en el PC de Raúl:**
   - Arrancar SocialHub en Windows.
   - Dar de alta sus marcas y promociones con sus carpetas reales de G:, incluida la de «Encargos».
   - Probar un encargo de verdad con la tarea programada.
-- **Siguiente:** terminar las copias de la fase 9 (plan en `docs/fase-9.md`) y luego los instaladores.
+- **Siguiente:** bloque 2 de la fase 9: instaladores `.msi` y `.dmg`.
   - Hace falta que Raúl pegue la clave de API de Publora en la app (Marcas › editar › Publora) y elija la cuenta de cada marca.
   - Tarea programada «Publicar con Chrome (SocialHub)» creada en su PC (cada hora de 8:40 a 22:40). Necesita Chrome abierto con la sesión de Publer.
 

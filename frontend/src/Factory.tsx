@@ -3,6 +3,7 @@ import { api } from './api';
 import { Claude } from './Claude';
 import { ControlCenter } from './ControlCenter';
 import { ExternalOperations } from './ExternalOperations';
+import { Backups, Halted } from './Backups';
 import { Registration } from './Registration';
 import { Icon } from './icons';
 import {
@@ -32,11 +33,13 @@ export function Factory({ data, live, onRefresh }: {
   const [cc, setCc] = useState<{ promo: string; tab: string; hl: string | null } | null>(null);
   const [ops, setOps] = useState(false);
   const [claude, setClaude] = useState(false);
+  const [copias, setCopias] = useState(false);
+  const [halted, setHalted] = useState<string | null>(null);
   const [reg, setReg] = useState<{ kind: 'brand' | 'promotion'; id: string | null } | false | null>(false);
   const [demoAvailable, setDemoAvailable] = useState(true);
-  useEffect(() => { api.appMode().then(m => setDemoAvailable(m.demo_available)).catch(() => {}); }, []);
+  useEffect(() => { api.appMode().then(m => { setDemoAvailable(m.demo_available); setHalted(m.halted_reason ?? null); }).catch(() => {}); }, []);
   // Abrir una promoción cierra el registro de operaciones
-  useEffect(() => { if (cc) { setOps(false); setClaude(false); } }, [cc]);
+  useEffect(() => { if (cc) { setOps(false); setClaude(false); setCopias(false); } }, [cc]);
   const [toast, setToast] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [hitIndex, setHitIndex] = useState(0);
@@ -345,9 +348,10 @@ export function Factory({ data, live, onRefresh }: {
           <span className="zpct mono">{zoom}%</span>
           <button className="ibtn" onClick={() => { const a = avail(); zoomAt(a.w / 2, a.h / 2, 1.25); }} aria-label="Acercar"><Icon name="plus" /></button>
           <button className="ibtn" onClick={fit} aria-label="Encuadrar todo" title="Encuadrar todo (0)"><Icon name="fit" /></button>
-          <button className={`ibtn${claude ? ' on' : ''}`} onClick={() => { setCc(null); setOps(false); setReg(false); setClaude(true); }} title="Encargos a Claude: ajustes, límite diario y registro">Claude</button>
-          <button className="ibtn" onClick={() => { setCc(null); setOps(false); setClaude(false); setReg(null); }} title="Dar de alta y editar marcas y promociones">Marcas</button>
-          <button className={`ibtn${ops ? ' on' : ''}`} onClick={() => { setCc(null); setReg(false); setClaude(false); setOps(true); }} title="Operaciones externas: llamadas a PostgreSQL, Drive, Publer… y sus fallos">Operaciones</button>
+          <button className={`ibtn${claude ? ' on' : ''}`} onClick={() => { setCc(null); setOps(false); setReg(false); setCopias(false); setClaude(true); }} title="Encargos a Claude: ajustes, límite diario y registro">Claude</button>
+          <button className="ibtn" onClick={() => { setCc(null); setOps(false); setClaude(false); setCopias(false); setReg(null); }} title="Dar de alta y editar marcas y promociones">Marcas</button>
+          <button className={`ibtn${ops ? ' on' : ''}`} onClick={() => { setCc(null); setReg(false); setClaude(false); setCopias(false); setOps(true); }} title="Operaciones externas: llamadas a PostgreSQL, Drive, Publer… y sus fallos">Operaciones</button>
+          <button className={`ibtn${copias ? ' on' : ''}`} onClick={() => { setCc(null); setReg(false); setClaude(false); setOps(false); setCopias(true); }} title="Copias de seguridad: carpeta, copia ahora y restaurar">Copias</button>
         </div>
       </header>
 
@@ -397,6 +401,8 @@ export function Factory({ data, live, onRefresh }: {
             onEdit={() => { const id = cc.promo; setCc(null); setReg({ kind: 'promotion', id }); }} onMessage={say} />
         )}
         {ops && <ExternalOperations onClose={() => setOps(false)} />}
+        {copias && <Backups onClose={() => setCopias(false)} onMessage={say} onHalted={setHalted} />}
+        {halted && <Halted reason={halted} />}
         {claude && <Claude data={data} onClose={() => setClaude(false)} onMessage={say} onTask={id => { setClaude(false); goTask(id); }} />}
         {reg !== false && (
           <Registration data={data} initial={reg} onClose={() => setReg(false)}

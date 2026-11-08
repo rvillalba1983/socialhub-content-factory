@@ -117,6 +117,67 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/backups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Carpeta de copias y copias guardadas
+         * @description Lista las copias de la carpeta elegida y las de la carpeta local de SocialHub (donde se guardan mientras no hay carpeta elegida o si no está disponible).
+         */
+        get: operations["getBackups"];
+        put?: never;
+        /** Hace una copia ahora */
+        post: operations["createBackup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/backups/folder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Elige la carpeta de copias (o la quita, con folder vacío)
+         * @description La carpeta tiene que existir. Es un ajuste general, no de una marca.
+         */
+        put: operations["saveBackupFolder"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/backups/restorations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restaura una copia
+         * @description Primero hace una copia de lo actual («antes-de-restaurar»). Hay que confirmar escribiendo el nombre de la copia. Después SocialHub se para y pide cerrarlo y volver a abrirlo.
+         */
+        post: operations["restoreBackup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/publora": {
         parameters: {
             query?: never;
@@ -923,6 +984,44 @@ export interface components {
             /** @description Si Publora no respondió o no aceptó la clave */
             error?: string;
         };
+        BackupList: {
+            /** @description Carpeta de copias elegida (sin ella, las copias van a la carpeta local) */
+            folder?: string;
+            /** @description La carpeta elegida existe (false si no hay carpeta elegida) */
+            folder_available: boolean;
+            /** @description Carpeta local de SocialHub para las copias */
+            local_folder: string;
+            /** @description Cuántas copias se guardan en cada carpeta */
+            keep: number;
+            items: components["schemas"]["Backup"][];
+        };
+        Backup: {
+            /** @example socialhub-2026-11-08-1500-diaria.zip */
+            name: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: int64 */
+            size_bytes: number;
+            /** @enum {string} */
+            kind: "DAILY" | "MANUAL" | "BEFORE_RESTORE";
+            /** @description Está en la carpeta local y no en la elegida */
+            local: boolean;
+        };
+        BackupFolderInput: {
+            /** @description Ruta de la carpeta; vacía para quitarla */
+            folder?: string;
+        };
+        RestorationInput: {
+            name: string;
+            /** @description El nombre de la copia escrito de nuevo */
+            confirmation: string;
+        };
+        Restoration: {
+            restored: string;
+            /** @description Copia de lo que había antes de restaurar */
+            safety_backup: string;
+            halted_reason: string;
+        };
         PubloraConnection: {
             /** @description Identificador en Publora («instagram-123») */
             id: string;
@@ -1092,6 +1191,8 @@ export interface components {
             mode: components["schemas"]["AppMode"];
             /** @description El modo demo está permitido en esta instalación */
             demo_available: boolean;
+            /** @description Motivo por el que SocialHub está parado (tras restaurar una copia) */
+            halted_reason?: string;
         };
         AppModeChange: {
             mode: components["schemas"]["AppMode"];
@@ -1526,6 +1627,11 @@ export type ExternalSourceId = components['schemas']['ExternalSourceId'];
 export type ExternalPost = components['schemas']['ExternalPost'];
 export type ExternalSource = components['schemas']['ExternalSource'];
 export type PubloraStatus = components['schemas']['PubloraStatus'];
+export type BackupList = components['schemas']['BackupList'];
+export type Backup = components['schemas']['Backup'];
+export type BackupFolderInput = components['schemas']['BackupFolderInput'];
+export type RestorationInput = components['schemas']['RestorationInput'];
+export type Restoration = components['schemas']['Restoration'];
 export type PubloraConnection = components['schemas']['PubloraConnection'];
 export type PubloraKeyInput = components['schemas']['PubloraKeyInput'];
 export type PubloraAccount = components['schemas']['PubloraAccount'];
@@ -1834,6 +1940,110 @@ export interface operations {
                 };
             };
             404: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    getBackups: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Copias */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BackupList"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    createBackup: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Copia hecha */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Backup"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    saveBackupFolder: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BackupFolderInput"];
+            };
+        };
+        responses: {
+            /** @description Carpeta guardada */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BackupList"];
+                };
+            };
+            409: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    restoreBackup: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RestorationInput"];
+            };
+        };
+        responses: {
+            /** @description Copia restaurada */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Restoration"];
+                };
+            };
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
             default: components["responses"]["Problem"];
         };
     };

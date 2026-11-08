@@ -348,3 +348,12 @@ Detalle en `docs/fase-9.md`.
 
 ## 2026-11-08 · Pruebas en otros sistemas
 - Respuesta de Raúl: hasta tener una versión utilizable, cada PR se prueba en Linux y Windows (`otros_sistemas=windows`). Después, también en macOS.
+
+## 2026-11-08 · Fase 9, bloque 1: copias
+- **Sin carpeta elegida** (respuesta de Raúl): la copia se hace igualmente en la carpeta local de SocialHub y sale un aviso en «Necesita atención». Pasa lo mismo si la carpeta elegida no está disponible.
+- Se guardan las 14 copias más recientes de cada carpeta, de cualquier tipo (diaria, a mano o antes de restaurar).
+- Solo se copia la base de datos real: la de demo tiene datos de ejemplo.
+- El driver de PostgreSQL pasa a usarse al compilar (antes solo en ejecución), para usar su API de `COPY`. No es una librería nueva.
+- Si la restauración falla antes del cambio de esquema, los datos actuales no se tocan y SocialHub sigue trabajando.
+
+Detalle en `docs/fase-9.md`.

@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, vi } from 'vitest';
 import { api } from './api';
+import { Backups, Halted } from './Backups';
 import { Claude } from './Claude';
 import { ControlCenter } from './ControlCenter';
 import { ExternalOperations } from './ExternalOperations';
@@ -547,5 +548,44 @@ describe('Propuestas de la semana', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Pedir propuestas a Claude' }));
     await waitFor(() => expect(order).toHaveBeenCalledWith('p', expect.objectContaining({ type: 'WEEKLY_PROPOSALS' })));
+  });
+});
+
+describe('Copias', () => {
+  const list = {
+    local_folder: '/datos/copias', folder_available: false, keep: 14,
+    items: [{ name: 'socialhub-2026-11-08-150012-diaria.zip', created_at: '2026-11-08T15:00:12+01:00', size_bytes: 52000, kind: 'DAILY' as const, local: true }],
+  };
+
+  it('avisa si no hay carpeta, guarda la carpeta y hace una copia ahora', async () => {
+    vi.spyOn(api, 'backups').mockResolvedValue(list);
+    const save = vi.spyOn(api, 'saveBackupFolder').mockResolvedValue({ ...list, folder: 'G:\\Copias', folder_available: true });
+    const create = vi.spyOn(api, 'createBackup').mockResolvedValue(list.items[0]);
+    const onMessage = vi.fn();
+    render(<Backups onClose={() => {}} onMessage={onMessage} onHalted={() => {}} />);
+    expect(await screen.findByText(/las copias se guardan solo en este ordenador/)).toBeInTheDocument();
+    expect(screen.getByText('socialhub-2026-11-08-150012-diaria.zip')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(/Carpeta \(por ejemplo/), { target: { value: 'G:\\Copias' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar carpeta' }));
+    await waitFor(() => expect(save).toHaveBeenCalledWith('G:\\Copias'));
+    fireEvent.click(screen.getByRole('button', { name: 'Hacer copia ahora' }));
+    await waitFor(() => expect(create).toHaveBeenCalled());
+  });
+
+  it('solo restaura al escribir el nombre de la copia y luego se para', async () => {
+    vi.spyOn(api, 'backups').mockResolvedValue(list);
+    const restore = vi.spyOn(api, 'restoreBackup').mockResolvedValue({ restored: list.items[0].name, safety_backup: 'x', halted_reason: 'Cierra y abre' });
+    const onHalted = vi.fn();
+    render(<Backups onClose={() => {}} onMessage={() => {}} onHalted={onHalted} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Restaurar…' }));
+    const go = screen.getByRole('button', { name: 'Restaurar' });
+    expect(go).toBeDisabled();
+    fireEvent.change(screen.getByLabelText(/escribe el nombre de la copia/), { target: { value: list.items[0].name } });
+    expect(go).toBeEnabled();
+    fireEvent.click(go);
+    await waitFor(() => expect(restore).toHaveBeenCalledWith(list.items[0].name, list.items[0].name));
+    expect(onHalted).toHaveBeenCalledWith('Cierra y abre');
+    render(<Halted reason="Cierra y abre" />);
+    expect(screen.getByRole('alertdialog', { name: 'SocialHub está parado' })).toHaveTextContent('Cierra y abre');
   });
 });
