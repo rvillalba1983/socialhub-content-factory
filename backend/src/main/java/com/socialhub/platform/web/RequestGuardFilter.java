@@ -41,7 +41,8 @@ class RequestGuardFilter extends OncePerRequestFilter {
             return;
         }
         String halted = com.socialhub.platform.AppModeHolder.haltedReason();
-        if (halted != null && request.getRequestURI().startsWith("/api/") && !SAFE_METHODS.contains(request.getMethod())) {
+        if (halted != null && request.getRequestURI().startsWith("/api/") && !SAFE_METHODS.contains(request.getMethod())
+                && !request.getRequestURI().equals("/api/app/shutdown")) {
             response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
             response.setContentType("application/problem+json");
             response.setCharacterEncoding("UTF-8");

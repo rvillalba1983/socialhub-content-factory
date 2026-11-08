@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, vi } from 'vitest';
 import { api } from './api';
-import { Backups, Halted } from './Backups';
+import { Backups, Halted, ShutdownButton } from './Backups';
 import { Claude } from './Claude';
 import { ControlCenter } from './ControlCenter';
 import { ExternalOperations } from './ExternalOperations';
@@ -587,5 +587,24 @@ describe('Copias', () => {
     expect(onHalted).toHaveBeenCalledWith('Cierra y abre');
     render(<Halted reason="Cierra y abre" />);
     expect(screen.getByRole('alertdialog', { name: 'SocialHub está parado' })).toHaveTextContent('Cierra y abre');
+  });
+});
+
+describe('Cerrar SocialHub', () => {
+  it('pide confirmación y luego cierra', async () => {
+    const shutdown = vi.spyOn(api, 'shutdown').mockResolvedValue(undefined);
+    const onClosed = vi.fn();
+    render(<ShutdownButton onClosed={onClosed} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar' }));
+    expect(shutdown).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Sí, cerrar' }));
+    await waitFor(() => expect(onClosed).toHaveBeenCalled());
+  });
+
+  it('se puede cerrar desde la pantalla de parado', async () => {
+    vi.spyOn(api, 'shutdown').mockResolvedValue(undefined);
+    render(<Halted reason="Copia restaurada" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar SocialHub' }));
+    expect(await screen.findByRole('alertdialog', { name: 'SocialHub cerrado' })).toBeInTheDocument();
   });
 });

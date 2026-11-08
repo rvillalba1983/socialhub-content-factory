@@ -84,6 +84,7 @@ export const api = {
     post<Task>(`/api/tasks/${encodeURIComponent(id)}/commands`, command),
   stationCommand: (id: string, type: StationCommandType) =>
     post<Station>(`/api/stations/${encodeURIComponent(id)}/commands`, { type }),
+  shutdown: () => call<void>('/api/app/shutdown', { method: 'POST' }),
   backups: () => call<BackupList>('/api/backups'),
   createBackup: () => call<Backup>('/api/backups', { method: 'POST' }),
   saveBackupFolder: (folder: string) => putJson<BackupList>('/api/backups/folder', { folder }),

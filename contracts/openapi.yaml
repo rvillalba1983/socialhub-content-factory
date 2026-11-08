@@ -43,6 +43,8 @@ tags:
     description: Vía de publicación por la API de Publora (con la clave de Raúl)
   - name: Backups
     description: Copias de seguridad de la base de datos real, en la carpeta de copias (ajuste general)
+  - name: App
+    description: La aplicación en sí (cerrarla desde la web)
 
 paths:
   /api/factory:
@@ -200,6 +202,20 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ExternalCalendar" }
         "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/app/shutdown:
+    post:
+      tags: [App]
+      operationId: shutdownApp
+      summary: Cierra SocialHub
+      description: >
+        Para el motor, PostgreSQL y el servidor, como al cerrar el programa. Funciona también si SocialHub está parado
+        tras restaurar una copia. Lo que quedó a medias vuelve a la cola al abrirlo de nuevo.
+      parameters:
+        - $ref: "#/components/parameters/RequestGuard"
+      responses:
+        "202": { description: SocialHub se está cerrando }
         default: { $ref: "#/components/responses/Problem" }
 
   /api/backups:

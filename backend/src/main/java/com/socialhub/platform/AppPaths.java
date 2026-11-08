@@ -29,7 +29,7 @@ public class AppPaths {
     public Path logs() { return dataDir.resolve("logs"); }
     public Path runtime() { return dataDir.resolve("runtime"); }
 
-    static Path defaultDataDir() {
+    public static Path defaultDataDir() {
         String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
         String home = System.getProperty("user.home");
         if (os.contains("win")) {
