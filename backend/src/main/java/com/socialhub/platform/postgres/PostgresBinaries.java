@@ -8,7 +8,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.PosixFilePermission;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.EnumSet;
 import java.util.Locale;
 import java.util.Set;
@@ -68,14 +70,15 @@ public final class PostgresBinaries {
         String name = archive.getFilename() == null ? "postgres" : archive.getFilename().replace(".txz", "");
         Path target = runtimeDir.resolve(name);
         Path marker = target.resolve(".complete");
-        if (!Files.exists(marker)) {
+        if (!complete(target, marker)) {
             log.info("Descomprimiendo PostgreSQL incluido en {}", target);
             try {
                 Path tmp = Files.createTempDirectory(ensure(runtimeDir), name + "-");
-                untar(archive, tmp);
+                List<String> files = untar(archive, tmp);
                 deleteRecursively(target);
                 Files.move(tmp, target, StandardCopyOption.ATOMIC_MOVE);
-                Files.writeString(marker, "ok");
+                // La marca lista todos los archivos: al arrancar se comprueba que siguen ahí
+                Files.write(marker, files);
             } catch (IOException e) {
                 throw new UncheckedIOException("No se pudo descomprimir PostgreSQL", e);
             }
@@ -112,6 +115,27 @@ public final class PostgresBinaries {
         }
     }
 
+    /**
+     * PostgreSQL descomprimido y completo: están todos los archivos que lista la marca. Si falta alguno (borrado a
+     * medias, antivirus…) o la marca es de antes de listar archivos, se vuelve a descomprimir.
+     */
+    static boolean complete(Path target, Path marker) {
+        if (!Files.isRegularFile(marker)) return false;
+        try {
+            List<String> files = Files.readAllLines(marker);
+            if (files.isEmpty() || files.equals(List.of("ok"))) return false;
+            for (String f : files) {
+                if (!Files.isRegularFile(target.resolve(f))) {
+                    log.warn("Falta {} en el PostgreSQL descomprimido: se vuelve a descomprimir", f);
+                    return false;
+                }
+            }
+            return true;
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
     private static Path ensure(Path dir) throws IOException {
         Files.createDirectories(dir);
         return dir;
@@ -134,7 +158,8 @@ public final class PostgresBinaries {
         }
     }
 
-    private static void untar(Resource archive, Path target) throws IOException {
+    private static List<String> untar(Resource archive, Path target) throws IOException {
+        List<String> files = new ArrayList<>();
         try (InputStream raw = new BufferedInputStream(archive.getInputStream());
              XZCompressorInputStream xz = new XZCompressorInputStream(raw);
              TarArchiveInputStream tar = new TarArchiveInputStream(xz)) {
@@ -157,12 +182,14 @@ public final class PostgresBinaries {
                 } else {
                     Files.createDirectories(out.getParent());
                     Files.copy(tar, out, StandardCopyOption.REPLACE_EXISTING);
+                    files.add(target.relativize(out).toString().replace('\\', '/'));
                     if (!WINDOWS) {
                         Files.setPosixFilePermissions(out, permissions(entry.getMode()));
                     }
                 }
             }
         }
+        return files;
     }
 
     private static Set<PosixFilePermission> permissions(int mode) {
