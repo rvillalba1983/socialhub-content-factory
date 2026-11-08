@@ -1,6 +1,6 @@
 """Resume las pruebas fallidas de Maven (informes de Surefire) en pocas líneas.
 
-Escribe una anotación ::error:: por prueba (clase, método y primer renglón del error) y una tabla en el resumen del
+Escribe una anotación ::error:: por prueba (clase, método y principio del error) y una tabla en el resumen del
 trabajo. Así se lee el fallo sin descargar el registro entero.
 Uso: python3 resumen-pruebas.py backend/target/surefire-reports
 """
@@ -22,7 +22,8 @@ for path in sorted(glob.glob(os.path.join(folder, "TEST-*.xml"))):
             if node is None:
                 continue
             message = (node.get("message") or node.text or "").strip().splitlines()
-            first = next((line.strip() for line in message if line.strip()), "(sin mensaje)")
+            # Las primeras líneas con texto, juntas (AssertJ reparte «Expecting actual: 30 to be…» en varias)
+            first = " ".join(line.strip() for line in message if line.strip())[:300] or "(sin mensaje)"
             cls = case.get("classname", "").rsplit(".", 1)[-1]
             failures.append((cls, case.get("name", ""), first[:300]))
 
