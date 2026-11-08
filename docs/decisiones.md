@@ -374,5 +374,8 @@ Detalle en `docs/fase-9.md`.
 - **SocialHub arrancó dos veces a la vez** (dos clics mientras tardaba en arrancar).
   - Ahora el primero bloquea `<datos>/socialhub.lock`. Los siguientes esperan a que esté listo y solo abren el navegador.
   - El workflow lo prueba con dos arranques seguidos.
+- **Segunda prueba del `.msi`:** seguía sin arrancar. Las bibliotecas sí se copiaron; el problema de fondo era otro. En el doble arranque del primer día, el segundo arranque borró a medias el PostgreSQL que había descomprimido el primero (entre otros archivos, `zlib1.dll`), y la marca «completo» se quedó.
+  - Ahora la marca lista todos los archivos descomprimidos. Al arrancar se comprueba que están; si falta alguno, PostgreSQL se descomprime de nuevo solo.
+  - El workflow lo prueba borrando `zlib1.dll`.
 - Una carpeta de datos a medias (initdb que no terminó) se aparta como `pgdata-incompleta-…`, sin borrarla, y se vuelve a crear.
 - **Respuesta de Raúl:** no se abre una página de espera al arrancar. El navegador se abre cuando SocialHub está listo.
