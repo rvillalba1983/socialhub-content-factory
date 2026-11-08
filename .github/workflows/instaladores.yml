@@ -60,8 +60,11 @@ jobs:
         working-directory: backend
         run: mvn -B -DskipTests package
       # jpackage necesita WiX (gratuito) para crear el .msi
-      - name: Instalar WiX 3.14
-        run: choco install wixtoolset --version 3.14.1 --no-progress -y
+      - name: WiX 3.14
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\WiX Toolset v3.14\bin\candle.exe")) { choco install wixtoolset --version 3.14.1 --no-progress -y }
+          & "${env:ProgramFiles(x86)}\WiX Toolset v3.14\bin\candle.exe" -? | Select-Object -First 1
       - name: Crear el .msi
         shell: bash
         run: |
