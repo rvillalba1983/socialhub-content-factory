@@ -401,3 +401,7 @@ Tras la primera prueba de Raúl con una marca y una promoción nuevas:
   - Los SVG de los diagramas D2 se generan en GitHub (`diagramas.yml`).
   - La batería completa la pasa GitHub; en local, solo las pruebas afectadas.
 - El entorno en la nube se prepara con `scripts/entorno/preparar.sh`. Antes, los envoltorios se perdían al reiniciar el contenedor.
+
+## 2026-11-09 · Fase 10: guía y propuestas iniciales
+- **Guía** (respuesta de Raúl): bloque «Qué hacer ahora» en la pantalla principal, con recomendaciones que desaparecen al hacerlas. La lista de puesta en marcha sigue descartada.
+- **Propuestas iniciales** (respuesta de Raúl): mensaje con su estado y hora aproximada de llegada, y aviso cuando lleguen. Sin ideas de plantilla y sin cambiar las tareas programadas.
