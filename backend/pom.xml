@@ -82,7 +82,7 @@
     <dependency>
       <groupId>org.postgresql</groupId>
       <artifactId>postgresql</artifactId>
-      <scope>runtime</scope>
+      <!-- En compilación: las copias usan su API de COPY (Fase 9) -->
     </dependency>
 
     <!-- Observabilidad: Micrometer (Observation API) con ID de traza en los registros -->
@@ -227,7 +227,7 @@
               <generateModelTests>false</generateModelTests>
               <generateApiDocumentation>false</generateApiDocumentation>
               <generateModelDocumentation>false</generateModelDocumentation>
-              <apisToGenerate>Factory,AppMode,Brands,Promotions,Pieces,Publications,Claude,Tasks,Stations,Armory,ExternalOperations,Publora</apisToGenerate>
+              <apisToGenerate>Factory,AppMode,Brands,Promotions,Pieces,Publications,Claude,Tasks,Stations,Armory,ExternalOperations,Publora,Backups</apisToGenerate>
               <configOptions>
                 <interfaceOnly>true</interfaceOnly>
                 <useSpringBoot3>true</useSpringBoot3>

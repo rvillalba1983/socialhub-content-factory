@@ -41,6 +41,8 @@ tags:
     description: Seguimiento de las operaciones con sistemas externos
   - name: Publora
     description: Vía de publicación por la API de Publora (con la clave de Raúl)
+  - name: Backups
+    description: Copias de seguridad de la base de datos real, en la carpeta de copias (ajuste general)
 
 paths:
   /api/factory:
@@ -197,6 +199,82 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ExternalCalendar" }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/backups:
+    get:
+      tags: [Backups]
+      operationId: getBackups
+      summary: Carpeta de copias y copias guardadas
+      description: >
+        Lista las copias de la carpeta elegida y las de la carpeta local de SocialHub (donde se guardan mientras no
+        hay carpeta elegida o si no está disponible).
+      responses:
+        "200":
+          description: Copias
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BackupList" }
+        default: { $ref: "#/components/responses/Problem" }
+    post:
+      tags: [Backups]
+      operationId: createBackup
+      summary: Hace una copia ahora
+      parameters:
+        - $ref: "#/components/parameters/RequestGuard"
+      responses:
+        "201":
+          description: Copia hecha
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Backup" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/backups/folder:
+    put:
+      tags: [Backups]
+      operationId: saveBackupFolder
+      summary: Elige la carpeta de copias (o la quita, con folder vacío)
+      description: La carpeta tiene que existir. Es un ajuste general, no de una marca.
+      parameters:
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BackupFolderInput" }
+      responses:
+        "200":
+          description: Carpeta guardada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BackupList" }
+        "409": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/backups/restorations:
+    post:
+      tags: [Backups]
+      operationId: restoreBackup
+      summary: Restaura una copia
+      description: >
+        Primero hace una copia de lo actual («antes-de-restaurar»). Hay que confirmar escribiendo el nombre de la copia.
+        Después SocialHub se para y pide cerrarlo y volver a abrirlo.
+      parameters:
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RestorationInput" }
+      responses:
+        "200":
+          description: Copia restaurada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Restoration" }
+        "409": { $ref: "#/components/responses/Problem" }
         "404": { $ref: "#/components/responses/Problem" }
         default: { $ref: "#/components/responses/Problem" }
 
@@ -1316,6 +1394,46 @@ components:
         connections: { type: array, items: { $ref: "#/components/schemas/PubloraConnection" } }
         error: { type: string, description: Si Publora no respondió o no aceptó la clave }
 
+    BackupList:
+      type: object
+      required: [local_folder, folder_available, keep, items]
+      properties:
+        folder: { type: string, description: "Carpeta de copias elegida (sin ella, las copias van a la carpeta local)" }
+        folder_available: { type: boolean, description: La carpeta elegida existe (false si no hay carpeta elegida) }
+        local_folder: { type: string, description: Carpeta local de SocialHub para las copias }
+        keep: { type: integer, description: Cuántas copias se guardan en cada carpeta }
+        items: { type: array, items: { $ref: "#/components/schemas/Backup" } }
+
+    Backup:
+      type: object
+      required: [name, created_at, size_bytes, kind, local]
+      properties:
+        name: { type: string, example: socialhub-2026-11-08-1500-diaria.zip }
+        created_at: { type: string, format: date-time }
+        size_bytes: { type: integer, format: int64 }
+        kind: { type: string, enum: [DAILY, MANUAL, BEFORE_RESTORE] }
+        local: { type: boolean, description: Está en la carpeta local y no en la elegida }
+
+    BackupFolderInput:
+      type: object
+      properties:
+        folder: { type: string, description: Ruta de la carpeta; vacía para quitarla }
+
+    RestorationInput:
+      type: object
+      required: [name, confirmation]
+      properties:
+        name: { type: string }
+        confirmation: { type: string, description: El nombre de la copia escrito de nuevo }
+
+    Restoration:
+      type: object
+      required: [restored, safety_backup, halted_reason]
+      properties:
+        restored: { type: string }
+        safety_backup: { type: string, description: Copia de lo que había antes de restaurar }
+        halted_reason: { type: string }
+
     PubloraConnection:
       type: object
       required: [id, platform, label, usable]
@@ -1536,6 +1654,7 @@ components:
       properties:
         mode: { $ref: "#/components/schemas/AppMode" }
         demo_available: { type: boolean, description: El modo demo está permitido en esta instalación }
+        halted_reason: { type: string, description: "Motivo por el que SocialHub está parado (tras restaurar una copia)" }
 
     AppModeChange:
       type: object

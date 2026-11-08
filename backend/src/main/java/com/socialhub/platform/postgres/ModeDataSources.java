@@ -16,6 +16,12 @@ public final class ModeDataSources implements AutoCloseable {
 
     public DataSource of(AppMode mode) { return pools.get(mode); }
 
+    /** Dirección JDBC de la base de datos de un modo, para quien necesite conexiones propias (restaurar copias). */
+    public String jdbcUrl(AppMode mode) { return pools.get(mode).getJdbcUrl(); }
+
+    /** Usuario de PostgreSQL de SocialHub (sin contraseña: solo escucha en 127.0.0.1). */
+    public String user() { return EmbeddedPostgres.USER; }
+
     @Override
     public void close() {
         pools.values().forEach(HikariDataSource::close);

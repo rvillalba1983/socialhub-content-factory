@@ -75,6 +75,9 @@ public class AppModeHolder {
      */
     public static void halt(String reason) { halted = reason; }
 
+    /** Vuelve a dejar trabajar (si una restauración falló antes de cambiar nada). */
+    public static void resume() { halted = null; }
+
     public static @org.jspecify.annotations.Nullable String haltedReason() { return halted; }
 
     public boolean demoEnabled() { return demoEnabled; }
