@@ -28,7 +28,9 @@ permissions:
 env:
   # Identifica el programa entre versiones: el instalador nuevo sustituye al anterior. No cambiar.
   UPGRADE_UUID: cb398502-9514-4d01-b4d8-be1d607e5d9f
-  DESCRIPCION: "Fábrica de contenido de El DeLito y Litoques"
+  # Sin tildes: WiX usa la página de códigos 1252 del instalador en inglés y rechaza otros caracteres
+  DESCRIPCION: "Fabrica de contenido de El DeLito y Litoques"
+  FABRICANTE: "Raul Villalba"
   VERSION: ${{ inputs.version || '0.9.0' }}
 
 jobs:
@@ -72,12 +74,12 @@ jobs:
           mkdir -p entrada salida
           cp backend/target/socialhub.jar entrada/
           jpackage --type msi --name SocialHub --app-version "$VERSION" \
-            --vendor "Raúl Villalba" --description "$DESCRIPCION" \
+            --vendor "$FABRICANTE" --description "$DESCRIPCION" \
             --input entrada --main-jar socialhub.jar --dest salida \
             --java-options "-Dsocialhub.desktop=true" \
             --win-per-user-install --install-dir "Programs\\SocialHub" \
             --win-menu --win-menu-group SocialHub --win-shortcut \
-            --win-upgrade-uuid "$UPGRADE_UUID"
+            --win-upgrade-uuid "$UPGRADE_UUID" --verbose
           ls -la salida
       # Prueba real: se instala sin permisos de administrador, se abre, responde, no arranca dos veces y se cierra desde la web
       - name: Instalar y probar el .msi
@@ -164,7 +166,7 @@ jobs:
           mkdir -p entrada salida
           cp backend/target/socialhub.jar entrada/
           jpackage --type dmg --name SocialHub --app-version "$VERSION" \
-            --vendor "Raúl Villalba" --description "$DESCRIPCION" \
+            --vendor "$FABRICANTE" --description "$DESCRIPCION" \
             --input entrada --main-jar socialhub.jar --dest salida \
             --java-options "-Dsocialhub.desktop=true" \
             --mac-package-identifier com.socialhub.app
