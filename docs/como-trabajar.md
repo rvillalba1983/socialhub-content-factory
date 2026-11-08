@@ -20,7 +20,7 @@ Cada fase (o bloque grande) del proyecto se hace en una conversación nueva. As�
 **Al cerrar la fase**
 1. Todas las PR de la fase pasan en GitHub (Linux y Windows) y Raúl las ha mergeado.
 2. Actualiza `docs/estado.md`, `docs/fase-N.md`, `docs/decisiones.md` y, si cambia algo que Raúl usa, `MANUAL.md`.
-3. Copia al proyecto de Claude los documentos que hayan cambiado: `claude/estado.md`, `claude/decisiones.md`, `claude/fase-N.md`, `claude/manual.md` y `claude/como-trabajar.md` (`project_write` con `local_path`).
+3. Copia al proyecto de Claude los documentos que hayan cambiado: `claude/estado.md`, `claude/decisiones.md`, `claude/fase-N.md`, `claude/manual.md` y `claude/como-trabajar.md` (`project_write` con `local_path` y la ruta absoluta del archivo).
 4. Dile a Raúl qué queda para la siguiente conversación.
 
 ## Quién hace cada cosa (modelo y esfuerzo)
