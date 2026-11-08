@@ -82,7 +82,34 @@ public final class PostgresBinaries {
         }
         PostgresBinaries binaries = new PostgresBinaries(target.resolve("bin"));
         binaries.check();
+        if (WINDOWS) addMicrosoftRuntime(target.resolve("bin"), Path.of(System.getProperty("java.home"), "bin"));
         return binaries;
+    }
+
+    /** Bibliotecas de Visual C++ que necesita PostgreSQL en Windows y que no todos los equipos tienen instaladas. */
+    static final String[] MICROSOFT_RUNTIME = {"vcruntime140.dll", "vcruntime140_1.dll", "msvcp140.dll"};
+
+    /**
+     * PostgreSQL para Windows usa el entorno de ejecución de Visual C++, que no siempre está instalado (error
+     * 0xC0000135 al arrancar initdb). Java trae las mismas bibliotecas: se copian junto a los programas de PostgreSQL,
+     * que las cargan de su propia carpeta antes que de Windows.
+     */
+    static void addMicrosoftRuntime(Path pgBin, Path javaBin) {
+        for (String dll : MICROSOFT_RUNTIME) {
+            Path target = pgBin.resolve(dll);
+            if (Files.exists(target)) continue;
+            Path source = javaBin.resolve(dll);
+            if (!Files.isRegularFile(source)) {
+                log.warn("Java no trae {}: si PostgreSQL no arranca, instala el «Visual C++ Redistributable» de Microsoft", dll);
+                continue;
+            }
+            try {
+                Files.copy(source, target);
+                log.info("Copiada {} de Java para PostgreSQL", dll);
+            } catch (IOException e) {
+                log.warn("No se pudo copiar {} para PostgreSQL: {}", dll, e.getMessage());
+            }
+        }
     }
 
     private static Path ensure(Path dir) throws IOException {

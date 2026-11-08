@@ -89,7 +89,10 @@ jobs:
           if ($p.ExitCode -ne 0) { Get-Content "$env:RUNNER_TEMP\instalar.log" -Tail 40; throw "msiexec terminó con $($p.ExitCode)" }
           $exe = Join-Path $env:ProgramFiles "SocialHub\SocialHub.exe"
           if (-not (Test-Path $exe)) { Get-ChildItem $env:ProgramFiles | Select-Object -First 40; throw "No está $exe" }
+          # Dos clics seguidos: solo arranca uno; el otro espera y termina
           $app = Start-Process $exe -PassThru
+          Start-Sleep 2
+          $twin = Start-Process $exe -PassThru
           $ok = $false
           for ($i = 0; $i -lt 90; $i++) {
             try { $r = Invoke-WebRequest http://localhost:8686/api/app-mode -UseBasicParsing -TimeoutSec 3; if ($r.StatusCode -eq 200) { $ok = $true; break } } catch {}
@@ -98,6 +101,13 @@ jobs:
           $logs = Join-Path $env:LOCALAPPDATA "SocialHub\logs\socialhub.log"
           if (-not $ok) { if (Test-Path $logs) { Get-Content $logs -Tail 60 }; throw "SocialHub instalado no respondió en localhost:8686" }
           Write-Host "Responde: $($r.Content)"
+          if (-not $twin.WaitForExit(60000)) { throw "El segundo clic no terminó: arrancarían dos SocialHub" }
+          # PostgreSQL lleva al lado las bibliotecas de Visual C++ de Java (hay equipos sin ellas instaladas)
+          $pgbin = Join-Path $env:LOCALAPPDATA "SocialHub\runtime\postgres-windows-x86_64\bin"
+          foreach ($dll in 'vcruntime140.dll', 'vcruntime140_1.dll', 'msvcp140.dll') {
+            if (-not (Test-Path (Join-Path $pgbin $dll))) { throw "Falta $dll junto a PostgreSQL" }
+          }
+          Write-Host "Bibliotecas de Visual C++ junto a PostgreSQL"
           if (-not (Test-Path $logs)) { throw "No hay registro en $logs" }
           $web = Invoke-WebRequest http://localhost:8686/ -UseBasicParsing
           if ($web.Content -notmatch '<div id="root">') { throw "La web no se sirve" }

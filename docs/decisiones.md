@@ -366,3 +366,13 @@ Detalle en `docs/fase-9.md`.
 - Los datos (`%LOCALAPPDATA%\SocialHub`) no se tocan al instalar, actualizar ni desinstalar.
 
 Detalle en `docs/fase-9.md`.
+
+## 2026-11-08 · Arranque en el PC de Raúl
+- **Primera prueba del `.msi`:** falló porque PostgreSQL para Windows necesita las bibliotecas de Visual C++ (`vcruntime140`, `vcruntime140_1` y `msvcp140`), y en el PC de Raúl no están instaladas (error 0xC0000135). En la máquina de GitHub sí estaban, por eso la prueba pasó allí.
+  - Solución: SocialHub copia junto a PostgreSQL las mismas bibliotecas que trae Java. Son redistribuibles.
+  - El workflow comprueba ahora que están.
+- **SocialHub arrancó dos veces a la vez** (dos clics mientras tardaba en arrancar).
+  - Ahora el primero bloquea `<datos>/socialhub.lock`. Los siguientes esperan a que esté listo y solo abren el navegador.
+  - El workflow lo prueba con dos arranques seguidos.
+- Una carpeta de datos a medias (initdb que no terminó) se aparta como `pgdata-incompleta-…`, sin borrarla, y se vuelve a crear.
+- **Respuesta de Raúl:** no se abre una página de espera al arrancar. El navegador se abre cuando SocialHub está listo.
