@@ -1,0 +1,4 @@
+#!/bin/bash
+# npm con el proxy actual de la sesión
+printf 'noproxy=\nproxy=%s\nhttps-proxy=%s\n' "$HTTPS_PROXY" "$HTTPS_PROXY" > ~/.npmrc
+NO_PROXY= no_proxy= exec npm --noproxy="" "$@"

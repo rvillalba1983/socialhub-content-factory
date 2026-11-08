@@ -1,6 +1,6 @@
 # SocialHub · Fase 7: publicación
 
-Estado: **bloques 1 y 2 en `main`; bloque 4 hecho, pendiente de PR** (rama `fase-7/calendario`); bloque 3 aparcado · 3 nov 2026
+Estado: **bloques 1, 2 y 4 en `main`**; bloque 3 (API oficial) aparcado por decisión de Raúl · 3 nov 2026
 
 Decisiones generales en `docs/fases-7-9.md`. Respuestas de Raúl al empezar esta fase:
 

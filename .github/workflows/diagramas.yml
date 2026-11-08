@@ -1,0 +1,32 @@
+name: Diagramas
+
+# Al cambiar un .d2 en una PR, genera sus SVG con D2 y los sube a la misma rama.
+# Así no hace falta instalar D2 en el entorno de Claude: basta con editar el .d2 y hacer push.
+on:
+  pull_request:
+    paths: ["docs/diagramas/**.d2", "docs/diagramas/generar.sh"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  svg:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+      - name: Instalar D2 (gratuito)
+        run: curl -fsSL https://d2lang.com/install.sh | sh -s --
+      - name: Generar los SVG
+        run: bash docs/diagramas/generar.sh
+      - name: Subir los SVG a la rama si han cambiado
+        run: |
+          git add docs/diagramas/*.svg
+          if git diff --cached --quiet; then echo "Los SVG ya estaban al día"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Diagramas: SVG generados con D2"
+          git push

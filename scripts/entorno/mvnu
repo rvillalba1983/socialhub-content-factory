@@ -1,0 +1,5 @@
+#!/bin/bash
+# Maven como usuario sin privilegios (initdb se niega a ejecutarse como root)
+P=${HTTPS_PROXY##*:}
+sed -i "s#<port>[0-9]*</port>#<port>$P</port>#" /home/claude/.m2/settings.xml
+exec su claude -s /bin/bash -c ". /opt/jdk/env.sh; export HTTPS_PROXY=$HTTPS_PROXY; cd '$PWD' && /opt/maven/bin/mvn -s /home/claude/.m2/settings.xml $*"

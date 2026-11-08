@@ -1,34 +1,41 @@
 # SocialHub · estado actual (para retomar)
 
-Última actualización: 3 nov 2026, 03:30.
+Última actualización: 9 nov 2026. Cómo se trabaja: `docs/como-trabajar.md` (una fase por conversación).
 
 ## Dónde estamos
 
-- **Fases 0 a 5:** terminadas y en `main`. Detalle en `docs/fase-3.md` y `docs/fase-4-5.md`.
-  - Tarea programada «Encargos de SocialHub» creada (9:40, 14:40 y 20:40), en la nube.
-- **Fase 6:** terminada y en `main` (`docs/fase-6.md`).
-- **Fases 7, 8 y 9:** preguntas respondidas (`docs/fases-7-9.md`).
-- **Fase 7, bloque 1** (motor de publicación y vía Publer): en `main`.
-- **Fase 7, bloque 2** (Publora): en `main`.
-- **Fase 7, bloque 3** (API oficial): aparcado por decisión de Raúl.
-- **Fase 7, bloque 4** (calendario con las tres vías): en `main`.
-- **Fase 8** (`docs/fase-8.md`): terminada y en `main` (PR #18 a #21).
-- **Fase 9** (`docs/fase-9.md`): copias en `main` (PR #26); instalador de Windows en la PR #27. Falta el `.dmg`. Las PR se prueban en Linux y Windows hasta tener una versión utilizable.
-- **Pendiente en el PC de Raúl:**
-  - Arrancar SocialHub en Windows.
-  - Dar de alta sus marcas y promociones con sus carpetas reales de G:, incluida la de «Encargos».
-  - Probar un encargo de verdad con la tarea programada.
-- **Siguiente:** que Raúl instale el `.msi` en su PC y lo pruebe; después, el `.dmg` y las pruebas en macOS.
-  - Hace falta que Raúl pegue la clave de API de Publora en la app (Marcas › editar › Publora) y elija la cuenta de cada marca.
-  - Tarea programada «Publicar con Chrome (SocialHub)» creada en su PC (cada hora de 8:40 a 22:40). Necesita Chrome abierto con la sesión de Publer.
+Las fases 0 a 9 de la especificación están hechas y en `main`, salvo lo que se indica:
 
-## Cómo se trabaja
+| Fase | Documento | Estado |
+|---|---|---|
+| 0 · Análisis y decisiones | `fase-0.md` | ✅ |
+| 1 · Prototipo visual | `prototipos/` | ✅ Propuesta «Moderna» |
+| 2 · Backend, persistencia y frontal | `fase-2.md` | ✅ |
+| 3 · Motor de tareas y herramientas locales | `fase-3.md` | ✅ |
+| 4 y 5 · Drive y encargos a Claude | `fase-4-5.md` | ✅ |
+| 6 · Producción editorial | `fase-6.md` | ✅ |
+| 7 · Publicación | `fase-7.md` | ✅ Publer, Publora y calendario. API oficial (bloque 3) aparcada por Raúl |
+| 8 · Métricas y autonomía | `fase-8.md` | ✅ |
+| 9 · Copias e instaladores | `fase-9.md` | ✅ Copias e instalador de Windows (`.msi` 0.9.1). Falta el `.dmg` |
 
-- **Dudas:** ante cualquier duda funcional o técnica, preguntar a Raúl antes de actuar, de una pregunta en una.
-- **Librerías:** preguntar a Raúl antes de añadir cualquier librería nueva.
-- **Guardar a menudo:** commit y push a la rama tras cada paso que funcione.
-- **Ramas y fusiones:** una rama y una PR por bloque. Solo se fusiona con el OK de Raúl.
-- **Pruebas antes de entregar una PR:** Windows y macOS en GitHub Actions (`otros_sistemas=windows-y-macos`; Linux va siempre incluido), sin preguntar.
-- **Compilación:** en el entorno de Claude en la nube (Linux, Java 25, Maven, Node 22) y en GitHub Actions.
-  - Envoltorios: `/opt/jdk/mvnu` (Maven como usuario `claude`) y `/opt/jdk/npmp`. Se pierden si el contenedor se reinicia.
-  - Las pruebas que arrancan PostgreSQL no pueden ejecutarse como `root`.
+Desde la fase 9 también hay en `main` (PR #22–#30): manual funcional con diagramas D2, mapa 3D del código en cada PR, arreglos del arranque en Windows y la puesta en marcha de marcas nuevas (carpeta base, avisos de encargos retenidos y propuestas de la primera semana).
+
+## En el PC de Raúl
+
+- SocialHub 0.9.1 instalado y funcionando (`http://localhost:8686`). Datos y registros en `%LOCALAPPDATA%\SocialHub`.
+- Ha dado de alta la marca Litoques y la promoción «Test inicial» (empieza el 9 nov).
+- Pendiente de Raúl:
+  - Carpeta base de Litoques en «Carpetas de Drive» (botón «Crear las que faltan»).
+  - Carpeta de copias en «Copias».
+  - Clave de Publora y cuenta de cada marca.
+  - Comprobar que las tareas programadas recogen los encargos de verdad:
+    - «Encargos de SocialHub», en la nube: 9:40, 14:40 y 20:40.
+    - «Publicar con Chrome (SocialHub)», en su PC: cada hora de 8:40 a 22:40, con Chrome abierto y la sesión de Publer.
+
+## Siguiente
+
+Lo decide Raúl al empezar la próxima conversación. Candidatos:
+- Lo que salga de su primera semana real con «Test inicial» (fallos y mejoras de uso).
+- Pestaña «Métricas» de la promoción con las métricas reales (ofrecido, sin respuesta).
+- Instalador de macOS (`.dmg`) y pruebas en macOS, cuando haya una versión utilizable.
+- API oficial de publicación (fase 7, bloque 3), si Raúl la retoma.
