@@ -18,7 +18,7 @@ Fábrica de contenido para redes sociales: investiga, produce, programa, publica
 | 6 · Producción editorial: identidad, calidad, memoria y propuestas | ✅ `docs/fase-6.md` |
 | 7 · Publicación (Publer, Publora y calendario) | ✅ `docs/fase-7.md` (API oficial aparcada) |
 | 8 · Métricas y autonomía | ✅ `docs/fase-8.md` |
-| 9 · Copias de seguridad e instaladores | En curso (rama `fase-9/copias`) |
+| 9 · Copias de seguridad e instaladores | Copias ✅ · instaladores pendientes (`docs/fase-9.md`) |
 
 ## Cómo trabaja
 

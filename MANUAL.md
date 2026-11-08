@@ -1,6 +1,6 @@
 # SocialHub · Manual funcional
 
-Cómo funciona SocialHub hoy (3 nov 2026, fases 0 a 8), sin detalles técnicos. Las capturas salen del vídeo demo del 3 nov 2026 y usan los datos de ejemplo del modo Demo.
+Cómo funciona SocialHub hoy (8 nov 2026, fases 0 a 8 y copias de la 9), sin detalles técnicos. Las capturas salen del vídeo demo del 3 nov 2026 y usan los datos de ejemplo del modo Demo.
 
 **Índice**
 
@@ -13,9 +13,10 @@ Cómo funciona SocialHub hoy (3 nov 2026, fases 0 a 8), sin detalles técnicos. 
 7. [Encargos a Claude y tareas programadas](#7-encargos-a-claude-y-tareas-programadas)
 8. [Marcas](#8-marcas)
 9. [Operaciones externas](#9-operaciones-externas)
-10. [Qué hace SocialHub solo y qué te toca a ti](#10-qué-hace-socialhub-solo-y-qué-te-toca-a-ti)
-11. [Reglas que siempre se cumplen](#11-reglas-que-siempre-se-cumplen)
-12. [Lo que aún no está](#12-lo-que-aún-no-está)
+10. [Copias de seguridad](#10-copias-de-seguridad)
+11. [Qué hace SocialHub solo y qué te toca a ti](#11-qué-hace-socialhub-solo-y-qué-te-toca-a-ti)
+12. [Reglas que siempre se cumplen](#12-reglas-que-siempre-se-cumplen)
+13. [Lo que aún no está](#13-lo-que-aún-no-está)
 
 ---
 
@@ -271,7 +272,23 @@ Tiene las decisiones editoriales de la marca, lo rechazado con su motivo y tus c
 
 Cada llamada a algo de fuera queda registrada con su resultado y su duración, para saber qué falló y cuándo: PostgreSQL, Drive, Publora, herramientas locales…
 
-## 10. Qué hace SocialHub solo y qué te toca a ti
+## 10. Copias de seguridad
+
+![Copias de seguridad](docs/manual/img/21-copias.jpg)
+
+Botón **Copias** en la barra de arriba.
+
+- **Copia diaria:** al abrir SocialHub, si hoy no hay ninguna copia, hace una de la base de datos real. Si lo dejas abierto de un día para otro, la hace al cambiar de día. También puedes pulsar **Hacer copia ahora**.
+- **Carpeta de copias:** es un ajuste general, no de una marca. Lo normal es una carpeta de Google Drive (G:). Mientras no elijas una, o si no está disponible, las copias se guardan solo en tu ordenador y sale un aviso en «Necesita atención».
+- **Cuántas:** se guardan las 14 últimas de cada carpeta.
+- **Restaurar:** pulsa **Restaurar…** en una copia y escribe su nombre para confirmar.
+  1. Antes, SocialHub hace una copia de lo que hay («antes de restaurar»), por si hay que volver atrás.
+  2. Cambia los datos de una vez: si algo falla, todo sigue como estaba.
+  3. Al terminar, SocialHub se para (no guarda cambios ni trabaja) y te pide cerrarlo y volver a abrirlo.
+
+El modo Demo no tiene copias: sus datos son de ejemplo.
+
+## 11. Qué hace SocialHub solo y qué te toca a ti
 
 | SocialHub, solo | Tú |
 |---|---|
@@ -282,8 +299,9 @@ Cada llamada a algo de fuera queda registrada con su resultado y su duración, p
 | Programa en Publer o Publora, reintenta y, si no da tiempo, prepara el LEEME | Publicas a mano cuando hay LEEME |
 | Comprueba lo publicado y lee las métricas a los 7 días | Das por resueltas las incidencias |
 | Lee el calendario de fuera (Publora cada hora; Publer y la red una vez al día) | Mantienes abiertos el PC y Chrome para las tareas con Chrome |
+| Hace la copia de seguridad diaria y guarda las 14 últimas | Eliges la carpeta de copias; restauras si hace falta |
 
-## 11. Reglas que siempre se cumplen
+## 12. Reglas que siempre se cumplen
 
 - Nada se programa sin tu aprobación, sin pasar el control de calidad y sin **6 h de margen**. Nunca se publica al momento.
 - Nunca se simula una publicación: «Publicada» exige el enlace o el identificador.
@@ -291,12 +309,9 @@ Cada llamada a algo de fuera queda registrada con su resultado y su duración, p
 - Claude no envía correos ni mensajes, no inicia sesión por ti, no crea cuentas y no paga nada.
 - Solo herramientas gratuitas. Las claves nunca se suben al repositorio.
 
-## 12. Lo que aún no está
+## 13. Lo que aún no está
 
 - **Fase 9:**
-  - Copias de seguridad diarias en Drive, con restauración desde la app.
-  - Instaladores para Windows (`.msi`) y macOS (`.dmg`).
-
-  Está empezada en la rama `fase-9/copias`, donde está su plan (`docs/fase-9.md`).
+  - Instaladores para Windows (`.msi`) y macOS (`.dmg`). Plan en [`docs/fase-9.md`](docs/fase-9.md).
 - **API oficial** de Instagram y TikTok: aparcada ([`docs/fase-7.md`](docs/fase-7.md)).
 - **Sin probar con tus cuentas reales:** Publer y Publora, incluidas las historias de imagen en Publora.

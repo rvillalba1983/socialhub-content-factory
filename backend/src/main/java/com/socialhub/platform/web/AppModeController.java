@@ -28,6 +28,8 @@ class AppModeController implements AppModeApi {
     }
 
     private AppModeStateDto state() {
-        return new AppModeStateDto(AppModeDto.valueOf(mode.selected().name()), mode.demoEnabled());
+        AppModeStateDto state = new AppModeStateDto(AppModeDto.valueOf(mode.selected().name()), mode.demoEnabled());
+        state.setHaltedReason(AppModeHolder.haltedReason());
+        return state;
     }
 }

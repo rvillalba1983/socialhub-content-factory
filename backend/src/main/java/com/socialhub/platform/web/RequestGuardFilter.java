@@ -40,6 +40,15 @@ class RequestGuardFilter extends OncePerRequestFilter {
             reject(response, "Falta la cabecera " + HEADER + ": 1");
             return;
         }
+        String halted = com.socialhub.platform.AppModeHolder.haltedReason();
+        if (halted != null && request.getRequestURI().startsWith("/api/") && !SAFE_METHODS.contains(request.getMethod())) {
+            response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+            response.setContentType("application/problem+json");
+            response.setCharacterEncoding("UTF-8");
+            response.getWriter().write("{\"title\":\"SocialHub está parado\",\"status\":503,\"detail\":\""
+                    + halted.replace("\"", "'") + "\"}");
+            return;
+        }
         chain.doFilter(request, response);
     }
 

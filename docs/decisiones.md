@@ -337,3 +337,23 @@ Detalle en `docs/fase-8.md`.
 - Script Node en `scripts/mapa-codigo/` con Three.js (gratuito, MIT) incrustado: el resultado es un único `index.html` que funciona sin servidor ni internet. Es una herramienta de desarrollo: no forma parte de la app.
 - Workflow `mapa-codigo.yml`: solo en Linux, sube el mapa como artefacto (30 días) y deja o actualiza un comentario en la PR con el enlace.
 - **Capas como unidades** (petición de Raúl): cada capa es un bloque macizo con una celda por clase, así que su superficie es su número de clases (respuesta de Raúl: clases, no líneas). Al acercarte a una capa, el bloque se abre y salen sus clases. Los niveles pasan a General → Isla → Capa → Código.
+
+## 2026-11-03 · Fase 9: respuestas de Raúl
+- **Copias:** al abrir SocialHub, si hoy no hay copia; se guardan 14; carpeta única en los ajustes generales.
+- **Formato:** exportación de tablas con el driver de PostgreSQL (el PostgreSQL incluido no trae `pg_dump`).
+- **Restaurar:** copia previa y confirmación escribiendo el nombre; después SocialHub se para y pide reabrirlo.
+- **Instaladores:** `.msi` y `.dmg` sin firmar.
+
+Detalle en `docs/fase-9.md`.
+
+## 2026-11-08 · Pruebas en otros sistemas
+- Respuesta de Raúl: hasta tener una versión utilizable, cada PR se prueba en Linux y Windows (`otros_sistemas=windows`). Después, también en macOS.
+
+## 2026-11-08 · Fase 9, bloque 1: copias
+- **Sin carpeta elegida** (respuesta de Raúl): la copia se hace igualmente en la carpeta local de SocialHub y sale un aviso en «Necesita atención». Pasa lo mismo si la carpeta elegida no está disponible.
+- Se guardan las 14 copias más recientes de cada carpeta, de cualquier tipo (diaria, a mano o antes de restaurar).
+- Solo se copia la base de datos real: la de demo tiene datos de ejemplo.
+- El driver de PostgreSQL pasa a usarse al compilar (antes solo en ejecución), para usar su API de `COPY`. No es una librería nueva.
+- Si la restauración falla antes del cambio de esquema, los datos actuales no se tocan y SocialHub sigue trabajando.
+
+Detalle en `docs/fase-9.md`.

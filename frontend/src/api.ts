@@ -1,5 +1,5 @@
 import type {
-  AiOrder, AiOrderInput, BrandIdentity, ExternalCalendar, PublicationMetrics, PublishJob, PubloraStatus, PubloraAccountList, PubloraAccountInput, QualityReport, RejectionReason, EditorialDecision, EditorialMemory, AiRequestPage, AiSettings, AiSettingsInput, AppMode, AppModeState, Brand, FolderInput, FolderList, Publication, PublicationFile, PublicationFileList, PublicationInput, PublicationStatus, PieceOrder, PieceSpecList, BrandInput, ExternalOperationPage, Promotion, PromotionInput, OperationOutcome, Snapshot, Station, StationCommandType, Task, TaskCommand,
+  Backup, BackupList, Restoration, AiOrder, AiOrderInput, BrandIdentity, ExternalCalendar, PublicationMetrics, PublishJob, PubloraStatus, PubloraAccountList, PubloraAccountInput, QualityReport, RejectionReason, EditorialDecision, EditorialMemory, AiRequestPage, AiSettings, AiSettingsInput, AppMode, AppModeState, Brand, FolderInput, FolderList, Publication, PublicationFile, PublicationFileList, PublicationInput, PublicationStatus, PieceOrder, PieceSpecList, BrandInput, ExternalOperationPage, Promotion, PromotionInput, OperationOutcome, Snapshot, Station, StationCommandType, Task, TaskCommand,
 } from './model';
 
 export class ApiError extends Error {
@@ -84,6 +84,10 @@ export const api = {
     post<Task>(`/api/tasks/${encodeURIComponent(id)}/commands`, command),
   stationCommand: (id: string, type: StationCommandType) =>
     post<Station>(`/api/stations/${encodeURIComponent(id)}/commands`, { type }),
+  backups: () => call<BackupList>('/api/backups'),
+  createBackup: () => call<Backup>('/api/backups', { method: 'POST' }),
+  saveBackupFolder: (folder: string) => putJson<BackupList>('/api/backups/folder', { folder }),
+  restoreBackup: (name: string, confirmation: string) => post<Restoration>('/api/backups/restorations', { name, confirmation }),
   externalOperations: (filter: { system?: string; outcome?: OperationOutcome; offset?: number; limit?: number }) => {
     const q = new URLSearchParams();
     Object.entries(filter).forEach(([k, v]) => { if (v !== undefined && v !== '') q.set(k, String(v)); });
