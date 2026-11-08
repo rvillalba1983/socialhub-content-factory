@@ -3,7 +3,7 @@ import { api } from './api';
 import { Claude } from './Claude';
 import { ControlCenter } from './ControlCenter';
 import { ExternalOperations } from './ExternalOperations';
-import { Backups, Halted } from './Backups';
+import { Backups, Closed, Halted, ShutdownButton } from './Backups';
 import { Registration } from './Registration';
 import { Icon } from './icons';
 import {
@@ -35,6 +35,7 @@ export function Factory({ data, live, onRefresh }: {
   const [claude, setClaude] = useState(false);
   const [copias, setCopias] = useState(false);
   const [halted, setHalted] = useState<string | null>(null);
+  const [closed, setClosed] = useState(false);
   const [reg, setReg] = useState<{ kind: 'brand' | 'promotion'; id: string | null } | false | null>(false);
   const [demoAvailable, setDemoAvailable] = useState(true);
   useEffect(() => { api.appMode().then(m => { setDemoAvailable(m.demo_available); setHalted(m.halted_reason ?? null); }).catch(() => {}); }, []);
@@ -352,6 +353,7 @@ export function Factory({ data, live, onRefresh }: {
           <button className="ibtn" onClick={() => { setCc(null); setOps(false); setClaude(false); setCopias(false); setReg(null); }} title="Dar de alta y editar marcas y promociones">Marcas</button>
           <button className={`ibtn${ops ? ' on' : ''}`} onClick={() => { setCc(null); setReg(false); setClaude(false); setCopias(false); setOps(true); }} title="Operaciones externas: llamadas a PostgreSQL, Drive, Publer… y sus fallos">Operaciones</button>
           <button className={`ibtn${copias ? ' on' : ''}`} onClick={() => { setCc(null); setReg(false); setClaude(false); setOps(false); setCopias(true); }} title="Copias de seguridad: carpeta, copia ahora y restaurar">Copias</button>
+          <ShutdownButton onClosed={() => setClosed(true)} />
         </div>
       </header>
 
@@ -402,7 +404,8 @@ export function Factory({ data, live, onRefresh }: {
         )}
         {ops && <ExternalOperations onClose={() => setOps(false)} />}
         {copias && <Backups onClose={() => setCopias(false)} onMessage={say} onHalted={setHalted} />}
-        {halted && <Halted reason={halted} />}
+        {halted && !closed && <Halted reason={halted} />}
+        {closed && <Closed />}
         {claude && <Claude data={data} onClose={() => setClaude(false)} onMessage={say} onTask={id => { setClaude(false); goTask(id); }} />}
         {reg !== false && (
           <Registration data={data} initial={reg} onClose={() => setReg(false)}

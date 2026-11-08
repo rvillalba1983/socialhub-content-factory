@@ -1,0 +1,182 @@
+name: Instaladores
+
+# A mano: genera el instalador de Windows (.msi) y, si se pide, el de macOS (.dmg), con Java y PostgreSQL dentro.
+# El .msi se instala y se prueba en la propia máquina de GitHub antes de darlo por bueno.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Versión (tres números, por ejemplo 0.9.0)"
+        required: true
+        default: "0.9.0"
+      sistemas:
+        description: "Instaladores (macOS gasta x10 minutos)"
+        type: choice
+        default: windows
+        options: [windows, windows-y-macos]
+      publicar:
+        description: "Publicar en una release de GitHub (privada, como el repositorio)"
+        type: boolean
+        default: false
+  # Al cambiar este workflow en una PR, se prueba el .msi (sin publicar nada)
+  pull_request:
+    paths: [".github/workflows/instaladores.yml"]
+
+permissions:
+  contents: write
+
+env:
+  # Identifica el programa entre versiones: el instalador nuevo sustituye al anterior. No cambiar.
+  UPGRADE_UUID: cb398502-9514-4d01-b4d8-be1d607e5d9f
+  # Sin tildes: WiX usa la página de códigos 1252 del instalador en inglés y rechaza otros caracteres
+  DESCRIPCION: "Fabrica de contenido de El DeLito y Litoques"
+  FABRICANTE: "Raul Villalba"
+  VERSION: ${{ inputs.version || '0.9.0' }}
+
+jobs:
+  windows:
+    name: Instalador de Windows (.msi)
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Comprobar la versión
+        shell: bash
+        run: '[[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::La versión tiene que ser de tres números, como 0.9.0"; exit 1; }'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Compilar la web
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+      - name: Empaquetar SocialHub con la web
+        working-directory: backend
+        run: mvn -B -DskipTests package
+      # jpackage necesita WiX (gratuito) para crear el .msi
+      - name: WiX 3.14
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\WiX Toolset v3.14\bin\candle.exe")) { choco install wixtoolset --version 3.14.1 --no-progress -y }
+          & "${env:ProgramFiles(x86)}\WiX Toolset v3.14\bin\candle.exe" -? | Select-Object -First 1
+      - name: Crear el .msi
+        shell: bash
+        run: |
+          export PATH="$PATH:/c/Program Files (x86)/WiX Toolset v3.14/bin"
+          mkdir -p entrada salida
+          cp backend/target/socialhub.jar entrada/
+          jpackage --type msi --name SocialHub --app-version "$VERSION" \
+            --vendor "$FABRICANTE" --description "$DESCRIPCION" \
+            --input entrada --main-jar socialhub.jar --dest salida \
+            --java-options "-Dsocialhub.desktop=true" \
+            --win-menu --win-menu-group SocialHub --win-shortcut \
+            --win-upgrade-uuid "$UPGRADE_UUID" --verbose
+          ls -la salida
+      # Prueba real: se instala (en Archivos de programa), se abre, responde, no arranca dos veces y se cierra desde la web
+      - name: Instalar y probar el .msi
+        shell: pwsh
+        run: |
+          $msi = Get-ChildItem salida\*.msi | Select-Object -First 1
+          $p = Start-Process msiexec.exe -ArgumentList "/i `"$($msi.FullName)`" /qn /l*v `"$env:RUNNER_TEMP\instalar.log`"" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { Get-Content "$env:RUNNER_TEMP\instalar.log" -Tail 40; throw "msiexec terminó con $($p.ExitCode)" }
+          $exe = Join-Path $env:ProgramFiles "SocialHub\SocialHub.exe"
+          if (-not (Test-Path $exe)) { Get-ChildItem $env:ProgramFiles | Select-Object -First 40; throw "No está $exe" }
+          $app = Start-Process $exe -PassThru
+          $ok = $false
+          for ($i = 0; $i -lt 90; $i++) {
+            try { $r = Invoke-WebRequest http://localhost:8686/api/app-mode -UseBasicParsing -TimeoutSec 3; if ($r.StatusCode -eq 200) { $ok = $true; break } } catch {}
+            Start-Sleep 2
+          }
+          $logs = Join-Path $env:LOCALAPPDATA "SocialHub\logs\socialhub.log"
+          if (-not $ok) { if (Test-Path $logs) { Get-Content $logs -Tail 60 }; throw "SocialHub instalado no respondió en localhost:8686" }
+          Write-Host "Responde: $($r.Content)"
+          if (-not (Test-Path $logs)) { throw "No hay registro en $logs" }
+          $web = Invoke-WebRequest http://localhost:8686/ -UseBasicParsing
+          if ($web.Content -notmatch '<div id="root">') { throw "La web no se sirve" }
+          # Segundo arranque: solo abre el navegador y termina
+          $second = Start-Process $exe -PassThru
+          if (-not $second.WaitForExit(30000)) { throw "El segundo arranque no terminó: arrancaría dos veces" }
+          Write-Host "Segundo arranque terminó enseguida, como debe"
+          Invoke-WebRequest http://localhost:8686/api/app/shutdown -Method Post -Headers @{ 'X-SocialHub-Request' = '1' } -UseBasicParsing | Out-Null
+          if (-not $app.WaitForExit(60000)) { throw "SocialHub no se cerró desde la web" }
+          if (Get-Process postgres -ErrorAction SilentlyContinue) { throw "PostgreSQL sigue en marcha después de cerrar" }
+          Write-Host "Se cierra desde la web y para PostgreSQL"
+          # Desinstalar no borra los datos
+          $u = Start-Process msiexec.exe -ArgumentList "/x `"$($msi.FullName)`" /qn" -Wait -PassThru
+          if ($u.ExitCode -ne 0) { throw "La desinstalación terminó con $($u.ExitCode)" }
+          if (-not (Test-Path (Join-Path $env:LOCALAPPDATA "SocialHub\pgdata"))) { throw "Al desinstalar se borraron los datos" }
+          Write-Host "Desinstalado; los datos siguen en $env:LOCALAPPDATA\SocialHub"
+      - name: Registro de SocialHub
+        if: always()
+        shell: pwsh
+        run: Get-Content (Join-Path $env:LOCALAPPDATA "SocialHub\logs\socialhub.log") -Tail 60 -ErrorAction SilentlyContinue
+      - uses: actions/upload-artifact@v4
+        with:
+          name: instalador-windows
+          path: salida/*.msi
+          retention-days: 30
+      - name: Publicar en la release
+        if: inputs.publicar
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="v$VERSION"
+          gh release view "$tag" > /dev/null 2>&1 || gh release create "$tag" --prerelease --target "$GITHUB_SHA" --title "SocialHub $VERSION" \
+            --notes "Instaladores sin firmar. Windows avisa con «Windows protegió tu PC»: pulsa «Más información» y «Ejecutar de todas formas»."
+          gh release upload "$tag" salida/*.msi --clobber
+
+  macos:
+    name: Instalador de macOS (.dmg)
+    if: github.event_name == 'workflow_dispatch' && inputs.sistemas == 'windows-y-macos'
+    needs: windows
+    runs-on: macos-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Compilar la web
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+      - name: Empaquetar SocialHub con la web
+        working-directory: backend
+        run: mvn -B -DskipTests package
+      - name: Crear el .dmg
+        run: |
+          mkdir -p entrada salida
+          cp backend/target/socialhub.jar entrada/
+          jpackage --type dmg --name SocialHub --app-version "$VERSION" \
+            --vendor "$FABRICANTE" --description "$DESCRIPCION" \
+            --input entrada --main-jar socialhub.jar --dest salida \
+            --java-options "-Dsocialhub.desktop=true" \
+            --mac-package-identifier com.socialhub.app
+          ls -la salida
+      - uses: actions/upload-artifact@v4
+        with:
+          name: instalador-macos
+          path: salida/*.dmg
+          retention-days: 30
+      - name: Publicar en la release
+        if: inputs.publicar
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "v$VERSION" salida/*.dmg --clobber

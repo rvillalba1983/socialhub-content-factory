@@ -113,15 +113,48 @@ function RestoreCard({ backup, busy, onCancel, onConfirm }: { backup: Backup; bu
   );
 }
 
-/** Pantalla que tapa todo cuando SocialHub está parado (tras restaurar una copia). */
+/** Pantalla que tapa todo cuando SocialHub está parado (tras restaurar una copia) o cerrado. */
 export function Halted({ reason }: { reason: string }) {
+  const [closed, setClosed] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  if (closed) return <Closed />;
   return (
     <div className="halted" role="alertdialog" aria-modal="true" aria-label="SocialHub está parado">
       <div className="card">
         <h3>SocialHub está parado</h3>
         <p>{reason}</p>
         <p className="src">No se guarda ningún cambio y el motor no trabaja hasta que lo vuelvas a abrir.</p>
+        {error && <p className="error" role="alert">{error}</p>}
+        <div className="form-actions">
+          <button className="btn primary" onClick={() => api.shutdown().then(() => setClosed(true), e => setError(e instanceof Error ? e.message : String(e)))}>Cerrar SocialHub</button>
+        </div>
       </div>
     </div>
+  );
+}
+
+/** SocialHub ya se ha cerrado: la pestaña se queda sin servidor. */
+export function Closed() {
+  return (
+    <div className="halted" role="alertdialog" aria-modal="true" aria-label="SocialHub cerrado">
+      <div className="card">
+        <h3>SocialHub se ha cerrado</h3>
+        <p>Puedes cerrar esta pestaña. Para volver, ábrelo con su acceso directo.</p>
+      </div>
+    </div>
+  );
+}
+
+/** Botón «Cerrar» de la barra: pide confirmación en el mismo sitio. */
+export function ShutdownButton({ onClosed }: { onClosed: () => void }) {
+  const [asking, setAsking] = useState(false);
+  const [busy, setBusy] = useState(false);
+  if (!asking) return <button className="ibtn" onClick={() => setAsking(true)} title="Cerrar SocialHub: para el motor y el servidor">Cerrar</button>;
+  return (
+    <span className="ask-close" role="group" aria-label="¿Cerrar SocialHub?">
+      <span className="src">¿Cerrar SocialHub?</span>
+      <button className="ibtn" disabled={busy} onClick={() => { setBusy(true); api.shutdown().then(onClosed, () => { setBusy(false); setAsking(false); }); }}>Sí, cerrar</button>
+      <button className="ibtn" disabled={busy} onClick={() => setAsking(false)}>No</button>
+    </span>
   );
 }

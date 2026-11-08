@@ -18,7 +18,11 @@ Fábrica de contenido para redes sociales: investiga, produce, programa, publica
 | 6 · Producción editorial: identidad, calidad, memoria y propuestas | ✅ `docs/fase-6.md` |
 | 7 · Publicación (Publer, Publora y calendario) | ✅ `docs/fase-7.md` (API oficial aparcada) |
 | 8 · Métricas y autonomía | ✅ `docs/fase-8.md` |
-| 9 · Copias de seguridad e instaladores | Copias ✅ · instaladores pendientes (`docs/fase-9.md`) |
+| 9 · Copias de seguridad e instaladores | Copias e instalador de Windows ✅ · `.dmg` pendiente (`docs/fase-9.md`) |
+
+## Instalar
+
+En GitHub, **Actions › Instaladores › Run workflow** genera `SocialHub-<versión>.msi`. Al lanzarlo puedes elegir publicarlo en una release. Instálalo y ábrelo con el acceso directo: se abre en el navegador, en `http://localhost:8686`. Para cerrarlo, usa el botón **Cerrar** de la barra. Más en el [manual](MANUAL.md#instalar-y-cerrar).
 
 ## Cómo trabaja
 
