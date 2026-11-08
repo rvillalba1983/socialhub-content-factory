@@ -2,6 +2,12 @@ package com.socialhub.platform.desktop;
 
 import com.socialhub.platform.AppPaths;
 import java.io.IOException;
+import java.nio.channels.FileChannel;
+import java.nio.channels.FileLock;
+import java.nio.channels.OverlappingFileLockException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -9,6 +15,7 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.List;
 import java.util.Locale;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,7 +47,50 @@ public final class Desktop {
             openBrowser();
             return true;
         }
+        if (!lockInstance()) {
+            // Otro arranque va por delante (tarda un poco): se espera a que esté listo y solo se abre el navegador
+            log.info("SocialHub ya está arrancando; se espera a que esté listo");
+            for (int i = 0; i < 90 && !alreadyRunning(); i++) sleep(2000);
+            openBrowser();
+            return true;
+        }
         return false;
+    }
+
+    private static @Nullable FileChannel lockChannel;
+    private static @Nullable FileLock lock;
+
+    /**
+     * Un solo SocialHub a la vez: el primero que arranca bloquea {@code <datos>/socialhub.lock} hasta que termina
+     * (Windows lo suelta solo si el programa se cierra de golpe).
+     */
+    static synchronized boolean lockInstance() {
+        try {
+            Path file = AppPaths.defaultDataDir().resolve("socialhub.lock");
+            Files.createDirectories(file.getParent());
+            FileChannel channel = FileChannel.open(file, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+            FileLock acquired = channel.tryLock();
+            if (acquired == null) {
+                channel.close();
+                return false;
+            }
+            lockChannel = channel;
+            lock = acquired;
+            return true;
+        } catch (OverlappingFileLockException e) {
+            return false;
+        } catch (IOException e) {
+            log.warn("No se pudo comprobar si SocialHub ya está arrancando: {}", e.getMessage());
+            return true;
+        }
+    }
+
+    private static void sleep(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     /** ¿Responde ya un SocialHub en este ordenador? */

@@ -57,6 +57,7 @@ public class EmbeddedPostgres {
         try {
             Files.createDirectories(logDir);
             if (!Files.exists(dataDir.resolve("PG_VERSION"))) {
+                setAsideIncomplete();
                 calls.run("postgres", "initdb", dataDir.toString(), this::initdb);
             }
             if (status()) {
@@ -94,6 +95,17 @@ public class EmbeddedPostgres {
     /** Base de datos del modo real. */
     public String jdbcUrl() {
         return jdbcUrl(AppMode.REAL.database());
+    }
+
+    /** Una carpeta de datos sin PG_VERSION es un initdb que no terminó: se aparta (sin borrarla) para empezar de nuevo. */
+    private void setAsideIncomplete() throws IOException {
+        if (!Files.isDirectory(dataDir)) return;
+        try (var entries = Files.list(dataDir)) {
+            if (entries.findAny().isEmpty()) return;
+        }
+        Path aside = dataDir.resolveSibling(dataDir.getFileName() + "-incompleta-" + System.currentTimeMillis());
+        log.warn("La carpeta de datos {} está a medias (initdb no terminó); se aparta en {}", dataDir, aside);
+        Files.move(dataDir, aside);
     }
 
     private void initdb() {
