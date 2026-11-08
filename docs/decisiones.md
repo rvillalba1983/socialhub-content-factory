@@ -396,6 +396,7 @@ Tras la primera prueba de Raúl con una marca y una promoción nuevas:
 - **Subagentes** (petición de Raúl: usar distintos niveles de modelo y esfuerzo): `.claude/agents/` con `vigilante-ci` y `explorador` (Haiku, bajo), `documentador` y `probador-visual` (Sonnet, bajo), `programador` (Sonnet, medio) y `revisor` (Opus, alto). Las preguntas, el diseño y la revisión con Raúl siguen en la sesión principal.
 - **Más trabajo en GitHub para ahorrar tokens** (petición de Raúl):
   - Las PR con cambios en el backend se prueban en Windows automáticamente, sin lanzarlas a mano.
+  - **Respuesta de Raúl:** las pruebas del backend, solo en Windows; ya no en Linux. El frontal, el mapa 3D y los diagramas siguen en máquinas Linux de GitHub, porque no prueban la app en un sistema concreto y gastan la mitad de minutos.
   - Las pruebas fallidas se anotan con su error, y `scripts/estado-pr.sh` lo resume en pocas líneas.
   - Los SVG de los diagramas D2 se generan en GitHub (`diagramas.yml`).
   - La batería completa la pasa GitHub; en local, solo las pruebas afectadas.

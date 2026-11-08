@@ -23,7 +23,7 @@
 - **Ramas y PR:**
   - Una rama y una PR por bloque. Commit y push tras cada paso que funcione.
   - Solo Raúl hace merge. Nunca force push.
-- **Antes de entregar una PR:** tiene que pasar en GitHub. Linux y Windows van solos en cada PR; macOS solo cuando haya una versión utilizable. Pregunta antes de añadir cualquier librería.
+- **Antes de entregar una PR:** tiene que pasar en GitHub. Las pruebas del backend van solas en Windows en cada PR (el frontal, el mapa y los diagramas, en Linux, que es más barato); macOS solo cuando haya una versión utilizable. Pregunta antes de añadir cualquier librería.
 - **Herramientas y secretos:** solo herramientas gratuitas; nada de pago sin autorización expresa. No se suben secretos.
 - **Cuentas y publicación:**
   - No crees cuentas, no inicies sesión por Raúl y no envíes correos ni mensajes; solo borradores.

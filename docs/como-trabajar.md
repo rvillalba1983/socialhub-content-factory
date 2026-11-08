@@ -18,7 +18,7 @@ Cada fase (o bloque grande) del proyecto se hace en una conversación nueva. As�
 - Cada decisión nueva va a `docs/decisiones.md`, indicando si la tomó Raúl o fue técnica.
 
 **Al cerrar la fase**
-1. Todas las PR de la fase pasan en GitHub (Linux y Windows) y Raúl las ha mergeado.
+1. Todas las PR de la fase pasan en GitHub y Raúl las ha mergeado.
 2. Actualiza `docs/estado.md`, `docs/fase-N.md`, `docs/decisiones.md` y, si cambia algo que Raúl usa, `MANUAL.md`.
 3. Copia al proyecto de Claude los documentos que hayan cambiado: `claude/estado.md`, `claude/decisiones.md`, `claude/fase-N.md`, `claude/manual.md` y `claude/como-trabajar.md` (`project_write` con `local_path` y la ruta absoluta del archivo).
 4. Dile a Raúl qué queda para la siguiente conversación.
@@ -47,7 +47,7 @@ Reglas:
 
 | Workflow | Cuándo | Qué hace |
 |---|---|---|
-| `backend.yml` | Cada PR con cambios en `backend/` | Pruebas en Linux y Windows; arranque real del jar. Si falla una prueba, anota la prueba y su error (se leen con `scripts/estado-pr.sh`) |
+| `backend.yml` | Cada PR con cambios en `backend/` | Pruebas en Windows (donde se usa SocialHub) y arranque real del jar. Si falla una prueba, anota la prueba y su error (se leen con `scripts/estado-pr.sh`) |
 | `frontend.yml` | Cada PR con cambios en `frontend/` o `contracts/` | Tipos de la API frente al contrato, pruebas y compilación |
 | `mapa-codigo.yml` | Cada PR | Mapa 3D del código, enlazado en un comentario de la PR |
 | `diagramas.yml` | PR que cambia un `.d2` | Genera los SVG con D2 y los sube a la rama: no hace falta instalar D2 |
