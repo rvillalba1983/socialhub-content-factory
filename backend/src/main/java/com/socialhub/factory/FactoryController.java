@@ -17,8 +17,6 @@ import com.socialhub.api.model.StatusLevelDto;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 import java.time.OffsetDateTime;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -48,9 +46,6 @@ class FactoryController implements FactoryApi {
         var armoryItems = armoryMapper.toDtos(armory.items());
         boolean real = mode.selected() == com.socialhub.platform.AppMode.REAL;
         List<RecommendationDto> recs = real ? recommendations.compute() : List.of();
-        // Las propuestas retenidas salen en «Qué hacer ahora»; solo si no caben en el bloque siguen como aviso
-        Set<String> shownHeld = recs.stream().filter(r -> r.getKind() == RecommendationDto.KindEnum.HELD_PROPOSALS)
-                .map(RecommendationDto::getPromotionId).collect(Collectors.toSet());
         return ResponseEntity.ok(new FactoryDto(
                 OffsetDateTime.now(clock),
                 mode.isDemo(),
@@ -62,7 +57,7 @@ class FactoryController implements FactoryApi {
                 armoryItems,
                 promotions.commonRules(),
                 alerts(snapshot.alerts(), armoryItems, publishing.publishAlerts(),
-                        real ? heldOrders.current() : List.of(), shownHeld),
+                        real ? heldOrders.current() : List.of()),
                 recs));
     }
 
@@ -72,12 +67,12 @@ class FactoryController implements FactoryApi {
      */
     private static List<AlertDto> alerts(List<AlertDto> production, List<ArmoryItemDto> items,
                                          List<PublishingQueries.PublishAlert> publishing,
-                                         List<com.socialhub.ai.AiHeldOrders.Held> held, Set<String> shownHeld) {
+                                         List<com.socialhub.ai.AiHeldOrders.Held> held) {
         List<AlertDto> alerts = new ArrayList<>(production);
         // Encargos a Claude que no pueden salir hasta que Raúl arregle algo (por ejemplo, una carpeta)
         for (var h : held) {
-            // Las propuestas retenidas que están en «Qué hacer ahora» no se repiten aquí
-            if (h.isPromotionProposals() && shownHeld.contains(h.promotionId())) continue;
+            // Las propuestas retenidas de una promoción salen solo en «Qué hacer ahora», que ya no recorta la lista
+            if (h.isPromotionProposals() && h.promotionId() != null) continue;
             alerts.add(new AlertDto(AlertDto.KindEnum.BLOCKED, AlertDto.TargetTypeEnum.TASK, h.taskId(), h.stationId(),
                     "En cola: " + h.title(), h.reason()));
         }

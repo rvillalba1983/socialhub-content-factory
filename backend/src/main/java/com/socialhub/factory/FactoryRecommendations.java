@@ -24,8 +24,8 @@ import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 /**
- * «Qué hacer ahora»: de 0 a {@value #MAX} recomendaciones, calculadas en cada consulta y sin guardarlas, así que
- * desaparecen solas cuando dejan de hacer falta. Por orden de prioridad:
+ * «Qué hacer ahora»: la lista completa de recomendaciones, calculadas en cada consulta y sin guardarlas, así que
+ * desaparecen solas cuando dejan de hacer falta. El frontal enseña las 3 primeras y el resto con «Ver N más». Por orden de prioridad:
  * <ol>
  *   <li>Propuestas de una promoción retenidas, con el motivo.</li>
  *   <li>Propuestas listas para revisar, con su contador.</li>
@@ -42,8 +42,6 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 class FactoryRecommendations {
-
-    static final int MAX = 3;
 
     private final AiHeldOrders heldOrders;
     private final AiSentOrders sentOrders;
@@ -151,7 +149,7 @@ class FactoryRecommendations {
                 "Propuestas de «" + promotionById.get(promotionId).name() + "» pedidas. Llegarán " + eta,
                 null, null, null, null).promotionId(promotionId).etaText(eta)));
 
-        return List.copyOf(all.subList(0, Math.min(MAX, all.size())));
+        return List.copyOf(all);
     }
 
     private static String hour(ZonedDateTime time) {

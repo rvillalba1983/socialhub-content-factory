@@ -66,10 +66,11 @@ class FactoryControllerTest {
     }
 
     @Test
-    void heldProposalsThatDoNotFitInTheBlockStayAsAlerts() {
+    void heldProposalsOfAPromotionNeverShowAsAlertsEvenWithoutTheirRecommendation() {
         when(mode.selected()).thenReturn(AppMode.REAL);
         FactoryDto factory = controller(recommendation).getFactory().getBody();
-        assertThat(factory.getAlerts()).extracting(a -> a.getTargetId()).containsExactly("t1", "t2", "t3");
+        // Las de una promoción (t1) salen solo en recomendaciones; la que no tiene promoción (t3) sigue como aviso
+        assertThat(factory.getAlerts()).extracting(a -> a.getTargetId()).containsExactly("t2", "t3");
     }
 
     @Test

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { Recommendation, RecommendationTarget } from './api/schema';
 
 /** Un destino de navegación solo es válido si trae los datos que necesita su pantalla. */
@@ -17,18 +18,26 @@ function buttonLabel(t: RecommendationTarget): string {
   return t.screen === 'NEW_PROMOTION' && t.promotion_id ? 'Abrir la promoción' : BUTTON_LABEL[t.screen];
 }
 
-/** «Qué hacer ahora»: hasta 3 recomendaciones del backend. Sin recomendaciones no se pinta nada. */
+/** Cuántas recomendaciones se ven sin desplegar. */
+export const VISIBLE = 3;
+
+/** «Qué hacer ahora»: 3 a la vista y «Ver N más» para el resto. Sin recomendaciones no se pinta nada. */
+
 export function NextSteps({ items, onOpen, onDismissPublora }: {
   items: Recommendation[]; onOpen: (target: RecommendationTarget) => void;
   /** «No uso Publora» para la marca de la recomendación PUBLORA_MISSING. */
   onDismissPublora?: (brandId: string) => void;
 }) {
+  // El estado vive en el componente, que no se desmonta al recargar los datos
+  const [expanded, setExpanded] = useState(false);
   if (items.length === 0) return null;
+  const extra = items.length - VISIBLE;
+  const shown = extra > 0 && !expanded ? items.slice(0, VISIBLE) : items;
   return (
     <section className="next-strip" aria-label="Qué hacer ahora">
       <h2>Qué hacer ahora</h2>
       <div className="next-list">
-      {items.map(r => {
+      {shown.map(r => {
         const body = <span><b>{r.title}</b>{r.detail}</span>;
         const target = r.target;
         const main = canOpen(target)
@@ -51,6 +60,11 @@ export function NextSteps({ items, onOpen, onDismissPublora }: {
           : <div key={r.id} className="aitem-wrap">{main}</div>;
       })}
       </div>
+      {extra > 0 && (
+        <button type="button" className="btn next-more" aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>
+          {expanded ? 'Ver menos' : `Ver ${extra} más`}
+        </button>
+      )}
     </section>
   );
 }

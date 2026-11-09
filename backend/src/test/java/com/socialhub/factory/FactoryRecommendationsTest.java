@@ -270,23 +270,27 @@ class FactoryRecommendationsTest {
         now = madrid(11, 9, 10, 30);
         when(publora.hasAccounts("litoques")).thenReturn(false);
         backupFolderMissing();
-        // Con todo a la vez solo salen las 3 primeras
-        assertThat(kinds()).containsExactly(KindEnum.HELD_PROPOSALS, KindEnum.PROPOSALS_TO_REVIEW, KindEnum.BRAND_FOLDERS_MISSING);
+        // Con todo a la vez sale la lista completa, sin recortar
+        assertThat(kinds()).containsExactly(KindEnum.HELD_PROPOSALS, KindEnum.PROPOSALS_TO_REVIEW, KindEnum.BRAND_FOLDERS_MISSING,
+                KindEnum.ORDERS_NOT_COLLECTED, KindEnum.PUBLORA_MISSING, KindEnum.BACKUP_FOLDER_MISSING,
+                KindEnum.PROPOSALS_PENDING);
 
-        // Resueltas las tres primeras, salen las siguientes por su orden
+        // Resueltas las tres primeras, desaparecen y quedan las demás por su orden
         when(held.current()).thenReturn(List.of());
         when(publishing.proposalCounts()).thenReturn(Map.of());
         when(promotions.hasAllBrandFolders("litoques")).thenReturn(true);
-        assertThat(kinds()).containsExactly(KindEnum.ORDERS_NOT_COLLECTED, KindEnum.PUBLORA_MISSING, KindEnum.BACKUP_FOLDER_MISSING);
+        assertThat(kinds()).containsExactly(KindEnum.ORDERS_NOT_COLLECTED, KindEnum.PUBLORA_MISSING, KindEnum.BACKUP_FOLDER_MISSING,
+                KindEnum.PROPOSALS_PENDING);
     }
 
     @Test
-    void theListHasAtMostThreeAndTheRestShowWhenTheFirstOnesAreSolved() {
+    void theListIsNotTrimmedAndEachSolvedRowDisappears() {
         when(promotions.hasAllBrandFolders("litoques")).thenReturn(false);
         when(publora.hasAccounts("litoques")).thenReturn(false);
         backupFolderMissing();
         when(promotions.promotionRefs()).thenReturn(List.of());
-        assertThat(kinds()).containsExactly(KindEnum.BRAND_FOLDERS_MISSING, KindEnum.PUBLORA_MISSING, KindEnum.BACKUP_FOLDER_MISSING);
+        assertThat(kinds()).containsExactly(KindEnum.BRAND_FOLDERS_MISSING, KindEnum.PUBLORA_MISSING,
+                KindEnum.BACKUP_FOLDER_MISSING, KindEnum.NO_ACTIVE_PROMOTION);
 
         when(promotions.hasAllBrandFolders("litoques")).thenReturn(true);
         assertThat(kinds()).containsExactly(KindEnum.PUBLORA_MISSING, KindEnum.BACKUP_FOLDER_MISSING, KindEnum.NO_ACTIVE_PROMOTION);
@@ -301,7 +305,7 @@ class FactoryRecommendationsTest {
         when(promotions.hasAllBrandFolders("delito")).thenReturn(false);
         var all = subject().compute();
         assertThat(all).extracting(RecommendationDto::getId).contains("brand-folders:delito");
-        // El DeLito tampoco tiene Publora ni promoción: la lista se corta en 3 pero cada fila es de su marca
+        // El DeLito tampoco tiene Publora ni promoción: cada fila es de su marca
         when(publora.hasAccounts("delito")).thenReturn(true);
         when(promotions.promotionRefs()).thenReturn(List.of(new PromotionRef("lit-1", "litoques", "Test inicial", "ACTIVE")));
         assertThat(subject().compute()).extracting(RecommendationDto::getId)

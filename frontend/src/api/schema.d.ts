@@ -903,7 +903,7 @@ export interface components {
             armory_items: components["schemas"]["ArmoryItem"][];
             common_rules: string[];
             alerts: components["schemas"]["Alert"][];
-            /** @description «Qué hacer ahora»: de 0 a 3 recomendaciones, por orden de prioridad. Se calculan en cada consulta, sin guardarlas, y desaparecen solas cuando dejan de hacer falta. Siempre vacía en modo demo. */
+            /** @description «Qué hacer ahora»: la lista completa de recomendaciones, por orden de prioridad (el frontal enseña las 3 primeras y el resto bajo «Ver N más»). Se calculan en cada consulta, sin guardarlas, y desaparecen solas cuando dejan de hacer falta. Siempre vacía en modo demo. */
             recommendations: components["schemas"]["Recommendation"][];
         };
         Recommendation: {

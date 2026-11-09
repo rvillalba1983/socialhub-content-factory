@@ -692,6 +692,25 @@ describe('Qué hacer ahora', () => {
     expect(block.compareDocumentPosition(screen.getByRole('region', { name: 'Necesita tu atención' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
+  it('con más de 3 enseña 3 y «Ver N más» despliega el resto; «Ver menos» lo pliega', () => {
+    const many = [...three, rec({ id: 'x4', kind: 'BACKUP_FOLDER_MISSING', title: 'Cuarta' }), rec({ id: 'x5', kind: 'BACKUP_FOLDER_MISSING', title: 'Quinta' })];
+    const { rerender } = render(<NextSteps items={many} onOpen={() => {}} />);
+    const block = screen.getByRole('region', { name: 'Qué hacer ahora' });
+    expect(block.querySelectorAll('.aitem')).toHaveLength(3);
+    fireEvent.click(screen.getByRole('button', { name: 'Ver 2 más' }));
+    expect(block.querySelectorAll('.aitem')).toHaveLength(5);
+    // Una recarga con datos nuevos no pliega la lista
+    rerender(<NextSteps items={[...many]} onOpen={() => {}} />);
+    expect(block.querySelectorAll('.aitem')).toHaveLength(5);
+    fireEvent.click(screen.getByRole('button', { name: 'Ver menos' }));
+    expect(block.querySelectorAll('.aitem')).toHaveLength(3);
+  });
+
+  it('con 3 o menos no hay botón «Ver más»', () => {
+    render(<NextSteps items={three} onOpen={() => {}} />);
+    expect(screen.queryByRole('button', { name: /Ver .* más/ })).not.toBeInTheDocument();
+  });
+
   it('en la fábrica, la franja queda fuera del mundo con zoom', async () => {
     vi.spyOn(api, 'appMode').mockResolvedValue({ mode: 'REAL', demo_available: false } as never);
     const { container } = render(<Factory data={withRecs(three)} live={false} onRefresh={() => {}} />);
@@ -867,6 +886,9 @@ describe('Mensajes al guardar', () => {
   it('marca: añade el siguiente paso, o nada si no hay', () => {
     expect(savedMessage('Marca guardada', { brandId: 'b' }, three)).toBe('Marca guardada · Siguiente paso: Tienes 3 propuestas de «Lanzamiento del poemario» para revisar');
     expect(savedMessage('Marca guardada', { brandId: 'otra' }, three)).toBe('Marca guardada');
+    // Con más de 3 recomendaciones, la de la marca guardada se encuentra aunque esté escondida tras «Ver N más»
+    const hidden = rec({ id: 'brand-folders:z', kind: 'BRAND_FOLDERS_MISSING', title: 'Crea las carpetas de Z', target: { screen: 'BRAND_FOLDERS', brand_id: 'z' } });
+    expect(savedMessage('Marca guardada', { brandId: 'z' }, [...three, three[0], three[1], hidden])).toBe('Marca guardada · Siguiente paso: Crea las carpetas de Z');
   });
   it('el aviso dura 6 s con siguiente paso o estado de propuestas, y 2,8 s si no', () => {
     const long = savedMessage('Promoción guardada', { promotionId: 'p' }, [pending]);
