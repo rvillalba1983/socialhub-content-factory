@@ -53,11 +53,12 @@ class StartUpTest {
         assertThat(auto.createFirstWeeks(java.time.ZonedDateTime.now())).isEqualTo(1);
         assertThat(auto.createFirstWeeks(java.time.ZonedDateTime.now())).isZero();
 
-        // Sin carpeta de «Encargos» el encargo no sale y Raúl lo ve en «Necesita atención»
+        // Sin carpeta de «Encargos» el encargo no sale y Raúl lo ve en «Qué hacer ahora» (no en «Necesita atención»)
         dispatcher.dispatchQueued();
         mvc.perform(get("/api/factory"))
-                .andExpect(jsonPath("$.alerts[?(@.title =~ /En cola: Propuestas de la primera semana.*/)].detail")
-                        .value(org.hamcrest.Matchers.hasItem(org.hamcrest.Matchers.containsString("carpeta de «Encargos»"))));
+                .andExpect(jsonPath("$.recommendations[?(@.kind == 'HELD_PROPOSALS')].detail")
+                        .value(org.hamcrest.Matchers.hasItem(org.hamcrest.Matchers.containsString("carpeta de «Encargos»"))))
+                .andExpect(jsonPath("$.alerts[?(@.title =~ /En cola:.*/)]").isEmpty());
 
         // Sin carpeta base ni rutas no hay nada que crear
         write(post("/api/brands/litoques/folders/creation"), "{}").andExpect(status().isConflict());
@@ -76,7 +77,8 @@ class StartUpTest {
         // Ya tiene carpeta: el encargo sale y deja de salir en «Necesita atención»
         assertThat(dispatcher.dispatchQueued()).isEqualTo(1);
         mvc.perform(get("/api/factory"))
-                .andExpect(jsonPath("$.alerts[?(@.title =~ /En cola:.*/)]").isEmpty());
+                .andExpect(jsonPath("$.alerts[?(@.title =~ /En cola:.*/)]").isEmpty())
+                .andExpect(jsonPath("$.recommendations[?(@.kind == 'HELD_PROPOSALS')]").isEmpty());
 
         // Si luego falta una carpeta asignada, el botón la vuelve a crear sin tocar las demás
         Files.delete(base.resolve("Informes"));
