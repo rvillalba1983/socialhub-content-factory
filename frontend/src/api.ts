@@ -73,6 +73,8 @@ export const api = {
   savePubloraKey: (key: string) => putJson<PubloraStatus>('/api/publora/key', { key }),
   deletePubloraKey: () => call<void>('/api/publora/key', { method: 'DELETE' }),
   brandPubloraAccounts: (id: string) => call<PubloraAccountList>(`/api/brands/${encodeURIComponent(id)}/publora-accounts`),
+  setBrandPubloraDismissed: (id: string, dismissed: boolean) =>
+    putJson<PubloraAccountList>(`/api/brands/${encodeURIComponent(id)}/publora-dismissed`, { dismissed }),
   saveBrandPubloraAccounts: (id: string, items: PubloraAccountInput[]) =>
     putJson<PubloraAccountList>(`/api/brands/${encodeURIComponent(id)}/publora-accounts`, { items }),
   publicationMetrics: (id: string) => call<PublicationMetrics>(`/api/publications/${encodeURIComponent(id)}/metrics`),

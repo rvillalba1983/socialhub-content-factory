@@ -12,6 +12,7 @@ import com.socialhub.publishing.PublishingQueries;
 import com.socialhub.publishing.adapter.in.web.PublicationWebMapper;
 import com.socialhub.api.model.AlertDto;
 import com.socialhub.api.model.ArmoryItemDto;
+import com.socialhub.api.model.RecommendationDto;
 import com.socialhub.api.model.StatusLevelDto;
 import java.time.Clock;
 import java.util.ArrayList;
@@ -36,12 +37,15 @@ class FactoryController implements FactoryApi {
     private final AppModeHolder mode;
     private final Clock clock;
     private final com.socialhub.ai.AiHeldOrders heldOrders;
+    private final FactoryRecommendations recommendations;
 
     @Override
     @Transactional(readOnly = true)
     public ResponseEntity<FactoryDto> getFactory() {
         var snapshot = production.snapshot();
         var armoryItems = armoryMapper.toDtos(armory.items());
+        boolean real = mode.selected() == com.socialhub.platform.AppMode.REAL;
+        List<RecommendationDto> recs = real ? recommendations.compute() : List.of();
         return ResponseEntity.ok(new FactoryDto(
                 OffsetDateTime.now(clock),
                 mode.isDemo(),
@@ -53,7 +57,8 @@ class FactoryController implements FactoryApi {
                 armoryItems,
                 promotions.commonRules(),
                 alerts(snapshot.alerts(), armoryItems, publishing.publishAlerts(),
-                        mode.selected() == com.socialhub.platform.AppMode.REAL ? heldOrders.current() : List.of())));
+                        real ? heldOrders.current() : List.of()),
+                recs));
     }
 
     /**
@@ -66,6 +71,8 @@ class FactoryController implements FactoryApi {
         List<AlertDto> alerts = new ArrayList<>(production);
         // Encargos a Claude que no pueden salir hasta que Raúl arregle algo (por ejemplo, una carpeta)
         for (var h : held) {
+            // Las propuestas retenidas de una promoción salen solo en «Qué hacer ahora», que ya no recorta la lista
+            if (h.isPromotionProposals() && h.promotionId() != null) continue;
             alerts.add(new AlertDto(AlertDto.KindEnum.BLOCKED, AlertDto.TargetTypeEnum.TASK, h.taskId(), h.stationId(),
                     "En cola: " + h.title(), h.reason()));
         }

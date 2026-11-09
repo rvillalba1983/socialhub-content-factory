@@ -23,7 +23,9 @@ export function useFactory() {
 
   useEffect(() => {
     reload();
-    if (typeof EventSource === 'undefined') return;
+    // Red de seguridad: lo que cambia sin aviso (carpetas de Drive, horas que pasan) se recoge cada minuto
+    const periodic = window.setInterval(reload, 60_000);
+    if (typeof EventSource === 'undefined') return () => window.clearInterval(periodic);
     const source = new EventSource('/api/events');
     source.addEventListener('hello', () => setLive(true));
     source.addEventListener('factory-changed', () => {
@@ -31,7 +33,7 @@ export function useFactory() {
       timer.current = window.setTimeout(reload, 250);
     });
     source.onerror = () => setLive(false);
-    return () => { source.close(); window.clearTimeout(timer.current); };
+    return () => { source.close(); window.clearTimeout(timer.current); window.clearInterval(periodic); };
   }, [reload]);
 
   return { data, error, live, reload };

@@ -6,6 +6,7 @@ import com.socialhub.api.model.PubloraAccountDto;
 import com.socialhub.api.model.PubloraAccountListDto;
 import com.socialhub.api.model.PubloraAccountListInputDto;
 import com.socialhub.api.model.PubloraConnectionDto;
+import com.socialhub.api.model.PubloraDismissedInputDto;
 import com.socialhub.api.model.PubloraKeyInputDto;
 import com.socialhub.api.model.PubloraStatusDto;
 import com.socialhub.publishing.PubloraService;
@@ -40,7 +41,7 @@ class PubloraController implements PubloraApi {
 
     @Override
     public ResponseEntity<PubloraAccountListDto> getBrandPubloraAccounts(String brandId) {
-        return ResponseEntity.ok(toDto(publora.accounts(brandId)));
+        return ResponseEntity.ok(accountList(brandId));
     }
 
     @Override
@@ -49,7 +50,19 @@ class PubloraController implements PubloraApi {
         var choices = input.getItems().stream()
                 .map(i -> new PubloraService.Choice(Platform.valueOf(i.getPlatform().name()), i.getConnectionId()))
                 .toList();
-        return ResponseEntity.ok(toDto(publora.saveAccounts(brandId, choices)));
+        publora.saveAccounts(brandId, choices);
+        return ResponseEntity.ok(accountList(brandId));
+    }
+
+    @Override
+    public ResponseEntity<PubloraAccountListDto> setBrandPubloraDismissed(String brandId, String requestGuard,
+                                                                         PubloraDismissedInputDto input) {
+        publora.setDismissed(brandId, input.getDismissed());
+        return ResponseEntity.ok(accountList(brandId));
+    }
+
+    private PubloraAccountListDto accountList(String brandId) {
+        return toDto(publora.accounts(brandId), publora.isDismissed(brandId));
     }
 
     private static PubloraStatusDto toDto(PubloraService.Status status) {
@@ -60,9 +73,9 @@ class PubloraController implements PubloraApi {
         return dto;
     }
 
-    private static PubloraAccountListDto toDto(List<PubloraAccountRepository.Account> accounts) {
+    private static PubloraAccountListDto toDto(List<PubloraAccountRepository.Account> accounts, boolean dismissed) {
         return new PubloraAccountListDto(accounts.stream()
                 .map(a -> new PubloraAccountDto(PlatformDto.valueOf(a.platform().name()), a.connectionId(), a.label()))
-                .toList());
+                .toList(), dismissed);
     }
 }

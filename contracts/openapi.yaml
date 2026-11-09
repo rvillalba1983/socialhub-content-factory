@@ -408,6 +408,31 @@ paths:
         "404": { $ref: "#/components/responses/Problem" }
         default: { $ref: "#/components/responses/Problem" }
 
+  /api/brands/{brand_id}/publora-dismissed:
+    put:
+      tags: [Publora]
+      operationId: setBrandPubloraDismissed
+      summary: Marca o desmarca «No uso Publora» para la marca
+      description: >
+        Con el descarte, «Qué hacer ahora» deja de recomendar conectar Publora para esa marca. Se puede deshacer
+        en cualquier momento. No toca las cuentas elegidas.
+      parameters:
+        - $ref: "#/components/parameters/BrandId"
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PubloraDismissedInput" }
+      responses:
+        "200":
+          description: Estado guardado (con las cuentas de la marca)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PubloraAccountList" }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
   /api/brands/{brand_id}/identity:
     get:
       tags: [Brands]
@@ -1268,7 +1293,7 @@ components:
 
     Factory:
       type: object
-      required: [now, demo, brands, promotions, stations, tasks, publications, armory_items, common_rules, alerts]
+      required: [now, demo, brands, promotions, stations, tasks, publications, armory_items, common_rules, alerts, recommendations]
       properties:
         now: { type: string, format: date-time }
         demo:
@@ -1282,6 +1307,66 @@ components:
         armory_items: { type: array, items: { $ref: "#/components/schemas/ArmoryItem" } }
         common_rules: { type: array, items: { type: string } }
         alerts: { type: array, items: { $ref: "#/components/schemas/Alert" } }
+        recommendations:
+          type: array
+          description: >
+            «Qué hacer ahora»: la lista completa de recomendaciones, por orden de prioridad (el frontal enseña las 3
+            primeras y el resto bajo «Ver N más»). Se calculan en cada consulta, sin
+            guardarlas, y desaparecen solas cuando dejan de hacer falta. Siempre vacía en modo demo.
+          items: { $ref: "#/components/schemas/Recommendation" }
+
+    Recommendation:
+      type: object
+      required: [id, kind, title]
+      properties:
+        id:
+          type: string
+          description: "Estable mientras la recomendación siga haciendo falta (por ejemplo, brand-folders:litoques)"
+        kind:
+          type: string
+          enum:
+            - HELD_PROPOSALS
+            - PROPOSALS_TO_REVIEW
+            - BRAND_FOLDERS_MISSING
+            - ORDERS_NOT_COLLECTED
+            - PUBLORA_MISSING
+            - BACKUP_FOLDER_MISSING
+            - NO_ACTIVE_PROMOTION
+            - PROPOSALS_PENDING
+          description: >
+            Por orden de prioridad: propuestas retenidas, propuestas por revisar, marca sin todas sus carpetas, encargos
+            sin recoger, marca sin cuenta de Publora, sin carpeta de copias, marca sin promoción activa y propuestas
+            pedidas en camino
+        title: { type: string, description: "Texto en español" }
+        detail: { type: string, description: "Más información (por ejemplo, el motivo de un encargo retenido)" }
+        promotion_id:
+          type: string
+          description: >
+            Promoción a la que se refiere la recomendación (propuestas retenidas, por revisar o en camino). La
+            interfaz usa este campo y no lo deduce del id ni del título
+        eta_text:
+          type: string
+          description: >
+            Solo en propuestas en camino: cuándo llegarán, en español («sobre las 9:40» o «mañana sobre las 9:40»).
+            La interfaz usa este campo y no lo deduce del título
+        target:
+          $ref: "#/components/schemas/RecommendationTarget"
+
+    RecommendationTarget:
+      type: object
+      description: A qué pantalla lleva el botón. Sin target, la recomendación es solo un texto.
+      required: [screen]
+      properties:
+        screen:
+          type: string
+          enum: [BRAND_FOLDERS, PROPOSALS, PUBLORA, BACKUPS, NEW_PROMOTION]
+          description: >
+            BRAND_FOLDERS: Marcas → Carpetas de Drive de la marca (brand_id). PROPOSALS: publicaciones en estado
+            Propuesta de la promoción (promotion_id). PUBLORA: tarjeta de Publora de la marca (brand_id). BACKUPS:
+            ajuste de la carpeta de copias. NEW_PROMOTION: alta de promoción de la marca (brand_id); con promotion_id, abre esa promoción (planificada o en
+            pausa) para activarla
+        brand_id: { type: string }
+        promotion_id: { type: string }
 
     Alert:
       type: object
@@ -1507,9 +1592,18 @@ components:
 
     PubloraAccountList:
       type: object
-      required: [items]
+      required: [items, dismissed]
       properties:
         items: { type: array, items: { $ref: "#/components/schemas/PubloraAccount" } }
+        dismissed:
+          type: boolean
+          description: Raúl ha marcado «No uso Publora» para esta marca (no se le recomienda conectarla)
+
+    PubloraDismissedInput:
+      type: object
+      required: [dismissed]
+      properties:
+        dismissed: { type: boolean }
 
     PubloraAccountInput:
       type: object

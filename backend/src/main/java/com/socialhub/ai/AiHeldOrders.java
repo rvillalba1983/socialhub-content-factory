@@ -12,8 +12,19 @@ import org.springframework.stereotype.Component;
 @Component
 public class AiHeldOrders {
 
-    /** Un encargo retenido: la tarea, su estación, su título y qué falta. */
-    public record Held(String taskId, String stationId, String title, String reason) {}
+    /**
+     * Un encargo retenido: la tarea, su estación, su título y qué falta. {@code promotionId} y {@code type} permiten
+     * distinguir, por ejemplo, las propuestas de una promoción (vacíos si la tarea no los tiene).
+     */
+    public record Held(String taskId, String stationId, String title, String reason,
+                       @org.jspecify.annotations.Nullable String promotionId,
+                       @org.jspecify.annotations.Nullable AiRequestType type) {
+
+        /** Son las propuestas de la semana de una promoción concreta. */
+        public boolean isPromotionProposals() {
+            return type == AiRequestType.WEEKLY_PROPOSALS && promotionId != null;
+        }
+    }
 
     private volatile Map<String, Held> held = Map.of();
 
@@ -22,8 +33,12 @@ public class AiHeldOrders {
         return List.copyOf(held.values());
     }
 
-    void replace(Map<String, Held> now) {
-        held = Map.copyOf(now);
+    /** @return si lo retenido ha cambiado respecto a la ronda anterior */
+    boolean replace(Map<String, Held> now) {
+        Map<String, Held> next = Map.copyOf(now);
+        boolean changed = !next.equals(held);
+        held = next;
+        return changed;
     }
 
     static Map<String, Held> collector() {

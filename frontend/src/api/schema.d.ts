@@ -280,6 +280,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/brands/{brand_id}/publora-dismissed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Marca o desmarca «No uso Publora» para la marca
+         * @description Con el descarte, «Qué hacer ahora» deja de recomendar conectar Publora para esa marca. Se puede deshacer en cualquier momento. No toca las cuentas elegidas.
+         */
+        put: operations["setBrandPubloraDismissed"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/brands/{brand_id}/identity": {
         parameters: {
             query?: never;
@@ -883,6 +903,36 @@ export interface components {
             armory_items: components["schemas"]["ArmoryItem"][];
             common_rules: string[];
             alerts: components["schemas"]["Alert"][];
+            /** @description «Qué hacer ahora»: la lista completa de recomendaciones, por orden de prioridad (el frontal enseña las 3 primeras y el resto bajo «Ver N más»). Se calculan en cada consulta, sin guardarlas, y desaparecen solas cuando dejan de hacer falta. Siempre vacía en modo demo. */
+            recommendations: components["schemas"]["Recommendation"][];
+        };
+        Recommendation: {
+            /** @description Estable mientras la recomendación siga haciendo falta (por ejemplo, brand-folders:litoques) */
+            id: string;
+            /**
+             * @description Por orden de prioridad: propuestas retenidas, propuestas por revisar, marca sin todas sus carpetas, encargos sin recoger, marca sin cuenta de Publora, sin carpeta de copias, marca sin promoción activa y propuestas pedidas en camino
+             * @enum {string}
+             */
+            kind: "HELD_PROPOSALS" | "PROPOSALS_TO_REVIEW" | "BRAND_FOLDERS_MISSING" | "ORDERS_NOT_COLLECTED" | "PUBLORA_MISSING" | "BACKUP_FOLDER_MISSING" | "NO_ACTIVE_PROMOTION" | "PROPOSALS_PENDING";
+            /** @description Texto en español */
+            title: string;
+            /** @description Más información (por ejemplo, el motivo de un encargo retenido) */
+            detail?: string;
+            /** @description Promoción a la que se refiere la recomendación (propuestas retenidas, por revisar o en camino). La interfaz usa este campo y no lo deduce del id ni del título */
+            promotion_id?: string;
+            /** @description Solo en propuestas en camino: cuándo llegarán, en español («sobre las 9:40» o «mañana sobre las 9:40»). La interfaz usa este campo y no lo deduce del título */
+            eta_text?: string;
+            target?: components["schemas"]["RecommendationTarget"];
+        };
+        /** @description A qué pantalla lleva el botón. Sin target, la recomendación es solo un texto. */
+        RecommendationTarget: {
+            /**
+             * @description BRAND_FOLDERS: Marcas → Carpetas de Drive de la marca (brand_id). PROPOSALS: publicaciones en estado Propuesta de la promoción (promotion_id). PUBLORA: tarjeta de Publora de la marca (brand_id). BACKUPS: ajuste de la carpeta de copias. NEW_PROMOTION: alta de promoción de la marca (brand_id); con promotion_id, abre esa promoción (planificada o en pausa) para activarla
+             * @enum {string}
+             */
+            screen: "BRAND_FOLDERS" | "PROPOSALS" | "PUBLORA" | "BACKUPS" | "NEW_PROMOTION";
+            brand_id?: string;
+            promotion_id?: string;
         };
         Alert: {
             /** @enum {string} */
@@ -1085,6 +1135,11 @@ export interface components {
         };
         PubloraAccountList: {
             items: components["schemas"]["PubloraAccount"][];
+            /** @description Raúl ha marcado «No uso Publora» para esta marca (no se le recomienda conectarla) */
+            dismissed: boolean;
+        };
+        PubloraDismissedInput: {
+            dismissed: boolean;
         };
         PubloraAccountInput: {
             platform: components["schemas"]["Platform"];
@@ -1656,6 +1711,8 @@ export type PublicationStatus = components['schemas']['PublicationStatus'];
 export type Platform = components['schemas']['Platform'];
 export type OperationOutcome = components['schemas']['OperationOutcome'];
 export type Factory = components['schemas']['Factory'];
+export type Recommendation = components['schemas']['Recommendation'];
+export type RecommendationTarget = components['schemas']['RecommendationTarget'];
 export type Alert = components['schemas']['Alert'];
 export type FolderRole = components['schemas']['FolderRole'];
 export type FolderCreationInput = components['schemas']['FolderCreationInput'];
@@ -1681,6 +1738,7 @@ export type PubloraConnection = components['schemas']['PubloraConnection'];
 export type PubloraKeyInput = components['schemas']['PubloraKeyInput'];
 export type PubloraAccount = components['schemas']['PubloraAccount'];
 export type PubloraAccountList = components['schemas']['PubloraAccountList'];
+export type PubloraDismissedInput = components['schemas']['PubloraDismissedInput'];
 export type PubloraAccountInput = components['schemas']['PubloraAccountInput'];
 export type PubloraAccountListInput = components['schemas']['PubloraAccountListInput'];
 export type PublishRouteState = components['schemas']['PublishRouteState'];
@@ -2270,6 +2328,37 @@ export interface operations {
                 };
             };
             400: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    setBrandPubloraDismissed: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path: {
+                brand_id: components["parameters"]["BrandId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PubloraDismissedInput"];
+            };
+        };
+        responses: {
+            /** @description Estado guardado (con las cuentas de la marca) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PubloraAccountList"];
+                };
+            };
             404: components["responses"]["Problem"];
             default: components["responses"]["Problem"];
         };

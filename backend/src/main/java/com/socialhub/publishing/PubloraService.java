@@ -30,6 +30,7 @@ public class PubloraService {
     private final PubloraGateway publora;
     private final PubloraAccountRepository accounts;
     private final PromotionQueries promotions;
+    private final org.springframework.context.ApplicationEventPublisher events;
 
     public Status status() {
         String key = secrets.get(PubloraRoute.KEY).orElse(null);
@@ -65,6 +66,21 @@ public class PubloraService {
         return accounts.accounts(brandId);
     }
 
+    /** La marca tiene al menos una cuenta de Publora elegida. */
+    @Transactional(readOnly = true)
+    public boolean hasAccounts(String brandId) { return !accounts.accounts(brandId).isEmpty(); }
+
+    /** Raúl ha marcado «No uso Publora» para la marca. */
+    @Transactional(readOnly = true)
+    public boolean isDismissed(String brandId) { return accounts.dismissed(brandId); }
+
+    @Transactional
+    public void setDismissed(String brandId, boolean dismissed) {
+        promotions.requireBrand(brandId);
+        accounts.setDismissed(brandId, dismissed);
+        events.publishEvent(new com.socialhub.platform.live.FactoryChanged("publora", brandId));
+    }
+
     /** Cada cuenta tiene que estar conectada en Publora y ser de su red. */
     @Transactional
     public List<PubloraAccountRepository.Account> saveAccounts(String brandId, List<Choice> choices) {
@@ -93,6 +109,7 @@ public class PubloraService {
             }
         }
         accounts.replace(brandId, list);
+        events.publishEvent(new com.socialhub.platform.live.FactoryChanged("publora", brandId));
         return accounts.accounts(brandId);
     }
 

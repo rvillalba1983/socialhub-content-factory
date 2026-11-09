@@ -16,5 +16,7 @@ interface AiRequestRepository extends JpaRepository<AiRequestEntity, String> {
 
     List<AiRequestEntity> findByTaskIdOrderBySentAt(String taskId);
 
+    List<AiRequestEntity> findByStatus(AiRequestEntity.Status status);
+
     Page<AiRequestEntity> findAllByOrderBySentAtDesc(Pageable page);
 }

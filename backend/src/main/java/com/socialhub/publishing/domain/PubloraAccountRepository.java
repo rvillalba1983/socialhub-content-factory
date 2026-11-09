@@ -16,4 +16,9 @@ public interface PubloraAccountRepository {
 
     /** Sustituye las de la marca. */
     void replace(String brandId, List<Account> accounts);
+
+    /** Raúl ha marcado «No uso Publora» para la marca. */
+    boolean dismissed(String brandId);
+
+    void setDismissed(String brandId, boolean dismissed);
 }

@@ -156,6 +156,27 @@ public class PromotionQueries {
         return Optional.ofNullable(folderRepository.brandFolders(brandId).get(FolderRole.ORDERS));
     }
 
+    /** Marca resumida, para textos de la interfaz. */
+    public record BrandRef(String id, String name) {}
+
+    /** Promoción resumida; {@code status}: PLANNED, ACTIVE, PAUSED o FINISHED. */
+    public record PromotionRef(String id, String brandId, String name, String status) {
+        public boolean active() { return "ACTIVE".equals(status); }
+    }
+
+    public List<BrandRef> brandRefs() { return brands().stream().map(b -> new BrandRef(b.id(), b.name())).toList(); }
+
+    public List<PromotionRef> promotionRefs() {
+        return promotions().stream()
+                .map(p -> new PromotionRef(p.id(), p.brandId(), p.name(), p.status()))
+                .toList();
+    }
+
+    /** La marca tiene carpeta asignada para todos los papeles (Material, Borradores… Encargos). */
+    public boolean hasAllBrandFolders(String brandId) {
+        return folderRepository.brandFolders(brandId).keySet().containsAll(java.util.List.of(FolderRole.values()));
+    }
+
     /** Identificadores de todas las marcas. */
     public List<String> brandIds() { return brands().stream().map(Brand::id).toList(); }
 

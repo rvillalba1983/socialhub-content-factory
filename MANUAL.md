@@ -83,6 +83,13 @@ En la barra de arriba están:
 
 A la derecha, **Agentes y herramientas** lista lo que usa la fábrica (Claude, promo.py, FFmpeg, Drive, Publer…) y si está disponible.
 
+### Qué hacer ahora
+
+Encima del mapa hay una franja con lo siguiente que te toca hacer, por ejemplo crear las carpetas de una marca o revisar propuestas. Cada recomendación tiene un botón que te lleva a donde se resuelve. Se ven las 3 más importantes; si hay más, **Ver N más** las despliega. Cada una desaparece sola cuando la haces. Si no hay nada que hacer, la franja no se muestra.
+
+- **No uso Publora:** si una marca no va a usar Publora, pulsa este botón en la recomendación y deja de salir. Para deshacerlo, ve a la tarjeta de Publora de la marca.
+- **Propuestas iniciales:** se piden solas cuando una marca tiene una promoción activa y llegan en las recogidas de las 9:40, 14:40 y 20:40.
+
 ### Necesita atención y resumen de hoy
 
 ![Necesita atención](docs/manual/img/02-atencion.jpg)

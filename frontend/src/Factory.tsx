@@ -5,6 +5,8 @@ import { ControlCenter } from './ControlCenter';
 import { ExternalOperations } from './ExternalOperations';
 import { Backups, Closed, Halted, ShutdownButton } from './Backups';
 import { Registration } from './Registration';
+import { NextSteps, savedMessage, toastDuration, type SavedRef } from './Recommendations';
+import type { RecommendationTarget } from './api/schema';
 import { Icon } from './icons';
 import {
   AI_MODELS, STATUS, type AppMode, alertTone, byPriority, normalize, shortDate, type AiModel, type Snapshot, type StationCommandType, type StatusCode,
@@ -30,13 +32,13 @@ export function Factory({ data, live, onRefresh }: {
   const [lod, setLod] = useState(1);
   const [zoom, setZoom] = useState(50);
   const [sel, setSel] = useState<Selection>({ type: null, id: null });
-  const [cc, setCc] = useState<{ promo: string; tab: string; hl: string | null } | null>(null);
+  const [cc, setCc] = useState<{ promo: string; tab: string; hl: string | null; filter?: string } | null>(null);
   const [ops, setOps] = useState(false);
   const [claude, setClaude] = useState(false);
   const [copias, setCopias] = useState(false);
   const [halted, setHalted] = useState<string | null>(null);
   const [closed, setClosed] = useState(false);
-  const [reg, setReg] = useState<{ kind: 'brand' | 'promotion'; id: string | null } | false | null>(false);
+  const [reg, setReg] = useState<{ kind: 'brand' | 'promotion'; id: string | null; brandId?: string; focus?: 'folders' | 'publora' } | false | null>(false);
   const [demoAvailable, setDemoAvailable] = useState(true);
   useEffect(() => { api.appMode().then(m => { setDemoAvailable(m.demo_available); setHalted(m.halted_reason ?? null); }).catch(() => {}); }, []);
   // Abrir una promoción cierra el registro de operaciones
@@ -125,6 +127,16 @@ export function Factory({ data, live, onRefresh }: {
     if (!fitted.current && world.current) { fitted.current = true; apply(); fit(); }
   }, [apply, fit]);
 
+  // La franja de «Qué hacer ahora» cambia el alto del mapa: se vuelve a encuadrar al aparecer o desaparecer
+  const hasNext = data.recommendations.length > 0;
+  const hadNext = useRef(hasNext);
+  useEffect(() => {
+    if (hadNext.current === hasNext) return;
+    hadNext.current = hasNext;
+    const id = requestAnimationFrame(fit);
+    return () => cancelAnimationFrame(id);
+  }, [hasNext, fit]);
+
   useEffect(() => {
     let t: number;
     const onResize = () => { clearTimeout(t); t = window.setTimeout(fit, 150); };
@@ -210,6 +222,19 @@ export function Factory({ data, live, onRefresh }: {
     if (!pub) return;
     setSel({ type: null, id: null }); setCc({ promo: pub.promotion_id, tab: 'publicaciones', hl: id });
   }, [data.publications]);
+  /** Lleva a la pantalla donde se resuelve una recomendación de «Qué hacer ahora». */
+  const goRecommendation = useCallback((t: RecommendationTarget) => {
+    setSel({ type: null, id: null }); setCc(null); setOps(false); setClaude(false); setCopias(false); setReg(false);
+    if (t.screen === 'PROPOSALS' && t.promotion_id) setCc({ promo: t.promotion_id, tab: 'publicaciones', hl: null, filter: 'PROPOSAL' });
+    else if ((t.screen === 'BRAND_FOLDERS' || t.screen === 'PUBLORA') && t.brand_id) {
+      setReg({ kind: 'brand', id: t.brand_id, focus: t.screen === 'PUBLORA' ? 'publora' : 'folders' });
+    }
+    // Con promotion_id (activar una planificada o en pausa) se abre esa promoción; sin él, el alta de una nueva
+    else if (t.screen === 'NEW_PROMOTION' && t.brand_id) {
+      setReg(t.promotion_id ? { kind: 'promotion', id: t.promotion_id } : { kind: 'promotion', id: null, brandId: t.brand_id });
+    }
+    else if (t.screen === 'BACKUPS') setCopias(true);
+  }, []);
   const home = useCallback(() => { setCc(null); setSel({ type: null, id: null }); requestAnimationFrame(fit); }, [fit]);
 
   const setLevel = (l: number) => {
@@ -223,7 +248,32 @@ export function Factory({ data, live, onRefresh }: {
   };
 
   // ---------- acciones ----------
-  const say = useCallback((m: string) => { setToast(m); window.setTimeout(() => setToast(null), 2800); }, []);
+  const toastTimer = useRef<number | undefined>(undefined);
+  // Un aviso nuevo cancela el temporizador del anterior, para que este no lo corte antes de tiempo
+  const say = useCallback((m: string, ms = 2800) => {
+    window.clearTimeout(toastTimer.current);
+    setToast(m);
+    toastTimer.current = window.setTimeout(() => setToast(null), ms);
+  }, []);
+  /** Al guardar, el paso siguiente sale del siguiente estado de la fábrica, no de lo que la interfaz supone. */
+  const saved = useCallback(async (message: string, ref?: SavedRef) => {
+    if (!ref) { say(message); onRefresh(); return; }
+    let text = message;
+    try { text = savedMessage(message, ref, (await api.factory()).recommendations); } catch { /* se queda el mensaje simple */ }
+    // Con siguiente paso o estado de propuestas el mensaje es más largo: se deja más tiempo para leerlo.
+    say(text, toastDuration(message, text));
+    onRefresh();
+  }, [onRefresh, say]);
+  /** «No uso Publora»: guarda el descarte y refresca para que la recomendación desaparezca. */
+  const dismissPublora = useCallback(async (brandId: string) => {
+    try {
+      await api.setBrandPubloraDismissed(brandId, true);
+      say('Anotado: no se te recomendará Publora para esa marca. Puedes volver a activarla en su tarjeta de Publora');
+      onRefresh();
+    } catch (e) {
+      say(e instanceof Error ? e.message : 'No se pudo guardar.');
+    }
+  }, [onRefresh, say]);
   const runTask = useCallback(async (t: Task, type: TaskCommandType, model?: AiModel) => {
     try {
       await api.taskCommand(t.id, { type, model });
@@ -357,6 +407,8 @@ export function Factory({ data, live, onRefresh }: {
         </div>
       </header>
 
+      <div className="stage">
+      <NextSteps items={data.recommendations} onOpen={goRecommendation} onDismissPublora={dismissPublora} />
       <main className="vp" ref={vp} data-lod="1">
         <div className="world" ref={world}>
           <World data={data} sel={sel} onStation={goStation} onTask={goTask}
@@ -398,8 +450,8 @@ export function Factory({ data, live, onRefresh }: {
         {selArmory && <ArmoryPanel item={selArmory} data={data} onClose={() => setSel({ type: null, id: null })} onStation={goStation} />}
 
         {cc && ccPromotion && (
-          <ControlCenter key={cc.promo + cc.tab + (cc.hl ?? '')} p={ccPromotion} brand={brands.get(ccPromotion.brand_id)} data={data}
-            initialTab={cc.tab} highlight={cc.hl} onClose={() => setCc(null)} onTask={goTask}
+          <ControlCenter key={cc.promo + cc.tab + (cc.hl ?? '') + (cc.filter ?? '')} p={ccPromotion} brand={brands.get(ccPromotion.brand_id)} data={data}
+            initialTab={cc.tab} initialFilter={cc.filter} highlight={cc.hl} onClose={() => setCc(null)} onTask={goTask}
             onEdit={() => { const id = cc.promo; setCc(null); setReg({ kind: 'promotion', id }); }} onMessage={say} />
         )}
         {ops && <ExternalOperations onClose={() => setOps(false)} />}
@@ -409,10 +461,11 @@ export function Factory({ data, live, onRefresh }: {
         {claude && <Claude data={data} onClose={() => setClaude(false)} onMessage={say} onTask={id => { setClaude(false); goTask(id); }} />}
         {reg !== false && (
           <Registration data={data} initial={reg} onClose={() => setReg(false)}
-            onSaved={m => { say(m); onRefresh(); }} />
+            onSaved={saved} />
         )}
         {toast && <div className="toast" role="status">{toast}</div>}
       </main>
+      </div>
     </>
   );
 }

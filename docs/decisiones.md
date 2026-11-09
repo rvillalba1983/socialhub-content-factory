@@ -401,3 +401,14 @@ Tras la primera prueba de Raúl con una marca y una promoción nuevas:
   - Los SVG de los diagramas D2 se generan en GitHub (`diagramas.yml`).
   - La batería completa la pasa GitHub; en local, solo las pruebas afectadas.
 - El entorno en la nube se prepara con `scripts/entorno/preparar.sh`. Antes, los envoltorios se perdían al reiniciar el contenedor.
+
+## 2026-11-09 · Fase 10: guía y propuestas iniciales
+- **Guía** (respuesta de Raúl): bloque «Qué hacer ahora» en la pantalla principal, con recomendaciones que desaparecen al hacerlas. La lista de puesta en marcha sigue descartada.
+- **Propuestas iniciales** (respuesta de Raúl): mensaje con su estado y hora aproximada de llegada, y aviso cuando lleguen. Sin ideas de plantilla y sin cambiar las tareas programadas.
+- **Publora** (respuesta de Raúl): la recomendación sale hasta conectar la cuenta o pulsar «No uso Publora» en esa marca, y se puede deshacer en su tarjeta de Publora.
+- **Datos de las recomendaciones** (técnica): el descarte va en su propia tabla (`brand_publora_dismissed`), dentro del módulo de publicación. `promotion_id` y `eta_text` viajan como campos propios para no deducirlos del texto.
+- **Encargos sin recoger** (técnica): la recomendación ignora los encargos «para-claude-pc», porque los recoge otra tarea.
+- **Franja encima del mapa** (respuesta de Raúl): «Qué hacer ahora» va a ancho completo encima del mapa, fuera del zoom, con scroll propio (máximo 45 % de la altura) para no tapar el mapa.
+- **«Ver N más»** (respuesta de Raúl): se ven las 3 más importantes y un botón «Ver N más» / «Ver menos» despliega el resto. El backend devuelve la lista completa, sin recortar; las propuestas retenidas de una promoción salen solo ahí.
+- **Filas 4 y 7 ajustadas tras la revisión** (técnica): la fila 4 solo se mira si la carpeta de «Encargos» de la marca está disponible, y la fila 7 pide activar una promoción planificada o en pausa antes que dar de alta una nueva.
+- **Merge de la PR #32** (petición de Raúl): lo hizo Claude porque Raúl lo pidió expresamente para esta PR; la regla general sigue siendo que solo Raúl hace merge.

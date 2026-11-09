@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, vi } from 'vitest';
 import { api } from './api';
 import { Backups, Halted, ShutdownButton } from './Backups';
@@ -9,7 +9,11 @@ import { FolderRoles } from './Folders';
 import { MemoryCard } from './Memory';
 import { PublicationEditor } from './PublicationEditor';
 import { PubloraCard } from './Publora';
-import { BrandForm, PromotionForm } from './Registration';
+import { BrandForm, PromotionForm, Registration } from './Registration';
+import { Factory } from './Factory';
+import { useFactory } from './useFactory';
+import { NextSteps, savedMessage, toastDuration } from './Recommendations';
+import type { Recommendation } from './api/schema';
 import { PieceOrders } from './PieceOrders';
 import type { ExternalOperationPage, Snapshot, Station, Task } from './model';
 import { TaskPanel } from './Panel';
@@ -48,6 +52,7 @@ const snapshot: Snapshot = {
   tasks: [task({ id: 't13', station_id: 'prog', status: 'FAILED', error: 'Publer no respondió' })],
   publications: [], armory_items: [], common_rules: [],
   alerts: [{ kind: 'FAILED', target_type: 'TASK', target_id: 't13', station_id: 'prog', title: 'Tarea de prueba', detail: 'Publer no respondió' }],
+  recommendations: [],
 };
 
 afterEach(() => vi.restoreAllMocks());
@@ -359,9 +364,9 @@ describe('Publora', () => {
     const status = vi.spyOn(api, 'publora')
       .mockResolvedValueOnce({ configured: false, connections: [] })
       .mockResolvedValue({ configured: true, key_hint: '…6789', connections });
-    vi.spyOn(api, 'brandPubloraAccounts').mockResolvedValue({ items: [] });
+    vi.spyOn(api, 'brandPubloraAccounts').mockResolvedValue({ items: [], dismissed: false });
     const saveKey = vi.spyOn(api, 'savePubloraKey').mockResolvedValue({ configured: true, key_hint: '…6789', connections });
-    const saveAccounts = vi.spyOn(api, 'saveBrandPubloraAccounts').mockResolvedValue({ items: [] });
+    const saveAccounts = vi.spyOn(api, 'saveBrandPubloraAccounts').mockResolvedValue({ items: [], dismissed: false });
     render(<PubloraCard brandId="el-delito" />);
     expect(await screen.findByText('Sin clave')).toBeInTheDocument();
     const input = screen.getByLabelText('Clave de la API de Publora');
@@ -375,6 +380,31 @@ describe('Publora', () => {
     fireEvent.change(screen.getByLabelText('Cuenta de Publora para Instagram'), { target: { value: 'instagram-111' } });
     fireEvent.click(screen.getByRole('button', { name: 'Guardar cuentas' }));
     await waitFor(() => expect(saveAccounts).toHaveBeenCalledWith('el-delito', [{ platform: 'INSTAGRAM', connection_id: 'instagram-111' }]));
+  });
+});
+
+describe('No uso Publora', () => {
+  it('la tarjeta de la marca descartada permite volver a activar Publora', async () => {
+    vi.spyOn(api, 'publora').mockResolvedValue({ configured: false, connections: [] });
+    const accounts = vi.spyOn(api, 'brandPubloraAccounts')
+      .mockResolvedValueOnce({ items: [], dismissed: true })
+      .mockResolvedValue({ items: [], dismissed: false });
+    const set = vi.spyOn(api, 'setBrandPubloraDismissed').mockResolvedValue({ items: [], dismissed: false });
+    const onSaved = vi.fn();
+    render(<PubloraCard brandId="el-delito" onSaved={onSaved} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Volver a activar Publora' }));
+    await waitFor(() => expect(set).toHaveBeenCalledWith('el-delito', false));
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Volver a activar Publora' })).toBeNull());
+    expect(accounts).toHaveBeenCalledTimes(2);
+    expect(onSaved).toHaveBeenCalledWith('Publora vuelve a recomendarse para esta marca');
+  });
+
+  it('la tarjeta no ofrece reactivar si no está descartada', async () => {
+    vi.spyOn(api, 'publora').mockResolvedValue({ configured: false, connections: [] });
+    vi.spyOn(api, 'brandPubloraAccounts').mockResolvedValue({ items: [], dismissed: false });
+    render(<PubloraCard brandId="el-delito" />);
+    expect(await screen.findByText('Sin clave')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Volver a activar Publora' })).toBeNull();
   });
 });
 
@@ -630,5 +660,255 @@ describe('Carpetas de la marca', () => {
     render(<FolderRoles owner="promotion" id="test" />);
     await screen.findByRole('button', { name: 'Guardar carpetas' });
     expect(screen.queryByRole('button', { name: 'Crear las que faltan' })).toBeNull();
+  });
+});
+
+const rec = (o: Partial<Recommendation> & Pick<Recommendation, 'id' | 'kind' | 'title'>): Recommendation => ({ ...o });
+const three: Recommendation[] = [
+  rec({ id: 'proposals-review:p', kind: 'PROPOSALS_TO_REVIEW', title: 'Tienes 3 propuestas de «Lanzamiento del poemario» para revisar',
+    target: { screen: 'PROPOSALS', brand_id: 'b', promotion_id: 'p' } }),
+  rec({ id: 'brand-folders:b', kind: 'BRAND_FOLDERS_MISSING', title: 'Crea las carpetas de El DeLito', target: { screen: 'BRAND_FOLDERS', brand_id: 'b' } }),
+  rec({ id: 'orders-not-collected', kind: 'ORDERS_NOT_COLLECTED', title: 'No ha llegado el resultado de los encargos de las 9:40. Revisa la tarea programada' }),
+];
+const withRecs = (recommendations: Recommendation[]): Snapshot => ({ ...snapshot, recommendations });
+const world = (data: Snapshot, onRecommendation = vi.fn()) => render(
+  <>
+    <NextSteps items={data.recommendations} onOpen={onRecommendation} />
+    <World data={data} sel={{ type: null, id: null }} onStation={() => {}} onTask={() => {}} onTaskAction={() => {}}
+      onArmory={() => {}} onPromotion={() => {}} onRegister={() => {}} />
+  </>);
+
+describe('Qué hacer ahora', () => {
+  it('no se muestra con la lista vacía', () => {
+    world(withRecs([]));
+    expect(screen.queryByText('Qué hacer ahora')).not.toBeInTheDocument();
+    expect(screen.getByText('Necesita atención')).toBeInTheDocument();
+  });
+
+  it('pinta las 3 recomendaciones, fuera del mapa con zoom', () => {
+    world(withRecs(three));
+    const block = screen.getByRole('region', { name: 'Qué hacer ahora' });
+    expect(block.querySelectorAll('.aitem')).toHaveLength(3);
+    expect(block.compareDocumentPosition(screen.getByRole('region', { name: 'Necesita tu atención' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('con más de 3 enseña 3 y «Ver N más» despliega el resto; «Ver menos» lo pliega', () => {
+    const many = [...three, rec({ id: 'x4', kind: 'BACKUP_FOLDER_MISSING', title: 'Cuarta' }), rec({ id: 'x5', kind: 'BACKUP_FOLDER_MISSING', title: 'Quinta' })];
+    const { rerender } = render(<NextSteps items={many} onOpen={() => {}} />);
+    const block = screen.getByRole('region', { name: 'Qué hacer ahora' });
+    expect(block.querySelectorAll('.aitem')).toHaveLength(3);
+    fireEvent.click(screen.getByRole('button', { name: 'Ver 2 más' }));
+    expect(block.querySelectorAll('.aitem')).toHaveLength(5);
+    // Una recarga con datos nuevos no pliega la lista
+    rerender(<NextSteps items={[...many]} onOpen={() => {}} />);
+    expect(block.querySelectorAll('.aitem')).toHaveLength(5);
+    fireEvent.click(screen.getByRole('button', { name: 'Ver menos' }));
+    expect(block.querySelectorAll('.aitem')).toHaveLength(3);
+  });
+
+  it('con 3 o menos no hay botón «Ver más»', () => {
+    render(<NextSteps items={three} onOpen={() => {}} />);
+    expect(screen.queryByRole('button', { name: /Ver .* más/ })).not.toBeInTheDocument();
+  });
+
+  it('en la fábrica, la franja queda fuera del mundo con zoom', async () => {
+    vi.spyOn(api, 'appMode').mockResolvedValue({ mode: 'REAL', demo_available: false } as never);
+    const { container } = render(<Factory data={withRecs(three)} live={false} onRefresh={() => {}} />);
+    const strip = screen.getByRole('region', { name: 'Qué hacer ahora' });
+    expect(container.querySelector('.world')!.contains(strip)).toBe(false);
+    expect(container.querySelector('.vp')!.contains(strip)).toBe(false);
+  });
+
+  it('el botón navega según el destino', () => {
+    const onRecommendation = vi.fn();
+    world(withRecs(three), onRecommendation);
+    fireEvent.click(screen.getByRole('button', { name: /Tienes 3 propuestas/ }));
+    expect(onRecommendation).toHaveBeenCalledWith({ screen: 'PROPOSALS', brand_id: 'b', promotion_id: 'p' });
+    fireEvent.click(screen.getByRole('button', { name: /Crea las carpetas/ }));
+    expect(onRecommendation).toHaveBeenLastCalledWith({ screen: 'BRAND_FOLDERS', brand_id: 'b' });
+  });
+
+  it('la recomendación de Publora lleva un botón «No uso Publora» aparte, sin anidar botones', () => {
+    const onDismiss = vi.fn(), onOpen = vi.fn();
+    const publora = rec({ id: 'publora:b', kind: 'PUBLORA_MISSING', title: 'Conecta Publora para El DeLito', target: { screen: 'PUBLORA', brand_id: 'b' } });
+    render(<NextSteps items={[publora, three[1]]} onOpen={onOpen} onDismissPublora={onDismiss} />);
+    const side = screen.getByRole('button', { name: /No uso Publora/ });
+    expect(side.closest('button.aitem')).toBeNull();
+    expect(screen.getAllByRole('button', { name: /No uso Publora/ })).toHaveLength(1); // solo en la de Publora
+    fireEvent.click(side);
+    expect(onDismiss).toHaveBeenCalledWith('b');
+    expect(onOpen).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: /Conecta Publora para El DeLito\. Ir a Publora/ }));
+    expect(onOpen).toHaveBeenCalledWith({ screen: 'PUBLORA', brand_id: 'b' });
+  });
+
+  it('en la fábrica, «No uso Publora» guarda el descarte y refresca', async () => {
+    vi.spyOn(api, 'appMode').mockResolvedValue({ mode: 'REAL', demo_available: false } as never);
+    const set = vi.spyOn(api, 'setBrandPubloraDismissed').mockResolvedValue({ items: [], dismissed: true });
+    const onRefresh = vi.fn();
+    const publora = rec({ id: 'publora:b', kind: 'PUBLORA_MISSING', title: 'Conecta Publora para El DeLito', target: { screen: 'PUBLORA', brand_id: 'b' } });
+    render(<Factory data={withRecs([publora])} live={false} onRefresh={onRefresh} />);
+    fireEvent.click(screen.getByRole('button', { name: /No uso Publora/ }));
+    await waitFor(() => expect(set).toHaveBeenCalledWith('b', true));
+    await waitFor(() => expect(onRefresh).toHaveBeenCalled());
+  });
+
+  it('una recomendación sin destino es solo texto, sin botón', () => {
+    world(withRecs(three));
+    expect(screen.getByText(/No ha llegado el resultado de los encargos/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /No ha llegado el resultado/ })).not.toBeInTheDocument();
+  });
+
+  it('en la fábrica, el botón de propuestas abre la promoción con el filtro «Propuestas»', async () => {
+    vi.spyOn(api, 'appMode').mockResolvedValue({ mode: 'REAL', demo_available: false } as never);
+    render(<Factory data={withRecs(three)} live={false} onRefresh={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: /Tienes 3 propuestas/ }));
+    expect(await screen.findByRole('button', { name: 'Propuestas' })).toHaveClass('on');
+  });
+
+  it('en la fábrica, el botón de carpetas abre la marca para crearlas', async () => {
+    vi.spyOn(api, 'appMode').mockResolvedValue({ mode: 'REAL', demo_available: false } as never);
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() => new Promise<Response>(() => {})); // las tarjetas de la marca se quedan cargando
+    render(<Factory data={withRecs(three)} live={false} onRefresh={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: /Crea las carpetas/ }));
+    expect(await screen.findByRole('form', { name: 'Editar marca' })).toBeInTheDocument();
+  });
+
+  it('al abrir desde una recomendación de carpetas o de Publora, baja hasta su tarjeta', async () => {
+    vi.spyOn(api, 'appMode').mockResolvedValue({ mode: 'REAL', demo_available: false } as never);
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() => new Promise<Response>(() => {}));
+    const scroll = vi.fn();
+    Element.prototype.scrollIntoView = scroll;
+    try {
+      const publora = rec({ id: 'publora:b', kind: 'PUBLORA_MISSING', title: 'Conecta Publora para El DeLito', target: { screen: 'PUBLORA', brand_id: 'b' } });
+      const { unmount } = render(<Factory data={withRecs([publora])} live={false} onRefresh={() => {}} />);
+      fireEvent.click(screen.getByRole('button', { name: /Conecta Publora para El DeLito\. Ir a Publora/ }));
+      await screen.findByRole('form', { name: 'Editar marca' });
+      await waitFor(() => expect(scroll).toHaveBeenCalledTimes(1));
+      expect((scroll.mock.contexts[0] as HTMLElement).getAttribute('data-card')).toBe('publora');
+      unmount();
+      scroll.mockClear();
+      render(<Factory data={withRecs(three)} live={false} onRefresh={() => {}} />);
+      fireEvent.click(screen.getByRole('button', { name: /Crea las carpetas/ }));
+      await screen.findByRole('form', { name: 'Editar marca' });
+      await waitFor(() => expect(scroll).toHaveBeenCalledTimes(1));
+      expect((scroll.mock.contexts[0] as HTMLElement).getAttribute('data-card')).toBe('folders');
+    } finally {
+      delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView;
+    }
+  });
+
+  it('«Activa una promoción» abre esa promoción; sin promotion_id, el alta de una nueva', async () => {
+    vi.spyOn(api, 'appMode').mockResolvedValue({ mode: 'REAL', demo_available: false } as never);
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() => new Promise<Response>(() => {}));
+    const activate = rec({ id: 'no-promotion:b', kind: 'NO_ACTIVE_PROMOTION', title: 'Activa una promoción de El DeLito',
+      target: { screen: 'NEW_PROMOTION', brand_id: 'b', promotion_id: 'p' } });
+    const { unmount } = render(<Factory data={withRecs([activate])} live={false} onRefresh={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: /Activa una promoción de El DeLito\. Abrir la promoción/ }));
+    expect(await screen.findByRole('form', { name: 'Editar promoción' })).toBeInTheDocument();
+    unmount();
+    const first = rec({ id: 'no-promotion:b', kind: 'NO_ACTIVE_PROMOTION', title: 'Da de alta la primera promoción de El DeLito',
+      target: { screen: 'NEW_PROMOTION', brand_id: 'b' } });
+    render(<Factory data={withRecs([first])} live={false} onRefresh={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: /Da de alta la primera promoción de El DeLito\. Dar de alta la promoción/ }));
+    expect(await screen.findByRole('form', { name: 'Nueva promoción' })).toBeInTheDocument();
+  });
+});
+
+describe('Recarga periódica', () => {
+  it('useFactory recarga cada 60 s además de los avisos', async () => {
+    vi.useFakeTimers();
+    try {
+      const factory = vi.spyOn(api, 'factory').mockResolvedValue(snapshot);
+      const { unmount } = renderHook(() => useFactory());
+      await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+      expect(factory).toHaveBeenCalledTimes(1);
+      await act(async () => { await vi.advanceTimersByTimeAsync(59_000); });
+      expect(factory).toHaveBeenCalledTimes(1);
+      await act(async () => { await vi.advanceTimersByTimeAsync(2_000); });
+      expect(factory).toHaveBeenCalledTimes(2);
+      unmount();
+      await act(async () => { await vi.advanceTimersByTimeAsync(120_000); });
+      expect(factory).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe('Avisos de confirmación', () => {
+  it('un aviso nuevo no se corta por el temporizador del anterior', async () => {
+    vi.spyOn(api, 'appMode').mockResolvedValue({ mode: 'REAL', demo_available: false } as never);
+    vi.spyOn(api, 'setBrandPubloraDismissed').mockResolvedValue({ items: [], dismissed: true });
+    const publora = rec({ id: 'publora:b', kind: 'PUBLORA_MISSING', title: 'Conecta Publora para El DeLito', target: { screen: 'PUBLORA', brand_id: 'b' } });
+    render(<Factory data={withRecs([publora])} live={false} onRefresh={() => {}} />);
+    vi.useFakeTimers();
+    try {
+      const press = async () => { fireEvent.click(screen.getByRole('button', { name: /No uso Publora/ })); await act(async () => { await vi.advanceTimersByTimeAsync(0); }); };
+      await press();
+      expect(screen.getByRole('status')).toBeInTheDocument();
+      await act(async () => { await vi.advanceTimersByTimeAsync(2_000); });
+      await press(); // segundo aviso a los 2 s: el primero habría caducado a los 2,8 s
+      await act(async () => { await vi.advanceTimersByTimeAsync(1_500); });
+      expect(screen.getByRole('status')).toBeInTheDocument();
+      await act(async () => { await vi.advanceTimersByTimeAsync(1_500); });
+      expect(screen.queryByRole('status')).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe('Mensajes al guardar', () => {
+  const pending = rec({ id: 'proposals-pending:p', kind: 'PROPOSALS_PENDING', promotion_id: 'p', eta_text: 'sobre las 9:40',
+    title: 'Propuestas de «Lanzamiento del poemario» pedidas. Llegarán sobre las 9:40' });
+  it('promoción con propuestas en camino: dice la hora de la recomendación', () => {
+    expect(savedMessage('Promoción guardada', { promotionId: 'p' }, [pending])).toBe('Promoción guardada. Propuestas pedidas: llegarán sobre las 9:40');
+    expect(savedMessage('Promoción guardada', { promotionId: 'p' }, [{ ...pending, eta_text: 'mañana sobre las 9:40' }]))
+      .toContain('llegarán mañana sobre las 9:40');
+  });
+  it('promoción con propuestas retenidas: dice el motivo', () => {
+    const held = rec({ id: 'held-proposals:p', kind: 'HELD_PROPOSALS', promotion_id: 'p', title: 'x', detail: 'La marca no tiene carpeta de Encargos' });
+    expect(savedMessage('Promoción guardada', { promotionId: 'p' }, [held])).toBe('Promoción guardada. Las propuestas no pueden salir: La marca no tiene carpeta de Encargos');
+  });
+  it('promoción activa sin recomendación todavía: no inventa hora', () => {
+    const m = savedMessage('Promoción guardada', { promotionId: 'p', status: 'ACTIVE' }, [{ ...pending, id: 'proposals-pending:otra', promotion_id: 'otra' }]);
+    expect(m).toBe('Promoción guardada. Te avisaremos aquí del estado de sus propuestas en «Qué hacer ahora»');
+    expect(m).not.toMatch(/\d:\d\d/);
+    // Sin ninguna fila (lista vacía) pasa lo mismo: no se rompe ni se inventa nada
+    expect(savedMessage('Promoción guardada', { promotionId: 'p', status: 'ACTIVE' }, [])).toBe(m);
+  });
+  it('promoción planificada, en pausa o terminada: no promete ningún aviso', () => {
+    for (const status of ['PLANNED', 'PAUSED', 'FINISHED']) {
+      expect(savedMessage('Promoción guardada', { promotionId: 'p', status }, [])).toBe('Promoción guardada');
+    }
+  });
+  it('marca: añade el siguiente paso, o nada si no hay', () => {
+    expect(savedMessage('Marca guardada', { brandId: 'b' }, three)).toBe('Marca guardada · Siguiente paso: Tienes 3 propuestas de «Lanzamiento del poemario» para revisar');
+    expect(savedMessage('Marca guardada', { brandId: 'otra' }, three)).toBe('Marca guardada');
+    // Con más de 3 recomendaciones, la de la marca guardada se encuentra aunque esté escondida tras «Ver N más»
+    const hidden = rec({ id: 'brand-folders:z', kind: 'BRAND_FOLDERS_MISSING', title: 'Crea las carpetas de Z', target: { screen: 'BRAND_FOLDERS', brand_id: 'z' } });
+    expect(savedMessage('Marca guardada', { brandId: 'z' }, [...three, three[0], three[1], hidden])).toBe('Marca guardada · Siguiente paso: Crea las carpetas de Z');
+  });
+  it('el aviso dura 6 s con siguiente paso o estado de propuestas, y 2,8 s si no', () => {
+    const long = savedMessage('Promoción guardada', { promotionId: 'p' }, [pending]);
+    expect(toastDuration('Promoción guardada', long)).toBe(6000);
+    const brand = savedMessage('Marca guardada', { brandId: 'b' }, three);
+    expect(toastDuration('Marca guardada', brand)).toBe(6000);
+    const none = savedMessage('Marca guardada', { brandId: 'otra' }, three);
+    expect(toastDuration('Marca guardada', none)).toBe(2800);
+    expect(toastDuration('Hecho', 'Hecho')).toBe(2800);
+  });
+  it('el registro avisa de qué se ha guardado', async () => {
+    vi.spyOn(api, 'updatePromotion').mockResolvedValue(snapshot.promotions[0]);
+    const onSaved = vi.fn();
+    render(<Registration data={snapshot} initial={{ kind: 'promotion', id: 'p' }} onClose={() => {}} onSaved={onSaved} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+    await waitFor(() => expect(onSaved).toHaveBeenCalledWith('Promoción guardada · Lanzamiento del poemario', { promotionId: 'p', status: 'ACTIVE' }));
+  });
+  it('el alta de promoción desde una recomendación preselecciona la marca', () => {
+    const two = { ...snapshot, brands: [...snapshot.brands, { id: 'l', name: 'Litoques', handle: '@l', color: '#C98A1B', demo: false }] };
+    render(<Registration data={two} initial={{ kind: 'promotion', id: null, brandId: 'l' }} onClose={() => {}} onSaved={() => {}} />);
+    expect(screen.getByLabelText('Marca')).toHaveValue('l');
   });
 });
