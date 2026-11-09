@@ -25,8 +25,9 @@ export function NextSteps({ items, onOpen, onDismissPublora }: {
 }) {
   if (items.length === 0) return null;
   return (
-    <section className="attn-card next-card" aria-label="Qué hacer ahora">
+    <section className="next-strip" aria-label="Qué hacer ahora">
       <h2>Qué hacer ahora</h2>
+      <div className="next-list">
       {items.map(r => {
         const body = <span><b>{r.title}</b>{r.detail}</span>;
         const target = r.target;
@@ -49,6 +50,7 @@ export function NextSteps({ items, onOpen, onDismissPublora }: {
           )
           : <div key={r.id} className="aitem-wrap">{main}</div>;
       })}
+      </div>
     </section>
   );
 }

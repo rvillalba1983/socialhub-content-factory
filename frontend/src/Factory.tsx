@@ -5,7 +5,7 @@ import { ControlCenter } from './ControlCenter';
 import { ExternalOperations } from './ExternalOperations';
 import { Backups, Closed, Halted, ShutdownButton } from './Backups';
 import { Registration } from './Registration';
-import { savedMessage, toastDuration, type SavedRef } from './Recommendations';
+import { NextSteps, savedMessage, toastDuration, type SavedRef } from './Recommendations';
 import type { RecommendationTarget } from './api/schema';
 import { Icon } from './icons';
 import {
@@ -126,6 +126,16 @@ export function Factory({ data, live, onRefresh }: {
   useLayoutEffect(() => {
     if (!fitted.current && world.current) { fitted.current = true; apply(); fit(); }
   }, [apply, fit]);
+
+  // La franja de «Qué hacer ahora» cambia el alto del mapa: se vuelve a encuadrar al aparecer o desaparecer
+  const hasNext = data.recommendations.length > 0;
+  const hadNext = useRef(hasNext);
+  useEffect(() => {
+    if (hadNext.current === hasNext) return;
+    hadNext.current = hasNext;
+    const id = requestAnimationFrame(fit);
+    return () => cancelAnimationFrame(id);
+  }, [hasNext, fit]);
 
   useEffect(() => {
     let t: number;
@@ -397,6 +407,8 @@ export function Factory({ data, live, onRefresh }: {
         </div>
       </header>
 
+      <div className="stage">
+      <NextSteps items={data.recommendations} onOpen={goRecommendation} onDismissPublora={dismissPublora} />
       <main className="vp" ref={vp} data-lod="1">
         <div className="world" ref={world}>
           <World data={data} sel={sel} onStation={goStation} onTask={goTask}
@@ -404,7 +416,7 @@ export function Factory({ data, live, onRefresh }: {
             onArmory={id => { setCc(null); setSel({ type: 'armory', id }); }}
             onPublication={goPublication}
             onPromotion={id => { setSel({ type: null, id: null }); setCc({ promo: id, tab: 'resumen', hl: null }); }}
-            onRegister={() => setReg(null)} onRecommendation={goRecommendation} onDismissPublora={dismissPublora} />
+            onRegister={() => setReg(null)} />
         </div>
 
         {data.alerts.length > 0 && (
@@ -453,6 +465,7 @@ export function Factory({ data, live, onRefresh }: {
         )}
         {toast && <div className="toast" role="status">{toast}</div>}
       </main>
+      </div>
     </>
   );
 }

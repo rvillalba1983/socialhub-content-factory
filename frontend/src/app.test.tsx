@@ -672,8 +672,11 @@ const three: Recommendation[] = [
 ];
 const withRecs = (recommendations: Recommendation[]): Snapshot => ({ ...snapshot, recommendations });
 const world = (data: Snapshot, onRecommendation = vi.fn()) => render(
-  <World data={data} sel={{ type: null, id: null }} onStation={() => {}} onTask={() => {}} onTaskAction={() => {}}
-    onArmory={() => {}} onPromotion={() => {}} onRegister={() => {}} onRecommendation={onRecommendation} />);
+  <>
+    <NextSteps items={data.recommendations} onOpen={onRecommendation} />
+    <World data={data} sel={{ type: null, id: null }} onStation={() => {}} onTask={() => {}} onTaskAction={() => {}}
+      onArmory={() => {}} onPromotion={() => {}} onRegister={() => {}} />
+  </>);
 
 describe('Qué hacer ahora', () => {
   it('no se muestra con la lista vacía', () => {
@@ -682,11 +685,19 @@ describe('Qué hacer ahora', () => {
     expect(screen.getByText('Necesita atención')).toBeInTheDocument();
   });
 
-  it('pinta las 3 recomendaciones encima de «Necesita atención»', () => {
+  it('pinta las 3 recomendaciones, fuera del mapa con zoom', () => {
     world(withRecs(three));
     const block = screen.getByRole('region', { name: 'Qué hacer ahora' });
     expect(block.querySelectorAll('.aitem')).toHaveLength(3);
     expect(block.compareDocumentPosition(screen.getByRole('region', { name: 'Necesita tu atención' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('en la fábrica, la franja queda fuera del mundo con zoom', async () => {
+    vi.spyOn(api, 'appMode').mockResolvedValue({ mode: 'REAL', demo_available: false } as never);
+    const { container } = render(<Factory data={withRecs(three)} live={false} onRefresh={() => {}} />);
+    const strip = screen.getByRole('region', { name: 'Qué hacer ahora' });
+    expect(container.querySelector('.world')!.contains(strip)).toBe(false);
+    expect(container.querySelector('.vp')!.contains(strip)).toBe(false);
   });
 
   it('el botón navega según el destino', () => {
