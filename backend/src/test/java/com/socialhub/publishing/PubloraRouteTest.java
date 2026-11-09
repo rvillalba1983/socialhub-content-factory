@@ -68,6 +68,7 @@ import tools.jackson.databind.json.JsonMapper;
         "socialhub.publishing.initial-delay-millis=3600000"
 })
 @AutoConfigureMockMvc
+@org.springframework.test.context.event.RecordApplicationEvents
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class PubloraRouteTest {
 
@@ -89,6 +90,7 @@ class PubloraRouteTest {
     static volatile boolean limitReached = false;
 
     @Autowired MockMvc mvc;
+    @Autowired org.springframework.test.context.event.ApplicationEvents events;
     @Autowired PublishingEngine engine;
     @Autowired ExternalCalendar external;
     private final JsonMapper json = JsonMapper.builder().build();
@@ -220,11 +222,19 @@ class PubloraRouteTest {
                 .andExpect(status().isBadRequest());
         write(put("/api/brands/el-delito/publora-accounts"), "{\"items\":[{\"platform\":\"INSTAGRAM\",\"connection_id\":\"instagram-9\"}]}")
                 .andExpect(status().isBadRequest());
+        events.clear();
         write(put("/api/brands/el-delito/publora-accounts"), "{\"items\":[{\"platform\":\"INSTAGRAM\",\"connection_id\":\"instagram-111\"}]}")
                 .andExpect(status().isOk());
+        // Al cambiar las cuentas, la pantalla se refresca sola (la recomendación de Publora desaparece)
+        assertThat(publoraChanges()).containsExactly("el-delito");
         JsonNode list = get("/api/brands/el-delito/publora-accounts").get("items");
         assertThat(list.size()).isEqualTo(1);
         assertThat(list.get(0).get("label").asString()).isEqualTo("instagram · elde_lito");
+    }
+
+    private java.util.List<String> publoraChanges() {
+        return events.stream(com.socialhub.platform.live.FactoryChanged.class)
+                .filter(e -> "publora".equals(e.kind())).map(com.socialhub.platform.live.FactoryChanged::id).toList();
     }
 
     @Test
@@ -232,9 +242,11 @@ class PubloraRouteTest {
     void notUsingPubloraCanBeSetAndUndoneWithoutTouchingTheAccounts() throws Exception {
         assertThat(get("/api/brands/el-delito/publora-accounts").get("dismissed").asBoolean()).isFalse();
         int accountsBefore = get("/api/brands/el-delito/publora-accounts").get("items").size();
+        events.clear();
         JsonNode on = json.readTree(write(put("/api/brands/el-delito/publora-dismissed"), "{\"dismissed\":true}")
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
         assertThat(on.get("dismissed").asBoolean()).isTrue();
+        assertThat(publoraChanges()).containsExactly("el-delito");
         assertThat(get("/api/brands/el-delito/publora-accounts").get("dismissed").asBoolean()).isTrue();
         // Marcarlo dos veces no falla y las cuentas siguen
         write(put("/api/brands/el-delito/publora-dismissed"), "{\"dismissed\":true}").andExpect(status().isOk());

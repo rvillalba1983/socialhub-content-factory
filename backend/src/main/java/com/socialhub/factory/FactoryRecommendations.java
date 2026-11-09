@@ -30,10 +30,11 @@ import org.springframework.stereotype.Component;
  *   <li>Propuestas de una promoción retenidas, con el motivo.</li>
  *   <li>Propuestas listas para revisar, con su contador.</li>
  *   <li>Marca sin todas sus carpetas.</li>
- *   <li>Encargo enviado antes de una recogida ya pasada y sin recoger (con 30 minutos de margen).</li>
+ *   <li>Encargo sin resultado tras la recogida que le tocaba (5 minutos de sincronización y 30 de margen), si la
+ *   carpeta de «Encargos» de su marca está disponible.</li>
  *   <li>Marca sin cuenta de Publora, salvo que Raúl haya marcado «No uso Publora» para ella.</li>
  *   <li>Sin carpeta de copias.</li>
- *   <li>Marca sin ninguna promoción activa.</li>
+ *   <li>Marca sin ninguna promoción activa: dar de alta la primera, o activar una planificada o en pausa.</li>
  *   <li>Propuestas pedidas y en camino, con la hora de la próxima recogida.</li>
  * </ol>
  * Solo tiene sentido en modo real; quien lo llama decide.
@@ -92,12 +93,13 @@ class FactoryRecommendations {
         }
 
         // 4. Encargo sin recoger (los del PC los recoge otra tarea y no se miran)
-        sent.stream().filter(s -> !s.onPc() && ClaudePickups.overdue(s.sentAt(), now))
-                .map(s -> ClaudePickups.nextAfter(s.sentAt()))
+        // Si la carpeta de «Encargos» de la marca no está disponible, no se sabe si Claude ha dejado el resultado
+        sent.stream().filter(s -> !s.onPc() && s.ordersAvailable() && ClaudePickups.overdue(s.sentAt(), now))
+                .map(s -> ClaudePickups.pickupFor(s.sentAt()))
                 .max(Comparator.naturalOrder())
                 .ifPresent(pickup -> all.add(recommendation("orders-not-collected",
                         RecommendationDto.KindEnum.ORDERS_NOT_COLLECTED,
-                        "Claude no ha recogido los encargos de las " + hour(pickup) + ". Revisa la tarea programada",
+                        "No ha llegado el resultado de los encargos de las " + hour(pickup) + ". Revisa la tarea programada",
                         null, null, null, null)));
 
         // 5. Marca sin cuenta de Publora
@@ -109,17 +111,28 @@ class FactoryRecommendations {
         }
 
         // 6. Sin carpeta de copias
-        if (backups.folders().chosen() == null) {
+        if (!backups.hasChosenFolder()) {
             all.add(recommendation("backup-folder", RecommendationDto.KindEnum.BACKUP_FOLDER_MISSING,
                     "Elige dónde guardar las copias", null, RecommendationTargetDto.ScreenEnum.BACKUPS, null, null));
         }
 
         // 7. Marca sin promoción activa
         for (var brand : brands) {
-            if (allPromotions.stream().anyMatch(p -> p.active() && p.brandId().equals(brand.id()))) continue;
-            all.add(recommendation("no-promotion:" + brand.id(), RecommendationDto.KindEnum.NO_ACTIVE_PROMOTION,
-                    "Da de alta la primera promoción de " + brand.name(), null,
-                    RecommendationTargetDto.ScreenEnum.NEW_PROMOTION, brand.id(), null));
+            var ofBrand = allPromotions.stream().filter(p -> p.brandId().equals(brand.id())).toList();
+            if (ofBrand.stream().anyMatch(PromotionQueries.PromotionRef::active)) continue;
+            // Con promociones planificadas o en pausa se pide activar una (y el botón la abre); si no tiene ninguna,
+            // dar de alta la primera. Si solo tiene terminadas, hace falta una nueva.
+            var toActivate = ofBrand.stream().filter(p -> "PLANNED".equals(p.status()) || "PAUSED".equals(p.status())).findFirst();
+            if (toActivate.isPresent()) {
+                all.add(recommendation("no-promotion:" + brand.id(), RecommendationDto.KindEnum.NO_ACTIVE_PROMOTION,
+                        "Activa una promoción de " + brand.name(), null,
+                        RecommendationTargetDto.ScreenEnum.NEW_PROMOTION, brand.id(), toActivate.get().id()));
+            } else {
+                all.add(recommendation("no-promotion:" + brand.id(), RecommendationDto.KindEnum.NO_ACTIVE_PROMOTION,
+                        ofBrand.isEmpty() ? "Da de alta la primera promoción de " + brand.name()
+                                : "Da de alta una promoción nueva de " + brand.name(), null,
+                        RecommendationTargetDto.ScreenEnum.NEW_PROMOTION, brand.id(), null));
+            }
         }
 
         // 8. Propuestas pedidas y en camino

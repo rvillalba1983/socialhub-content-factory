@@ -46,9 +46,13 @@ class ClaudePickupsTest {
 
     @Test
     void anOrderIsOverdueThirtyMinutesAfterThePickupItMissed() {
-        Instant sent = madrid(11, 9, 9, 35);
+        Instant sent = madrid(11, 9, 9, 30);
         assertThat(ClaudePickups.overdue(sent, madrid(11, 9, 10, 9))).isFalse();
         assertThat(ClaudePickups.overdue(sent, madrid(11, 9, 10, 10))).isTrue();
+        // Enviado a las 9:36: con 5 minutos de sincronización ya no llega a la de las 9:40
+        assertThat(format(ClaudePickups.pickupFor(madrid(11, 9, 9, 36)))).isEqualTo("2026-11-09 14:40");
+        assertThat(format(ClaudePickups.pickupFor(madrid(11, 9, 9, 35)))).isEqualTo("2026-11-09 14:40");
+        assertThat(format(ClaudePickups.pickupFor(madrid(11, 9, 9, 34)))).isEqualTo("2026-11-09 09:40");
         // Enviado justo después de la recogida: espera a la siguiente
         assertThat(ClaudePickups.overdue(madrid(11, 9, 9, 45), madrid(11, 9, 14, 0))).isFalse();
         assertThat(ClaudePickups.overdue(madrid(11, 9, 9, 45), madrid(11, 9, 15, 10))).isTrue();

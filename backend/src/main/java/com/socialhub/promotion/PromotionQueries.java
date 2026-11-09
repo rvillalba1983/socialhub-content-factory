@@ -159,14 +159,16 @@ public class PromotionQueries {
     /** Marca resumida, para textos de la interfaz. */
     public record BrandRef(String id, String name) {}
 
-    /** Promoción resumida: {@code active} es que su estado es «Activa». */
-    public record PromotionRef(String id, String brandId, String name, boolean active) {}
+    /** Promoción resumida; {@code status}: PLANNED, ACTIVE, PAUSED o FINISHED. */
+    public record PromotionRef(String id, String brandId, String name, String status) {
+        public boolean active() { return "ACTIVE".equals(status); }
+    }
 
     public List<BrandRef> brandRefs() { return brands().stream().map(b -> new BrandRef(b.id(), b.name())).toList(); }
 
     public List<PromotionRef> promotionRefs() {
         return promotions().stream()
-                .map(p -> new PromotionRef(p.id(), p.brandId(), p.name(), "ACTIVE".equals(p.status())))
+                .map(p -> new PromotionRef(p.id(), p.brandId(), p.name(), p.status()))
                 .toList();
     }
 

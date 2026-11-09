@@ -84,10 +84,7 @@ public class PublishingQueries {
 
     /** Cuántas publicaciones en estado «Propuesta» hay por promoción (solo las promociones que tienen alguna). */
     public java.util.Map<String, Long> proposalCounts() {
-        return publications.findAll().stream()
-                .filter(p -> p.getStatus() == com.socialhub.publishing.domain.PublicationStatus.PROPOSAL)
-                .collect(java.util.stream.Collectors.groupingBy(Publication::getPromotionId,
-                        java.util.LinkedHashMap::new, java.util.stream.Collectors.counting()));
+        return publications.countByPromotion(com.socialhub.publishing.domain.PublicationStatus.PROPOSAL);
     }
 
     /** La publicación existe y es de esa promoción. */

@@ -13,5 +13,9 @@ interface PublicationJpaRepository
 
     List<PublicationEntity> findByPromotionIdAndStatus(String promotionId, PublicationStatus status);
 
+    @org.springframework.data.jpa.repository.Query(
+            "select p.promotionId, count(p) from PublicationEntity p where p.status = :status group by p.promotionId")
+    List<Object[]> countByPromotion(@org.springframework.data.repository.query.Param("status") PublicationStatus status);
+
     List<PublicationEntity> findByPromotionIdAndFlagIsNotNull(String promotionId);
 }

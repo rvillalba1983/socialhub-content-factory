@@ -30,6 +30,7 @@ public class PubloraService {
     private final PubloraGateway publora;
     private final PubloraAccountRepository accounts;
     private final PromotionQueries promotions;
+    private final org.springframework.context.ApplicationEventPublisher events;
 
     public Status status() {
         String key = secrets.get(PubloraRoute.KEY).orElse(null);
@@ -77,6 +78,7 @@ public class PubloraService {
     public void setDismissed(String brandId, boolean dismissed) {
         promotions.requireBrand(brandId);
         accounts.setDismissed(brandId, dismissed);
+        events.publishEvent(new com.socialhub.platform.live.FactoryChanged("publora", brandId));
     }
 
     /** Cada cuenta tiene que estar conectada en Publora y ser de su red. */
@@ -107,6 +109,7 @@ public class PubloraService {
             }
         }
         accounts.replace(brandId, list);
+        events.publishEvent(new com.socialhub.platform.live.FactoryChanged("publora", brandId));
         return accounts.accounts(brandId);
     }
 

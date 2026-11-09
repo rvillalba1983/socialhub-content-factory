@@ -33,8 +33,12 @@ public class AiHeldOrders {
         return List.copyOf(held.values());
     }
 
-    void replace(Map<String, Held> now) {
-        held = Map.copyOf(now);
+    /** @return si lo retenido ha cambiado respecto a la ronda anterior */
+    boolean replace(Map<String, Held> now) {
+        Map<String, Held> next = Map.copyOf(now);
+        boolean changed = !next.equals(held);
+        held = next;
+        return changed;
     }
 
     static Map<String, Held> collector() {

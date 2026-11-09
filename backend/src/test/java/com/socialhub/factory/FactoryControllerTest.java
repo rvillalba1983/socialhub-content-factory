@@ -41,7 +41,7 @@ class FactoryControllerTest {
 
     private final RecommendationDto recommendation = new RecommendationDto("x", RecommendationDto.KindEnum.PUBLORA_MISSING, "Conecta Publora");
 
-    private FactoryController controller() {
+    private FactoryController controller(RecommendationDto... shown) {
         when(production.snapshot()).thenReturn(new ProductionView.Snapshot(List.of(), List.of(), List.of()));
         when(armoryMapper.toDtos(any())).thenReturn(List.of());
         when(publishing.publishAlerts()).thenReturn(List.of());
@@ -49,7 +49,7 @@ class FactoryControllerTest {
                 new AiHeldOrders.Held("t1", "est", "Propuestas", "Sin carpeta", "lit-1", AiRequestType.WEEKLY_PROPOSALS),
                 new AiHeldOrders.Held("t2", "gen", "Textos", "Sin carpeta", "lit-1", AiRequestType.CAPTIONS),
                 new AiHeldOrders.Held("t3", "est", "Propuestas sin promoción", "Sin promoción", null, AiRequestType.WEEKLY_PROPOSALS)));
-        when(recommendations.compute()).thenReturn(List.of(recommendation));
+        when(recommendations.compute()).thenReturn(List.of(shown));
         return new FactoryController(promotions, promotionMapper, production, publishing, publicationMapper, armory,
                 armoryMapper, mode, Clock.fixed(Instant.parse("2026-11-09T10:00:00Z"), ZoneOffset.UTC), held, recommendations);
     }
@@ -57,10 +57,19 @@ class FactoryControllerTest {
     @Test
     void realModeAddsTheRecommendationsAndDropsTheHeldProposalsFromTheAlerts() {
         when(mode.selected()).thenReturn(AppMode.REAL);
-        FactoryDto factory = controller().getFactory().getBody();
-        assertThat(factory.getRecommendations()).containsExactly(recommendation);
-        // Los demás encargos retenidos siguen en «Necesita atención»; las propuestas de una promoción, no
+        var heldRecommendation = new RecommendationDto("held-proposals:lit-1", RecommendationDto.KindEnum.HELD_PROPOSALS, "Retenidas")
+                .promotionId("lit-1");
+        FactoryDto factory = controller(heldRecommendation, recommendation).getFactory().getBody();
+        assertThat(factory.getRecommendations()).containsExactly(heldRecommendation, recommendation);
+        // Los demás encargos retenidos siguen en «Necesita atención»; las propuestas que ya están en el bloque, no
         assertThat(factory.getAlerts()).extracting(a -> a.getTargetId()).containsExactly("t2", "t3");
+    }
+
+    @Test
+    void heldProposalsThatDoNotFitInTheBlockStayAsAlerts() {
+        when(mode.selected()).thenReturn(AppMode.REAL);
+        FactoryDto factory = controller(recommendation).getFactory().getBody();
+        assertThat(factory.getAlerts()).extracting(a -> a.getTargetId()).containsExactly("t1", "t2", "t3");
     }
 
     @Test

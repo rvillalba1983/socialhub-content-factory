@@ -17,6 +17,8 @@ final class ClaudePickups {
     static final List<LocalTime> TIMES = List.of(LocalTime.of(9, 40), LocalTime.of(14, 40), LocalTime.of(20, 40));
     /** Margen antes de dar por no recogido un encargo. */
     static final Duration GRACE = Duration.ofMinutes(30);
+    /** Lo que tarda un encargo recién escrito en llegar a Drive y a la nube: pasado ese margen, ya lo puede ver Claude. */
+    static final Duration SYNC_MARGIN = Duration.ofMinutes(5);
 
     private ClaudePickups() {}
 
@@ -32,8 +34,13 @@ final class ClaudePickups {
         throw new IllegalStateException("Sin recogida siguiente");
     }
 
+    /** La recogida que le toca a un encargo enviado en ese instante, contando el margen de sincronización. */
+    static ZonedDateTime pickupFor(Instant sentAt) {
+        return nextAfter(sentAt.plus(SYNC_MARGIN));
+    }
+
     /** La recogida que tocaba para un encargo enviado en ese instante ya pasó hace más del margen. */
     static boolean overdue(Instant sentAt, Instant now) {
-        return !nextAfter(sentAt).toInstant().plus(GRACE).isAfter(now);
+        return !pickupFor(sentAt).toInstant().plus(GRACE).isAfter(now);
     }
 }

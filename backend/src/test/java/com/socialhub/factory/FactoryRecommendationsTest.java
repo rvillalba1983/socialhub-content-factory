@@ -16,7 +16,6 @@ import com.socialhub.promotion.PromotionQueries.BrandRef;
 import com.socialhub.promotion.PromotionQueries.PromotionRef;
 import com.socialhub.publishing.PublishingQueries;
 import com.socialhub.publishing.PubloraService;
-import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -50,10 +49,10 @@ class FactoryRecommendationsTest {
     @BeforeEach
     void everythingInOrder() {
         when(promotions.brandRefs()).thenReturn(List.of(new BrandRef("litoques", "Litoques")));
-        when(promotions.promotionRefs()).thenReturn(List.of(new PromotionRef("lit-1", "litoques", "Test inicial", true)));
+        when(promotions.promotionRefs()).thenReturn(List.of(new PromotionRef("lit-1", "litoques", "Test inicial", "ACTIVE")));
         when(promotions.hasAllBrandFolders("litoques")).thenReturn(true);
         when(publora.hasAccounts("litoques")).thenReturn(true);
-        when(backups.folders()).thenReturn(new BackupService.Folders(Path.of("/copias"), true, Path.of("/local")));
+        when(backups.hasChosenFolder()).thenReturn(true);
         when(publishing.proposalCounts()).thenReturn(Map.of());
         when(held.current()).thenReturn(List.of());
         when(sent.waiting()).thenReturn(List.of());
@@ -62,11 +61,11 @@ class FactoryRecommendationsTest {
     private List<KindEnum> kinds() { return subject().compute().stream().map(RecommendationDto::getKind).toList(); }
 
     private void backupFolderMissing() {
-        when(backups.folders()).thenReturn(new BackupService.Folders(null, false, Path.of("/local")));
+        when(backups.hasChosenFolder()).thenReturn(false);
     }
 
     private static AiSentOrders.Sent sentOrder(AiRequestType type, Instant at) {
-        return new AiSentOrders.Sent("lit-1", type, at, type.onPc());
+        return new AiSentOrders.Sent("lit-1", type, at, type.onPc(), true);
     }
 
     @Test
@@ -127,14 +126,24 @@ class FactoryRecommendationsTest {
 
     @Test
     void row4OrdersNotCollectedAfterThePickupPlusThirtyMinutes() {
-        when(sent.waiting()).thenReturn(List.of(sentOrder(AiRequestType.CAPTIONS, madrid(11, 9, 9, 35))));
+        when(sent.waiting()).thenReturn(List.of(sentOrder(AiRequestType.CAPTIONS, madrid(11, 9, 9, 30))));
         now = madrid(11, 9, 10, 9);
         assertThat(subject().compute()).isEmpty();
         now = madrid(11, 9, 10, 10);
         var r = subject().compute().getFirst();
         assertThat(r.getKind()).isEqualTo(KindEnum.ORDERS_NOT_COLLECTED);
-        assertThat(r.getTitle()).isEqualTo("Claude no ha recogido los encargos de las 9:40. Revisa la tarea programada");
+        assertThat(r.getTitle()).isEqualTo("No ha llegado el resultado de los encargos de las 9:40. Revisa la tarea programada");
         assertThat(r.getTarget()).isNull();
+    }
+
+    @Test
+    void row4CountsFiveMinutesOfSyncMarginBeforeThePickup() {
+        // Enviado a las 9:36: con 5 minutos de sincronización no llega a la de las 9:40, le toca la de las 14:40
+        when(sent.waiting()).thenReturn(List.of(sentOrder(AiRequestType.CAPTIONS, madrid(11, 9, 9, 36))));
+        now = madrid(11, 9, 10, 30);
+        assertThat(subject().compute()).isEmpty();
+        now = madrid(11, 9, 15, 10);
+        assertThat(subject().compute().getFirst().getTitle()).contains("de las 14:40");
     }
 
     @Test
@@ -144,14 +153,22 @@ class FactoryRecommendationsTest {
         now = madrid(11, 9, 11, 0);
         assertThat(subject().compute()).isEmpty();
         // Los del PC los recoge otra tarea
-        when(sent.waiting()).thenReturn(List.of(sentOrder(AiRequestType.PUBLISH_CHECK, madrid(11, 9, 9, 35))));
+        when(sent.waiting()).thenReturn(List.of(sentOrder(AiRequestType.PUBLISH_CHECK, madrid(11, 9, 9, 30))));
+        assertThat(subject().compute()).isEmpty();
+    }
+
+    @Test
+    void row4IsNotShownWhenTheBrandOrdersFolderIsNotAvailable() {
+        when(sent.waiting()).thenReturn(List.of(
+                new AiSentOrders.Sent("lit-1", AiRequestType.CAPTIONS, madrid(11, 9, 9, 30), false, false)));
+        now = madrid(11, 9, 11, 0);
         assertThat(subject().compute()).isEmpty();
     }
 
     @Test
     void row4NamesTheMostRecentMissedPickup() {
         when(sent.waiting()).thenReturn(List.of(
-                sentOrder(AiRequestType.CAPTIONS, madrid(11, 9, 9, 35)),
+                sentOrder(AiRequestType.CAPTIONS, madrid(11, 9, 9, 30)),
                 sentOrder(AiRequestType.CAPTIONS, madrid(11, 9, 14, 0))));
         now = madrid(11, 9, 16, 0);
         assertThat(subject().compute().getFirst().getTitle()).contains("de las 14:40");
@@ -187,13 +204,35 @@ class FactoryRecommendationsTest {
     }
 
     @Test
-    void row7BrandWithoutActivePromotion() {
-        when(promotions.promotionRefs()).thenReturn(List.of(new PromotionRef("lit-1", "litoques", "Test inicial", false)));
+    void row7BrandWithoutAnyPromotionAsksForTheFirstOne() {
+        when(promotions.promotionRefs()).thenReturn(List.of());
         var r = subject().compute().getFirst();
         assertThat(r.getKind()).isEqualTo(KindEnum.NO_ACTIVE_PROMOTION);
         assertThat(r.getTitle()).isEqualTo("Da de alta la primera promoción de Litoques");
         assertThat(r.getTarget().getScreen()).isEqualTo(ScreenEnum.NEW_PROMOTION);
         assertThat(r.getTarget().getBrandId()).isEqualTo("litoques");
+        assertThat(r.getTarget().getPromotionId()).isNull();
+    }
+
+    @Test
+    void row7PlannedOrPausedPromotionsAskToActivateOneAndOpenIt() {
+        for (String status : List.of("PLANNED", "PAUSED")) {
+            when(promotions.promotionRefs()).thenReturn(List.of(new PromotionRef("lit-1", "litoques", "Test inicial", status)));
+            var r = subject().compute().getFirst();
+            assertThat(r.getKind()).isEqualTo(KindEnum.NO_ACTIVE_PROMOTION);
+            assertThat(r.getTitle()).isEqualTo("Activa una promoción de Litoques");
+            assertThat(r.getTarget().getScreen()).isEqualTo(ScreenEnum.NEW_PROMOTION);
+            assertThat(r.getTarget().getBrandId()).isEqualTo("litoques");
+            assertThat(r.getTarget().getPromotionId()).isEqualTo("lit-1");
+        }
+    }
+
+    @Test
+    void row7OnlyFinishedPromotionsAskForANewOne() {
+        when(promotions.promotionRefs()).thenReturn(List.of(new PromotionRef("lit-1", "litoques", "Test inicial", "FINISHED")));
+        var r = subject().compute().getFirst();
+        assertThat(r.getTitle()).isEqualTo("Da de alta una promoción nueva de Litoques");
+        assertThat(r.getTarget().getPromotionId()).isNull();
     }
 
     @Test
@@ -227,7 +266,7 @@ class FactoryRecommendationsTest {
         when(held.current()).thenReturn(List.of(new AiHeldOrders.Held("t1", "est", "P", "r", "lit-1", AiRequestType.WEEKLY_PROPOSALS)));
         when(publishing.proposalCounts()).thenReturn(Map.of("lit-1", 2L));
         when(promotions.hasAllBrandFolders("litoques")).thenReturn(false);
-        when(sent.waiting()).thenReturn(List.of(sentOrder(AiRequestType.WEEKLY_PROPOSALS, madrid(11, 9, 9, 35))));
+        when(sent.waiting()).thenReturn(List.of(sentOrder(AiRequestType.WEEKLY_PROPOSALS, madrid(11, 9, 9, 30))));
         now = madrid(11, 9, 10, 30);
         when(publora.hasAccounts("litoques")).thenReturn(false);
         backupFolderMissing();
@@ -264,7 +303,7 @@ class FactoryRecommendationsTest {
         assertThat(all).extracting(RecommendationDto::getId).contains("brand-folders:delito");
         // El DeLito tampoco tiene Publora ni promoción: la lista se corta en 3 pero cada fila es de su marca
         when(publora.hasAccounts("delito")).thenReturn(true);
-        when(promotions.promotionRefs()).thenReturn(List.of(new PromotionRef("lit-1", "litoques", "Test inicial", true)));
+        when(promotions.promotionRefs()).thenReturn(List.of(new PromotionRef("lit-1", "litoques", "Test inicial", "ACTIVE")));
         assertThat(subject().compute()).extracting(RecommendationDto::getId)
                 .containsExactly("brand-folders:delito", "no-promotion:delito");
     }

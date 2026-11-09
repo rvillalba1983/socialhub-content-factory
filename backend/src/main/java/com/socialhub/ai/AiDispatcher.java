@@ -2,6 +2,7 @@ package com.socialhub.ai;
 
 import com.socialhub.platform.AppMode;
 import com.socialhub.platform.AppModeHolder;
+import com.socialhub.platform.live.FactoryChanged;
 import com.socialhub.production.AiTask;
 import com.socialhub.production.ProductionService;
 import com.socialhub.promotion.PromotionQueries;
@@ -18,6 +19,7 @@ import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -43,6 +45,7 @@ class AiDispatcher {
     private final AiHandlers handlers;
     private final java.util.List<AiContextProvider> contexts;
     private final AiHeldOrders held;
+    private final ApplicationEventPublisher events;
     /** Encargos de esta ronda que esperan a Raúl. */
     private java.util.Map<String, AiHeldOrders.Held> holding = AiHeldOrders.collector();
 
@@ -71,7 +74,8 @@ class AiDispatcher {
                         + ". Se vuelve a intentar en el siguiente envío.");
             }
         }
-        held.replace(holding);
+        // Solo si cambia lo retenido, para no despertar a la pantalla cada 30 s sin motivo
+        if (held.replace(holding)) events.publishEvent(new FactoryChanged("ai", null));
         return sent;
     }
 

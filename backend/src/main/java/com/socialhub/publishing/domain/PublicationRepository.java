@@ -14,6 +14,9 @@ public interface PublicationRepository {
     /** Todas, ordenadas por fecha y hora (vista general del anillo). */
     List<Publication> findAll();
 
+    /** Cuántas publicaciones hay en ese estado por promoción (solo las promociones que tienen alguna). */
+    java.util.Map<String, Long> countByPromotion(PublicationStatus status);
+
     List<Publication> findByPromotionAndStatus(String promotionId, PublicationStatus status);
 
     List<Publication> findFlagged(String promotionId);

@@ -33,12 +33,17 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
         "socialhub.ai.initial-delay-millis=3600000"
 })
 @AutoConfigureMockMvc
+@org.springframework.test.context.event.RecordApplicationEvents
 class StartUpTest {
 
     @TempDir Path drive;
     @Autowired MockMvc mvc;
     @Autowired AiAutoOrders auto;
     @Autowired AiDispatcher dispatcher;
+    @Autowired AiSentOrders sentOrders;
+    @Autowired AiRequestRepository requests;
+    @Autowired com.socialhub.publishing.PublishingQueries publishing;
+    @Autowired org.springframework.test.context.event.ApplicationEvents events;
 
     @Test
     void foldersFirstProposalsAndHeldOrders() throws Exception {
@@ -54,7 +59,13 @@ class StartUpTest {
         assertThat(auto.createFirstWeeks(java.time.ZonedDateTime.now())).isZero();
 
         // Sin carpeta de «Encargos» el encargo no sale y Raúl lo ve en «Qué hacer ahora» (no en «Necesita atención»)
+        events.clear();
         dispatcher.dispatchQueued();
+        assertThat(aiChanges()).isEqualTo(1);
+        // Misma situación en la ronda siguiente: la pantalla no se refresca sin motivo
+        events.clear();
+        dispatcher.dispatchQueued();
+        assertThat(aiChanges()).isZero();
         mvc.perform(get("/api/factory"))
                 .andExpect(jsonPath("$.recommendations[?(@.kind == 'HELD_PROPOSALS')].detail")
                         .value(org.hamcrest.Matchers.hasItem(org.hamcrest.Matchers.containsString("carpeta de «Encargos»"))))
@@ -75,15 +86,38 @@ class StartUpTest {
         }
 
         // Ya tiene carpeta: el encargo sale y deja de salir en «Necesita atención»
+        events.clear();
         assertThat(dispatcher.dispatchQueued()).isEqualTo(1);
+        // Al dejar de estar retenido, la pantalla se refresca
+        assertThat(aiChanges()).isEqualTo(1);
         mvc.perform(get("/api/factory"))
                 .andExpect(jsonPath("$.alerts[?(@.title =~ /En cola:.*/)]").isEmpty())
-                .andExpect(jsonPath("$.recommendations[?(@.kind == 'HELD_PROPOSALS')]").isEmpty());
+                .andExpect(jsonPath("$.recommendations[?(@.kind == 'HELD_PROPOSALS')]").isEmpty())
+                .andExpect(jsonPath("$.recommendations[?(@.kind == 'PROPOSALS_PENDING')]").isNotEmpty());
+
+        // Con base de datos: el encargo enviado cuenta mientras su tarea espera a Claude y deja de contar si se cancela
+        var waiting = sentOrders.waiting();
+        assertThat(waiting).hasSize(1);
+        assertThat(waiting.getFirst().type()).isEqualTo(AiRequestType.WEEKLY_PROPOSALS);
+        assertThat(waiting.getFirst().ordersAvailable()).isTrue();
+        String taskId = requests.findByStatus(AiRequestEntity.Status.SENT).getFirst().getTaskId();
+        write(post("/api/tasks/" + taskId + "/commands"), "{\"type\":\"CANCEL\"}").andExpect(status().isOk());
+        assertThat(requests.findByStatus(AiRequestEntity.Status.SENT)).hasSize(1);
+        assertThat(sentOrders.waiting()).isEmpty();
+        mvc.perform(get("/api/factory"))
+                .andExpect(jsonPath("$.recommendations[?(@.kind == 'PROPOSALS_PENDING')]").isEmpty());
+
+        // Sin propuestas por revisar no hay contadores
+        assertThat(publishing.proposalCounts()).isEmpty();
 
         // Si luego falta una carpeta asignada, el botón la vuelve a crear sin tocar las demás
         Files.delete(base.resolve("Informes"));
         write(post("/api/brands/litoques/folders/creation"), "{}").andExpect(status().isOk());
         assertThat(base.resolve("Informes")).isDirectory();
+    }
+
+    private long aiChanges() {
+        return events.stream(com.socialhub.platform.live.FactoryChanged.class).filter(e -> "ai".equals(e.kind())).count();
     }
 
     private ResultActions write(MockHttpServletRequestBuilder request, String body) throws Exception {

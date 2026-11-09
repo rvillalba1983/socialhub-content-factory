@@ -68,6 +68,9 @@ public class BackupService {
         this.local = paths.dataDir().resolve("copias");
     }
 
+    /** Hay carpeta de copias elegida (sin mirar el disco). */
+    public boolean hasChosenFolder() { return settings.get(SettingsRepository.BACKUP_FOLDER).isPresent(); }
+
     public Folders folders() {
         Optional<Path> chosen = settings.get(SettingsRepository.BACKUP_FOLDER).map(Path::of);
         return new Folders(chosen.orElse(null), chosen.map(Files::isDirectory).orElse(false), local);

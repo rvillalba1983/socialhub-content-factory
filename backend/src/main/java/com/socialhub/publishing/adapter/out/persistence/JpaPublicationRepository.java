@@ -49,6 +49,13 @@ class JpaPublicationRepository implements PublicationRepository {
     }
 
     @Override
+    public java.util.Map<String, Long> countByPromotion(PublicationStatus status) {
+        java.util.Map<String, Long> counts = new java.util.LinkedHashMap<>();
+        for (Object[] row : jpa.countByPromotion(status)) counts.put((String) row[0], (Long) row[1]);
+        return counts;
+    }
+
+    @Override
     public List<Publication> findByPromotionAndStatus(String promotionId, PublicationStatus status) {
         return jpa.findByPromotionIdAndStatus(promotionId, status).stream().map(mapper::toDomain).toList();
     }

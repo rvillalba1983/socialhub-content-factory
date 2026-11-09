@@ -57,6 +57,7 @@ class AiTypesTest {
     static Path material;
 
     @Autowired MockMvc mvc;
+    @Autowired com.socialhub.publishing.PublishingQueries publishing;
     private final JsonMapper json = JsonMapper.builder().build();
 
     @BeforeAll
@@ -280,6 +281,8 @@ class AiTypesTest {
         assertThat(first.get("status").asString()).isEqualTo("PROPOSAL");
         assertThat(first.get("note").asString()).isEqualTo("Idea: Carrusel con tres versos · Por qué: Funciona el formato");
         assertThat(publication("2030-11-20-tiktok").get("status").asString()).isEqualTo("PROPOSAL");
+        // «Qué hacer ahora» cuenta las propuestas por promoción con una consulta agrupada
+        assertThat(publishing.proposalCounts()).containsEntry("poemario", 2L);
 
         // Se aprueba una y la otra no: el spec solo ve la aprobada
         write(post("/api/publications/2030-11-18-instagram/status-changes"), "{\"status\":\"IN_PRODUCTION\"}").andExpect(status().isOk());
