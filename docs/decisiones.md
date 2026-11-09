@@ -405,3 +405,6 @@ Tras la primera prueba de Raúl con una marca y una promoción nuevas:
 ## 2026-11-09 · Fase 10: guía y propuestas iniciales
 - **Guía** (respuesta de Raúl): bloque «Qué hacer ahora» en la pantalla principal, con recomendaciones que desaparecen al hacerlas. La lista de puesta en marcha sigue descartada.
 - **Propuestas iniciales** (respuesta de Raúl): mensaje con su estado y hora aproximada de llegada, y aviso cuando lleguen. Sin ideas de plantilla y sin cambiar las tareas programadas.
+- **Publora** (respuesta de Raúl): la recomendación sale hasta conectar la cuenta o pulsar «No uso Publora» en esa marca, y se puede deshacer en su tarjeta de Publora.
+- **Datos de las recomendaciones** (técnica): el descarte va en su propia tabla (`brand_publora_dismissed`), dentro del módulo de publicación. `promotion_id` y `eta_text` viajan como campos propios para no deducirlos del texto.
+- **Encargos sin recoger** (técnica): la recomendación ignora los encargos «para-claude-pc», porque los recoge otra tarea.
