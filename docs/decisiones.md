@@ -411,3 +411,4 @@ Tras la primera prueba de Raúl con una marca y una promoción nuevas:
 - **Franja encima del mapa** (respuesta de Raúl): «Qué hacer ahora» va a ancho completo encima del mapa, fuera del zoom, con scroll propio (máximo 45 % de la altura) para no tapar el mapa.
 - **«Ver N más»** (respuesta de Raúl): se ven las 3 más importantes y un botón «Ver N más» / «Ver menos» despliega el resto. El backend devuelve la lista completa, sin recortar; las propuestas retenidas de una promoción salen solo ahí.
 - **Filas 4 y 7 ajustadas tras la revisión** (técnica): la fila 4 solo se mira si la carpeta de «Encargos» de la marca está disponible, y la fila 7 pide activar una promoción planificada o en pausa antes que dar de alta una nueva.
+- **Merge de la PR #32** (petición de Raúl): lo hizo Claude porque Raúl lo pidió expresamente para esta PR; la regla general sigue siendo que solo Raúl hace merge.

@@ -4,7 +4,7 @@
 
 ## Dónde estamos
 
-Las fases 0 a 9 de la especificación están hechas y en `main`, salvo lo que se indica:
+Las fases 0 a 10 de la especificación están hechas y en `main`, salvo lo que se indica:
 
 | Fase | Documento | Estado |
 |---|---|---|
@@ -17,12 +17,16 @@ Las fases 0 a 9 de la especificación están hechas y en `main`, salvo lo que se
 | 7 · Publicación | `fase-7.md` | ✅ Publer, Publora y calendario. API oficial (bloque 3) aparcada por Raúl |
 | 8 · Métricas y autonomía | `fase-8.md` | ✅ |
 | 9 · Copias e instaladores | `fase-9.md` | ✅ Copias e instalador de Windows (`.msi` 0.9.1). Falta el `.dmg` |
+| 10 · Primera semana real: guía y propuestas iniciales | `fase-10.md` | ✅ |
 
 Desde la fase 9 también hay en `main` (PR #22–#30): manual funcional con diagramas D2, mapa 3D del código en cada PR, arreglos del arranque en Windows y la puesta en marcha de marcas nuevas (carpeta base, avisos de encargos retenidos y propuestas de la primera semana).
+
+Desde la fase 10 (PR #32) la pantalla principal tiene la franja «Qué hacer ahora» encima del mapa, con recomendaciones que desaparecen al hacerlas.
 
 ## En el PC de Raúl
 
 - SocialHub 0.9.1 instalado y funcionando (`http://localhost:8686`). Datos y registros en `%LOCALAPPDATA%\SocialHub`.
+- Instalador 0.9.2 pendiente de generar e instalar (Actions › Instaladores).
 - Ha dado de alta la marca Litoques y la promoción «Test inicial» (empieza el 9 nov).
 - Pendiente de Raúl:
   - Carpeta base de Litoques en «Carpetas de Drive» (botón «Crear las que faltan»).
@@ -35,7 +39,7 @@ Desde la fase 9 también hay en `main` (PR #22–#30): manual funcional con diag
 ## Siguiente
 
 Lo decide Raúl al empezar la próxima conversación. Candidatos:
-- Lo que salga de su primera semana real con «Test inicial» (fallos y mejoras de uso).
+- Comprobar en real la franja «Qué hacer ahora» con Litoques y seguir con lo que salga de la primera semana (fallos y mejoras de uso).
 - Pestaña «Métricas» de la promoción con las métricas reales (ofrecido, sin respuesta).
 - Instalador de macOS (`.dmg`) y pruebas en macOS, cuando haya una versión utilizable.
 - API oficial de publicación (fase 7, bloque 3), si Raúl la retoma.

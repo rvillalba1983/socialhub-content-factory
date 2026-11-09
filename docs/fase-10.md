@@ -1,6 +1,6 @@
 # Fase 10 · Primera semana real: guía y propuestas iniciales
 
-Estado: **plan pendiente del OK de Raúl**.
+Estado: **Hecha (PR #32)**.
 
 ## Qué se ha visto
 
@@ -66,3 +66,9 @@ No hace falta ninguna librería nueva.
 - Al crearlas, esa recomendación desaparece sin recargar y las propuestas pasan a «en camino», con la hora bien calculada (también la de después de las 20:40, que es a las 9:40 del día siguiente).
 - Al llegar las propuestas, sale el contador. Al revisarlas, desaparece.
 - En PC de Raúl, con el `.msi` nuevo y Litoques: la prueba real, que queda para él.
+
+## Sin comprobar en real
+
+- Las recomendaciones de propuestas retenidas, en camino y listas, y el aviso de que no ha llegado el resultado, tienen pruebas automáticas. Pero requieren Drive y un encargo real: las comprobará Raúl con Litoques.
+- La revisión final fue anterior a los últimos arreglos, que sí pasaron la CI.
+- El mensaje «llegarán sobre las HH:MM» al guardar casi nunca saldrá en ese momento, porque el encargo se crea en una ronda de hasta 10 min. La hora se ve en la franja «Qué hacer ahora».
