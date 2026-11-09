@@ -31,7 +31,7 @@ import org.springframework.stereotype.Component;
  *   <li>Propuestas listas para revisar, con su contador.</li>
  *   <li>Marca sin todas sus carpetas.</li>
  *   <li>Encargo enviado antes de una recogida ya pasada y sin recoger (con 30 minutos de margen).</li>
- *   <li>Marca sin cuenta de Publora.</li>
+ *   <li>Marca sin cuenta de Publora, salvo que Raúl haya marcado «No uso Publora» para ella.</li>
  *   <li>Sin carpeta de copias.</li>
  *   <li>Marca sin ninguna promoción activa.</li>
  *   <li>Propuestas pedidas y en camino, con la hora de la próxima recogida.</li>
@@ -102,7 +102,7 @@ class FactoryRecommendations {
 
         // 5. Marca sin cuenta de Publora
         for (var brand : brands) {
-            if (publora.hasAccounts(brand.id())) continue;
+            if (publora.hasAccounts(brand.id()) || publora.isDismissed(brand.id())) continue;
             all.add(recommendation("publora:" + brand.id(), RecommendationDto.KindEnum.PUBLORA_MISSING,
                     "Conecta Publora para " + brand.name(), null,
                     RecommendationTargetDto.ScreenEnum.PUBLORA, brand.id(), null));

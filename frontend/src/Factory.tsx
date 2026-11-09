@@ -242,6 +242,16 @@ export function Factory({ data, live, onRefresh }: {
     say(text);
     onRefresh();
   }, [onRefresh, say]);
+  /** «No uso Publora»: guarda el descarte y refresca para que la recomendación desaparezca. */
+  const dismissPublora = useCallback(async (brandId: string) => {
+    try {
+      await api.setBrandPubloraDismissed(brandId, true);
+      say('Anotado: no se te recomendará Publora para esa marca. Puedes volver a activarla en su tarjeta de Publora');
+      onRefresh();
+    } catch (e) {
+      say(e instanceof Error ? e.message : 'No se pudo guardar.');
+    }
+  }, [onRefresh, say]);
   const runTask = useCallback(async (t: Task, type: TaskCommandType, model?: AiModel) => {
     try {
       await api.taskCommand(t.id, { type, model });
@@ -382,7 +392,7 @@ export function Factory({ data, live, onRefresh }: {
             onArmory={id => { setCc(null); setSel({ type: 'armory', id }); }}
             onPublication={goPublication}
             onPromotion={id => { setSel({ type: null, id: null }); setCc({ promo: id, tab: 'resumen', hl: null }); }}
-            onRegister={() => setReg(null)} onRecommendation={goRecommendation} />
+            onRegister={() => setReg(null)} onRecommendation={goRecommendation} onDismissPublora={dismissPublora} />
         </div>
 
         {data.alerts.length > 0 && (

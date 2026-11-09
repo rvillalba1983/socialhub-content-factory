@@ -69,6 +69,16 @@ public class PubloraService {
     @Transactional(readOnly = true)
     public boolean hasAccounts(String brandId) { return !accounts.accounts(brandId).isEmpty(); }
 
+    /** Raúl ha marcado «No uso Publora» para la marca. */
+    @Transactional(readOnly = true)
+    public boolean isDismissed(String brandId) { return accounts.dismissed(brandId); }
+
+    @Transactional
+    public void setDismissed(String brandId, boolean dismissed) {
+        promotions.requireBrand(brandId);
+        accounts.setDismissed(brandId, dismissed);
+    }
+
     /** Cada cuenta tiene que estar conectada en Publora y ser de su red. */
     @Transactional
     public List<PubloraAccountRepository.Account> saveAccounts(String brandId, List<Choice> choices) {

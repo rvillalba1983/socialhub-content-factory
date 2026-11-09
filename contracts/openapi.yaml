@@ -408,6 +408,31 @@ paths:
         "404": { $ref: "#/components/responses/Problem" }
         default: { $ref: "#/components/responses/Problem" }
 
+  /api/brands/{brand_id}/publora-dismissed:
+    put:
+      tags: [Publora]
+      operationId: setBrandPubloraDismissed
+      summary: Marca o desmarca «No uso Publora» para la marca
+      description: >
+        Con el descarte, «Qué hacer ahora» deja de recomendar conectar Publora para esa marca. Se puede deshacer
+        en cualquier momento. No toca las cuentas elegidas.
+      parameters:
+        - $ref: "#/components/parameters/BrandId"
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PubloraDismissedInput" }
+      responses:
+        "200":
+          description: Estado guardado (con las cuentas de la marca)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PubloraAccountList" }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
   /api/brands/{brand_id}/identity:
     get:
       tags: [Brands]
@@ -1556,9 +1581,18 @@ components:
 
     PubloraAccountList:
       type: object
-      required: [items]
+      required: [items, dismissed]
       properties:
         items: { type: array, items: { $ref: "#/components/schemas/PubloraAccount" } }
+        dismissed:
+          type: boolean
+          description: Raúl ha marcado «No uso Publora» para esta marca (no se le recomienda conectarla)
+
+    PubloraDismissedInput:
+      type: object
+      required: [dismissed]
+      properties:
+        dismissed: { type: boolean }
 
     PubloraAccountInput:
       type: object

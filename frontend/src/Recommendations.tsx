@@ -14,7 +14,11 @@ const BUTTON_LABEL: Record<RecommendationTarget['screen'], string> = {
 };
 
 /** «Qué hacer ahora»: hasta 3 recomendaciones del backend. Sin recomendaciones no se pinta nada. */
-export function NextSteps({ items, onOpen }: { items: Recommendation[]; onOpen: (target: RecommendationTarget) => void }) {
+export function NextSteps({ items, onOpen, onDismissPublora }: {
+  items: Recommendation[]; onOpen: (target: RecommendationTarget) => void;
+  /** «No uso Publora» para la marca de la recomendación PUBLORA_MISSING. */
+  onDismissPublora?: (brandId: string) => void;
+}) {
   if (items.length === 0) return null;
   return (
     <section className="attn-card next-card" aria-label="Qué hacer ahora">
@@ -22,13 +26,24 @@ export function NextSteps({ items, onOpen }: { items: Recommendation[]; onOpen: 
       {items.map(r => {
         const body = <span><b>{r.title}</b>{r.detail}</span>;
         const target = r.target;
-        return canOpen(target)
+        const main = canOpen(target)
           ? (
-            <button key={r.id} className="aitem" onClick={() => onOpen(target)} aria-label={`${r.title}. ${BUTTON_LABEL[target.screen]}`}>
+            <button className="aitem" onClick={() => onOpen(target)} aria-label={`${r.title}. ${BUTTON_LABEL[target.screen]}`}>
               {body}<span className="go" aria-hidden="true">→</span>
             </button>
           )
-          : <div key={r.id} className="aitem static">{body}</div>;
+          : <div className="aitem static">{body}</div>;
+        const brandId = r.kind === 'PUBLORA_MISSING' ? target?.brand_id : undefined;
+        // El botón secundario va al lado, nunca dentro del principal (no se anidan botones).
+        return brandId && onDismissPublora
+          ? (
+            <div key={r.id} className="aitem-row">
+              {main}
+              <button type="button" className="btn aitem-side" onClick={() => onDismissPublora(brandId)}
+                aria-label={`No uso Publora (${r.title})`}>No uso Publora</button>
+            </div>
+          )
+          : <div key={r.id} className="aitem-wrap">{main}</div>;
       })}
     </section>
   );

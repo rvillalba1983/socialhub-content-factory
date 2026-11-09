@@ -11,6 +11,7 @@ const PLATFORMS: [Platform, string, string][] = [['INSTAGRAM', 'Instagram', 'ins
  */
 export function PubloraCard({ brandId, onSaved }: { brandId: string; onSaved?: (message: string) => void }) {
   const [status, setStatus] = useState<PubloraStatus | null>(null);
+  const [dismissed, setDismissed] = useState(false);
   const [chosen, setChosen] = useState<Partial<Record<Platform, string>>>({});
   const [key, setKey] = useState('');
   const [busy, setBusy] = useState(false);
@@ -20,6 +21,7 @@ export function PubloraCard({ brandId, onSaved }: { brandId: string; onSaved?: (
     try {
       const [s, a] = await Promise.all([api.publora(), api.brandPubloraAccounts(brandId)]);
       setStatus(s);
+      setDismissed(a.dismissed);
       setChosen(Object.fromEntries(a.items.map((x: PubloraAccount) => [x.platform, x.connection_id])));
     } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
   };
@@ -42,6 +44,13 @@ export function PubloraCard({ brandId, onSaved }: { brandId: string; onSaved?: (
     <div className="card form" aria-label="Publora">
       <h3>Publora</h3>
       <p className="src">Segunda vía de publicación, si falla Publer. La clave vale para todas las marcas y se guarda solo en este ordenador.</p>
+      {dismissed && (
+        <div className="status-row" role="status">
+          <span className="src">Marcada como «No uso Publora»: no se te recomienda conectarla para esta marca.</span>
+          <button type="button" className="btn" disabled={busy}
+            onClick={() => void run(() => api.setBrandPubloraDismissed(brandId, false), 'Publora vuelve a recomendarse para esta marca')}>Volver a activar Publora</button>
+        </div>
+      )}
       {!status && !error && <p className="src">Cargando…</p>}
       {status && (
         <div className="status-row">

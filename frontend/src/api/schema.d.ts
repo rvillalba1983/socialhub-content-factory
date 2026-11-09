@@ -280,6 +280,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/brands/{brand_id}/publora-dismissed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Marca o desmarca «No uso Publora» para la marca
+         * @description Con el descarte, «Qué hacer ahora» deja de recomendar conectar Publora para esa marca. Se puede deshacer en cualquier momento. No toca las cuentas elegidas.
+         */
+        put: operations["setBrandPubloraDismissed"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/brands/{brand_id}/identity": {
         parameters: {
             query?: never;
@@ -1111,6 +1131,11 @@ export interface components {
         };
         PubloraAccountList: {
             items: components["schemas"]["PubloraAccount"][];
+            /** @description Raúl ha marcado «No uso Publora» para esta marca (no se le recomienda conectarla) */
+            dismissed: boolean;
+        };
+        PubloraDismissedInput: {
+            dismissed: boolean;
         };
         PubloraAccountInput: {
             platform: components["schemas"]["Platform"];
@@ -1709,6 +1734,7 @@ export type PubloraConnection = components['schemas']['PubloraConnection'];
 export type PubloraKeyInput = components['schemas']['PubloraKeyInput'];
 export type PubloraAccount = components['schemas']['PubloraAccount'];
 export type PubloraAccountList = components['schemas']['PubloraAccountList'];
+export type PubloraDismissedInput = components['schemas']['PubloraDismissedInput'];
 export type PubloraAccountInput = components['schemas']['PubloraAccountInput'];
 export type PubloraAccountListInput = components['schemas']['PubloraAccountListInput'];
 export type PublishRouteState = components['schemas']['PublishRouteState'];
@@ -2298,6 +2324,37 @@ export interface operations {
                 };
             };
             400: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    setBrandPubloraDismissed: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path: {
+                brand_id: components["parameters"]["BrandId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PubloraDismissedInput"];
+            };
+        };
+        responses: {
+            /** @description Estado guardado (con las cuentas de la marca) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PubloraAccountList"];
+                };
+            };
             404: components["responses"]["Problem"];
             default: components["responses"]["Problem"];
         };

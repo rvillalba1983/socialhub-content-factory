@@ -228,6 +228,26 @@ class PubloraRouteTest {
     }
 
     @Test
+    @Order(2)
+    void notUsingPubloraCanBeSetAndUndoneWithoutTouchingTheAccounts() throws Exception {
+        assertThat(get("/api/brands/el-delito/publora-accounts").get("dismissed").asBoolean()).isFalse();
+        int accountsBefore = get("/api/brands/el-delito/publora-accounts").get("items").size();
+        JsonNode on = json.readTree(write(put("/api/brands/el-delito/publora-dismissed"), "{\"dismissed\":true}")
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertThat(on.get("dismissed").asBoolean()).isTrue();
+        assertThat(get("/api/brands/el-delito/publora-accounts").get("dismissed").asBoolean()).isTrue();
+        // Marcarlo dos veces no falla y las cuentas siguen
+        write(put("/api/brands/el-delito/publora-dismissed"), "{\"dismissed\":true}").andExpect(status().isOk());
+        assertThat(get("/api/brands/el-delito/publora-accounts").get("items").size()).isEqualTo(accountsBefore);
+        // Reactivar
+        JsonNode off = json.readTree(write(put("/api/brands/el-delito/publora-dismissed"), "{\"dismissed\":false}")
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertThat(off.get("dismissed").asBoolean()).isFalse();
+        assertThat(get("/api/brands/el-delito/publora-accounts").get("dismissed").asBoolean()).isFalse();
+        write(put("/api/brands/no-existe/publora-dismissed"), "{\"dismissed\":true}").andExpect(status().isNotFound());
+    }
+
+    @Test
     @Order(3)
     void schedulesWithFilesAndConfirmsWithTheLink() throws Exception {
         // A 7 h: Publer ya no llega (necesita 8 h) y se va a Publora

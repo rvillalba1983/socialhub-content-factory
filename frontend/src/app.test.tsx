@@ -11,7 +11,7 @@ import { PublicationEditor } from './PublicationEditor';
 import { PubloraCard } from './Publora';
 import { BrandForm, PromotionForm, Registration } from './Registration';
 import { Factory } from './Factory';
-import { savedMessage } from './Recommendations';
+import { NextSteps, savedMessage } from './Recommendations';
 import type { Recommendation } from './api/schema';
 import { PieceOrders } from './PieceOrders';
 import type { ExternalOperationPage, Snapshot, Station, Task } from './model';
@@ -363,9 +363,9 @@ describe('Publora', () => {
     const status = vi.spyOn(api, 'publora')
       .mockResolvedValueOnce({ configured: false, connections: [] })
       .mockResolvedValue({ configured: true, key_hint: '…6789', connections });
-    vi.spyOn(api, 'brandPubloraAccounts').mockResolvedValue({ items: [] });
+    vi.spyOn(api, 'brandPubloraAccounts').mockResolvedValue({ items: [], dismissed: false });
     const saveKey = vi.spyOn(api, 'savePubloraKey').mockResolvedValue({ configured: true, key_hint: '…6789', connections });
-    const saveAccounts = vi.spyOn(api, 'saveBrandPubloraAccounts').mockResolvedValue({ items: [] });
+    const saveAccounts = vi.spyOn(api, 'saveBrandPubloraAccounts').mockResolvedValue({ items: [], dismissed: false });
     render(<PubloraCard brandId="el-delito" />);
     expect(await screen.findByText('Sin clave')).toBeInTheDocument();
     const input = screen.getByLabelText('Clave de la API de Publora');
@@ -379,6 +379,31 @@ describe('Publora', () => {
     fireEvent.change(screen.getByLabelText('Cuenta de Publora para Instagram'), { target: { value: 'instagram-111' } });
     fireEvent.click(screen.getByRole('button', { name: 'Guardar cuentas' }));
     await waitFor(() => expect(saveAccounts).toHaveBeenCalledWith('el-delito', [{ platform: 'INSTAGRAM', connection_id: 'instagram-111' }]));
+  });
+});
+
+describe('No uso Publora', () => {
+  it('la tarjeta de la marca descartada permite volver a activar Publora', async () => {
+    vi.spyOn(api, 'publora').mockResolvedValue({ configured: false, connections: [] });
+    const accounts = vi.spyOn(api, 'brandPubloraAccounts')
+      .mockResolvedValueOnce({ items: [], dismissed: true })
+      .mockResolvedValue({ items: [], dismissed: false });
+    const set = vi.spyOn(api, 'setBrandPubloraDismissed').mockResolvedValue({ items: [], dismissed: false });
+    const onSaved = vi.fn();
+    render(<PubloraCard brandId="el-delito" onSaved={onSaved} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Volver a activar Publora' }));
+    await waitFor(() => expect(set).toHaveBeenCalledWith('el-delito', false));
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Volver a activar Publora' })).toBeNull());
+    expect(accounts).toHaveBeenCalledTimes(2);
+    expect(onSaved).toHaveBeenCalledWith('Publora vuelve a recomendarse para esta marca');
+  });
+
+  it('la tarjeta no ofrece reactivar si no está descartada', async () => {
+    vi.spyOn(api, 'publora').mockResolvedValue({ configured: false, connections: [] });
+    vi.spyOn(api, 'brandPubloraAccounts').mockResolvedValue({ items: [], dismissed: false });
+    render(<PubloraCard brandId="el-delito" />);
+    expect(await screen.findByText('Sin clave')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Volver a activar Publora' })).toBeNull();
   });
 });
 
@@ -670,6 +695,31 @@ describe('Qué hacer ahora', () => {
     expect(onRecommendation).toHaveBeenCalledWith({ screen: 'PROPOSALS', brand_id: 'b', promotion_id: 'p' });
     fireEvent.click(screen.getByRole('button', { name: /Crea las carpetas/ }));
     expect(onRecommendation).toHaveBeenLastCalledWith({ screen: 'BRAND_FOLDERS', brand_id: 'b' });
+  });
+
+  it('la recomendación de Publora lleva un botón «No uso Publora» aparte, sin anidar botones', () => {
+    const onDismiss = vi.fn(), onOpen = vi.fn();
+    const publora = rec({ id: 'publora:b', kind: 'PUBLORA_MISSING', title: 'Conecta Publora para El DeLito', target: { screen: 'PUBLORA', brand_id: 'b' } });
+    render(<NextSteps items={[publora, three[1]]} onOpen={onOpen} onDismissPublora={onDismiss} />);
+    const side = screen.getByRole('button', { name: /No uso Publora/ });
+    expect(side.closest('button.aitem')).toBeNull();
+    expect(screen.getAllByRole('button', { name: /No uso Publora/ })).toHaveLength(1); // solo en la de Publora
+    fireEvent.click(side);
+    expect(onDismiss).toHaveBeenCalledWith('b');
+    expect(onOpen).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: /Conecta Publora para El DeLito\. Ir a Publora/ }));
+    expect(onOpen).toHaveBeenCalledWith({ screen: 'PUBLORA', brand_id: 'b' });
+  });
+
+  it('en la fábrica, «No uso Publora» guarda el descarte y refresca', async () => {
+    vi.spyOn(api, 'appMode').mockResolvedValue({ mode: 'REAL', demo_available: false } as never);
+    const set = vi.spyOn(api, 'setBrandPubloraDismissed').mockResolvedValue({ items: [], dismissed: true });
+    const onRefresh = vi.fn();
+    const publora = rec({ id: 'publora:b', kind: 'PUBLORA_MISSING', title: 'Conecta Publora para El DeLito', target: { screen: 'PUBLORA', brand_id: 'b' } });
+    render(<Factory data={withRecs([publora])} live={false} onRefresh={onRefresh} />);
+    fireEvent.click(screen.getByRole('button', { name: /No uso Publora/ }));
+    await waitFor(() => expect(set).toHaveBeenCalledWith('b', true));
+    await waitFor(() => expect(onRefresh).toHaveBeenCalled());
   });
 
   it('una recomendación sin destino es solo texto, sin botón', () => {

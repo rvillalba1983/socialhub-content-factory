@@ -12,6 +12,7 @@ import org.springframework.stereotype.Repository;
 class JpaPubloraAccountRepository implements PubloraAccountRepository {
 
     private final PubloraAccountJpaRepository jpa;
+    private final PubloraDismissedJpaRepository dismissedJpa;
 
     @Override
     public List<Account> accounts(String brandId) {
@@ -30,5 +31,14 @@ class JpaPubloraAccountRepository implements PubloraAccountRepository {
         jpa.deleteByBrand(brandId);
         jpa.flush();
         accounts.forEach(a -> jpa.save(new PubloraAccountEntity(brandId, a.platform(), a.connectionId(), a.label())));
+    }
+
+    @Override
+    public boolean dismissed(String brandId) { return dismissedJpa.existsById(brandId); }
+
+    @Override
+    public void setDismissed(String brandId, boolean dismissed) {
+        if (dismissed) dismissedJpa.save(new PubloraDismissedEntity(brandId));
+        else dismissedJpa.deleteById(brandId);
     }
 }

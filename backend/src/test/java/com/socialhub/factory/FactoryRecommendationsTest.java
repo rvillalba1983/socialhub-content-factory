@@ -164,6 +164,16 @@ class FactoryRecommendationsTest {
     }
 
     @Test
+    void row5IsNotShownWhenTheBrandDismissedPublora() {
+        when(publora.hasAccounts("litoques")).thenReturn(false);
+        when(publora.isDismissed("litoques")).thenReturn(true);
+        assertThat(subject().compute()).isEmpty();
+        // Al reactivarla vuelve a salir
+        when(publora.isDismissed("litoques")).thenReturn(false);
+        assertThat(kinds()).containsExactly(KindEnum.PUBLORA_MISSING);
+    }
+
+    @Test
     void row6NoBackupFolder() {
         backupFolderMissing();
         var r = subject().compute().getFirst();

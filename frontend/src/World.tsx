@@ -49,6 +49,8 @@ export interface WorldProps {
   onRegister: () => void;
   /** Abre la pantalla a la que lleva una recomendación de «Qué hacer ahora». */
   onRecommendation?: (target: RecommendationTarget) => void;
+  /** «No uso Publora» en la recomendación de conectar Publora. */
+  onDismissPublora?: (brandId: string) => void;
 }
 
 /** Vista de una estación: si alguna tarea tiene error o la estación está bloqueada, pide atención. */
@@ -57,7 +59,7 @@ export function stationVisual(s: Station) {
   return { alert, running: s.counts.running > 0 && !s.paused } as const;
 }
 
-export function World({ data, sel, onStation, onTask, onTaskAction, onArmory, onPublication, onPromotion, onRegister, onRecommendation }: WorldProps) {
+export function World({ data, sel, onStation, onTask, onTaskAction, onArmory, onPublication, onPromotion, onRegister, onRecommendation, onDismissPublora }: WorldProps) {
   const brands = new Map(data.brands.map(b => [b.id, b]));
   const brandOfPromotion = (pid?: string | null) => {
     const p = data.promotions.find(x => x.id === pid);
@@ -89,7 +91,7 @@ export function World({ data, sel, onStation, onTask, onTaskAction, onArmory, on
           </article>
         )}
         <div className="side-stack">
-          <NextSteps items={data.recommendations} onOpen={t => onRecommendation?.(t)} />
+          <NextSteps items={data.recommendations} onOpen={t => onRecommendation?.(t)} onDismissPublora={onDismissPublora} />
           <AttentionCard data={data} onStation={onStation} onTask={onTask} onArmory={onArmory} onPublication={onPublication} />
         </div>
       </div>
