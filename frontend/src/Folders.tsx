@@ -71,7 +71,7 @@ export function FolderRoles({ owner, id, onSaved }: {
 
   const byRole = new Map((folders ?? []).map(f => [f.role, f]));
   return (
-    <form className="card form" onSubmit={save} aria-label="Carpetas de Drive">
+    <form className="card form" data-card="folders" onSubmit={save} aria-label="Carpetas de Drive">
       <h3>Carpetas de Drive</h3>
       <p className="src">
         {owner === 'brand'

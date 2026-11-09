@@ -1363,7 +1363,8 @@ components:
           description: >
             BRAND_FOLDERS: Marcas → Carpetas de Drive de la marca (brand_id). PROPOSALS: publicaciones en estado
             Propuesta de la promoción (promotion_id). PUBLORA: tarjeta de Publora de la marca (brand_id). BACKUPS:
-            ajuste de la carpeta de copias. NEW_PROMOTION: alta de promoción de la marca (brand_id)
+            ajuste de la carpeta de copias. NEW_PROMOTION: alta de promoción de la marca (brand_id); con promotion_id, abre esa promoción (planificada o en
+            pausa) para activarla
         brand_id: { type: string }
         promotion_id: { type: string }
 

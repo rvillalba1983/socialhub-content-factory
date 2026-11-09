@@ -927,7 +927,7 @@ export interface components {
         /** @description A qué pantalla lleva el botón. Sin target, la recomendación es solo un texto. */
         RecommendationTarget: {
             /**
-             * @description BRAND_FOLDERS: Marcas → Carpetas de Drive de la marca (brand_id). PROPOSALS: publicaciones en estado Propuesta de la promoción (promotion_id). PUBLORA: tarjeta de Publora de la marca (brand_id). BACKUPS: ajuste de la carpeta de copias. NEW_PROMOTION: alta de promoción de la marca (brand_id)
+             * @description BRAND_FOLDERS: Marcas → Carpetas de Drive de la marca (brand_id). PROPOSALS: publicaciones en estado Propuesta de la promoción (promotion_id). PUBLORA: tarjeta de Publora de la marca (brand_id). BACKUPS: ajuste de la carpeta de copias. NEW_PROMOTION: alta de promoción de la marca (brand_id); con promotion_id, abre esa promoción (planificada o en pausa) para activarla
              * @enum {string}
              */
             screen: "BRAND_FOLDERS" | "PROPOSALS" | "PUBLORA" | "BACKUPS" | "NEW_PROMOTION";

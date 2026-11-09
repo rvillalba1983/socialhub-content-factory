@@ -13,6 +13,10 @@ const BUTTON_LABEL: Record<RecommendationTarget['screen'], string> = {
   BACKUPS: 'Ir a Copias', NEW_PROMOTION: 'Dar de alta la promoción',
 };
 
+function buttonLabel(t: RecommendationTarget): string {
+  return t.screen === 'NEW_PROMOTION' && t.promotion_id ? 'Abrir la promoción' : BUTTON_LABEL[t.screen];
+}
+
 /** «Qué hacer ahora»: hasta 3 recomendaciones del backend. Sin recomendaciones no se pinta nada. */
 export function NextSteps({ items, onOpen, onDismissPublora }: {
   items: Recommendation[]; onOpen: (target: RecommendationTarget) => void;
@@ -28,7 +32,7 @@ export function NextSteps({ items, onOpen, onDismissPublora }: {
         const target = r.target;
         const main = canOpen(target)
           ? (
-            <button className="aitem" onClick={() => onOpen(target)} aria-label={`${r.title}. ${BUTTON_LABEL[target.screen]}`}>
+            <button className="aitem" onClick={() => onOpen(target)} aria-label={`${r.title}. ${buttonLabel(target)}`}>
               {body}<span className="go" aria-hidden="true">→</span>
             </button>
           )
@@ -54,7 +58,11 @@ export function toastDuration(base: string, text: string): number {
   return text !== base ? 6000 : 2800;
 }
 
-export interface SavedRef { promotionId?: string; brandId?: string }
+export interface SavedRef {
+  promotionId?: string; brandId?: string;
+  /** Estado de la promoción guardada (PLANNED, ACTIVE, PAUSED o FINISHED). */
+  status?: string;
+}
 
 /**
  * Mensaje al guardar con el paso siguiente, sacado de las recomendaciones del siguiente estado de la fábrica.
@@ -67,8 +75,11 @@ export function savedMessage(base: string, ref: SavedRef, recommendations: Recom
     if (held) return `${base}. Las propuestas no pueden salir${held.detail ? `: ${held.detail}` : ''}`;
     const pending = recommendations.find(r => r.kind === 'PROPOSALS_PENDING' && r.promotion_id === ref.promotionId);
     if (pending?.eta_text) return `${base}. Propuestas pedidas: llegarán ${pending.eta_text}`;
-    // El envío ocurre cada 30 s: justo al guardar puede no haber nada todavía. No se inventa hora.
-    return `${base}. Te avisaremos aquí del estado de sus propuestas en «Qué hacer ahora»`;
+    // La primera semana se crea en una ronda de cada 10 min y se envía en otra de 30 s: justo al guardar puede no haber
+    // nada todavía, así que no se inventa hora. Y solo una promoción activa pide propuestas: si está planificada, en
+    // pausa o terminada, no se promete ningún aviso.
+    if (ref.status === 'ACTIVE') return `${base}. Te avisaremos aquí del estado de sus propuestas en «Qué hacer ahora»`;
+    return base;
   }
   if (ref.brandId) {
     const next = recommendations.find(r => r.target?.brand_id === ref.brandId);

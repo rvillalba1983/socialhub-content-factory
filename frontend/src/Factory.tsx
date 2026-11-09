@@ -38,7 +38,7 @@ export function Factory({ data, live, onRefresh }: {
   const [copias, setCopias] = useState(false);
   const [halted, setHalted] = useState<string | null>(null);
   const [closed, setClosed] = useState(false);
-  const [reg, setReg] = useState<{ kind: 'brand' | 'promotion'; id: string | null; brandId?: string } | false | null>(false);
+  const [reg, setReg] = useState<{ kind: 'brand' | 'promotion'; id: string | null; brandId?: string; focus?: 'folders' | 'publora' } | false | null>(false);
   const [demoAvailable, setDemoAvailable] = useState(true);
   useEffect(() => { api.appMode().then(m => { setDemoAvailable(m.demo_available); setHalted(m.halted_reason ?? null); }).catch(() => {}); }, []);
   // Abrir una promoción cierra el registro de operaciones
@@ -216,8 +216,13 @@ export function Factory({ data, live, onRefresh }: {
   const goRecommendation = useCallback((t: RecommendationTarget) => {
     setSel({ type: null, id: null }); setCc(null); setOps(false); setClaude(false); setCopias(false); setReg(false);
     if (t.screen === 'PROPOSALS' && t.promotion_id) setCc({ promo: t.promotion_id, tab: 'publicaciones', hl: null, filter: 'PROPOSAL' });
-    else if ((t.screen === 'BRAND_FOLDERS' || t.screen === 'PUBLORA') && t.brand_id) setReg({ kind: 'brand', id: t.brand_id });
-    else if (t.screen === 'NEW_PROMOTION' && t.brand_id) setReg({ kind: 'promotion', id: null, brandId: t.brand_id });
+    else if ((t.screen === 'BRAND_FOLDERS' || t.screen === 'PUBLORA') && t.brand_id) {
+      setReg({ kind: 'brand', id: t.brand_id, focus: t.screen === 'PUBLORA' ? 'publora' : 'folders' });
+    }
+    // Con promotion_id (activar una planificada o en pausa) se abre esa promoción; sin él, el alta de una nueva
+    else if (t.screen === 'NEW_PROMOTION' && t.brand_id) {
+      setReg(t.promotion_id ? { kind: 'promotion', id: t.promotion_id } : { kind: 'promotion', id: null, brandId: t.brand_id });
+    }
     else if (t.screen === 'BACKUPS') setCopias(true);
   }, []);
   const home = useCallback(() => { setCc(null); setSel({ type: null, id: null }); requestAnimationFrame(fit); }, [fit]);
@@ -233,7 +238,13 @@ export function Factory({ data, live, onRefresh }: {
   };
 
   // ---------- acciones ----------
-  const say = useCallback((m: string, ms = 2800) => { setToast(m); window.setTimeout(() => setToast(null), ms); }, []);
+  const toastTimer = useRef<number | undefined>(undefined);
+  // Un aviso nuevo cancela el temporizador del anterior, para que este no lo corte antes de tiempo
+  const say = useCallback((m: string, ms = 2800) => {
+    window.clearTimeout(toastTimer.current);
+    setToast(m);
+    toastTimer.current = window.setTimeout(() => setToast(null), ms);
+  }, []);
   /** Al guardar, el paso siguiente sale del siguiente estado de la fábrica, no de lo que la interfaz supone. */
   const saved = useCallback(async (message: string, ref?: SavedRef) => {
     if (!ref) { say(message); onRefresh(); return; }

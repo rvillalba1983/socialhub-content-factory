@@ -41,7 +41,7 @@ export function PubloraCard({ brandId, onSaved }: { brandId: string; onSaved?: (
   };
 
   return (
-    <div className="card form" aria-label="Publora">
+    <div className="card form" data-card="publora" aria-label="Publora">
       <h3>Publora</h3>
       <p className="src">Segunda vía de publicación, si falla Publer. La clave vale para todas las marcas y se guarda solo en este ordenador.</p>
       {dismissed && (

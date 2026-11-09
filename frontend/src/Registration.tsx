@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from './api';
 import { Icon } from './icons';
 import {
@@ -12,7 +12,8 @@ import { IdentityForm } from './Identity';
 import { MemoryCard } from './Memory';
 import type { SavedRef } from './Recommendations';
 
-type Editing = { kind: 'brand'; id: string | null } | { kind: 'promotion'; id: string | null; brandId?: string } | null;
+/** `focus`: tarjeta de la marca a la que bajar al abrir (desde una recomendación). */
+type Editing = { kind: 'brand'; id: string | null; focus?: 'folders' | 'publora' } | { kind: 'promotion'; id: string | null; brandId?: string } | null;
 
 const PROMOTION_STATUS: [PromotionInput['status'], string][] = [
   ['PLANNED', 'Planificada'], ['ACTIVE', 'Activa'], ['PAUSED', 'En pausa'], ['FINISHED', 'Terminada'],
@@ -26,6 +27,11 @@ export function Registration({ data, initial, onClose, onSaved }: {
 }) {
   const [editing, setEditing] = useState<Editing>(initial);
   const brands = new Map(data.brands.map(b => [b.id, b]));
+  const focus = initial?.kind === 'brand' ? initial.focus : undefined;
+  // Si la recomendación apunta a una tarjeta de la marca (carpetas o Publora), se baja hasta ella
+  useEffect(() => {
+    if (focus) document.querySelector(`[data-card="${focus}"]`)?.scrollIntoView?.({ block: 'start', behavior: 'smooth' });
+  }, [focus]);
 
   return (
     <section className="cc" aria-label="Marcas y promociones">
@@ -49,7 +55,7 @@ export function Registration({ data, initial, onClose, onSaved }: {
         {editing?.kind === 'brand' && editing.id && <PubloraCard brandId={editing.id} onSaved={onSaved} />}
         {editing?.kind === 'promotion' && (
           <PromotionForm data={data} brandId={editing.brandId} promotion={editing.id ? data.promotions.find(p => p.id === editing.id) : undefined}
-            onCancel={() => setEditing(null)} onSaved={p => { setEditing(null); onSaved(`Promoción guardada · ${p.name}`, { promotionId: p.id }); }} />
+            onCancel={() => setEditing(null)} onSaved={p => { setEditing(null); onSaved(`Promoción guardada · ${p.name}`, { promotionId: p.id, status: p.status }); }} />
         )}
         {editing?.kind === 'promotion' && editing.id && <FolderRoles owner="promotion" id={editing.id} onSaved={onSaved} />}
 
