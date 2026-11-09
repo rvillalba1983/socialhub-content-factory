@@ -10,8 +10,9 @@ import { PubloraCard } from './Publora';
 import { FolderRoles } from './Folders';
 import { IdentityForm } from './Identity';
 import { MemoryCard } from './Memory';
+import type { SavedRef } from './Recommendations';
 
-type Editing = { kind: 'brand'; id: string | null } | { kind: 'promotion'; id: string | null } | null;
+type Editing = { kind: 'brand'; id: string | null } | { kind: 'promotion'; id: string | null; brandId?: string } | null;
 
 const PROMOTION_STATUS: [PromotionInput['status'], string][] = [
   ['PLANNED', 'Planificada'], ['ACTIVE', 'Activa'], ['PAUSED', 'En pausa'], ['FINISHED', 'Terminada'],
@@ -19,7 +20,9 @@ const PROMOTION_STATUS: [PromotionInput['status'], string][] = [
 
 /** Alta y edición de marcas y promociones. */
 export function Registration({ data, initial, onClose, onSaved }: {
-  data: Snapshot; initial: Editing; onClose: () => void; onSaved: (message: string) => void;
+  data: Snapshot; initial: Editing; onClose: () => void;
+  /** `saved` indica qué se ha guardado, para añadir el paso siguiente según el siguiente estado de la fábrica. */
+  onSaved: (message: string, saved?: SavedRef) => void;
 }) {
   const [editing, setEditing] = useState<Editing>(initial);
   const brands = new Map(data.brands.map(b => [b.id, b]));
@@ -38,15 +41,15 @@ export function Registration({ data, initial, onClose, onSaved }: {
 
         {editing?.kind === 'brand' && (
           <BrandForm brand={editing.id ? brands.get(editing.id) : undefined} onCancel={() => setEditing(null)}
-            onSaved={(b, note) => { setEditing(null); onSaved(`Marca guardada · ${b.name}${note ? ` · ${note}` : ''}`); }} />
+            onSaved={(b, note) => { setEditing(null); onSaved(`Marca guardada · ${b.name}${note ? ` · ${note}` : ''}`, { brandId: b.id }); }} />
         )}
         {editing?.kind === 'brand' && editing.id && <IdentityForm brandId={editing.id} onSaved={onSaved} />}
         {editing?.kind === 'brand' && editing.id && <MemoryCard brandId={editing.id} onSaved={onSaved} />}
         {editing?.kind === 'brand' && editing.id && <FolderRoles owner="brand" id={editing.id} onSaved={onSaved} />}
         {editing?.kind === 'brand' && editing.id && <PubloraCard brandId={editing.id} onSaved={onSaved} />}
         {editing?.kind === 'promotion' && (
-          <PromotionForm data={data} promotion={editing.id ? data.promotions.find(p => p.id === editing.id) : undefined}
-            onCancel={() => setEditing(null)} onSaved={p => { setEditing(null); onSaved(`Promoción guardada · ${p.name}`); }} />
+          <PromotionForm data={data} brandId={editing.brandId} promotion={editing.id ? data.promotions.find(p => p.id === editing.id) : undefined}
+            onCancel={() => setEditing(null)} onSaved={p => { setEditing(null); onSaved(`Promoción guardada · ${p.name}`, { promotionId: p.id }); }} />
         )}
         {editing?.kind === 'promotion' && editing.id && <FolderRoles owner="promotion" id={editing.id} onSaved={onSaved} />}
 
@@ -138,10 +141,10 @@ const toInput = (p: Promotion): PromotionInput => {
   return input;
 };
 
-export function PromotionForm({ data, promotion, onCancel, onSaved }: {
-  data: Snapshot; promotion?: Promotion; onCancel: () => void; onSaved: (p: Promotion) => void;
+export function PromotionForm({ data, promotion, brandId, onCancel, onSaved }: {
+  data: Snapshot; promotion?: Promotion; /** Marca preseleccionada en el alta. */ brandId?: string; onCancel: () => void; onSaved: (p: Promotion) => void;
 }) {
-  const [form, setForm] = useState<PromotionInput>(promotion ? toInput(promotion) : emptyPromotion(data.brands[0]?.id ?? ''));
+  const [form, setForm] = useState<PromotionInput>(promotion ? toInput(promotion) : emptyPromotion(brandId ?? data.brands[0]?.id ?? ''));
   const set = <K extends keyof PromotionInput>(k: K, v: PromotionInput[K]) => setForm({ ...form, [k]: v });
   const { busy, error, submit } = useSave(
     () => (promotion ? api.updatePromotion(promotion.id, form) : api.createPromotion(form)), onSaved);

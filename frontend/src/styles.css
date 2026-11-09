@@ -201,6 +201,10 @@ button:disabled{opacity:.4;cursor:default}
 .promo-facts b{font-size:14px;font-weight:600;font-variant-numeric:tabular-nums}
 .promo-facts .bad b{color:var(--err)}
 .open-cc{justify-self:start;padding:9px 15px;font-weight:550;border-radius:10px}
+.side-stack{display:grid;gap:22px;min-width:0}
+.vp[data-lod="1"] .side-stack{gap:30px}
+.aitem>span.go{flex:none;font-size:16px;color:var(--ink-3)}
+.aitem.static:hover{background:var(--surface);border-color:var(--line)}
 .attn-card h2{font-size:20px;display:flex;align-items:center;gap:10px}
 .attn-card .count{font-family:var(--f-mono);font-size:13px;background:var(--err);color:#fff;border-radius:999px;padding:1px 9px}
 .attn-card .src{font-size:12.5px}

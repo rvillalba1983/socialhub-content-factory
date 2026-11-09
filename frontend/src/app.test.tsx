@@ -9,7 +9,10 @@ import { FolderRoles } from './Folders';
 import { MemoryCard } from './Memory';
 import { PublicationEditor } from './PublicationEditor';
 import { PubloraCard } from './Publora';
-import { BrandForm, PromotionForm } from './Registration';
+import { BrandForm, PromotionForm, Registration } from './Registration';
+import { Factory } from './Factory';
+import { savedMessage } from './Recommendations';
+import type { Recommendation } from './api/schema';
 import { PieceOrders } from './PieceOrders';
 import type { ExternalOperationPage, Snapshot, Station, Task } from './model';
 import { TaskPanel } from './Panel';
@@ -631,5 +634,96 @@ describe('Carpetas de la marca', () => {
     render(<FolderRoles owner="promotion" id="test" />);
     await screen.findByRole('button', { name: 'Guardar carpetas' });
     expect(screen.queryByRole('button', { name: 'Crear las que faltan' })).toBeNull();
+  });
+});
+
+const rec = (o: Partial<Recommendation> & Pick<Recommendation, 'id' | 'kind' | 'title'>): Recommendation => ({ ...o });
+const three: Recommendation[] = [
+  rec({ id: 'proposals-review:p', kind: 'PROPOSALS_TO_REVIEW', title: 'Tienes 3 propuestas de «Lanzamiento del poemario» para revisar',
+    target: { screen: 'PROPOSALS', brand_id: 'b', promotion_id: 'p' } }),
+  rec({ id: 'brand-folders:b', kind: 'BRAND_FOLDERS_MISSING', title: 'Crea las carpetas de El DeLito', target: { screen: 'BRAND_FOLDERS', brand_id: 'b' } }),
+  rec({ id: 'orders-not-collected', kind: 'ORDERS_NOT_COLLECTED', title: 'Claude no ha recogido los encargos de las 9:40. Revisa la tarea programada' }),
+];
+const withRecs = (recommendations: Recommendation[]): Snapshot => ({ ...snapshot, recommendations });
+const world = (data: Snapshot, onRecommendation = vi.fn()) => render(
+  <World data={data} sel={{ type: null, id: null }} onStation={() => {}} onTask={() => {}} onTaskAction={() => {}}
+    onArmory={() => {}} onPromotion={() => {}} onRegister={() => {}} onRecommendation={onRecommendation} />);
+
+describe('Qué hacer ahora', () => {
+  it('no se muestra con la lista vacía', () => {
+    world(withRecs([]));
+    expect(screen.queryByText('Qué hacer ahora')).not.toBeInTheDocument();
+    expect(screen.getByText('Necesita atención')).toBeInTheDocument();
+  });
+
+  it('pinta las 3 recomendaciones encima de «Necesita atención»', () => {
+    world(withRecs(three));
+    const block = screen.getByRole('region', { name: 'Qué hacer ahora' });
+    expect(block.querySelectorAll('.aitem')).toHaveLength(3);
+    expect(block.compareDocumentPosition(screen.getByRole('region', { name: 'Necesita tu atención' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('el botón navega según el destino', () => {
+    const onRecommendation = vi.fn();
+    world(withRecs(three), onRecommendation);
+    fireEvent.click(screen.getByRole('button', { name: /Tienes 3 propuestas/ }));
+    expect(onRecommendation).toHaveBeenCalledWith({ screen: 'PROPOSALS', brand_id: 'b', promotion_id: 'p' });
+    fireEvent.click(screen.getByRole('button', { name: /Crea las carpetas/ }));
+    expect(onRecommendation).toHaveBeenLastCalledWith({ screen: 'BRAND_FOLDERS', brand_id: 'b' });
+  });
+
+  it('una recomendación sin destino es solo texto, sin botón', () => {
+    world(withRecs(three));
+    expect(screen.getByText(/Claude no ha recogido los encargos/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Claude no ha recogido/ })).not.toBeInTheDocument();
+  });
+
+  it('en la fábrica, el botón de propuestas abre la promoción con el filtro «Propuestas»', async () => {
+    vi.spyOn(api, 'appMode').mockResolvedValue({ mode: 'REAL', demo_available: false } as never);
+    render(<Factory data={withRecs(three)} live={false} onRefresh={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: /Tienes 3 propuestas/ }));
+    expect(await screen.findByRole('button', { name: 'Propuestas' })).toHaveClass('on');
+  });
+
+  it('en la fábrica, el botón de carpetas abre la marca para crearlas', async () => {
+    vi.spyOn(api, 'appMode').mockResolvedValue({ mode: 'REAL', demo_available: false } as never);
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() => new Promise<Response>(() => {})); // las tarjetas de la marca se quedan cargando
+    render(<Factory data={withRecs(three)} live={false} onRefresh={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: /Crea las carpetas/ }));
+    expect(await screen.findByRole('form', { name: 'Editar marca' })).toBeInTheDocument();
+  });
+});
+
+describe('Mensajes al guardar', () => {
+  const pending = rec({ id: 'proposals-pending:p', kind: 'PROPOSALS_PENDING', title: 'Propuestas de «Lanzamiento del poemario» pedidas. Llegarán sobre las 9:40' });
+  it('promoción con propuestas en camino: dice la hora de la recomendación', () => {
+    expect(savedMessage('Promoción guardada', { promotionId: 'p' }, [pending])).toBe('Promoción guardada. Propuestas pedidas: llegarán sobre las 9:40');
+    expect(savedMessage('Promoción guardada', { promotionId: 'p' }, [{ ...pending, title: pending.title.replace('sobre', 'mañana sobre') }]))
+      .toContain('llegarán mañana sobre las 9:40');
+  });
+  it('promoción con propuestas retenidas: dice el motivo', () => {
+    const held = rec({ id: 'held-proposals:p', kind: 'HELD_PROPOSALS', title: 'x', detail: 'La marca no tiene carpeta de Encargos' });
+    expect(savedMessage('Promoción guardada', { promotionId: 'p' }, [held])).toBe('Promoción guardada. Las propuestas no pueden salir: La marca no tiene carpeta de Encargos');
+  });
+  it('promoción sin recomendación todavía: no inventa hora', () => {
+    const m = savedMessage('Promoción guardada', { promotionId: 'p' }, [{ ...pending, id: 'proposals-pending:otra' }]);
+    expect(m).toBe('Promoción guardada. Te avisaremos aquí del estado de sus propuestas en «Qué hacer ahora»');
+    expect(m).not.toMatch(/\d:\d\d/);
+  });
+  it('marca: añade el siguiente paso, o nada si no hay', () => {
+    expect(savedMessage('Marca guardada', { brandId: 'b' }, three)).toBe('Marca guardada · Siguiente paso: Tienes 3 propuestas de «Lanzamiento del poemario» para revisar');
+    expect(savedMessage('Marca guardada', { brandId: 'otra' }, three)).toBe('Marca guardada');
+  });
+  it('el registro avisa de qué se ha guardado', async () => {
+    vi.spyOn(api, 'updatePromotion').mockResolvedValue(snapshot.promotions[0]);
+    const onSaved = vi.fn();
+    render(<Registration data={snapshot} initial={{ kind: 'promotion', id: 'p' }} onClose={() => {}} onSaved={onSaved} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+    await waitFor(() => expect(onSaved).toHaveBeenCalledWith('Promoción guardada · Lanzamiento del poemario', { promotionId: 'p' }));
+  });
+  it('el alta de promoción desde una recomendación preselecciona la marca', () => {
+    const two = { ...snapshot, brands: [...snapshot.brands, { id: 'l', name: 'Litoques', handle: '@l', color: '#C98A1B', demo: false }] };
+    render(<Registration data={two} initial={{ kind: 'promotion', id: null, brandId: 'l' }} onClose={() => {}} onSaved={() => {}} />);
+    expect(screen.getByLabelText('Marca')).toHaveValue('l');
   });
 });

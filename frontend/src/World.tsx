@@ -3,6 +3,8 @@ import {
   PROMOTION_STATUS, PUBLICATION_STATUS, STATUS, alertTone, byPriority, isoDay, parseDay, shortDate, hhmm, statusClass,
   type Alert, type Brand, type Promotion, type PublicationStatus, type Snapshot, type Station, type Task, type TaskCommandType, type TaskStatus,
 } from './model';
+import { NextSteps } from './Recommendations';
+import type { RecommendationTarget } from './api/schema';
 import { AgentChip, BrandTag, Dot, Pill, StepState, prefersReducedMotion, stepClass } from './ui';
 
 // Geometría del anillo (coordenadas del lienzo)
@@ -45,6 +47,8 @@ export interface WorldProps {
   onPublication?: (id: string) => void;
   onPromotion: (id: string) => void;
   onRegister: () => void;
+  /** Abre la pantalla a la que lleva una recomendación de «Qué hacer ahora». */
+  onRecommendation?: (target: RecommendationTarget) => void;
 }
 
 /** Vista de una estación: si alguna tarea tiene error o la estación está bloqueada, pide atención. */
@@ -53,7 +57,7 @@ export function stationVisual(s: Station) {
   return { alert, running: s.counts.running > 0 && !s.paused } as const;
 }
 
-export function World({ data, sel, onStation, onTask, onTaskAction, onArmory, onPublication, onPromotion, onRegister }: WorldProps) {
+export function World({ data, sel, onStation, onTask, onTaskAction, onArmory, onPublication, onPromotion, onRegister, onRecommendation }: WorldProps) {
   const brands = new Map(data.brands.map(b => [b.id, b]));
   const brandOfPromotion = (pid?: string | null) => {
     const p = data.promotions.find(x => x.id === pid);
@@ -84,7 +88,10 @@ export function World({ data, sel, onStation, onTask, onTaskAction, onArmory, on
             <button className="open-cc" onClick={e => { e.stopPropagation(); onRegister(); }}>Marcas y promociones →</button>
           </article>
         )}
-        <AttentionCard data={data} onStation={onStation} onTask={onTask} onArmory={onArmory} onPublication={onPublication} />
+        <div className="side-stack">
+          <NextSteps items={data.recommendations} onOpen={t => onRecommendation?.(t)} />
+          <AttentionCard data={data} onStation={onStation} onTask={onTask} onArmory={onArmory} onPublication={onPublication} />
+        </div>
       </div>
       <section className="res" style={{ left: TR.x1 + 140, top: TR.y0 - 300, width: 380 }} aria-label="Agentes y herramientas">
         <h2>Agentes y herramientas</h2>

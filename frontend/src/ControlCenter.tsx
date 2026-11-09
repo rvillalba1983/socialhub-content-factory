@@ -20,8 +20,8 @@ const FILTERS: [string, string][] = [
   ['PUBLISHED', 'Publicadas'], ['issues', 'Con incidencia'],
 ];
 
-export function ControlCenter({ p, brand, data, initialTab, highlight, onClose, onTask, onEdit, onMessage }: {
-  p: Promotion; brand?: Brand; data: Snapshot; initialTab: string; highlight: string | null;
+export function ControlCenter({ p, brand, data, initialTab, initialFilter = 'all', highlight, onClose, onTask, onEdit, onMessage }: {
+  p: Promotion; brand?: Brand; data: Snapshot; initialTab: string; initialFilter?: string; highlight: string | null;
   onClose: () => void; onTask: (id: string) => void; onEdit: () => void; onMessage?: (message: string) => void;
 }) {
   /** Publicación abierta en el editor: su id, «new» para una nueva o null. */
@@ -34,7 +34,7 @@ export function ControlCenter({ p, brand, data, initialTab, highlight, onClose, 
     try { await action(); onMessage?.(message); } catch (e) { setActionError(e instanceof Error ? e.message : String(e)); }
   };
   const [tab, setTab] = useState(initialTab);
-  const [filter, setFilter] = useState('all');
+  const [filter, setFilter] = useState(initialFilter);
   const [hl, setHl] = useState<string | null>(highlight);
   const today = data.now.slice(0, 10);
   const pubs = data.publications.filter(x => x.promotion_id === p.id);
