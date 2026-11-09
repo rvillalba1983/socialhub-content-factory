@@ -408,3 +408,6 @@ Tras la primera prueba de Raúl con una marca y una promoción nuevas:
 - **Publora** (respuesta de Raúl): la recomendación sale hasta conectar la cuenta o pulsar «No uso Publora» en esa marca, y se puede deshacer en su tarjeta de Publora.
 - **Datos de las recomendaciones** (técnica): el descarte va en su propia tabla (`brand_publora_dismissed`), dentro del módulo de publicación. `promotion_id` y `eta_text` viajan como campos propios para no deducirlos del texto.
 - **Encargos sin recoger** (técnica): la recomendación ignora los encargos «para-claude-pc», porque los recoge otra tarea.
+- **Franja encima del mapa** (respuesta de Raúl): «Qué hacer ahora» va a ancho completo encima del mapa, fuera del zoom, con scroll propio (máximo 45 % de la altura) para no tapar el mapa.
+- **«Ver N más»** (respuesta de Raúl): se ven las 3 más importantes y un botón «Ver N más» / «Ver menos» despliega el resto. El backend devuelve la lista completa, sin recortar; las propuestas retenidas de una promoción salen solo ahí.
+- **Filas 4 y 7 ajustadas tras la revisión** (técnica): la fila 4 solo se mira si la carpeta de «Encargos» de la marca está disponible, y la fila 7 pide activar una promoción planificada o en pausa antes que dar de alta una nueva.

@@ -14,7 +14,7 @@ Con «Test inicial», a Raúl le han faltado recomendaciones de qué hacer y men
 
 ### 1. Bloque «Qué hacer ahora»
 
-En la pantalla principal, encima de «Necesita atención». Muestra de 1 a 3 recomendaciones, las más importantes, cada una con un botón a la pantalla donde se resuelve. Cada recomendación desaparece sola cuando deja de hacer falta. No hay casillas ni lista fija. Se calcula en cada consulta, sin guardarla.
+En la pantalla principal, como franja a ancho completo encima del mapa (fuera del zoom, con scroll propio si es alta). Se ven las 3 más importantes y, si hay más, un botón «Ver N más» / «Ver menos» despliega el resto; el backend devuelve la lista completa. Cada una con un botón a la pantalla donde se resuelve. Cada recomendación desaparece sola cuando deja de hacer falta. No hay casillas ni lista fija. Se calcula en cada consulta, sin guardarla.
 
 Por orden de prioridad:
 
@@ -30,6 +30,8 @@ Por orden de prioridad:
 | 8 | Propuestas pedidas y en camino | «Propuestas de {promoción} pedidas. Llegarán sobre las {próxima recogida}» | Ninguno, solo el texto |
 
 Si no hay nada que recomendar, el bloque no se muestra. Solo funciona en modo real, igual que los avisos de encargos retenidos.
+
+«No uso Publora» (fila 5): botón junto a la recomendación que la descarta para esa marca hasta que se conecte una cuenta; se puede deshacer en la tarjeta de Publora.
 
 Para no repetir, las propuestas retenidas (fila 1) salen solo en este bloque. Los demás encargos retenidos siguen en «Necesita atención».
 
