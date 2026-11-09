@@ -87,6 +87,8 @@ class FactoryRecommendationsTest {
         assertThat(r.getDetail()).isEqualTo("La marca no tiene carpeta de «Encargos».");
         assertThat(r.getTarget().getScreen()).isEqualTo(ScreenEnum.BRAND_FOLDERS);
         assertThat(r.getTarget().getBrandId()).isEqualTo("litoques");
+        assertThat(r.getPromotionId()).isEqualTo("lit-1");
+        assertThat(r.getEtaText()).isNull();
     }
 
     @Test
@@ -106,6 +108,7 @@ class FactoryRecommendationsTest {
         assertThat(r.getTarget().getScreen()).isEqualTo(ScreenEnum.PROPOSALS);
         assertThat(r.getTarget().getPromotionId()).isEqualTo("lit-1");
         assertThat(r.getTarget().getBrandId()).isEqualTo("litoques");
+        assertThat(r.getPromotionId()).isEqualTo("lit-1");
 
         when(publishing.proposalCounts()).thenReturn(Map.of("lit-1", 1L));
         assertThat(subject().compute().getFirst().getTitle()).isEqualTo("Tienes 1 propuesta de «Test inicial» para revisar");
@@ -117,6 +120,7 @@ class FactoryRecommendationsTest {
         var r = subject().compute().getFirst();
         assertThat(r.getKind()).isEqualTo(KindEnum.BRAND_FOLDERS_MISSING);
         assertThat(r.getTitle()).isEqualTo("Crea las carpetas de Litoques");
+        assertThat(r.getPromotionId()).isNull();
         assertThat(r.getTarget().getScreen()).isEqualTo(ScreenEnum.BRAND_FOLDERS);
         assertThat(r.getTarget().getBrandId()).isEqualTo("litoques");
     }
@@ -199,11 +203,14 @@ class FactoryRecommendationsTest {
         assertThat(r.getKind()).isEqualTo(KindEnum.PROPOSALS_PENDING);
         assertThat(r.getTitle()).isEqualTo("Propuestas de «Test inicial» pedidas. Llegarán sobre las 14:40");
         assertThat(r.getTarget()).isNull();
+        assertThat(r.getPromotionId()).isEqualTo("lit-1");
+        assertThat(r.getEtaText()).isEqualTo("sobre las 14:40");
 
         now = madrid(11, 9, 22, 0);
         when(sent.waiting()).thenReturn(List.of(sentOrder(AiRequestType.WEEKLY_PROPOSALS, madrid(11, 9, 21, 0))));
         assertThat(subject().compute().getFirst().getTitle())
                 .isEqualTo("Propuestas de «Test inicial» pedidas. Llegarán mañana sobre las 9:40");
+        assertThat(subject().compute().getFirst().getEtaText()).isEqualTo("mañana sobre las 9:40");
         now = madrid(11, 9, 6, 0);
         when(sent.waiting()).thenReturn(List.of(sentOrder(AiRequestType.WEEKLY_PROPOSALS, madrid(11, 8, 21, 0))));
         assertThat(subject().compute().getFirst().getTitle()).endsWith("Llegarán sobre las 9:40");

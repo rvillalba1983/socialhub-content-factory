@@ -49,19 +49,24 @@ export function NextSteps({ items, onOpen, onDismissPublora }: {
   );
 }
 
+/** Tiempo del aviso de confirmación: más largo si el mensaje lleva siguiente paso o estado de propuestas. */
+export function toastDuration(base: string, text: string): number {
+  return text !== base ? 6000 : 2800;
+}
+
 export interface SavedRef { promotionId?: string; brandId?: string }
 
 /**
  * Mensaje al guardar con el paso siguiente, sacado de las recomendaciones del siguiente estado de la fábrica.
- * Las recomendaciones de propuestas de una promoción llevan su id en el de la recomendación («proposals-pending:{id}»).
+ * Las recomendaciones de una promoción traen su `promotion_id` y, las de propuestas en camino, la hora en `eta_text`;
+ * no se deduce nada del id ni del título.
  */
 export function savedMessage(base: string, ref: SavedRef, recommendations: Recommendation[]): string {
   if (ref.promotionId) {
-    const held = recommendations.find(r => r.kind === 'HELD_PROPOSALS' && r.id === `held-proposals:${ref.promotionId}`);
+    const held = recommendations.find(r => r.kind === 'HELD_PROPOSALS' && r.promotion_id === ref.promotionId);
     if (held) return `${base}. Las propuestas no pueden salir${held.detail ? `: ${held.detail}` : ''}`;
-    const pending = recommendations.find(r => r.kind === 'PROPOSALS_PENDING' && r.id === `proposals-pending:${ref.promotionId}`);
-    const when = pending?.title.match(/Llegarán (.+)$/)?.[1];
-    if (when) return `${base}. Propuestas pedidas: llegarán ${when}`;
+    const pending = recommendations.find(r => r.kind === 'PROPOSALS_PENDING' && r.promotion_id === ref.promotionId);
+    if (pending?.eta_text) return `${base}. Propuestas pedidas: llegarán ${pending.eta_text}`;
     // El envío ocurre cada 30 s: justo al guardar puede no haber nada todavía. No se inventa hora.
     return `${base}. Te avisaremos aquí del estado de sus propuestas en «Qué hacer ahora»`;
   }

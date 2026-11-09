@@ -11,7 +11,7 @@ import { PublicationEditor } from './PublicationEditor';
 import { PubloraCard } from './Publora';
 import { BrandForm, PromotionForm, Registration } from './Registration';
 import { Factory } from './Factory';
-import { NextSteps, savedMessage } from './Recommendations';
+import { NextSteps, savedMessage, toastDuration } from './Recommendations';
 import type { Recommendation } from './api/schema';
 import { PieceOrders } from './PieceOrders';
 import type { ExternalOperationPage, Snapshot, Station, Task } from './model';
@@ -745,24 +745,34 @@ describe('Qué hacer ahora', () => {
 });
 
 describe('Mensajes al guardar', () => {
-  const pending = rec({ id: 'proposals-pending:p', kind: 'PROPOSALS_PENDING', title: 'Propuestas de «Lanzamiento del poemario» pedidas. Llegarán sobre las 9:40' });
+  const pending = rec({ id: 'proposals-pending:p', kind: 'PROPOSALS_PENDING', promotion_id: 'p', eta_text: 'sobre las 9:40',
+    title: 'Propuestas de «Lanzamiento del poemario» pedidas. Llegarán sobre las 9:40' });
   it('promoción con propuestas en camino: dice la hora de la recomendación', () => {
     expect(savedMessage('Promoción guardada', { promotionId: 'p' }, [pending])).toBe('Promoción guardada. Propuestas pedidas: llegarán sobre las 9:40');
-    expect(savedMessage('Promoción guardada', { promotionId: 'p' }, [{ ...pending, title: pending.title.replace('sobre', 'mañana sobre') }]))
+    expect(savedMessage('Promoción guardada', { promotionId: 'p' }, [{ ...pending, eta_text: 'mañana sobre las 9:40' }]))
       .toContain('llegarán mañana sobre las 9:40');
   });
   it('promoción con propuestas retenidas: dice el motivo', () => {
-    const held = rec({ id: 'held-proposals:p', kind: 'HELD_PROPOSALS', title: 'x', detail: 'La marca no tiene carpeta de Encargos' });
+    const held = rec({ id: 'held-proposals:p', kind: 'HELD_PROPOSALS', promotion_id: 'p', title: 'x', detail: 'La marca no tiene carpeta de Encargos' });
     expect(savedMessage('Promoción guardada', { promotionId: 'p' }, [held])).toBe('Promoción guardada. Las propuestas no pueden salir: La marca no tiene carpeta de Encargos');
   });
   it('promoción sin recomendación todavía: no inventa hora', () => {
-    const m = savedMessage('Promoción guardada', { promotionId: 'p' }, [{ ...pending, id: 'proposals-pending:otra' }]);
+    const m = savedMessage('Promoción guardada', { promotionId: 'p' }, [{ ...pending, id: 'proposals-pending:otra', promotion_id: 'otra' }]);
     expect(m).toBe('Promoción guardada. Te avisaremos aquí del estado de sus propuestas en «Qué hacer ahora»');
     expect(m).not.toMatch(/\d:\d\d/);
   });
   it('marca: añade el siguiente paso, o nada si no hay', () => {
     expect(savedMessage('Marca guardada', { brandId: 'b' }, three)).toBe('Marca guardada · Siguiente paso: Tienes 3 propuestas de «Lanzamiento del poemario» para revisar');
     expect(savedMessage('Marca guardada', { brandId: 'otra' }, three)).toBe('Marca guardada');
+  });
+  it('el aviso dura 6 s con siguiente paso o estado de propuestas, y 2,8 s si no', () => {
+    const long = savedMessage('Promoción guardada', { promotionId: 'p' }, [pending]);
+    expect(toastDuration('Promoción guardada', long)).toBe(6000);
+    const brand = savedMessage('Marca guardada', { brandId: 'b' }, three);
+    expect(toastDuration('Marca guardada', brand)).toBe(6000);
+    const none = savedMessage('Marca guardada', { brandId: 'otra' }, three);
+    expect(toastDuration('Marca guardada', none)).toBe(2800);
+    expect(toastDuration('Hecho', 'Hecho')).toBe(2800);
   });
   it('el registro avisa de qué se ha guardado', async () => {
     vi.spyOn(api, 'updatePromotion').mockResolvedValue(snapshot.promotions[0]);

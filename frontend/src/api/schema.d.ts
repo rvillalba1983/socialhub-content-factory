@@ -918,6 +918,10 @@ export interface components {
             title: string;
             /** @description Más información (por ejemplo, el motivo de un encargo retenido) */
             detail?: string;
+            /** @description Promoción a la que se refiere la recomendación (propuestas retenidas, por revisar o en camino). La interfaz usa este campo y no lo deduce del id ni del título */
+            promotion_id?: string;
+            /** @description Solo en propuestas en camino: cuándo llegarán, en español («sobre las 9:40» o «mañana sobre las 9:40»). La interfaz usa este campo y no lo deduce del título */
+            eta_text?: string;
             target?: components["schemas"]["RecommendationTarget"];
         };
         /** @description A qué pantalla lleva el botón. Sin target, la recomendación es solo un texto. */

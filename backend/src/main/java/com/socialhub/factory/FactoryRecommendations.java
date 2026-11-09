@@ -70,7 +70,7 @@ class FactoryRecommendations {
             var promotion = promotionById.get(promotionId);
             all.add(recommendation("held-proposals:" + promotionId, RecommendationDto.KindEnum.HELD_PROPOSALS,
                     "Las propuestas de «" + promotion.name() + "» no pueden salir", h.reason(),
-                    RecommendationTargetDto.ScreenEnum.BRAND_FOLDERS, promotion.brandId(), null));
+                    RecommendationTargetDto.ScreenEnum.BRAND_FOLDERS, promotion.brandId(), null).promotionId(promotionId));
         });
 
         // 2. Propuestas para revisar
@@ -80,7 +80,7 @@ class FactoryRecommendations {
             if (n == 0) continue;
             all.add(recommendation("proposals-review:" + promotion.id(), RecommendationDto.KindEnum.PROPOSALS_TO_REVIEW,
                     "Tienes " + n + (n == 1 ? " propuesta" : " propuestas") + " de «" + promotion.name() + "» para revisar",
-                    null, RecommendationTargetDto.ScreenEnum.PROPOSALS, promotion.brandId(), promotion.id()));
+                    null, RecommendationTargetDto.ScreenEnum.PROPOSALS, promotion.brandId(), promotion.id()).promotionId(promotion.id()));
         }
 
         // 3. Marca sin todas sus carpetas
@@ -132,11 +132,11 @@ class FactoryRecommendations {
         }
         ZonedDateTime next = ClaudePickups.nextAfter(now);
         boolean tomorrow = !next.toLocalDate().equals(now.atZone(ClaudePickups.ZONE).toLocalDate());
+        String eta = (tomorrow ? "mañana " : "") + "sobre las " + hour(next);
         waiting.keySet().forEach(promotionId -> all.add(recommendation("proposals-pending:" + promotionId,
                 RecommendationDto.KindEnum.PROPOSALS_PENDING,
-                "Propuestas de «" + promotionById.get(promotionId).name() + "» pedidas. Llegarán "
-                        + (tomorrow ? "mañana " : "") + "sobre las " + hour(next),
-                null, null, null, null)));
+                "Propuestas de «" + promotionById.get(promotionId).name() + "» pedidas. Llegarán " + eta,
+                null, null, null, null).promotionId(promotionId).etaText(eta)));
 
         return List.copyOf(all.subList(0, Math.min(MAX, all.size())));
     }

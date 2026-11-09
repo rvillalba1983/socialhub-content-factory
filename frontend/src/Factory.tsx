@@ -5,7 +5,7 @@ import { ControlCenter } from './ControlCenter';
 import { ExternalOperations } from './ExternalOperations';
 import { Backups, Closed, Halted, ShutdownButton } from './Backups';
 import { Registration } from './Registration';
-import { savedMessage, type SavedRef } from './Recommendations';
+import { savedMessage, toastDuration, type SavedRef } from './Recommendations';
 import type { RecommendationTarget } from './api/schema';
 import { Icon } from './icons';
 import {
@@ -233,13 +233,14 @@ export function Factory({ data, live, onRefresh }: {
   };
 
   // ---------- acciones ----------
-  const say = useCallback((m: string) => { setToast(m); window.setTimeout(() => setToast(null), 2800); }, []);
+  const say = useCallback((m: string, ms = 2800) => { setToast(m); window.setTimeout(() => setToast(null), ms); }, []);
   /** Al guardar, el paso siguiente sale del siguiente estado de la fábrica, no de lo que la interfaz supone. */
   const saved = useCallback(async (message: string, ref?: SavedRef) => {
     if (!ref) { say(message); onRefresh(); return; }
     let text = message;
     try { text = savedMessage(message, ref, (await api.factory()).recommendations); } catch { /* se queda el mensaje simple */ }
-    say(text);
+    // Con siguiente paso o estado de propuestas el mensaje es más largo: se deja más tiempo para leerlo.
+    say(text, toastDuration(message, text));
     onRefresh();
   }, [onRefresh, say]);
   /** «No uso Publora»: guarda el descarte y refresca para que la recomendación desaparezca. */
