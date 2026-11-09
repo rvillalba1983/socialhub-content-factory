@@ -36,12 +36,14 @@ class FactoryController implements FactoryApi {
     private final AppModeHolder mode;
     private final Clock clock;
     private final com.socialhub.ai.AiHeldOrders heldOrders;
+    private final FactoryRecommendations recommendations;
 
     @Override
     @Transactional(readOnly = true)
     public ResponseEntity<FactoryDto> getFactory() {
         var snapshot = production.snapshot();
         var armoryItems = armoryMapper.toDtos(armory.items());
+        boolean real = mode.selected() == com.socialhub.platform.AppMode.REAL;
         return ResponseEntity.ok(new FactoryDto(
                 OffsetDateTime.now(clock),
                 mode.isDemo(),
@@ -53,7 +55,8 @@ class FactoryController implements FactoryApi {
                 armoryItems,
                 promotions.commonRules(),
                 alerts(snapshot.alerts(), armoryItems, publishing.publishAlerts(),
-                        mode.selected() == com.socialhub.platform.AppMode.REAL ? heldOrders.current() : List.of())));
+                        real ? heldOrders.current() : List.of()),
+                real ? recommendations.compute() : List.of()));
     }
 
     /**
@@ -66,6 +69,8 @@ class FactoryController implements FactoryApi {
         List<AlertDto> alerts = new ArrayList<>(production);
         // Encargos a Claude que no pueden salir hasta que Raúl arregle algo (por ejemplo, una carpeta)
         for (var h : held) {
+            // Las propuestas retenidas salen en «Qué hacer ahora», no aquí
+            if (h.isPromotionProposals()) continue;
             alerts.add(new AlertDto(AlertDto.KindEnum.BLOCKED, AlertDto.TargetTypeEnum.TASK, h.taskId(), h.stationId(),
                     "En cola: " + h.title(), h.reason()));
         }

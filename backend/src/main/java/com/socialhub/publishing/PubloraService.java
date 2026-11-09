@@ -65,6 +65,10 @@ public class PubloraService {
         return accounts.accounts(brandId);
     }
 
+    /** La marca tiene al menos una cuenta de Publora elegida. */
+    @Transactional(readOnly = true)
+    public boolean hasAccounts(String brandId) { return !accounts.accounts(brandId).isEmpty(); }
+
     /** Cada cuenta tiene que estar conectada en Publora y ser de su red. */
     @Transactional
     public List<PubloraAccountRepository.Account> saveAccounts(String brandId, List<Choice> choices) {

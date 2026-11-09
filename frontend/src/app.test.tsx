@@ -48,6 +48,7 @@ const snapshot: Snapshot = {
   tasks: [task({ id: 't13', station_id: 'prog', status: 'FAILED', error: 'Publer no respondió' })],
   publications: [], armory_items: [], common_rules: [],
   alerts: [{ kind: 'FAILED', target_type: 'TASK', target_id: 't13', station_id: 'prog', title: 'Tarea de prueba', detail: 'Publer no respondió' }],
+  recommendations: [],
 };
 
 afterEach(() => vi.restoreAllMocks());

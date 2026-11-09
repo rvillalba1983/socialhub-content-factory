@@ -131,8 +131,10 @@ class AiDispatcher {
     /** Sigue en cola por algo que tiene que arreglar Raúl: queda anotado en la tarea y sale en «Necesita atención». */
     private void hold(AiTask task, String reason) {
         production.keepQueued(task.id(), reason);
-        String station = AiRequestType.ofTaskType(task.type()).map(AiRequestType::stationId).orElse("gen");
-        holding.put(task.id(), new AiHeldOrders.Held(task.id(), station, task.title(), reason));
+        Optional<AiRequestType> type = AiRequestType.ofTaskType(task.type());
+        String station = type.map(AiRequestType::stationId).orElse("gen");
+        holding.put(task.id(), new AiHeldOrders.Held(task.id(), station, task.title(), reason, task.promotionId(),
+                type.orElse(null)));
     }
 
     /** Escribe el encargo con otro nombre y lo renombra al final, para que nadie lea un archivo a medias. */
