@@ -412,3 +412,14 @@ Tras la primera prueba de Raúl con una marca y una promoción nuevas:
 - **«Ver N más»** (respuesta de Raúl): se ven las 3 más importantes y un botón «Ver N más» / «Ver menos» despliega el resto. El backend devuelve la lista completa, sin recortar; las propuestas retenidas de una promoción salen solo ahí.
 - **Filas 4 y 7 ajustadas tras la revisión** (técnica): la fila 4 solo se mira si la carpeta de «Encargos» de la marca está disponible, y la fila 7 pide activar una promoción planificada o en pausa antes que dar de alta una nueva.
 - **Merge de la PR #32** (petición de Raúl): lo hizo Claude porque Raúl lo pidió expresamente para esta PR; la regla general sigue siendo que solo Raúl hace merge.
+
+## Fase 11 · Arreglos de la primera semana real (11 nov 2026)
+
+- **Semana fija** (técnica): un encargo de propuestas sin fecha toma la semana de cuando se creó, no la de cuando se envía o se lee.
+- **Planificadas** (respuesta de Raúl): pasan solas a «Activa» el día que empiezan, y sus propuestas de la primera semana se piden igual que las de una activa.
+- **Propuestas no válidas** (respuesta de Raúl): se quitan solo las malas y entran las buenas. Son no válidas las que tienen fecha u hora ilegible, una red desconocida, caen fuera de la semana o de las fechas de la promoción, o son para dentro de menos de 6 horas (margen aprobado por Raúl). Si no queda ninguna, el encargo falla y se reintenta.
+- **Propuestas paradas** (respuesta de Raúl): la fila de retenidas de la franja dice también si es por Drive no disponible o por el límite diario. Para el límite, lleva a la pantalla «Claude».
+- **Al momento** (respuesta de Raúl): las propuestas de la primera semana se piden al guardar la promoción, sin esperar a la ronda de 10 minutos.
+- **Especificación** (respuesta de Raúl): no se pide mientras la semana no tenga publicaciones aprobadas, y la franja lo dice.
+- **Avisar si falta algo para publicar** (petición de Raúl): «Agentes y herramientas» enseña Claude en la nube, Claude en el PC · Publer y Publora. «Necesita atención» avisa si la tarea del PC no contesta o si no hay forma de publicar.
+- **Tarea «Publicar con Chrome»** (OK de Raúl): reactivada el 11 nov. Estaba desactivada desde el 8 nov, tras fallar por el límite de uso.

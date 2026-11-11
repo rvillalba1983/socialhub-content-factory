@@ -1,6 +1,6 @@
 # Fase 11 · Arreglos de la primera semana real
 
-Estado: **Plan pendiente del OK de Raúl** (11 nov 2026, ampliado por la tarde con la semana real).
+Estado: **Plan aprobado por Raúl el 11 nov 2026 a las 18:06.** En marcha.
 
 ## Qué se ha visto
 
@@ -89,7 +89,7 @@ Al guardar una promoción que ya toca (nueva, activada o con fechas cambiadas), 
 - En cuanto se aprueba una publicación de esa semana, se pide en la siguiente ronda.
 
 ### 7. Avisar si falta algo para publicar
-Propuesta de Claude, pendiente del OK de Raúl, que pidió que «si falta algo que conectar para poder publicar, debería salir»:
+Aprobado por Raúl, que pidió que «si falta algo que conectar para poder publicar, debería salir»:
 - **«Agentes y herramientas»** enseña tres filas nuevas, cada una con su estado y una nota:
   - **Claude en la nube:** último resultado recogido.
   - **Claude en el PC · Publer:** último resultado, o los encargos del PC sin contestar y desde cuándo.
@@ -135,5 +135,4 @@ Un solo bloque: rama `fase-11-arreglos` y una PR. Commit y push tras cada paso.
 - Con Drive cerrado o el límite agotado, la franja dice por qué no salen las propuestas.
 
 ## Pendiente
-- El OK de Raúl a este plan.
 - Comparar el portátil con la torre HP con `ficha-equipo.bat`, otro día: a la torre le faltan cables.
