@@ -231,6 +231,27 @@ paths:
         "404": { $ref: "#/components/responses/Problem" }
         default: { $ref: "#/components/responses/Problem" }
 
+  /api/promotions/{promotion_id}/metrics:
+    get:
+      tags: [Publications]
+      operationId: getPromotionMetrics
+      summary: Métricas de la promoción (totales por red y comparación por formato)
+      description: >
+        Solo cuenta las publicaciones con métrica leída (DONE). `measured` son las medidas y `pending` las publicadas
+        que aún no tienen métrica. Totales por red: suma de cada cifra (null si ninguna publicación la tiene).
+        Por formato y red: media por publicación (no suma, porque los grupos tienen distinto tamaño; solo cuentan las
+        publicaciones que tienen esa cifra), con low_sample si el grupo tiene menos de 5 publicaciones.
+      parameters:
+        - $ref: "#/components/parameters/PromotionId"
+      responses:
+        "200":
+          description: Métricas agregadas
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PromotionMetrics" }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
   /api/app/shutdown:
     post:
       tags: [App]
@@ -1491,6 +1512,49 @@ components:
         saves: { type: integer, format: int64 }
         shares: { type: integer, format: int64 }
         note: { type: string }
+
+    PromotionMetrics:
+      type: object
+      required: [measured, pending, by_network, by_format]
+      properties:
+        measured: { type: integer, format: int32, description: Publicaciones con métrica leída }
+        pending: { type: integer, format: int32, description: Publicadas que aún no tienen métrica leída }
+        by_network:
+          type: array
+          description: Una fila por red (INSTAGRAM, TIKTOK) y una última TOTAL, con la suma de cada cifra
+          items: { $ref: "#/components/schemas/NetworkMetrics" }
+        by_format:
+          type: array
+          description: Un grupo por formato y red, con la media por publicación
+          items: { $ref: "#/components/schemas/FormatMetrics" }
+
+    NetworkMetrics:
+      type: object
+      required: [network, publications]
+      properties:
+        network: { type: string, enum: [INSTAGRAM, TIKTOK, TOTAL] }
+        publications: { type: integer, format: int32 }
+        views: { type: integer, format: int64 }
+        reach: { type: integer, format: int64 }
+        likes: { type: integer, format: int64 }
+        comments: { type: integer, format: int64 }
+        saves: { type: integer, format: int64 }
+        shares: { type: integer, format: int64 }
+
+    FormatMetrics:
+      type: object
+      required: [type, network, publications, low_sample]
+      properties:
+        type: { type: string, description: Formato de la publicación }
+        network: { type: string, enum: [INSTAGRAM, TIKTOK] }
+        publications: { type: integer, format: int32 }
+        low_sample: { type: boolean, description: Menos de 5 publicaciones en el grupo }
+        views: { type: number, format: double }
+        reach: { type: number, format: double }
+        likes: { type: number, format: double }
+        comments: { type: number, format: double }
+        saves: { type: number, format: double }
+        shares: { type: number, format: double }
 
     ExternalCalendar:
       type: object
