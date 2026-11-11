@@ -46,6 +46,21 @@ jobs:
           if (-not (Get-Process chrome -ErrorAction SilentlyContinue)) { Write-Host 'Chrome no sigue abierto'; exit 1 }
           Write-Host 'Pasada OK'
 
+      - name: SocialHub cerrado con Cerrar o caido
+        run: |
+          $d = Join-Path $env:RUNNER_TEMP 'logs'; New-Item -ItemType Directory -Force $d | Out-Null
+          $started = '2026-11-11T12:22:41.037+01:00  INFO 771 --- [socialhub] [main] [,] com.socialhub.SocialHubApplication : Started SocialHubApplication in 16.4 seconds'
+          $closed  = '2026-11-11T13:00:00.000+01:00  INFO 771 --- [socialhub] [nio-8686-exec-1] [,] c.s.platform.web.AppController : SocialHub se cierra a peticion desde la web'
+          Set-Content "$d\cerrado.log" -Value @($started, 'x', $closed, 'Stopping...') -Encoding UTF8
+          Set-Content "$d\caido.log"   -Value @($started, 'x', 'y') -Encoding UTF8
+          Set-Content "$d\reabierto.log" -Value @($started, $closed, $started) -Encoding UTF8
+          $r1 = .\mantener-abiertos.ps1 -TestUserClose "$d\cerrado.log"
+          $r2 = .\mantener-abiertos.ps1 -TestUserClose "$d\caido.log"
+          $r3 = .\mantener-abiertos.ps1 -TestUserClose "$d\reabierto.log"
+          $r4 = .\mantener-abiertos.ps1 -TestUserClose "$d\no-existe.log"
+          Write-Host "cerrado: $r1 | caido: $r2 | reabierto: $r3 | sin registro: $r4"
+          if ($r1 -ne 'cerrado por Raul' -or $r2 -ne 'caido o sin cerrar' -or $r3 -ne 'caido o sin cerrar' -or $r4 -ne 'caido o sin cerrar') { exit 1 }
+
       - name: Instalar, comprobar y desinstalar
         run: |
           .\instalar.ps1

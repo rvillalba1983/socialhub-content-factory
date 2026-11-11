@@ -417,4 +417,5 @@ Tras la primera prueba de Raúl con una marca y una promoción nuevas:
 
 - **Siempre abiertos** (petición de Raúl): un script de Windows (`scripts/windows/siempre-abierto/`) mantiene abiertos Claude de escritorio, OpenCode Desktop y Chrome, y los reabre si se cierran.
 - **Sin suspensión** (respuesta de Raúl): mientras el script está en marcha, Windows no se duerme; la pantalla sí puede apagarse.
+- **SocialHub también** (respuesta de Raúl): se abre al iniciar sesión y se reabre solo si se cae; si se cierra con «Cerrar», se respeta hasta el siguiente inicio de sesión. Se distingue por su registro (técnica).
 - **Cómo arranca** (técnica): acceso directo en la carpeta «Inicio» del usuario, sin ventana y sin permisos de administrador. Abre los programas por su nombre en el menú Inicio, sin rutas fijas. Se prueba en Windows con `.github/workflows/siempre-abierto.yml`.

@@ -18,7 +18,9 @@ Resultado el 26 oct 2026 en Windows 10 (19045): todo OK. Ver `docs/decisiones.md
 
 ## siempre-abierto/
 
-Mantiene abiertos en el PC de Raúl la app de Claude de escritorio, OpenCode y Chrome. Cada minuto mira si están abiertos y, si falta alguno, lo abre desde el menú Inicio. Mientras está en marcha, Windows no se duerme (la pantalla sí puede apagarse). Así Claude puede llegar al PC y las tareas programadas («Publicar con Chrome») encuentran Chrome abierto.
+Mantiene abiertos en el PC de Raúl la app de Claude de escritorio, OpenCode, Chrome y SocialHub. Cada minuto mira si están abiertos y, si falta alguno, lo abre desde el menú Inicio.
+
+SocialHub se trata aparte: se abre al iniciar sesión y se reabre si se cae, pero si Raúl lo cierra con su botón «Cerrar» (por ejemplo, para instalar una versión nueva) se respeta hasta el siguiente inicio de sesión. Lo distingue por la última línea de arranque o cierre de `%LOCALAPPDATA%\SocialHub\logs\socialhub.log`. Mientras se instala un `.msi` no lo toca, y le da 5 minutos para arrancar. Mientras está en marcha, Windows no se duerme (la pantalla sí puede apagarse). Así Claude puede llegar al PC y las tareas programadas («Publicar con Chrome») encuentran Chrome abierto.
 
 - **Instalar:** doble clic en `instalar.bat`. Copia el script a `%LOCALAPPDATA%\SiempreAbierto`, lo pone en la carpeta «Inicio» del usuario (arranca solo al iniciar sesión, sin ventana) y lo arranca ya. No necesita permisos de administrador.
 - **Quitar:** doble clic en `desinstalar.bat`. Lo para, lo quita del inicio de sesión y Windows vuelve a dormirse como siempre. No cierra ningún programa.

@@ -22,7 +22,7 @@ $lnk.TargetPath = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\pow
 $lnk.Arguments = $args_
 $lnk.WorkingDirectory = $dir
 $lnk.WindowStyle = 7
-$lnk.Description = 'Mantiene abiertos Claude, OpenCode y Chrome, y evita que Windows se duerma'
+$lnk.Description = 'Mantiene abiertos Claude, OpenCode, Chrome y SocialHub, y evita que Windows se duerma'
 $lnk.Save()
 Write-Host "Arrancará solo al iniciar sesión: $link"
 

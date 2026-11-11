@@ -1,11 +1,14 @@
-﻿# Siempre abierto · Mantiene abiertos Claude, OpenCode y Chrome, y que Windows no se duerma
+﻿# Siempre abierto · Mantiene abiertos Claude, OpenCode, Chrome y SocialHub, y que Windows no se duerma
 # Cada minuto mira si cada programa está abierto y, si no, lo abre desde el menú Inicio.
+# SocialHub se abre al iniciar sesión y se reabre si se cae, pero no si se ha cerrado con su botón «Cerrar»
+# (eso se respeta hasta el siguiente inicio de sesión). Tampoco se toca mientras se instala un .msi.
 # Mientras este script corre, Windows no entra en suspensión (la pantalla sí puede apagarse).
 # Registro: %LOCALAPPDATA%\SiempreAbierto\registro.log
 #
 # -Once: una sola pasada (para probarlo), sin bucle y sin evitar la suspensión.
+# -TestUserClose <registro>: solo dice si ese registro de SocialHub acaba en un cierre con «Cerrar» (para probarlo).
 
-param([switch]$Once)
+param([switch]$Once, [string]$TestUserClose)
 
 $ErrorActionPreference = 'Continue'
 
@@ -14,10 +17,25 @@ $ErrorActionPreference = 'Continue'
 $apps = @(
   @{ Name = 'Claude';   Menu = @('Claude');                       Processes = @('claude') },
   @{ Name = 'OpenCode'; Menu = @('OpenCode', 'OpenCode Desktop');  Processes = @('OpenCode', 'opencode', 'opencode-desktop', 'OpenCode Desktop') },
-  @{ Name = 'Chrome';   Menu = @('Google Chrome');                 Processes = @('chrome') }
+  @{ Name = 'Chrome';   Menu = @('Google Chrome');                 Processes = @('chrome') },
+  @{ Name = 'SocialHub'; Menu = @('SocialHub');                     Processes = @('SocialHub'); Url = 'http://127.0.0.1:8686/';
+     Grace = 300; RespectUserClose = $true; WaitForInstaller = $true }
 )
 $intervalSeconds = 60   # cada cuánto se mira
 $graceSeconds    = 120  # tras abrir un programa, cuánto se le deja arrancar antes de volver a intentarlo
+
+$socialHubLog = Join-Path $env:LOCALAPPDATA 'SocialHub\logs\socialhub.log'
+
+# ¿Lo último que dice el registro de SocialHub es que se cerró con «Cerrar»? (y no un arranque posterior)
+function Test-ClosedByUser([string]$path) {
+  if (-not (Test-Path $path)) { return $false }
+  $last = Get-Content -Path $path -Tail 3000 -Encoding UTF8 -ErrorAction SilentlyContinue |
+    Where-Object { $_ -match 'Started SocialHubApplication' -or $_ -match 'SocialHub se cierra a petici' } |
+    Select-Object -Last 1
+  return [bool]($last -and $last -match 'SocialHub se cierra a petici')
+}
+
+if ($TestUserClose) { if (Test-ClosedByUser $TestUserClose) { 'cerrado por Raul' } else { 'caido o sin cerrar' }; exit 0 }
 
 $dir = Join-Path $env:LOCALAPPDATA 'SiempreAbierto'
 New-Item -ItemType Directory -Force -Path $dir | Out-Null
@@ -65,17 +83,36 @@ function Find-Launcher($app) {
 }
 
 function Test-Running($app) {
-  return [bool](Get-Process -Name $app.Processes -ErrorAction SilentlyContinue)
+  if (Get-Process -Name $app.Processes -ErrorAction SilentlyContinue) { return $true }
+  if ($app.Url) {
+    try { Invoke-WebRequest -Uri $app.Url -UseBasicParsing -TimeoutSec 5 | Out-Null; return $true }
+    catch { if ($_.Exception.Response) { return $true } }
+  }
+  return $false
 }
 
 $lastLaunch  = @{}
 $lastMissing = @{}
+$firstPass   = $true
+$userClosed  = @{}
 
 function Invoke-Pass {
   foreach ($app in $apps) {
-    if (Test-Running $app) { continue }
+    if (Test-Running $app) { $userClosed.Remove($app.Name); continue }
+    $grace = if ($app.Grace) { $app.Grace } else { $graceSeconds }
     $since = if ($lastLaunch.ContainsKey($app.Name)) { ((Get-Date) - $lastLaunch[$app.Name]).TotalSeconds } else { [double]::MaxValue }
-    if ($since -lt $graceSeconds) { continue }
+    if ($since -lt $grace) { continue }
+    if ($app.WaitForInstaller -and (Get-Process -Name 'msiexec' -ErrorAction SilentlyContinue | Where-Object { $_.SessionId -ne 0 })) { continue }
+    # Al iniciar sesión se abre siempre; después, si se cerró con «Cerrar», se respeta
+    if ($app.RespectUserClose -and -not $script:firstPass) {
+      if ($userClosed.ContainsKey($app.Name)) { continue }
+      if (Test-ClosedByUser $socialHubLog) {
+        $userClosed[$app.Name] = $true
+        Write-Log "$($app.Name) se ha cerrado con «Cerrar»: no se reabre hasta el siguiente inicio de sesión."
+        continue
+      }
+      Write-Log "$($app.Name) se había caído (no se cerró con «Cerrar»)."
+    }
     $launcher = Find-Launcher $app
     if (-not $launcher) {
       # Una vez por hora como mucho, para no llenar el registro
@@ -95,6 +132,7 @@ function Invoke-Pass {
     }
     $lastLaunch[$app.Name] = Get-Date
   }
+  $script:firstPass = $false
 }
 
 if ($Once) {

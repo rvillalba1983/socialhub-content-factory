@@ -1,6 +1,6 @@
 ﻿# Siempre abierto · Desinstalación
 # Para el script, quita el acceso directo de «Inicio» y Windows vuelve a dormirse como siempre.
-# Deja el registro en %LOCALAPPDATA%\SiempreAbierto. No cierra Claude, OpenCode ni Chrome.
+# Deja el registro en %LOCALAPPDATA%\SiempreAbierto. No cierra Claude, OpenCode, Chrome ni SocialHub.
 
 $ErrorActionPreference = 'Continue'
 $link = Join-Path ([Environment]::GetFolderPath('Startup')) 'Siempre abierto (Claude, OpenCode y Chrome).lnk'
