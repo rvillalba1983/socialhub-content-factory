@@ -6,6 +6,7 @@ on:
   pull_request:
     paths:
       - 'scripts/windows/siempre-abierto/**'
+      - 'scripts/windows/ficha-equipo/**'
       - '.github/workflows/siempre-abierto.yml'
   workflow_dispatch:
 
@@ -23,7 +24,7 @@ jobs:
       - name: Sintaxis (PowerShell 5.1, el de Windows)
         run: |
           $bad = 0
-          foreach ($f in Get-ChildItem *.ps1) {
+          foreach ($f in Get-ChildItem ..\*.ps1 -Recurse | Where-Object { $_.Directory.Name -in 'siempre-abierto','ficha-equipo' }) {
             $errors = $null
             [System.Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref]$null, [ref]$errors) | Out-Null
             if ($errors) { $bad++; $errors | ForEach-Object { Write-Host "$($f.Name): $($_.Message) (línea $($_.Extent.StartLineNumber))" } }
@@ -67,3 +68,15 @@ jobs:
           if ((powercfg /requests | Out-String) -match '(?s)SYSTEM:.*powershell') { Write-Host 'Sigue impidiendo la suspensión'; exit 1 }
           Write-Host '--- registro ---'; Get-Content "$env:LOCALAPPDATA\SiempreAbierto\registro.log"
           Write-Host 'Instalación y desinstalación OK'
+
+      - name: Ficha del equipo
+        working-directory: scripts/windows/ficha-equipo
+        run: |
+          .\ficha-equipo.ps1
+          $f = Get-ChildItem ficha-*.txt | Select-Object -First 1
+          if (-not $f) { Write-Host 'No ha dejado la ficha'; exit 1 }
+          $t = Get-Content $f.FullName -Raw
+          foreach ($s in '== Equipo','== Procesador','== Memoria','== Discos','== Windows','Total:','compilación') {
+            if ($t -notmatch [regex]::Escape($s)) { Write-Host "Falta «$s» en la ficha"; exit 1 }
+          }
+          Write-Host 'Ficha OK'

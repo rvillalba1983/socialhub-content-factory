@@ -27,3 +27,9 @@ Mantiene abiertos en el PC de Raúl la app de Claude de escritorio, OpenCode y C
 - **Límites:** solo funciona con la sesión iniciada; si el PC se reinicia, hay que entrar en Windows. Para que no se duerma, el PC no puede estar apagado ni con la tapa cerrada (en un portátil, según su configuración).
 
 La prueba en un Windows real está en `.github/workflows/siempre-abierto.yml`. Se lanza sola en cada PR que cambia estos archivos.
+
+## ficha-equipo/
+
+Apunta en `ficha-<nombre del equipo>.txt`, junto al script, lo necesario para decidir si un PC sirve como servidor de SocialHub: modelo, procesador (y si cumple con Windows 11), memoria y ranuras libres, discos (SSD o mecánico) y espacio libre, versión de Windows, UEFI, TPM y arranque seguro, red, programas instalados (Claude, OpenCode, Chrome, Google Drive, SocialHub) y energía. Solo lee: no instala ni cambia nada.
+
+Se usa con doble clic en `ficha-equipo.bat`. Para ver también TPM y arranque seguro: clic derecho › «Ejecutar como administrador».
