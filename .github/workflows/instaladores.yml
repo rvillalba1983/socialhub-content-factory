@@ -18,7 +18,7 @@ on:
         description: "Publicar en una release de GitHub (privada, como el repositorio)"
         type: boolean
         default: false
-  # Al cambiar este workflow en una PR, se prueba el .msi (sin publicar nada)
+  # Al cambiar este workflow en una PR, se prueban el .msi y el .dmg (sin publicar nada)
   pull_request:
     paths: [".github/workflows/instaladores.yml"]
 
@@ -159,7 +159,8 @@ jobs:
 
   macos:
     name: Instalador de macOS (.dmg)
-    if: github.event_name == 'workflow_dispatch' && inputs.sistemas == 'windows-y-macos'
+    # macOS gasta x10 minutos: solo a mano con «windows-y-macos» o en una PR que cambia este workflow
+    if: github.event_name == 'pull_request' || inputs.sistemas == 'windows-y-macos'
     needs: windows
     runs-on: macos-latest
     timeout-minutes: 40
@@ -183,6 +184,18 @@ jobs:
       - name: Empaquetar SocialHub con la web
         working-directory: backend
         run: mvn -B -DskipTests package
+      # PostgreSQL y FFmpeg salen del sistema en el que se compila (perfiles del pom): aquí, Apple Silicon
+      - name: Comprobar que el jar lleva PostgreSQL y FFmpeg de macOS
+        run: |
+          libs=$(unzip -Z1 backend/target/socialhub.jar | grep '^BOOT-INF/lib/' || true)
+          echo "$libs" | grep -E 'postgres|ffmpeg|javacpp'
+          arch=$(uname -m)
+          if [ "$arch" = "arm64" ]; then pg=darwin-arm64v8; ff=macosx-arm64; else pg=darwin-amd64; ff=macosx-x86_64; fi
+          echo "$libs" | grep -q "embedded-postgres-binaries-$pg" || { echo "::error::El jar no lleva PostgreSQL de macOS ($pg)"; exit 1; }
+          echo "$libs" | grep -q "ffmpeg-.*-$ff-gpl.jar" || { echo "::error::El jar no lleva FFmpeg de macOS ($ff)"; exit 1; }
+          echo "$libs" | grep -q "javacpp-.*-$ff.jar" || { echo "::error::El jar no lleva javacpp de macOS ($ff)"; exit 1; }
+          if echo "$libs" | grep -E 'binaries-(linux|windows)|-(linux|windows)-'; then echo "::error::El jar lleva binarios de otro sistema"; exit 1; fi
+          echo "El jar lleva PostgreSQL y FFmpeg de macOS ($arch)"
       - name: Crear el .dmg
         run: |
           mkdir -p entrada salida
@@ -191,8 +204,56 @@ jobs:
             --vendor "$FABRICANTE" --description "$DESCRIPCION" \
             --input entrada --main-jar socialhub.jar --dest salida \
             --java-options "-Dsocialhub.desktop=true" \
-            --mac-package-identifier com.socialhub.app
+            --mac-package-identifier com.socialhub.app --verbose
           ls -la salida
+      # Prueba real: se monta el .dmg, se copia la app (como al arrastrarla a Aplicaciones), se abre y se cierra desde la web
+      - name: Montar y probar el .dmg
+        run: |
+          dmg=$(ls salida/*.dmg | head -1)
+          hdiutil attach "$dmg" -nobrowse -readonly -mountpoint "$RUNNER_TEMP/dmg"
+          ls -la "$RUNNER_TEMP/dmg"
+          mkdir -p "$RUNNER_TEMP/apps"
+          cp -R "$RUNNER_TEMP/dmg/SocialHub.app" "$RUNNER_TEMP/apps/"
+          hdiutil detach "$RUNNER_TEMP/dmg"
+          exe="$RUNNER_TEMP/apps/SocialHub.app/Contents/MacOS/SocialHub"
+          [ -x "$exe" ] || { ls -R "$RUNNER_TEMP/apps/SocialHub.app/Contents" | head -40; echo "::error::No está $exe"; exit 1; }
+          logs="$HOME/Library/Application Support/SocialHub/logs/socialhub.log"
+          mostrar_registro() { [ -f "$logs" ] && tail -80 "$logs" || echo "(no hay registro en $logs)"; }
+          esperar() {
+            for i in $(seq 1 90); do
+              if curl -fsS --noproxy '*' -m 3 http://127.0.0.1:8686/api/app-mode > "$RUNNER_TEMP/modo.json" 2>/dev/null; then return 0; fi
+              sleep 2
+            done
+            return 1
+          }
+          "$exe" > "$RUNNER_TEMP/salida.log" 2>&1 &
+          app=$!
+          if ! esperar; then mostrar_registro; cat "$RUNNER_TEMP/salida.log"; echo "::error::SocialHub instalado no respondió en 127.0.0.1:8686"; exit 1; fi
+          echo "Responde: $(cat "$RUNNER_TEMP/modo.json")"
+          curl -fsS --noproxy '*' http://127.0.0.1:8686/ | grep -q '<div id="root">' || { echo "::error::La web no se sirve"; exit 1; }
+          [ -f "$logs" ] || { echo "::error::No hay registro en $logs"; exit 1; }
+          # PostgreSQL arrancó: hay proceso suyo, su carpeta de datos tiene postmaster.pid y el registro no habla de fallos
+          pgrep -f "SocialHub/runtime/.*/bin/postgres" > /dev/null || { ps aux | grep -i postgres | head; mostrar_registro; echo "::error::No hay proceso de PostgreSQL"; exit 1; }
+          [ -f "$HOME/Library/Application Support/SocialHub/pgdata/postmaster.pid" ] || { echo "::error::No existe postmaster.pid"; exit 1; }
+          grep -qi "database system is ready to accept connections\|PostgreSQL" "$logs" || { mostrar_registro; echo "::error::El registro no menciona PostgreSQL"; exit 1; }
+          echo "PostgreSQL en marcha"
+          # FFmpeg incluido: se extrae y se ejecuta
+          ff=$(find "$HOME/Library/Application Support/SocialHub/runtime" -name ffmpeg -type f 2>/dev/null | head -1)
+          if [ -n "$ff" ]; then "$ff" -version | head -1; else echo "FFmpeg aún no extraído (se extrae al usarlo)"; fi
+          # Segundo arranque: solo abre el navegador y termina
+          "$exe" > "$RUNNER_TEMP/segundo.log" 2>&1 &
+          segundo=$!
+          for i in $(seq 1 15); do kill -0 "$segundo" 2>/dev/null || break; sleep 2; done
+          if kill -0 "$segundo" 2>/dev/null; then kill "$segundo"; echo "::error::El segundo arranque no terminó: arrancaría dos veces"; exit 1; fi
+          echo "Segundo arranque terminó enseguida, como debe"
+          curl -fsS --noproxy '*' -X POST -H 'X-SocialHub-Request: 1' http://127.0.0.1:8686/api/app/shutdown > /dev/null
+          for i in $(seq 1 30); do kill -0 "$app" 2>/dev/null || break; sleep 2; done
+          if kill -0 "$app" 2>/dev/null; then mostrar_registro; echo "::error::SocialHub no se cerró desde la web"; exit 1; fi
+          if pgrep -f "SocialHub/runtime/.*/bin/postgres" > /dev/null; then echo "::error::PostgreSQL sigue en marcha después de cerrar"; exit 1; fi
+          echo "Se cierra desde la web y para PostgreSQL"
+      - name: Registro de SocialHub
+        if: always()
+        run: tail -80 "$HOME/Library/Application Support/SocialHub/logs/socialhub.log" 2>/dev/null || true
       - uses: actions/upload-artifact@v4
         with:
           name: instalador-macos
