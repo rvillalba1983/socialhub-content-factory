@@ -38,19 +38,12 @@ Desde la fase 10 (PR #32) la pantalla principal tiene la franja «Qué hacer aho
 
 ## Fase 11 (en curso, 11 nov)
 
-- Pruebas funcionales hechas en la nube: resultados y plan en `docs/fase-11.md`, rama `fase-11-arreglos`. **Falta el OK de Raúl al plan**, incluido el margen de 6 h para descartar propuestas «pasadas».
-- Pendiente en el PC de Raúl, en cuanto esté enlazado:
-  1. Leer `logs\socialhub.log`, `logs\pg_ctl.log` y el estado de «Test inicial». Raúl lo ha autorizado, solo lectura.
-  2. Comprobar el registro de «Siempre abierto» (`%LOCALAPPDATA%\SiempreAbierto\registro.log`), sobre todo si encuentra OpenCode Desktop.
+- Plan en `docs/fase-11.md`, rama `fase-11-arreglos`. Incluye las pruebas en la nube y la semana real de Raúl, sacada de los logs de su PC y de los encargos de Drive. **Falta su OK**, incluido el margen de 6 h para las propuestas «pasadas».
+- Causa de que no le llegaran las propuestas: un encargo sin fecha recalcula su semana al leerse (fallo 0 del plan).
 - PR #33 (`pc-siempre-abierto`, en verde, sin merge):
-  - `scripts/windows/siempre-abierto`: Claude, OpenCode y Chrome siempre abiertos, y Windows sin suspensión.
-  - `scripts/windows/ficha-equipo`: ficha de un PC.
-- Raúl quiere comparar su portátil con una torre HP de 2013 (serie CZC313…) para usarla como servidor de Claude y SocialHub. La comparación se hará con `ficha-equipo.bat` en las dos máquinas.
-- Antes avisarle de esto en la torre:
-  - si no admite Windows 11, Windows 10 ya no recibe parches de seguridad;
-  - necesita al menos 8 GB y un SSD;
-  - consume más luz que el portátil;
-  - el cable de vídeo probablemente sea DisplayPort → HDMI.
+  - «Siempre abierto»: Claude, OpenCode, Chrome y SocialHub. Ya está instalado en el portátil de Raúl y funciona.
+  - Ficha del equipo.
+- Pendiente para otro día: comparar el portátil con la torre HP de 2013, que aún no tiene cables, con `ficha-equipo.bat` en las dos.
 
 ## Siguiente
 

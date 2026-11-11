@@ -1,10 +1,24 @@
 # Fase 11 · Arreglos de la primera semana real
 
-Estado: **Plan pendiente del OK de Raúl** (11 nov 2026).
+Estado: **Plan pendiente del OK de Raúl** (11 nov 2026, ampliado por la tarde con la semana real).
 
 ## Qué se ha visto
 
-Raúl no ha podido contar todavía qué le pasó con «Test inicial» y la 0.9.2. Por eso, el 11 nov Claude probó en la nube, en modo real, la primera semana de dos marcas (Litoques y El DeLito). Una carpeta local hizo de Google Drive y Claude escribió a mano los resultados en `de-claude`.
+### La semana real de Raúl
+
+Datos sacados de los logs de su PC y de los encargos de `G:\Mi unidad\socialhub\litoques\encargos`, leídos con su permiso.
+
+- **8 nov, 19:26:** instalación desde cero en modo real y carpetas creadas en `G:\Mi unidad\socialhub\litoques\`. Drive tardó unos 2 minutos en tenerlas disponibles.
+- **8 nov, 20:42:** se piden las propuestas **sin fecha** (`items: []`). `WeeklyProposalsHandler.weekStart` entiende «el lunes que viene»: la semana del 9 al 15. Claude devuelve el 9 nov a las 9:43 un buen lote de 14 propuestas.
+- **Al leer el resultado, la semana se vuelve a calcular con la fecha de ese momento.** Era lunes, así que salió la del 16 al 22: las 14 quedan «fuera de la semana», se descarta el lote entero y se reintenta solo.
+- **El reintento ya pide la semana del 16 al 22,** aunque «Test inicial» termina el 15. Claude avisa en `warnings`, pero las propuestas entran porque no se comprueban las fechas de la promoción. Hoy hay 7 en producción y se han pedido sus textos. Raúl ampliará la promoción a mano.
+- **La especificación semanal** de la semana del 9 se pidió sin ninguna publicación aprobada. Claude contestó `needs_human` («el esquema exige al menos una pieza»). Raúl la reintentó hoy a mano.
+- **SocialHub estuvo cerrado del 9 nov por la tarde al 11 nov a las 17:32.** Lo abrió el script «Siempre abierto» (PR #33).
+- **Errata en la identidad de la marca:** «prefereida». Claude la corrigió en sus textos; Raúl la arreglará en la ficha.
+
+### Pruebas en la nube
+
+El 11 nov por la mañana Claude probó en la nube, en modo real, la primera semana de dos marcas (Litoques y El DeLito). Una carpeta local hizo de Google Drive y Claude escribió a mano los resultados en `de-claude`.
 
 **Funciona bien**
 - La franja «Qué hacer ahora» recorre todos los estados en orden: retenidas → crear carpetas → «pedidas, llegarán sobre las 14:40» → «Tienes N propuestas» → revisadas. Cada fila desaparece al resolverla, sin recargar.
@@ -19,16 +33,24 @@ Raúl no ha podido contar todavía qué le pasó con «Test inicial» y la 0.9.2
 
 | # | Qué pasa | Gravedad |
 |---|---|---|
+| 0 | Un encargo de propuestas sin fecha recalcula «la semana que viene» al enviarse y al leerse. Si entre una cosa y otra pasa un lunes, el resultado bueno se rechaza entero y el reintento pide otra semana (caso real del 8-9 nov). | Muy alta: es lo que le pasó a Raúl |
 | 1 | Una promoción nueva se guarda «Planificada» por defecto. Solo las «Activas» reciben propuestas y nada las activa solas, ni el día que empiezan. Al guardar solo dice «Promoción guardada». | Alta: sin propuestas y sin saber por qué |
 | 2 | «Crea las carpetas de…» y «Conecta Publora para…» abren la ficha de la marca, pero la tarjeta queda fuera de la pantalla: la página baja antes de que carguen la identidad y la memoria editorial. Las pruebas no lo ven porque simulan el desplazamiento. | Media |
 | 3 | Se aceptan propuestas con fecha pasada. Una del día anterior entró, se aprobó y SocialHub pidió a Claude su texto (encargo gastado). | Media |
 | 4 | Una sola propuesta fuera de la semana descarta todo el lote, incluidas las buenas. | Media |
 | 5 | Si las propuestas no salen porque Drive no está disponible o porque se ha gastado el límite diario de encargos, la franja no dice nada. Lo de Drive solo sale en «Necesita atención» y lo del límite, solo en el historial de la tarea. | Media |
 | 6 | Tras activar una promoción, la franja tarda hasta 10 min en decir que las propuestas están pedidas (ronda de `AiAutoOrders`). | Baja |
+| 7 | La especificación semanal se pide aunque la semana no tenga publicaciones aprobadas: Claude solo puede contestar `needs_human` y se gasta un encargo (caso real). | Media |
 
 Vistos y dejados fuera por Raúl: la hora sin el día en «Próximas publicaciones», que «Necesita atención» solo enseñe 2 avisos y que el registro no tenga una línea por resultado inválido.
 
 ## Qué se va a hacer (decidido por Raúl el 11 nov)
+
+### 0. La semana de un encargo de propuestas se fija al crearlo
+- Todo encargo de propuestas guarda su semana (el lunes) en sus datos de entrada al crearse, también el del botón «Pedir propuestas a Claude».
+- Al enviarlo, al reintentarlo y al leer el resultado se usa siempre esa semana, nunca «el lunes que viene» calculado en ese momento.
+- Los encargos que ya existen sin fecha toman la semana que se envió en su último archivo de `para-claude`.
+- Prueba con el caso real: encargo creado un domingo y resultado leído el lunes.
 
 ### 1. Las promociones planificadas se activan solas
 - Una promoción «Planificada» pasa sola a «Activa» el día en que empieza (`starts_on` ≤ hoy, hora de España), en la ronda de encargos automáticos. Queda anotado en su historial.
@@ -58,6 +80,11 @@ En la misma fila «Las propuestas de {promoción} no pueden salir», con su moti
 
 ### 5. Propuestas pedidas al momento
 Al guardar una promoción que ya toca (nueva, activada o con fechas cambiadas), sus propuestas de la primera semana se piden en ese momento, sin esperar a la ronda de 10 minutos. Salen a Drive en el siguiente envío (30 s) y la franja dice «pedidas» enseguida.
+
+### 6. La especificación espera a que haya publicaciones aprobadas
+- La especificación semanal no se pide mientras esa semana no tenga ninguna publicación aprobada de la promoción. No se gasta ningún encargo.
+- La franja lo dice, sin botón: «La especificación de {promoción} espera a que apruebes publicaciones de la semana del D».
+- En cuanto se aprueba una publicación de esa semana, se pide en la siguiente ronda.
 
 ## Fuera de esta fase
 - Los detalles menores que Raúl no ha elegido (ver arriba).
@@ -89,7 +116,10 @@ Un solo bloque: rama `fase-11-arreglos` y una PR. Commit y push tras cada paso.
 - Al guardarla, el mensaje dice cuándo llegarán sus propuestas, y la franja lo dice en menos de un minuto.
 - Los botones de la franja enseñan la tarjeta de carpetas o de Publora en pantalla.
 - Un lote con una propuesta de ayer y tres buenas deja tres para revisar y lo explica.
+- Un encargo de propuestas creado un domingo y leído el lunes conserva su semana y sus propuestas entran.
+- Una semana sin publicaciones aprobadas no pide especificación, y la franja lo dice.
 - Con Drive cerrado o el límite agotado, la franja dice por qué no salen las propuestas.
 
 ## Pendiente
-- Leer en el PC de Raúl `logs\socialhub.log`, `logs\pg_ctl.log` y el estado de «Test inicial», para confirmar qué le pasó de verdad. Raúl lo ha autorizado (solo lectura), pero el 11 nov su PC no respondía.
+- El OK de Raúl a este plan.
+- Comparar el portátil con la torre HP con `ficha-equipo.bat`, otro día: a la torre le faltan cables.
