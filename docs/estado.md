@@ -36,25 +36,31 @@ Desde la fase 10 (PR #32) la pantalla principal tiene la franja «Qué hacer aho
     - «Encargos de SocialHub», en la nube: 9:40, 14:40 y 20:40.
     - «Publicar con Chrome (SocialHub)», en su PC: cada hora de 8:40 a 22:40, con Chrome abierto y la sesión de Publer.
 
-## Fase 11 (en curso, 11 nov)
+## Fase 11 (cerrada el 11 nov, pendiente de merge)
 
-- Plan en `docs/fase-11.md`, rama `fase-11-arreglos`. Incluye las pruebas en la nube y la semana real de Raúl, sacada de los logs de su PC y de los encargos de Drive. **Falta su OK**, incluido el margen de 6 h para las propuestas «pasadas».
-- Causa de que no le llegaran las propuestas: un encargo sin fecha recalcula su semana al leerse (fallo 0 del plan).
-- PR #33 (`pc-siempre-abierto`, en verde, sin merge):
-  - «Siempre abierto»: Claude, OpenCode, Chrome y SocialHub. Ya está instalado en el portátil de Raúl y funciona.
-  - Ficha del equipo.
-- Pendiente para otro día: comparar el portátil con la torre HP de 2013, que aún no tiene cables, con `ficha-equipo.bat` en las dos.
+- PR #35 (`fase-11-arreglos`). Se une junto con la #33 (scripts de Windows «Siempre abierto» y «Ficha del equipo») y la #34 (arreglo del mapa del código). Tras el merge: instalador `.msi` 0.9.3.
+- Qué incluye: los puntos 0 a 8 de `docs/fase-11.md`, más los arreglos de la revisión y el aviso de «Promoción activada sola».
+- Comprobado con Playwright en modo real: los 10 puntos de «Cómo sabremos que está bien», sin errores en la consola.
+- Fuera del código, 11 nov:
+  - Claude reactivó la tarea «Publicar con Chrome» con el OK de Raúl.
+  - El script «Siempre abierto» está instalado en el portátil de Raúl.
+  - TikTok: se usa la cuenta personal de Raúl, renombrada a `@litoques.eldelito`, pública, con nombre «Lito · Litoques · El DeLito».
 
-## Siguiente
+## Siguiente: fase 12 (una sola fase, decisión de Raúl del 11 nov)
 
-Tras cerrar la fase 11 (merge junto con las PR #33 y #34), una fase por conversación:
-- **Métricas:** pestaña de la promoción con métricas reales. Dudas pendientes:
-  1. qué cifras (hoy se leen 6 por publicación, pero la pestaña enseña 8; impresiones, seguidores ganados y clics son de la cuenta);
-  2. cómo resumirlas (totales, medias o comparación por formato, día, hora y red);
-  3. muestra mínima para sacar conclusiones;
-  4. medir también a las 24–48 h o solo a los 7 días;
-  5. Instagram y TikTok juntos o por separado.
-- **macOS:** instalador (`.dmg`) y pruebas.
-- **API oficial de Instagram**, y estudio de si programar con Chrome desde la web de Instagram o desde Meta Business Suite puede sustituir a Publer.
-- **TikTok:** Raúl crea las cuentas de Litoques y El DeLito (11 nov). Luego hay que conectarlas a Publer y a SocialHub.
-- Buffer: descartado para siempre.
+Todo lo pendiente va en una fase, por bloques y con una PR por bloque:
+1. **Métricas:** pestaña de la promoción con métricas reales. Dudas para Raúl, de una en una:
+   - qué cifras: hoy se leen 6 por publicación y la pestaña enseña 8; impresiones, seguidores ganados y clics son de la cuenta;
+   - cómo resumirlas: totales, medias o comparación por formato, día, hora y red;
+   - muestra mínima para sacar conclusiones;
+   - medir también a las 24–48 h o solo a los 7 días;
+   - Instagram y TikTok juntos o por separado.
+2. **macOS:** instalador (`.dmg`) y pruebas.
+3. **API oficial de Instagram**, y estudio de si programar con Chrome desde la web de Instagram o desde Meta Business Suite (gratis) puede sustituir a Publer.
+4. **TikTok en SocialHub:**
+   - Raúl pasa `@litoques.eldelito` a cuenta de empresa desde el móvil y pone el enlace en la descripción;
+   - conectarla en Publer;
+   - añadirla a las dos marcas.
+5. **Detalles visuales de «Necesita atención»** en el mapa: los textos se cortan con «…» y, con 3 avisos o más, la tarjeta tapa la estación 07. Con muchas recomendaciones, el «Ver N más» de la franja queda suelto.
+
+También pendiente, fuera de fase: comparar el portátil con la torre HP de 2013 (`ficha-equipo.bat`) cuando la torre tenga cables. Buffer: descartado para siempre.

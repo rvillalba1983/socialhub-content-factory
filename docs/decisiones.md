@@ -425,7 +425,7 @@ Tras la primera prueba de Raúl con una marca y una promoción nuevas:
 - **Avisar si falta algo para publicar** (petición de Raúl): «Agentes y herramientas» enseña Claude en la nube, Claude en el PC · Publer y Publora. «Necesita atención» avisa si la tarea del PC no contesta o si no hay forma de publicar.
 - **Tarea «Publicar con Chrome»** (OK de Raúl): reactivada el 11 nov. Estaba desactivada desde el 8 nov, tras fallar por el límite de uso.
 - **Buffer** (respuesta de Raúl, 11 nov): descartado para siempre. No se integrará en SocialHub.
-- **Próximas fases** (respuesta de Raúl, 11 nov), una por conversación tras cerrar la fase 11:
+- **Fase 12 única** (respuesta de Raúl, 11 nov): todo lo pendiente va en una sola fase, por bloques. Contenido inicial:
   - pestaña «Métricas» de la promoción, con las dudas en `docs/estado.md`;
   - instalador de macOS;
   - API oficial de Instagram, junto con un estudio de si programar desde la web de Instagram o desde Meta Business Suite con Chrome puede sustituir a Publer.
