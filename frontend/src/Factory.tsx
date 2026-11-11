@@ -234,6 +234,7 @@ export function Factory({ data, live, onRefresh }: {
       setReg(t.promotion_id ? { kind: 'promotion', id: t.promotion_id } : { kind: 'promotion', id: null, brandId: t.brand_id });
     }
     else if (t.screen === 'BACKUPS') setCopias(true);
+    else if (t.screen === 'CLAUDE') setClaude(true);
   }, []);
   const home = useCallback(() => { setCc(null); setSel({ type: null, id: null }); requestAnimationFrame(fit); }, [fit]);
 
@@ -257,7 +258,7 @@ export function Factory({ data, live, onRefresh }: {
   }, []);
   /** Al guardar, el paso siguiente sale del siguiente estado de la fábrica, no de lo que la interfaz supone. */
   const saved = useCallback(async (message: string, ref?: SavedRef) => {
-    if (!ref) { say(message); onRefresh(); return; }
+    if (!ref) { say(message, message.includes('. ') ? 6000 : 2800); onRefresh(); return; }
     let text = message;
     try { text = savedMessage(message, ref, (await api.factory()).recommendations); } catch { /* se queda el mensaje simple */ }
     // Con siguiente paso o estado de propuestas el mensaje es más largo: se deja más tiempo para leerlo.

@@ -1,4 +1,4 @@
-import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, vi } from 'vitest';
 import { api } from './api';
 import { Backups, Halted, ShutdownButton } from './Backups';
@@ -796,6 +796,76 @@ describe('Qué hacer ahora', () => {
     } finally {
       delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView;
     }
+  });
+
+  it('mientras la ficha crece al cargar, vuelve a colocar la tarjeta; deja de hacerlo si la persona se desplaza', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() => new Promise<Response>(() => {}));
+    const scroll = vi.fn();
+    Element.prototype.scrollIntoView = scroll;
+    let resized: () => void = () => {};
+    const disconnect = vi.fn();
+    vi.stubGlobal('ResizeObserver', class { constructor(cb: () => void) { resized = cb; } observe() {} disconnect = disconnect; });
+    try {
+      render(<Registration data={snapshot} initial={{ kind: 'brand', id: 'b', focus: 'folders' }} onClose={() => {}} onSaved={() => {}} />);
+      await screen.findByRole('form', { name: 'Editar marca' });
+      await waitFor(() => expect(scroll).toHaveBeenCalledTimes(1));
+      resized(); resized();
+      expect(scroll).toHaveBeenCalledTimes(3);
+      expect((scroll.mock.contexts[2] as HTMLElement).getAttribute('data-card')).toBe('folders');
+      fireEvent.wheel(document.body);
+      expect(disconnect).toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+      delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView;
+    }
+  });
+
+  it('el destino CLAUDE abre la pantalla de encargos a Claude', async () => {
+    vi.spyOn(api, 'appMode').mockResolvedValue({ mode: 'REAL', demo_available: false } as never);
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() => new Promise<Response>(() => {}));
+    const limit = rec({ id: 'ai-limit', kind: 'HELD_PROPOSALS', title: 'Se ha gastado el límite diario de encargos', target: { screen: 'CLAUDE' } });
+    render(<Factory data={withRecs([limit])} live={false} onRefresh={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: /límite diario de encargos\. Ir a Claude/ }));
+    expect(await screen.findByRole('heading', { name: 'Encargos a Claude' })).toBeInTheDocument();
+  });
+
+  it('pinta las recomendaciones nuevas y las filas y avisos nuevos de Agentes y herramientas', () => {
+    const base = { demo: false, capabilities: [] };
+    const data: Snapshot = {
+      ...withRecs([
+        rec({ id: 'spec-waiting', kind: 'SPEC_WAITING', title: 'La especificación semanal espera publicaciones aprobadas' }),
+        rec({ id: 'pc-silent', kind: 'PC_TASK_SILENT', title: 'La tarea del PC no contesta', target: { screen: 'CLAUDE' } }),
+        rec({ id: 'no-route', kind: 'NO_PUBLISHING_ROUTE', title: 'No hay forma de publicar', target: { screen: 'PUBLORA', brand_id: 'b' } }),
+      ]),
+      armory_items: [
+        { ...base, id: 'claude-cloud', kind: 'AGENT', name: 'Claude (nube)', description: 'Encargos', status: 'OK', note: 'Al día' },
+        { ...base, id: 'claude-pc', kind: 'AGENT', name: 'Claude (PC)', description: 'Tarea del PC', status: 'WAITING', note: 'Sin respuesta' },
+        { ...base, id: 'publora', kind: 'SERVICE', name: 'Publora', description: 'Publicación', status: 'FAILED', note: 'Sin clave' },
+        { ...base, id: 'otro', kind: 'TOOL', name: 'Otro', description: 'Inactivo', status: 'IDLE', note: '-' },
+      ],
+      alerts: [{ kind: 'BLOCKED', target_type: 'ARMORY', target_id: 'claude-pc', station_id: 'pub', title: 'La tarea del PC no contesta', detail: 'Sin respuesta' }],
+    };
+    world(data);
+    const strip = screen.getByRole('region', { name: 'Qué hacer ahora' });
+    expect(within(strip).getAllByRole('button', { name: /Ir a/ })).toHaveLength(2);
+    expect(within(strip).getByText('La especificación semanal espera publicaciones aprobadas').closest('.aitem')).toHaveClass('static');
+    const panel = screen.getByRole('region', { name: 'Agentes y herramientas' });
+    for (const n of ['Claude (nube)', 'Claude (PC)', 'Publora']) expect(within(panel).getByText(n)).toBeInTheDocument();
+    expect(panel.querySelectorAll('.dot.s-ok, .dot.s-wait, .dot.s-err, .dot.s-idle')).toHaveLength(4);
+  });
+
+  it('el aviso de Publora o del PC abre ese elemento de la armería', () => {
+    const go = { onTask: vi.fn(), onStation: vi.fn(), onArmory: vi.fn() };
+    openAlert({ kind: 'FAILED', target_type: 'ARMORY', target_id: 'publora', station_id: 'pub', title: 'Publora', detail: 'x' }, go);
+    expect(go.onArmory).toHaveBeenCalledWith('publora');
+  });
+
+  it('al guardar una promoción con proposals_note, el aviso la incluye', async () => {
+    vi.spyOn(api, 'updatePromotion').mockResolvedValue({ ...snapshot.promotions[0], proposals_note: 'Sus propuestas se pedirán el lunes 16 a las 18:00' });
+    const onSaved = vi.fn();
+    render(<Registration data={snapshot} initial={{ kind: 'promotion', id: 'p' }} onClose={() => {}} onSaved={onSaved} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+    await waitFor(() => expect(onSaved).toHaveBeenCalledWith('Promoción guardada · Lanzamiento del poemario. Sus propuestas se pedirán el lunes 16 a las 18:00'));
   });
 
   it('«Activa una promoción» abre esa promoción; sin promotion_id, el alta de una nueva', async () => {

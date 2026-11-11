@@ -19,6 +19,37 @@ const PROMOTION_STATUS: [PromotionInput['status'], string][] = [
   ['PLANNED', 'Planificada'], ['ACTIVE', 'Activa'], ['PAUSED', 'En pausa'], ['FINISHED', 'Terminada'],
 ];
 
+/** Cuánto tiempo se sigue recolocando la tarjeta destino mientras la ficha termina de cargar. */
+export const SCROLL_FOLLOW_MS = 6000;
+
+/**
+ * Baja hasta la tarjeta `[data-card=…]` y, mientras el contenido de la ficha crece al cargar (identidad, memoria
+ * editorial…), vuelve a colocarla arriba cada vez que el contenedor cambia de tamaño. Deja de seguirla en cuanto
+ * la persona se desplaza por su cuenta (rueda, tacto, teclado o ratón) o pasado un tiempo corto.
+ */
+export function useScrollToCard(card?: string) {
+  useEffect(() => {
+    if (!card) return;
+    const find = () => document.querySelector(`[data-card="${card}"]`) as HTMLElement | null;
+    const go = (behavior: ScrollBehavior) => find()?.scrollIntoView?.({ block: 'start', behavior });
+    go('smooth');
+    const host = find()?.closest('.cc-in') ?? document.querySelector('.cc-in');
+    let ro: ResizeObserver | undefined;
+    if (host && typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(() => go('auto'));
+      ro.observe(host);
+    }
+    const stop = () => {
+      ro?.disconnect(); window.clearTimeout(timer);
+      for (const ev of USER_SCROLL) window.removeEventListener(ev, stop, true);
+    };
+    const timer = window.setTimeout(stop, SCROLL_FOLLOW_MS);
+    for (const ev of USER_SCROLL) window.addEventListener(ev, stop, { capture: true, passive: true });
+    return stop;
+  }, [card]);
+}
+const USER_SCROLL = ['wheel', 'touchstart', 'keydown', 'pointerdown'] as const;
+
 /** Alta y edición de marcas y promociones. */
 export function Registration({ data, initial, onClose, onSaved }: {
   data: Snapshot; initial: Editing; onClose: () => void;
@@ -28,10 +59,7 @@ export function Registration({ data, initial, onClose, onSaved }: {
   const [editing, setEditing] = useState<Editing>(initial);
   const brands = new Map(data.brands.map(b => [b.id, b]));
   const focus = initial?.kind === 'brand' ? initial.focus : undefined;
-  // Si la recomendación apunta a una tarjeta de la marca (carpetas o Publora), se baja hasta ella
-  useEffect(() => {
-    if (focus) document.querySelector(`[data-card="${focus}"]`)?.scrollIntoView?.({ block: 'start', behavior: 'smooth' });
-  }, [focus]);
+  useScrollToCard(focus);
 
   return (
     <section className="cc" aria-label="Marcas y promociones">
@@ -55,7 +83,12 @@ export function Registration({ data, initial, onClose, onSaved }: {
         {editing?.kind === 'brand' && editing.id && <PubloraCard brandId={editing.id} onSaved={onSaved} />}
         {editing?.kind === 'promotion' && (
           <PromotionForm data={data} brandId={editing.brandId} promotion={editing.id ? data.promotions.find(p => p.id === editing.id) : undefined}
-            onCancel={() => setEditing(null)} onSaved={p => { setEditing(null); onSaved(`Promoción guardada · ${p.name}`, { promotionId: p.id, status: p.status }); }} />
+            onCancel={() => setEditing(null)} onSaved={p => {
+              setEditing(null);
+              // Si el servidor dice qué pasará con las propuestas, se usa su frase (sin ref no se añade otra)
+              if (p.proposals_note) onSaved(`Promoción guardada · ${p.name}. ${p.proposals_note}`);
+              else onSaved(`Promoción guardada · ${p.name}`, { promotionId: p.id, status: p.status });
+            }} />
         )}
         {editing?.kind === 'promotion' && editing.id && <FolderRoles owner="promotion" id={editing.id} onSaved={onSaved} />}
 
