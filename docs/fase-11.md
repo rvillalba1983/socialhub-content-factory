@@ -14,7 +14,8 @@ Datos sacados de los logs de su PC y de los encargos de `G:\Mi unidad\socialhub\
 - **El reintento ya pide la semana del 16 al 22,** aunque «Test inicial» termina el 15. Claude avisa en `warnings`, pero las propuestas entran porque no se comprueban las fechas de la promoción. Hoy hay 7 en producción y se han pedido sus textos. Raúl ampliará la promoción a mano.
 - **La especificación semanal** de la semana del 9 se pidió sin ninguna publicación aprobada. Claude contestó `needs_human` («el esquema exige al menos una pieza»). Raúl la reintentó hoy a mano.
 - **SocialHub estuvo cerrado del 9 nov por la tarde al 11 nov a las 17:32.** Lo abrió el script «Siempre abierto» (PR #33).
-- **Errata en la identidad de la marca:** «prefereida». Claude la corrigió en sus textos; Raúl la arreglará en la ficha.
+- **Errata en la identidad de la marca:** «prefereida». Claude la corrigió en sus textos. Raúl ya la ha arreglado en la ficha y ha ampliado «Test inicial».
+- **La tarea programada «Publicar con Chrome (SocialHub)» estaba desactivada desde el 8 nov,** tras fallar por el límite de uso de Claude. Nadie hacía los encargos de `para-claude-pc`: el «Leer calendario» del 9 nov sigue sin respuesta y nada se habría programado en Publer. Tampoco hay clave de Publora. SocialHub no avisaba de nada: «Necesita atención» estaba vacío y «Agentes y herramientas» solo enseña Drive, las copias y las herramientas locales. Claude la reactivó el 11 nov con el OK de Raúl.
 
 ### Pruebas en la nube
 
@@ -41,6 +42,7 @@ El 11 nov por la mañana Claude probó en la nube, en modo real, la primera sema
 | 5 | Si las propuestas no salen porque Drive no está disponible o porque se ha gastado el límite diario de encargos, la franja no dice nada. Lo de Drive solo sale en «Necesita atención» y lo del límite, solo en el historial de la tarea. | Media |
 | 6 | Tras activar una promoción, la franja tarda hasta 10 min en decir que las propuestas están pedidas (ronda de `AiAutoOrders`). | Baja |
 | 7 | La especificación semanal se pide aunque la semana no tenga publicaciones aprobadas: Claude solo puede contestar `needs_human` y se gasta un encargo (caso real). | Media |
+| 8 | SocialHub no avisa cuando no hay forma de publicar (la tarea del PC no contesta y no hay Publora) ni enseña el estado de Claude, Publer y Publora en «Agentes y herramientas» (caso real). | Alta |
 
 Vistos y dejados fuera por Raúl: la hora sin el día en «Próximas publicaciones», que «Necesita atención» solo enseñe 2 avisos y que el registro no tenga una línea por resultado inválido.
 
@@ -68,7 +70,7 @@ Al recibir las propuestas de Claude:
   - red distinta de Instagram o TikTok;
   - fuera de la semana pedida;
   - fuera de las fechas de la promoción;
-  - **fecha y hora a menos de 6 horas de ahora**. Es el margen mínimo para programar que ya usa el proyecto: una propuesta para dentro de 2 horas tampoco se podría preparar. *Pendiente del OK de Raúl.*
+  - **fecha y hora a menos de 6 horas de ahora** (aprobado por Raúl). Es el margen mínimo para programar que ya usa el proyecto: una propuesta para dentro de 2 horas tampoco se podría preparar.
 - Las buenas entran.
 - El resumen de la tarea dice cuántas se han descartado y por qué: «4 propuestas para revisar · 2 descartadas: 1 con fecha pasada, 1 fuera de la semana».
 - Si no queda ninguna buena, el encargo falla como ahora y se reintenta solo.
@@ -85,6 +87,17 @@ Al guardar una promoción que ya toca (nueva, activada o con fechas cambiadas), 
 - La especificación semanal no se pide mientras esa semana no tenga ninguna publicación aprobada de la promoción. No se gasta ningún encargo.
 - La franja lo dice, sin botón: «La especificación de {promoción} espera a que apruebes publicaciones de la semana del D».
 - En cuanto se aprueba una publicación de esa semana, se pide en la siguiente ronda.
+
+### 7. Avisar si falta algo para publicar
+Propuesta de Claude, pendiente del OK de Raúl, que pidió que «si falta algo que conectar para poder publicar, debería salir»:
+- **«Agentes y herramientas»** enseña tres filas nuevas, cada una con su estado y una nota:
+  - **Claude en la nube:** último resultado recogido.
+  - **Claude en el PC · Publer:** último resultado, o los encargos del PC sin contestar y desde cuándo.
+  - **Publora:** conectada, sin clave o «No uso Publora».
+- **«Necesita atención» y la franja** avisan en dos casos:
+  - **«La tarea «Publicar con Chrome» no contesta»:** hay encargos en `para-claude-pc` sin respuesta desde hace más de 90 minutos dentro de su horario (8:40-22:40).
+  - **«No hay forma de publicar {marca}»:** hay publicaciones aprobadas o en producción para los próximos 7 días, la tarea del PC no contesta y no hay Publora. El botón lleva a lo que falta.
+- Sin llamadas nuevas a servicios externos: todo se deduce de los encargos y resultados que SocialHub ya tiene.
 
 ## Fuera de esta fase
 - Los detalles menores que Raúl no ha elegido (ver arriba).
@@ -118,6 +131,7 @@ Un solo bloque: rama `fase-11-arreglos` y una PR. Commit y push tras cada paso.
 - Un lote con una propuesta de ayer y tres buenas deja tres para revisar y lo explica.
 - Un encargo de propuestas creado un domingo y leído el lunes conserva su semana y sus propuestas entran.
 - Una semana sin publicaciones aprobadas no pide especificación, y la franja lo dice.
+- Con la tarea del PC sin contestar y sin Publora, «Necesita atención» dice que no hay forma de publicar, y «Agentes y herramientas» enseña Claude en la nube, Claude en el PC y Publora con su estado.
 - Con Drive cerrado o el límite agotado, la franja dice por qué no salen las propuestas.
 
 ## Pendiente
