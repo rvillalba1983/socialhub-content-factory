@@ -1375,6 +1375,8 @@ export interface components {
             routes: components["schemas"]["PublishingRoute"][];
             settings: components["schemas"]["Setting"][];
             demo: boolean;
+            /** @description Solo al guardar (POST y PUT): qué pasará con las propuestas de la primera semana (pedidas ahora, cuándo se pedirán, o qué las retiene). Nulo si no hay nada que decir y siempre nulo en las lecturas. */
+            proposals_note?: string | null;
         };
         Milestone: {
             /** Format: date */

@@ -1903,6 +1903,12 @@ components:
         routes: { type: array, items: { $ref: "#/components/schemas/PublishingRoute" } }
         settings: { type: array, items: { $ref: "#/components/schemas/Setting" } }
         demo: { type: boolean }
+        proposals_note:
+          type: string
+          nullable: true
+          description: >
+            Solo al guardar (POST y PUT): qué pasará con las propuestas de la primera semana (pedidas ahora, cuándo se
+            pedirán, o qué las retiene). Nulo si no hay nada que decir y siempre nulo en las lecturas.
 
     Milestone:
       type: object

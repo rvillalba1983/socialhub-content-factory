@@ -1,4 +1,4 @@
-package com.socialhub.factory;
+package com.socialhub.ai;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

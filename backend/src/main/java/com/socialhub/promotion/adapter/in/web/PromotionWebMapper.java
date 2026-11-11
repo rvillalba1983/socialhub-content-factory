@@ -30,6 +30,7 @@ public interface PromotionWebMapper {
 
     List<BrandDto> toBrandDtos(List<Brand> brands);
 
+    @org.mapstruct.Mapping(target = "proposalsNote", ignore = true)
     PromotionDto toDto(Promotion promotion);
 
     List<PromotionDto> toPromotionDtos(List<Promotion> promotions);

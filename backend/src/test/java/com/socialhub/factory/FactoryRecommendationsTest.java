@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 import com.socialhub.ai.AiHeldOrders;
 import com.socialhub.ai.AiRequestType;
 import com.socialhub.ai.AiSentOrders;
+import com.socialhub.ai.ClaudePickups;
 import com.socialhub.api.model.RecommendationDto;
 import com.socialhub.api.model.RecommendationDto.KindEnum;
 import com.socialhub.api.model.RecommendationTargetDto.ScreenEnum;
@@ -18,6 +19,7 @@ import com.socialhub.publishing.PublishingQueries;
 import com.socialhub.publishing.PubloraService;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -40,6 +42,10 @@ class FactoryRecommendationsTest {
         return LocalDateTime.of(2026, month, day, hour, minute).atZone(ClaudePickups.ZONE).toInstant();
     }
 
+    private static PromotionRef ref(String status, LocalDate startsOn, LocalDate endsOn) {
+        return new PromotionRef("lit-1", "litoques", "Test inicial", status, startsOn, endsOn);
+    }
+
     private FactoryRecommendations subject() {
         return new FactoryRecommendations(held, sent, promotions, publishing, publora, backups,
                 Clock.fixed(now, ClaudePickups.ZONE));
@@ -49,7 +55,7 @@ class FactoryRecommendationsTest {
     @BeforeEach
     void everythingInOrder() {
         when(promotions.brandRefs()).thenReturn(List.of(new BrandRef("litoques", "Litoques")));
-        when(promotions.promotionRefs()).thenReturn(List.of(new PromotionRef("lit-1", "litoques", "Test inicial", "ACTIVE")));
+        when(promotions.promotionRefs()).thenReturn(List.of(ref("ACTIVE", LocalDate.of(2026, 11, 1), LocalDate.of(2026, 12, 31))));
         when(promotions.hasAllBrandFolders("litoques")).thenReturn(true);
         when(publora.hasAccounts("litoques")).thenReturn(true);
         when(backups.hasChosenFolder()).thenReturn(true);
@@ -215,21 +221,39 @@ class FactoryRecommendationsTest {
     }
 
     @Test
-    void row7PlannedOrPausedPromotionsAskToActivateOneAndOpenIt() {
-        for (String status : List.of("PLANNED", "PAUSED")) {
-            when(promotions.promotionRefs()).thenReturn(List.of(new PromotionRef("lit-1", "litoques", "Test inicial", status)));
-            var r = subject().compute().getFirst();
-            assertThat(r.getKind()).isEqualTo(KindEnum.NO_ACTIVE_PROMOTION);
-            assertThat(r.getTitle()).isEqualTo("Activa una promoción de Litoques");
-            assertThat(r.getTarget().getScreen()).isEqualTo(ScreenEnum.NEW_PROMOTION);
-            assertThat(r.getTarget().getBrandId()).isEqualTo("litoques");
-            assertThat(r.getTarget().getPromotionId()).isEqualTo("lit-1");
+    void row7PausedPromotionAsksToActivateItAndOpensIt() {
+        when(promotions.promotionRefs()).thenReturn(List.of(ref("PAUSED", LocalDate.of(2026, 11, 1), LocalDate.of(2026, 12, 31))));
+        var r = subject().compute().getFirst();
+        assertThat(r.getKind()).isEqualTo(KindEnum.NO_ACTIVE_PROMOTION);
+        assertThat(r.getTitle()).isEqualTo("Activa una promoción de Litoques");
+        assertThat(r.getTarget().getScreen()).isEqualTo(ScreenEnum.NEW_PROMOTION);
+        assertThat(r.getTarget().getBrandId()).isEqualTo("litoques");
+        assertThat(r.getTarget().getPromotionId()).isEqualTo("lit-1");
+    }
+
+    @Test
+    void row7PlannedPromotionNotYetFinishedIsNotAskedToBeActivatedBecauseItActivatesItself() {
+        // Empieza hoy (lunes 9), el lunes que viene o ya empezó: en todos los casos se activará sola
+        for (LocalDate starts : List.of(LocalDate.of(2026, 11, 9), LocalDate.of(2026, 11, 16), LocalDate.of(2026, 11, 1))) {
+            when(promotions.promotionRefs()).thenReturn(List.of(ref("PLANNED", starts, LocalDate.of(2026, 12, 31))));
+            assertThat(subject().compute()).isEmpty();
         }
     }
 
     @Test
+    void row7PlannedPromotionAlreadyOverDoesNotCountAndAPausedOneStillAsksToActivate() {
+        when(promotions.promotionRefs()).thenReturn(List.of(ref("PLANNED", LocalDate.of(2026, 10, 1), LocalDate.of(2026, 11, 8))));
+        assertThat(subject().compute().getFirst().getTitle()).isEqualTo("Da de alta una promoción nueva de Litoques");
+        // Una planificada por empezar y otra en pausa: no sale, la planificada se activará sola
+        when(promotions.promotionRefs()).thenReturn(List.of(
+                ref("PAUSED", LocalDate.of(2026, 11, 1), LocalDate.of(2026, 12, 31)),
+                new PromotionRef("lit-2", "litoques", "Otra", "PLANNED", LocalDate.of(2026, 11, 16), LocalDate.of(2026, 12, 31))));
+        assertThat(subject().compute()).isEmpty();
+    }
+
+    @Test
     void row7OnlyFinishedPromotionsAskForANewOne() {
-        when(promotions.promotionRefs()).thenReturn(List.of(new PromotionRef("lit-1", "litoques", "Test inicial", "FINISHED")));
+        when(promotions.promotionRefs()).thenReturn(List.of(ref("FINISHED", LocalDate.of(2026, 11, 1), LocalDate.of(2026, 12, 31))));
         var r = subject().compute().getFirst();
         assertThat(r.getTitle()).isEqualTo("Da de alta una promoción nueva de Litoques");
         assertThat(r.getTarget().getPromotionId()).isNull();
@@ -307,7 +331,7 @@ class FactoryRecommendationsTest {
         assertThat(all).extracting(RecommendationDto::getId).contains("brand-folders:delito");
         // El DeLito tampoco tiene Publora ni promoción: cada fila es de su marca
         when(publora.hasAccounts("delito")).thenReturn(true);
-        when(promotions.promotionRefs()).thenReturn(List.of(new PromotionRef("lit-1", "litoques", "Test inicial", "ACTIVE")));
+        when(promotions.promotionRefs()).thenReturn(List.of(ref("ACTIVE", LocalDate.of(2026, 11, 1), LocalDate.of(2026, 12, 31))));
         assertThat(subject().compute()).extracting(RecommendationDto::getId)
                 .containsExactly("brand-folders:delito", "no-promotion:delito");
     }

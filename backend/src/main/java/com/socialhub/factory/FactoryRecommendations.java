@@ -4,6 +4,7 @@ import com.socialhub.ai.AiHeldOrders;
 import com.socialhub.ai.AiRequestType;
 import com.socialhub.ai.AiSentOrders;
 import com.socialhub.ai.AiWeeklySchedule;
+import com.socialhub.ai.ClaudePickups;
 import com.socialhub.api.model.RecommendationDto;
 import com.socialhub.api.model.RecommendationTargetDto;
 import com.socialhub.backup.BackupService;
@@ -37,7 +38,7 @@ import org.springframework.stereotype.Component;
  *   carpeta de «Encargos» de su marca está disponible.</li>
  *   <li>Marca sin cuenta de Publora, salvo que Raúl haya marcado «No uso Publora» para ella.</li>
  *   <li>Sin carpeta de copias.</li>
- *   <li>Marca sin ninguna promoción activa: dar de alta la primera, o activar una planificada o en pausa.</li>
+ *   <li>Marca sin ninguna promoción activa ni planificada por empezar (esa se activa sola): dar de alta la primera, o activar una en pausa.</li>
  *   <li>Propuestas pedidas y en camino, con la hora de la próxima recogida.</li>
  *   <li>Especificación semanal en espera: ya tocaría pedirla (domingo desde las 9:00 o durante la semana) pero la
  *   promoción no tiene publicaciones aprobadas esa semana. Informativa, sin botón. Va la última: no hay nada que
@@ -63,6 +64,7 @@ class FactoryRecommendations {
         var allPromotions = promotions.promotionRefs();
         Map<String, PromotionQueries.PromotionRef> promotionById = allPromotions.stream()
                 .collect(Collectors.toMap(PromotionQueries.PromotionRef::id, Function.identity(), (a, b) -> a, LinkedHashMap::new));
+        java.time.LocalDate today = now.atZone(ClaudePickups.ZONE).toLocalDate();
         List<AiSentOrders.Sent> sent = sentOrders.waiting();
         List<RecommendationDto> all = new ArrayList<>();
 
@@ -124,9 +126,11 @@ class FactoryRecommendations {
         for (var brand : brands) {
             var ofBrand = allPromotions.stream().filter(p -> p.brandId().equals(brand.id())).toList();
             if (ofBrand.stream().anyMatch(PromotionQueries.PromotionRef::active)) continue;
+            // Una planificada que aún no ha terminado se activará sola el día que empiece: no hace falta pedirlo
+            if (ofBrand.stream().anyMatch(p -> p.plannedAhead(today))) continue;
             // Con promociones planificadas o en pausa se pide activar una (y el botón la abre); si no tiene ninguna,
             // dar de alta la primera. Si solo tiene terminadas, hace falta una nueva.
-            var toActivate = ofBrand.stream().filter(p -> "PLANNED".equals(p.status()) || "PAUSED".equals(p.status())).findFirst();
+            var toActivate = ofBrand.stream().filter(p -> "PAUSED".equals(p.status())).findFirst();
             if (toActivate.isPresent()) {
                 all.add(recommendation("no-promotion:" + brand.id(), RecommendationDto.KindEnum.NO_ACTIVE_PROMOTION,
                         "Activa una promoción de " + brand.name(), null,
@@ -147,9 +151,7 @@ class FactoryRecommendations {
                 waiting.putIfAbsent(s.promotionId(), s.sentAt());
             }
         }
-        ZonedDateTime next = ClaudePickups.nextAfter(now);
-        boolean tomorrow = !next.toLocalDate().equals(now.atZone(ClaudePickups.ZONE).toLocalDate());
-        String eta = (tomorrow ? "mañana " : "") + "sobre las " + hour(next);
+        String eta = ClaudePickups.etaText(now);
         waiting.keySet().forEach(promotionId -> all.add(recommendation("proposals-pending:" + promotionId,
                 RecommendationDto.KindEnum.PROPOSALS_PENDING,
                 "Propuestas de «" + promotionById.get(promotionId).name() + "» pedidas. Llegarán " + eta,
@@ -171,9 +173,7 @@ class FactoryRecommendations {
         return List.copyOf(all);
     }
 
-    private static String hour(ZonedDateTime time) {
-        return time.getHour() + ":" + String.format("%02d", time.getMinute());
-    }
+    private static String hour(ZonedDateTime time) { return ClaudePickups.hour(time); }
 
     private static RecommendationDto recommendation(String id, RecommendationDto.KindEnum kind, String title,
                                                     @Nullable String detail,
