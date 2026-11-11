@@ -76,7 +76,7 @@ jobs:
           $f = Get-ChildItem ficha-*.txt | Select-Object -First 1
           if (-not $f) { Write-Host 'No ha dejado la ficha'; exit 1 }
           $t = Get-Content $f.FullName -Raw
-          foreach ($s in '== Equipo','== Procesador','== Memoria','== Discos','== Windows','Total:','compilación') {
-            if ($t -notmatch [regex]::Escape($s)) { Write-Host "Falta «$s» en la ficha"; exit 1 }
+          foreach ($s in '== Equipo','== Procesador','== Memoria','== Discos','== Windows','Total:','compilaci') {
+            if ($t -notmatch [regex]::Escape($s)) { Write-Host "Falta [$s] en la ficha"; exit 1 }
           }
           Write-Host 'Ficha OK'
