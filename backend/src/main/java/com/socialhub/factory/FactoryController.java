@@ -57,7 +57,7 @@ class FactoryController implements FactoryApi {
                 armoryItems,
                 promotions.commonRules(),
                 alerts(snapshot.alerts(), armoryItems, publishing.publishAlerts(),
-                        real ? heldOrders.current() : List.of()),
+                        real ? heldOrders.current() : List.of(), recs),
                 recs));
     }
 
@@ -67,7 +67,8 @@ class FactoryController implements FactoryApi {
      */
     private static List<AlertDto> alerts(List<AlertDto> production, List<ArmoryItemDto> items,
                                          List<PublishingQueries.PublishAlert> publishing,
-                                         List<com.socialhub.ai.AiHeldOrders.Held> held) {
+                                         List<com.socialhub.ai.AiHeldOrders.Held> held,
+                                         List<RecommendationDto> recommendations) {
         List<AlertDto> alerts = new ArrayList<>(production);
         // Encargos a Claude que no pueden salir hasta que Raúl arregle algo (por ejemplo, una carpeta)
         for (var h : held) {
@@ -75,6 +76,14 @@ class FactoryController implements FactoryApi {
             if (h.isPromotionProposals() && h.promotionId() != null) continue;
             alerts.add(new AlertDto(AlertDto.KindEnum.BLOCKED, AlertDto.TargetTypeEnum.TASK, h.taskId(), h.stationId(),
                     "En cola: " + h.title(), h.reason()));
+        }
+        // Lo que impide publicar sale también en «Necesita atención», sacado de las mismas recomendaciones (un solo cálculo)
+        for (var r : recommendations) {
+            boolean silent = r.getKind() == RecommendationDto.KindEnum.PC_TASK_SILENT;
+            if (!silent && r.getKind() != RecommendationDto.KindEnum.NO_PUBLISHING_ROUTE) continue;
+            alerts.add(new AlertDto(silent ? AlertDto.KindEnum.FAILED : AlertDto.KindEnum.BLOCKED,
+                    AlertDto.TargetTypeEnum.ARMORY, silent ? ServicesWatch.PC_ID : ServicesWatch.PUBLORA_ID, "prog",
+                    r.getTitle(), r.getDetail() == null ? "" : r.getDetail()));
         }
         for (var a : publishing) {
             alerts.add(new AlertDto(a.failed() ? AlertDto.KindEnum.FAILED : AlertDto.KindEnum.BLOCKED,

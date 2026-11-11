@@ -48,6 +48,8 @@ class AiDispatcher {
     private final ApplicationEventPublisher events;
     /** Encargos de esta ronda que esperan a Raúl. */
     private java.util.Map<String, AiHeldOrders.Held> holding = AiHeldOrders.collector();
+    /** Propuestas de esta ronda paradas por Drive o por el límite diario. */
+    private java.util.Map<String, AiHeldOrders.Stalled> stalling = AiHeldOrders.stalledCollector();
 
     @Scheduled(initialDelayString = "${socialhub.ai.initial-delay-millis:10000}",
                fixedDelayString = "${socialhub.ai.dispatch-millis:30000}")
@@ -65,6 +67,7 @@ class AiDispatcher {
     int dispatchQueued() {
         int sent = 0;
         holding = AiHeldOrders.collector();
+        stalling = AiHeldOrders.stalledCollector();
         for (AiTask task : production.queuedAiTasks()) {
             try {
                 if (dispatch(task)) sent++;
@@ -75,7 +78,7 @@ class AiDispatcher {
             }
         }
         // Solo si cambia lo retenido, para no despertar a la pantalla cada 30 s sin motivo
-        if (held.replace(holding)) events.publishEvent(new FactoryChanged("ai", null));
+        if (held.replace(holding, stalling)) events.publishEvent(new FactoryChanged("ai", null));
         return sent;
     }
 
@@ -98,12 +101,14 @@ class AiDispatcher {
         if (!AiFolders.available(orders.get())) {
             production.blockQueued(task.id(), "La carpeta de «Encargos» (" + orders.get() + ") no está disponible en este "
                     + "ordenador. ¿Está abierto Google Drive para ordenador? Saldrá sola cuando aparezca.", orders.get());
+            stall(task, type.get(), AiHeldOrders.Cause.DRIVE_UNAVAILABLE, 0);
             return false;
         }
         int limit = settings.dailyLimit();
         if (!type.get().onPc() && settings.usedToday() >= limit) {
             production.keepQueued(task.id(), "Límite diario de encargos a Claude alcanzado (" + limit
                     + "). Sale mañana, o sube el límite en «Claude».");
+            stall(task, type.get(), AiHeldOrders.Cause.DAILY_LIMIT, limit);
             return false;
         }
 
@@ -130,6 +135,13 @@ class AiDispatcher {
         });
         log.info("Encargo {} ({}) enviado a Claude {}: {}", task.id(), type.get(), model.label(), file);
         return true;
+    }
+
+    /** Las propuestas de una promoción no salen por Drive o por el límite diario: lo recoge «Qué hacer ahora». */
+    private void stall(AiTask task, AiRequestType type, AiHeldOrders.Cause cause, int limit) {
+        if (type == AiRequestType.WEEKLY_PROPOSALS && task.promotionId() != null) {
+            stalling.put(task.id(), new AiHeldOrders.Stalled(task.promotionId(), cause, limit));
+        }
     }
 
     /** Sigue en cola por algo que tiene que arreglar Raúl: queda anotado en la tarea y sale en «Necesita atención». */

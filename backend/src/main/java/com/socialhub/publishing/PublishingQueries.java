@@ -24,12 +24,45 @@ public class PublishingQueries {
     private final com.socialhub.publishing.domain.PublishJobRepository jobs;
     private final List<PublishRoute> routes;
     private final com.socialhub.publishing.domain.MetricsRepository metricsRepository;
+    private final PubloraService publora;
 
     /** Vía de publicación y si está lista. */
     public record RouteState(PublishRoute.Id id, String label, boolean configured) {}
 
     /** Aviso de publicación para «Necesita atención». */
     public record PublishAlert(String publicationId, boolean failed, String title, String detail) {}
+
+    /**
+     * Una publicación de camino a publicar a la que Publora no puede servir de vía: {@code gap} dice qué falta y
+     * {@code platform} es la red, en español.
+     */
+    public record Unroutable(String promotionId, java.time.LocalDate scheduledOn, String platform, PubloraService.Gap gap) {}
+
+    /** Estados de «camino a publicar»: aún no programadas en una vía. */
+    private static final java.util.Set<com.socialhub.publishing.domain.PublicationStatus> ON_THE_WAY = java.util.EnumSet.of(
+            com.socialhub.publishing.domain.PublicationStatus.IN_PRODUCTION, com.socialhub.publishing.domain.PublicationStatus.DRAFT,
+            com.socialhub.publishing.domain.PublicationStatus.IN_REVIEW, com.socialhub.publishing.domain.PublicationStatus.APPROVED);
+
+    /**
+     * Publicaciones de camino a publicar (en producción, borrador, en revisión o aprobadas) con fecha entre esos días (ambos
+     * incluidos) que Publora no puede publicar: sin clave, sin cuenta de su red para su marca o con «No uso Publora».
+     */
+    public List<Unroutable> withoutPubloraRoute(java.time.LocalDate from, java.time.LocalDate to,
+                                                java.util.function.Function<String, String> brandOfPromotion) {
+        List<Unroutable> result = new java.util.ArrayList<>();
+        java.util.Map<String, PubloraService.Gap> cache = new java.util.HashMap<>();
+        for (Publication p : publications.findAll()) {
+            if (!ON_THE_WAY.contains(p.getStatus()) || p.getScheduledOn().isBefore(from) || p.getScheduledOn().isAfter(to)) continue;
+            String brand = brandOfPromotion.apply(p.getPromotionId());
+            if (brand == null) continue;
+            var gap = cache.computeIfAbsent(brand + "|" + p.getPlatform(), k -> publora.gap(brand, p.getPlatform()));
+            if (gap != PubloraService.Gap.NONE) {
+                result.add(new Unroutable(p.getPromotionId(), p.getScheduledOn(),
+                        p.getPlatform() == com.socialhub.publishing.domain.Platform.INSTAGRAM ? "Instagram" : "TikTok", gap));
+            }
+        }
+        return result;
+    }
 
     /** Métricas de la publicación, si ya se pidieron. */
     public java.util.Optional<com.socialhub.publishing.domain.MetricsRepository.Metrics> metrics(String publicationId) {

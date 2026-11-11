@@ -1,6 +1,8 @@
 package com.socialhub.factory;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -159,7 +161,7 @@ class FactoryRecommendationsTest {
         now = madrid(11, 9, 11, 0);
         assertThat(subject().compute()).isEmpty();
         // Los del PC los recoge otra tarea
-        when(sent.waiting()).thenReturn(List.of(sentOrder(AiRequestType.PUBLISH_CHECK, madrid(11, 9, 9, 30))));
+        when(sent.waiting()).thenReturn(List.of(sentOrder(AiRequestType.PUBLISH_CHECK, madrid(11, 9, 10, 0))));
         assertThat(subject().compute()).isEmpty();
     }
 
@@ -369,5 +371,146 @@ class FactoryRecommendationsTest {
         assertThat(all.stream().map(RecommendationDto::getKind).toList())
                 .containsExactly(KindEnum.PROPOSALS_TO_REVIEW, KindEnum.SPEC_WAITING);
         assertThat(all.getLast().getTitle()).endsWith("de la semana del 16 de nov");
+    }
+
+    // ------------------------------------------------------------------ Propuestas paradas por Drive o por el límite
+
+    @Test
+    void row1HeldProposalsAlsoWhenDriveIsNotAvailable() {
+        when(held.stalledProposals()).thenReturn(List.of(new AiHeldOrders.Stalled("lit-1", AiHeldOrders.Cause.DRIVE_UNAVAILABLE, 0)));
+        var r = subject().compute().getFirst();
+        assertThat(r.getKind()).isEqualTo(KindEnum.HELD_PROPOSALS);
+        assertThat(r.getId()).isEqualTo("held-proposals:lit-1");
+        assertThat(r.getTitle()).isEqualTo("Las propuestas de «Test inicial» no pueden salir");
+        assertThat(r.getDetail()).isEqualTo("La carpeta de Encargos no está disponible en este ordenador. ¿Está abierto Google Drive?");
+        assertThat(r.getTarget()).isNull();
+        assertThat(r.getPromotionId()).isEqualTo("lit-1");
+        // Al volver Drive, el dispatcher ya no lo anota y la fila desaparece
+        when(held.stalledProposals()).thenReturn(List.of());
+        assertThat(subject().compute()).isEmpty();
+    }
+
+    @Test
+    void row1HeldProposalsAlsoWhenTheDailyLimitIsReachedWithAButtonToClaude() {
+        when(held.stalledProposals()).thenReturn(List.of(new AiHeldOrders.Stalled("lit-1", AiHeldOrders.Cause.DAILY_LIMIT, 10)));
+        var r = subject().compute().getFirst();
+        assertThat(r.getKind()).isEqualTo(KindEnum.HELD_PROPOSALS);
+        assertThat(r.getDetail()).isEqualTo("Límite diario de encargos a Claude alcanzado (10): salen mañana");
+        assertThat(r.getTarget().getScreen()).isEqualTo(ScreenEnum.CLAUDE);
+        assertThat(r.getTarget().getBrandId()).isNull();
+    }
+
+    @Test
+    void onlyOneHeldRowPerPromotionWithHeldFirstThenDriveThenLimit() {
+        var limit = new AiHeldOrders.Stalled("lit-1", AiHeldOrders.Cause.DAILY_LIMIT, 10);
+        var drive = new AiHeldOrders.Stalled("lit-1", AiHeldOrders.Cause.DRIVE_UNAVAILABLE, 0);
+        when(held.stalledProposals()).thenReturn(List.of(limit, drive));
+        var all = subject().compute();
+        assertThat(all).hasSize(1);
+        assertThat(all.getFirst().getDetail()).startsWith("La carpeta de Encargos no está disponible");
+
+        when(held.current()).thenReturn(List.of(new AiHeldOrders.Held("t1", "est", "P", "La marca no tiene carpeta de «Encargos».",
+                "lit-1", AiRequestType.WEEKLY_PROPOSALS)));
+        all = subject().compute();
+        assertThat(all).hasSize(1);
+        assertThat(all.getFirst().getDetail()).isEqualTo("La marca no tiene carpeta de «Encargos».");
+        assertThat(all.getFirst().getTarget().getScreen()).isEqualTo(ScreenEnum.BRAND_FOLDERS);
+    }
+
+    @Test
+    void stalledProposalsOfAnUnknownPromotionAreIgnored() {
+        when(held.stalledProposals()).thenReturn(List.of(new AiHeldOrders.Stalled("otra", AiHeldOrders.Cause.DAILY_LIMIT, 10)));
+        assertThat(subject().compute()).isEmpty();
+    }
+
+    // ------------------------------------------------------------------ Avisar si falta algo para publicar
+
+    private static PublishingQueries.Unroutable unroutable(String platform, PubloraService.Gap gap, LocalDate on) {
+        return new PublishingQueries.Unroutable("lit-1", on, platform, gap);
+    }
+
+    private void pcSilent() {
+        // Enviado el lunes a las 9:00 y ahora son las 11:00: 120 minutos de horario sin respuesta
+        when(sent.waiting()).thenReturn(List.of(sentOrder(AiRequestType.PUBLER_SCHEDULE, madrid(11, 9, 9, 0))));
+    }
+
+    private void unroutableThisWeek(PubloraService.Gap gap) {
+        when(publishing.withoutPubloraRoute(eq(LocalDate.of(2026, 11, 9)), eq(LocalDate.of(2026, 11, 16)), any()))
+                .thenReturn(List.of(unroutable("Instagram", gap, LocalDate.of(2026, 11, 12))));
+    }
+
+    @Test
+    void theSilentPcTaskGivesARowWithoutButtonAndDisappearsWhenAResultArrives() {
+        pcSilent();
+        var all = subject().compute();
+        assertThat(all).hasSize(1);
+        var r = all.getFirst();
+        assertThat(r.getKind()).isEqualTo(KindEnum.PC_TASK_SILENT);
+        assertThat(r.getTitle()).isEqualTo("La tarea «Publicar con Chrome» no contesta");
+        assertThat(r.getDetail()).isEqualTo("1 encargo sin contestar desde las 9:00. ¿Está activa la tarea «Publicar con Chrome» y abierto Chrome?");
+        assertThat(r.getTarget()).isNull();
+        // Llega el resultado: el encargo ya no espera
+        when(sent.waiting()).thenReturn(List.of());
+        assertThat(subject().compute()).isEmpty();
+        // Uno enviado hace menos de 90 minutos no avisa
+        when(sent.waiting()).thenReturn(List.of(sentOrder(AiRequestType.PUBLISH_CHECK, madrid(11, 9, 9, 45))));
+        assertThat(subject().compute()).isEmpty();
+    }
+
+    @Test
+    void noPublishingRouteWhenThePcIsSilentAndPubloraHasNoKey() {
+        pcSilent();
+        unroutableThisWeek(PubloraService.Gap.NO_KEY);
+        var all = subject().compute();
+        // Va la primera, antes que la tarea del PC
+        assertThat(all.stream().map(RecommendationDto::getKind).toList()).containsExactly(KindEnum.NO_PUBLISHING_ROUTE, KindEnum.PC_TASK_SILENT);
+        var r = all.getFirst();
+        assertThat(r.getId()).isEqualTo("no-publishing-route:litoques");
+        assertThat(r.getTitle()).isEqualTo("No hay forma de publicar Litoques");
+        assertThat(r.getDetail()).contains("1 publicación de los próximos 7 días (la primera, el 12 de nov)")
+                .contains("la tarea «Publicar con Chrome» no contesta").contains("Publora no tiene clave");
+        assertThat(r.getTarget().getScreen()).isEqualTo(ScreenEnum.PUBLORA);
+        assertThat(r.getTarget().getBrandId()).isEqualTo("litoques");
+    }
+
+    @Test
+    void noPublishingRouteDisappearsWithAnUsablePubloraOrAResultFromThePc() {
+        pcSilent();
+        unroutableThisWeek(PubloraService.Gap.NO_ACCOUNT);
+        assertThat(subject().compute().getFirst().getDetail()).contains("Publora no tiene cuenta de Instagram");
+        // Se pone la clave y la cuenta: Publora ya puede publicarlas y no queda ninguna sin vía
+        when(publishing.withoutPubloraRoute(any(), any(), any())).thenReturn(List.of());
+        assertThat(kinds()).containsExactly(KindEnum.PC_TASK_SILENT);
+        // O la tarea del PC contesta
+        unroutableThisWeek(PubloraService.Gap.NO_KEY);
+        when(sent.waiting()).thenReturn(List.of());
+        assertThat(subject().compute()).isEmpty();
+    }
+
+    @Test
+    void noPublishingRouteHasNoButtonWhenTheBrandDismissedPublora() {
+        pcSilent();
+        unroutableThisWeek(PubloraService.Gap.DISMISSED);
+        var r = subject().compute().getFirst();
+        assertThat(r.getKind()).isEqualTo(KindEnum.NO_PUBLISHING_ROUTE);
+        assertThat(r.getDetail()).contains("«No uso Publora»");
+        assertThat(r.getTarget()).isNull();
+    }
+
+    @Test
+    void noPublishingRouteCountsAndDatesTheFirstOfSeveralPublications() {
+        pcSilent();
+        when(publishing.withoutPubloraRoute(any(), any(), any())).thenReturn(List.of(
+                unroutable("TikTok", PubloraService.Gap.NO_ACCOUNT, LocalDate.of(2026, 11, 14)),
+                unroutable("Instagram", PubloraService.Gap.NO_ACCOUNT, LocalDate.of(2026, 11, 11))));
+        var r = subject().compute().getFirst();
+        assertThat(r.getDetail()).startsWith("2 publicaciones de los próximos 7 días (la primera, el 11 de nov)")
+                .contains("Publora no tiene cuenta de Instagram");
+    }
+
+    @Test
+    void noPublishingRouteNeedsTheSilentPcTask() {
+        unroutableThisWeek(PubloraService.Gap.NO_KEY);
+        assertThat(subject().compute()).isEmpty();
     }
 }

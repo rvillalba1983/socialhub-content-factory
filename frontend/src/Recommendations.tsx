@@ -11,7 +11,7 @@ export function canOpen(t?: RecommendationTarget): t is RecommendationTarget {
 
 const BUTTON_LABEL: Record<RecommendationTarget['screen'], string> = {
   BRAND_FOLDERS: 'Ir a las carpetas de la marca', PROPOSALS: 'Ir a las propuestas', PUBLORA: 'Ir a Publora',
-  BACKUPS: 'Ir a Copias', NEW_PROMOTION: 'Dar de alta la promoción',
+  BACKUPS: 'Ir a Copias', NEW_PROMOTION: 'Dar de alta la promoción', CLAUDE: 'Ir a Claude',
 };
 
 function buttonLabel(t: RecommendationTarget): string {
