@@ -90,14 +90,26 @@ public class PromotionQueries {
                 .toList();
     }
 
-    /** Fechas de una promoción activa. */
-    public record ActiveDates(String id, java.time.LocalDate startsOn, java.time.LocalDate endsOn) {}
-
-    /** Promociones activas con sus fechas. */
-    public List<ActiveDates> activeDates() {
+    /**
+     * Promociones que reciben propuestas (activas o planificadas: una planificada se activa sola el día que empieza)
+     * cuyas fechas se cruzan con ese intervalo (incluido). Las pausadas y las terminadas no reciben nada.
+     */
+    public List<String> proposableBetween(java.time.LocalDate from, java.time.LocalDate to) {
         return repository.promotions().stream()
-                .filter(p -> "ACTIVE".equals(p.status()))
-                .map(p -> new ActiveDates(p.id(), p.startsOn(), p.endsOn()))
+                .filter(p -> ("ACTIVE".equals(p.status()) || "PLANNED".equals(p.status()))
+                        && !p.startsOn().isAfter(to) && !p.endsOn().isBefore(from))
+                .map(Promotion::id)
+                .toList();
+    }
+
+    /** Fechas de una promoción. */
+    public record PromotionDates(String id, java.time.LocalDate startsOn, java.time.LocalDate endsOn) {}
+
+    /** Promociones activas o planificadas, con sus fechas (las que reciben propuestas). */
+    public List<PromotionDates> proposableDates() {
+        return repository.promotions().stream()
+                .filter(p -> "ACTIVE".equals(p.status()) || "PLANNED".equals(p.status()))
+                .map(p -> new PromotionDates(p.id(), p.startsOn(), p.endsOn()))
                 .toList();
     }
 
@@ -143,6 +155,14 @@ public class PromotionQueries {
         return m;
     }
 
+    /** Fechas de una promoción (la de fin puede faltar: sin límite). */
+    public record Dates(java.time.LocalDate startsOn, java.time.@org.jspecify.annotations.Nullable LocalDate endsOn) {}
+
+    public Dates datesOf(String promotionId) {
+        Promotion p = promotion(promotionId);
+        return new Dates(p.startsOn(), p.endsOn());
+    }
+
     /** Promociones de una marca. */
     public List<String> promotionIdsOf(String brandId) {
         return repository.promotions().stream().filter(p -> p.brandId().equals(brandId)).map(Promotion::id).toList();
@@ -160,15 +180,21 @@ public class PromotionQueries {
     public record BrandRef(String id, String name) {}
 
     /** Promoción resumida; {@code status}: PLANNED, ACTIVE, PAUSED o FINISHED. */
-    public record PromotionRef(String id, String brandId, String name, String status) {
+    public record PromotionRef(String id, String brandId, String name, String status, java.time.LocalDate startsOn,
+                               java.time.LocalDate endsOn) {
         public boolean active() { return "ACTIVE".equals(status); }
+
+        /** Planificada y que aún no ha terminado: se activará sola el día que empiece. */
+        public boolean plannedAhead(java.time.LocalDate today) {
+            return "PLANNED".equals(status) && !endsOn.isBefore(today);
+        }
     }
 
     public List<BrandRef> brandRefs() { return brands().stream().map(b -> new BrandRef(b.id(), b.name())).toList(); }
 
     public List<PromotionRef> promotionRefs() {
         return promotions().stream()
-                .map(p -> new PromotionRef(p.id(), p.brandId(), p.name(), p.status()))
+                .map(p -> new PromotionRef(p.id(), p.brandId(), p.name(), p.status(), p.startsOn(), p.endsOn()))
                 .toList();
     }
 

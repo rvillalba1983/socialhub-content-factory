@@ -12,6 +12,7 @@ import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.DayOfWeek;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.TemporalAdjusters;
@@ -45,21 +46,28 @@ class WeeklySpecHandler implements AiTypeHandler {
 
     @Override public AiRequestType type() { return AiRequestType.WEEKLY_SPEC; }
 
-    /** La semana del spec: la del primer dato de entrada si es una fecha; si no, la que viene. */
-    LocalDate weekStart(List<String> inputs) {
-        if (!inputs.isEmpty()) {
+    /** La semana del spec: la del primer dato de entrada si es una fecha; si no, el lunes siguiente a la creación del encargo. */
+    LocalDate weekStart(AiJob job) {
+        if (!job.inputs().isEmpty()) {
             try {
-                return LocalDate.parse(inputs.getFirst()).with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+                return LocalDate.parse(job.inputs().getFirst()).with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
             } catch (DateTimeParseException e) {
                 // No es una fecha
             }
         }
-        return LocalDate.now(clock).with(TemporalAdjusters.next(DayOfWeek.MONDAY));
+        Instant created = job.createdAt() == null || job.createdAt().equals(Instant.EPOCH) ? clock.instant() : job.createdAt();
+        return created.atZone(java.time.ZoneId.of("Europe/Madrid")).toLocalDate().with(TemporalAdjusters.next(DayOfWeek.MONDAY));
+    }
+
+    /** El spec no se pide solo mientras la semana no tenga publicaciones aprobadas: Claude solo podría pedir ayuda. */
+    @Override
+    public boolean readyForAutoOrder(String promotionId, LocalDate week) {
+        return !publications.approvedForAi(promotionId, week, week.plusDays(6)).isEmpty();
     }
 
     @Override
     public Map<String, Object> inputs(AiJob job) {
-        LocalDate from = weekStart(job.inputs());
+        LocalDate from = weekStart(job);
         LocalDate to = from.plusDays(6);
         var list = publications.approvedForAi(job.promotionId(), from, to);
         Map<String, Object> inputs = new LinkedHashMap<>();
@@ -83,7 +91,7 @@ class WeeklySpecHandler implements AiTypeHandler {
         Path file;
         try {
             Path dir = Files.createDirectories(Path.of(folder).resolve(SPECS));
-            file = fresh(dir, "spec-" + weekStart(job.inputs()));
+            file = fresh(dir, "spec-" + weekStart(job));
             Files.writeString(file, json.writerWithDefaultPrettyPrinter().writeValueAsString(spec));
         } catch (IOException e) {
             throw new IllegalStateException("No se pudo guardar el spec: " + e.getMessage(), e);

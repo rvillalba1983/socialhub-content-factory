@@ -7,7 +7,10 @@ import com.socialhub.api.model.PromotionListDto;
 import com.socialhub.api.model.FolderListDto;
 import com.socialhub.api.model.FolderListInputDto;
 import com.socialhub.promotion.PromotionQueries;
+import com.socialhub.promotion.PromotionSaveNotes;
 import com.socialhub.promotion.PromotionService;
+import com.socialhub.promotion.domain.Promotion;
+
 import org.springframework.http.HttpStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +23,7 @@ class PromotionsController implements PromotionsApi {
     private final PromotionQueries queries;
     private final PromotionService service;
     private final PromotionWebMapper mapper;
+    private final PromotionSaveNotes saveNotes;
 
     @Override
     public ResponseEntity<PromotionListDto> listPromotions() {
@@ -33,12 +37,12 @@ class PromotionsController implements PromotionsApi {
 
     @Override
     public ResponseEntity<PromotionDto> createPromotion(String requestGuard, PromotionInputDto input) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(mapper.toDto(service.createPromotion(mapper.toDraft(input))));
+        return ResponseEntity.status(HttpStatus.CREATED).body(withNote(service.createPromotion(mapper.toDraft(input))));
     }
 
     @Override
     public ResponseEntity<PromotionDto> updatePromotion(String promotionId, String requestGuard, PromotionInputDto input) {
-        return ResponseEntity.ok(mapper.toDto(service.updatePromotion(promotionId, mapper.toDraft(input))));
+        return ResponseEntity.ok(withNote(service.updatePromotion(promotionId, mapper.toDraft(input))));
     }
 
     @Override
@@ -49,5 +53,12 @@ class PromotionsController implements PromotionsApi {
     @Override
     public ResponseEntity<FolderListDto> replacePromotionFolders(String promotionId, String requestGuard, FolderListInputDto input) {
         return ResponseEntity.ok(mapper.toFolderList(service.replacePromotionFolders(promotionId, mapper.toFolderMap(input))));
+    }
+
+    /** El guardado ya está confirmado: ahora se piden las propuestas que toquen y se cuenta qué pasará con ellas. */
+    private PromotionDto withNote(Promotion saved) {
+        PromotionDto dto = mapper.toDto(saved);
+        dto.setProposalsNote(saveNotes.proposalsNote(saved).orElse(null));
+        return dto;
     }
 }

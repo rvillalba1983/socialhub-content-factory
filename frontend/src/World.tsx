@@ -246,7 +246,7 @@ export function AttentionCard({ data, onStation, onTask, onArmory, onPublication
       <TodayCard data={data} />
       {data.alerts.length === 0 && <p className="src">Todo en orden.</p>}
       {byPriority(data.alerts).slice(0, ATTENTION_MAX).map(a => (
-        <button key={a.kind + a.target_id} className={`aitem s-${alertTone(a.kind)}`} onClick={() => openAlert(a, { onTask, onStation, onArmory, onPublication })}>
+        <button key={`${a.kind}|${a.target_id}|${a.title}`} className={`aitem s-${alertTone(a.kind)}`} onClick={() => openAlert(a, { onTask, onStation, onArmory, onPublication })}>
           <Dot s={a.kind} /><span><b>{a.title}</b>{a.detail}</span>
         </button>
       ))}

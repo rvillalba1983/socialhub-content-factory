@@ -50,12 +50,17 @@ class StartUpTest {
         write(post("/api/brands"), "{\"name\":\"Litoques\",\"handle\":\"@litoques\",\"color\":\"#C98A1B\"}")
                 .andExpect(status().isCreated());
         LocalDate today = LocalDate.now();
-        write(post("/api/promotions"), """
+        // El domingo por la tarde ya no queda hueco válido esa semana: empieza el lunes, que sí lo tiene
+        LocalDate start = today.getDayOfWeek() == java.time.DayOfWeek.SUNDAY ? today.plusDays(1) : today;
+        // Al guardar, la promoción pide enseguida las propuestas de su primera semana y el guardado lo avisa
+        String saved = write(post("/api/promotions"), """
                 {"brand_id":"litoques","name":"Test inicial","starts_on":"%s","ends_on":"%s","status":"ACTIVE"}"""
-                .formatted(today, today.plusMonths(2))).andExpect(status().isCreated());
+                .formatted(start, today.plusMonths(2))).andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(saved).contains("proposals_note").contains("Propuestas de la primera semana pedidas");
 
-        // La promoción pide enseguida las propuestas de su primera semana (y solo una vez)
-        assertThat(auto.createFirstWeeks(java.time.ZonedDateTime.now())).isEqualTo(1);
+        // Solo se pide una vez: la ronda posterior no crea otro
+        assertThat(auto.createFirstWeeks(java.time.ZonedDateTime.now())).isZero();
         assertThat(auto.createFirstWeeks(java.time.ZonedDateTime.now())).isZero();
 
         // Sin carpeta de «Encargos» el encargo no sale y Raúl lo ve en «Qué hacer ahora» (no en «Necesita atención»)

@@ -1,21 +1,28 @@
 package com.socialhub.factory;
 
 import com.socialhub.ai.AiHeldOrders;
+import com.socialhub.ai.AiAutoStarted;
 import com.socialhub.ai.AiRequestType;
 import com.socialhub.ai.AiSentOrders;
+import com.socialhub.ai.AiWeeklySchedule;
+import com.socialhub.ai.ClaudeActivity;
+import com.socialhub.ai.ClaudePickups;
 import com.socialhub.api.model.RecommendationDto;
 import com.socialhub.api.model.RecommendationTargetDto;
 import com.socialhub.backup.BackupService;
 import com.socialhub.promotion.PromotionQueries;
 import com.socialhub.publishing.PublishingQueries;
 import com.socialhub.publishing.PubloraService;
+import java.util.Set;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZonedDateTime;
+import java.time.format.TextStyle;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -27,15 +34,30 @@ import org.springframework.stereotype.Component;
  * «Qué hacer ahora»: la lista completa de recomendaciones, calculadas en cada consulta y sin guardarlas, así que
  * desaparecen solas cuando dejan de hacer falta. El frontal enseña las 3 primeras y el resto con «Ver N más». Por orden de prioridad:
  * <ol>
- *   <li>Propuestas de una promoción retenidas, con el motivo.</li>
+ *   <li>Marca sin forma de publicar: tiene publicaciones de camino a publicar (en producción, borrador, en revisión o
+ *   aprobadas) en los próximos 7 días, la tarea del PC «Publicar con Chrome» no contesta y Publora no se puede usar
+ *   para su red (sin clave, sin cuenta de esa red o «No uso Publora»). Va la primera, con la siguiente, porque
+ *   bloquea publicaciones reales. Botón a la tarjeta de Publora de la marca si falta algo que Raúl puede conectar; sin
+ *   botón si ha elegido no usarla.</li>
+ *   <li>La tarea «Publicar con Chrome» no contesta: encargos de {@code para-claude-pc} sin resultado desde hace 90
+ *   minutos dentro de su horario (8:40-22:40). Sin botón.</li>
+ *   <li>Propuestas de una promoción retenidas, con el motivo (la marca sin carpeta de «Encargos», la carpeta no
+ *   disponible porque Drive está cerrado o el límite diario alcanzado, este último con botón a «Claude»). Una sola
+ *   fila por promoción, con este orden de motivos.</li>
  *   <li>Propuestas listas para revisar, con su contador.</li>
  *   <li>Marca sin todas sus carpetas.</li>
  *   <li>Encargo sin resultado tras la recogida que le tocaba (5 minutos de sincronización y 30 de margen), si la
  *   carpeta de «Encargos» de su marca está disponible.</li>
  *   <li>Marca sin cuenta de Publora, salvo que Raúl haya marcado «No uso Publora» para ella.</li>
  *   <li>Sin carpeta de copias.</li>
- *   <li>Marca sin ninguna promoción activa: dar de alta la primera, o activar una planificada o en pausa.</li>
+ *   <li>Marca sin ninguna promoción activa ni planificada por empezar (esa se activa sola): dar de alta la primera, o activar una en pausa.</li>
  *   <li>Propuestas pedidas y en camino, con la hora de la próxima recogida.</li>
+ *   <li>Especificación semanal en espera: ya tocaría pedirla (domingo desde las 9:00 o durante la semana) pero la
+ *   promoción no tiene publicaciones aprobadas esa semana. Informativa, sin botón. Va la última: no hay nada que
+ *   hacer salvo aprobar publicaciones, que ya se pide en las filas de propuestas.</li>
+ *   <li>Promoción activada sola hoy: el día en que SocialHub la pasa de «Planificada» a «Activa» (empieza hoy), una fila
+ *   informativa, sin botón, que desaparece al día siguiente (hora de España). No sale si Raúl la activó a mano. Va la
+ *   última: es solo un aviso.</li>
  * </ol>
  * Solo tiene sentido en modo real; quien lo llama decide.
  */
@@ -49,6 +71,7 @@ class FactoryRecommendations {
     private final PublishingQueries publishing;
     private final PubloraService publora;
     private final BackupService backups;
+    private final AiAutoStarted autoStarted;
     private final Clock clock;
 
     List<RecommendationDto> compute() {
@@ -57,20 +80,38 @@ class FactoryRecommendations {
         var allPromotions = promotions.promotionRefs();
         Map<String, PromotionQueries.PromotionRef> promotionById = allPromotions.stream()
                 .collect(Collectors.toMap(PromotionQueries.PromotionRef::id, Function.identity(), (a, b) -> a, LinkedHashMap::new));
+        java.time.LocalDate today = now.atZone(ClaudePickups.ZONE).toLocalDate();
         List<AiSentOrders.Sent> sent = sentOrders.waiting();
         List<RecommendationDto> all = new ArrayList<>();
 
-        // 1. Propuestas retenidas
+        // 0. Publicar: la tarea del PC no contesta y, para alguna marca, tampoco hay Publora utilizable
+        var pcSilence = ClaudeActivity.pcSilence(sent, now);
+        if (pcSilence.isPresent()) {
+            var unroutable = publishing.withoutPubloraRoute(today, today.plusDays(7), promotions::brandOf);
+            for (var brand : brands) noPublishingRoute(brand, promotionById, unroutable).ifPresent(all::add);
+            all.add(pcTaskSilent(pcSilence.get(), now));
+        }
+
+        // 1. Propuestas retenidas, o paradas por Drive o por el límite diario
         Map<String, AiHeldOrders.Held> held = new LinkedHashMap<>();
         for (var h : heldOrders.current()) {
             if (h.isPromotionProposals() && promotionById.containsKey(h.promotionId())) held.putIfAbsent(h.promotionId(), h);
         }
-        held.forEach((promotionId, h) -> {
-            var promotion = promotionById.get(promotionId);
-            all.add(recommendation("held-proposals:" + promotionId, RecommendationDto.KindEnum.HELD_PROPOSALS,
-                    "Las propuestas de «" + promotion.name() + "» no pueden salir", h.reason(),
-                    RecommendationTargetDto.ScreenEnum.BRAND_FOLDERS, promotion.brandId(), null).promotionId(promotionId));
-        });
+        held.forEach((promotionId, h) -> all.add(heldRow(promotionById.get(promotionId), h.reason(),
+                RecommendationTargetDto.ScreenEnum.BRAND_FOLDERS)));
+        var stalled = heldOrders.stalledProposals().stream()
+                .filter(s -> promotionById.containsKey(s.promotionId()))
+                .sorted(Comparator.comparing(AiHeldOrders.Stalled::cause)) // Drive antes que el límite
+                .toList();
+        Set<String> alreadyRow = new java.util.HashSet<>(held.keySet());
+        for (var s : stalled) {
+            if (!alreadyRow.add(s.promotionId())) continue;
+            var promotion = promotionById.get(s.promotionId());
+            all.add(s.cause() == AiHeldOrders.Cause.DRIVE_UNAVAILABLE
+                    ? heldRow(promotion, "La carpeta de Encargos no está disponible en este ordenador. ¿Está abierto Google Drive?", null)
+                    : heldRow(promotion, "Límite diario de encargos a Claude alcanzado (" + s.limit() + "): salen mañana",
+                            RecommendationTargetDto.ScreenEnum.CLAUDE));
+        }
 
         // 2. Propuestas para revisar
         Map<String, Long> toReview = publishing.proposalCounts();
@@ -118,9 +159,11 @@ class FactoryRecommendations {
         for (var brand : brands) {
             var ofBrand = allPromotions.stream().filter(p -> p.brandId().equals(brand.id())).toList();
             if (ofBrand.stream().anyMatch(PromotionQueries.PromotionRef::active)) continue;
+            // Una planificada que aún no ha terminado se activará sola el día que empiece: no hace falta pedirlo
+            if (ofBrand.stream().anyMatch(p -> p.plannedAhead(today))) continue;
             // Con promociones planificadas o en pausa se pide activar una (y el botón la abre); si no tiene ninguna,
             // dar de alta la primera. Si solo tiene terminadas, hace falta una nueva.
-            var toActivate = ofBrand.stream().filter(p -> "PLANNED".equals(p.status()) || "PAUSED".equals(p.status())).findFirst();
+            var toActivate = ofBrand.stream().filter(p -> "PAUSED".equals(p.status())).findFirst();
             if (toActivate.isPresent()) {
                 all.add(recommendation("no-promotion:" + brand.id(), RecommendationDto.KindEnum.NO_ACTIVE_PROMOTION,
                         "Activa una promoción de " + brand.name(), null,
@@ -141,20 +184,78 @@ class FactoryRecommendations {
                 waiting.putIfAbsent(s.promotionId(), s.sentAt());
             }
         }
-        ZonedDateTime next = ClaudePickups.nextAfter(now);
-        boolean tomorrow = !next.toLocalDate().equals(now.atZone(ClaudePickups.ZONE).toLocalDate());
-        String eta = (tomorrow ? "mañana " : "") + "sobre las " + hour(next);
-        waiting.keySet().forEach(promotionId -> all.add(recommendation("proposals-pending:" + promotionId,
+        waiting.forEach((promotionId, sentAt) -> all.add(recommendation("proposals-pending:" + promotionId,
                 RecommendationDto.KindEnum.PROPOSALS_PENDING,
-                "Propuestas de «" + promotionById.get(promotionId).name() + "» pedidas. Llegarán " + eta,
-                null, null, null, null).promotionId(promotionId).etaText(eta)));
+                "Propuestas de «" + promotionById.get(promotionId).name() + "» pedidas. Llegarán "
+                        + ClaudePickups.etaText(sentAt, now),
+                null, null, null, null).promotionId(promotionId).etaText(ClaudePickups.etaText(sentAt, now))));
+
+        // 9. Especificación semanal esperando publicaciones aprobadas
+        ZonedDateTime local = now.atZone(ClaudePickups.ZONE);
+        AiWeeklySchedule.specWeek(local).ifPresent(week -> {
+            String day = week.getDayOfMonth() + " de " + week.getMonth().getDisplayName(TextStyle.SHORT, Locale.of("es", "ES"));
+            for (String promotionId : promotions.activeBetween(week, week.plusDays(6))) {
+                var promotion = promotionById.get(promotionId);
+                if (promotion == null || !publishing.approvedForAi(promotionId, week, week.plusDays(6)).isEmpty()) continue;
+                all.add(recommendation("spec-waiting:" + promotionId, RecommendationDto.KindEnum.SPEC_WAITING,
+                        "La especificación de «" + promotion.name() + "» espera a que apruebes publicaciones de la semana del " + day,
+                        null, null, null, null).promotionId(promotionId));
+            }
+        });
+
+        // 10. Promociones que SocialHub ha activado solas hoy (informativa, sin botón)
+        autoStarted.on(today).stream().sorted().filter(promotionById::containsKey).forEach(id -> all.add(
+                recommendation("promotion-auto-started:" + id, RecommendationDto.KindEnum.PROMOTION_AUTO_STARTED,
+                        "Promoción «" + promotionById.get(id).name() + "» activada sola: empieza hoy", null, null, null, null)
+                        .promotionId(id)));
 
         return List.copyOf(all);
     }
 
-    private static String hour(ZonedDateTime time) {
-        return time.getHour() + ":" + String.format("%02d", time.getMinute());
+    private static RecommendationDto heldRow(PromotionQueries.PromotionRef promotion, String reason,
+                                             RecommendationTargetDto.@Nullable ScreenEnum screen) {
+        return recommendation("held-proposals:" + promotion.id(), RecommendationDto.KindEnum.HELD_PROPOSALS,
+                "Las propuestas de «" + promotion.name() + "» no pueden salir", reason, screen,
+                screen == RecommendationTargetDto.ScreenEnum.BRAND_FOLDERS ? promotion.brandId() : null, null)
+                .promotionId(promotion.id());
     }
+
+    static final String PC_TASK_SILENT_TITLE = "La tarea «Publicar con Chrome» no contesta";
+
+    private static RecommendationDto pcTaskSilent(ClaudeActivity.Silence silence, Instant now) {
+        return recommendation("pc-task-silent", RecommendationDto.KindEnum.PC_TASK_SILENT, PC_TASK_SILENT_TITLE,
+                pcDetail(silence, now), null, null, null);
+    }
+
+    static String pcDetail(ClaudeActivity.Silence silence, Instant now) {
+        return silence.count() + (silence.count() == 1 ? " encargo sin contestar" : " encargos sin contestar") + " desde "
+                + ClaudeActivity.since(silence.since(), now) + ". ¿Está activa la tarea «Publicar con Chrome» y abierto Chrome?";
+    }
+
+    private java.util.Optional<RecommendationDto> noPublishingRoute(PromotionQueries.BrandRef brand,
+            Map<String, PromotionQueries.PromotionRef> promotionById, List<PublishingQueries.Unroutable> unroutable) {
+        var ofBrand = unroutable.stream().filter(u -> {
+            var promotion = promotionById.get(u.promotionId());
+            return promotion != null && promotion.brandId().equals(brand.id());
+        }).sorted(Comparator.comparing(PublishingQueries.Unroutable::scheduledOn)).toList();
+        if (ofBrand.isEmpty()) return java.util.Optional.empty();
+        var first = ofBrand.getFirst();
+        boolean dismissed = first.gap() == PubloraService.Gap.DISMISSED;
+        String why = switch (first.gap()) {
+            case NO_KEY -> "Publora no tiene clave";
+            case DISMISSED -> "Publora está marcada como «No uso Publora»";
+            default -> "Publora no tiene cuenta de " + first.platform();
+        };
+        int n = ofBrand.size();
+        String detail = n + (n == 1 ? " publicación" : " publicaciones") + " de los próximos 7 días (la primera, el "
+                + first.scheduledOn().getDayOfMonth() + " de " + first.scheduledOn().getMonth().getDisplayName(TextStyle.SHORT, Locale.of("es", "ES"))
+                + ") no tiene por dónde salir: la tarea «Publicar con Chrome» no contesta y " + why + ".";
+        return java.util.Optional.of(recommendation("no-publishing-route:" + brand.id(), RecommendationDto.KindEnum.NO_PUBLISHING_ROUTE,
+                "No hay forma de publicar " + brand.name(), detail,
+                dismissed ? null : RecommendationTargetDto.ScreenEnum.PUBLORA, dismissed ? null : brand.id(), null));
+    }
+
+    private static String hour(ZonedDateTime time) { return ClaudePickups.hour(time); }
 
     private static RecommendationDto recommendation(String id, RecommendationDto.KindEnum kind, String title,
                                                     @Nullable String detail,

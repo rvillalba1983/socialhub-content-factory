@@ -2,7 +2,20 @@ package com.socialhub.ai;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import com.socialhub.promotion.PromotionQueries;
+import com.socialhub.promotion.PromotionService;
+import java.time.Clock;
 import java.time.LocalDate;
+import java.util.List;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.TransactionTemplate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Optional;
@@ -22,7 +35,45 @@ class AiAutoOrdersTest {
         // Si SocialHub estaba cerrado el domingo, el lunes o el martes se pide el de la semana en curso
         assertThat(AiAutoOrders.specWeek(at(9, 7))).contains(LocalDate.of(2026, 11, 9));
         assertThat(AiAutoOrders.specWeek(at(10, 20))).contains(LocalDate.of(2026, 11, 9));
-        assertThat(AiAutoOrders.specWeek(at(11, 12))).isEqualTo(Optional.empty());
+        // Si la semana no tenía publicaciones aprobadas, se sigue mirando el resto de la semana en curso
+        assertThat(AiAutoOrders.specWeek(at(11, 12))).contains(LocalDate.of(2026, 11, 9));
+        assertThat(AiAutoOrders.specWeek(at(14, 23))).contains(LocalDate.of(2026, 11, 9));
+        // El domingo antes de las 9:00 no toca nada; desde las 9:00, la semana siguiente
+        assertThat(AiAutoOrders.specWeek(at(15, 8))).isEqualTo(Optional.empty());
+        assertThat(AiAutoOrders.specWeek(at(15, 9))).contains(LocalDate.of(2026, 11, 16));
+    }
+
+    private final PromotionQueries promotions = mock(PromotionQueries.class);
+    private final PromotionService promotionService = mock(PromotionService.class);
+    private final AiOrders orders = mock(AiOrders.class);
+    private final AiHandlers handlers = mock(AiHandlers.class);
+    private final AiAutoOrderRepository done = mock(AiAutoOrderRepository.class);
+    private final AiTypeHandler specHandler = mock(AiTypeHandler.class);
+    private final TransactionTemplate transactions = new TransactionTemplate() {
+        @Override public void executeWithoutResult(java.util.function.Consumer<TransactionStatus> action) { action.accept(null); }
+    };
+
+    private AiAutoOrders at(ZonedDateTime now) {
+        return new AiAutoOrders(promotions, promotionService, orders, handlers, done, transactions, Clock.fixed(now.toInstant(), MADRID));
+    }
+
+    @Test
+    void theSpecIsNotOrderedWhileTheWeekHasNoApprovedPublicationsAndIsOrderedAsSoonAsThereAreSome() {
+        when(promotions.activeBetween(LocalDate.of(2026, 11, 9), LocalDate.of(2026, 11, 15))).thenReturn(List.of("lit-1"));
+        when(promotions.proposableDates()).thenReturn(List.of());
+        when(handlers.of(AiRequestType.WEEKLY_SPEC)).thenReturn(Optional.of(specHandler));
+        when(orders.submit(any(), eq(AiRequestType.WEEKLY_SPEC), any(), any(), any())).thenReturn("t1");
+        // Domingo 8 a las 9:00 y a las 9:10: nada aprobado
+        when(specHandler.readyForAutoOrder("lit-1", LocalDate.of(2026, 11, 9))).thenReturn(false);
+        assertThat(at(at(8, 9)).createDue()).isZero();
+        assertThat(at(at(9, 12)).createDue()).isZero();
+        verify(orders, never()).submit(any(), eq(AiRequestType.WEEKLY_SPEC), any(), any(), any());
+        verify(done, never()).save(any());
+        // El martes se aprueba una: se pide en la ronda siguiente y se marca como hecho
+        when(specHandler.readyForAutoOrder("lit-1", LocalDate.of(2026, 11, 9))).thenReturn(true);
+        assertThat(at(at(10, 10)).createDue()).isGreaterThanOrEqualTo(1);
+        verify(orders).submit(eq("lit-1"), eq(AiRequestType.WEEKLY_SPEC), any(), any(), eq(List.of("2026-11-09")));
+        verify(done).save(any());
     }
 
     @Test
@@ -35,11 +86,41 @@ class AiAutoOrdersTest {
     }
 
     @Test
-    void proposalsAreAskedOnMondayFromSixPmForTheNextWeek() {
-        assertThat(AiAutoOrders.proposalsWeek(at(9, 17))).isEmpty();
-        assertThat(AiAutoOrders.proposalsWeek(at(9, 18))).contains(LocalDate.of(2026, 11, 16));
-        assertThat(AiAutoOrders.proposalsWeek(at(11, 10))).contains(LocalDate.of(2026, 11, 16));
-        assertThat(AiAutoOrders.proposalsWeek(at(12, 10))).isEmpty();
+    void proposalsForTheNextWeekAreAskedFromMondayAtSixPmUntilSundayNight() {
+        var next = LocalDate.of(2026, 11, 16);
+        // El lunes 9 antes de las 18:00 no toca (las de esa semana se pidieron la anterior)
+        assertThat(AiAutoOrders.proposalsWeek(ZonedDateTime.of(2026, 11, 9, 17, 59, 0, 0, MADRID))).isEmpty();
+        assertThat(AiAutoOrders.proposalsWeek(at(9, 18))).contains(next);
+        // Martes, miércoles, jueves, sábado y domingo hasta las 23:59: siempre la semana siguiente
+        assertThat(AiAutoOrders.proposalsWeek(at(11, 10))).contains(next);
+        assertThat(AiAutoOrders.proposalsWeek(at(12, 23))).contains(next);
+        assertThat(AiAutoOrders.proposalsWeek(at(14, 9))).contains(next);
+        assertThat(AiAutoOrders.proposalsWeek(at(15, 23))).contains(next);
+        assertThat(AiAutoOrders.proposalsWeek(ZonedDateTime.of(2026, 11, 15, 23, 59, 0, 0, MADRID))).contains(next);
+        // El lunes 16 a las 17:59 no vuelve a pedir la de la semana anterior; a las 18:00 pide la nueva (W+1 = 23)
+        assertThat(AiAutoOrders.proposalsWeek(ZonedDateTime.of(2026, 11, 16, 17, 59, 0, 0, MADRID))).isEmpty();
+        assertThat(AiAutoOrders.proposalsWeek(at(16, 18))).contains(LocalDate.of(2026, 11, 23));
+    }
+
+    @Test
+    void theRoundAsksOnThursdayAndSundayNightAndNeverTwiceForTheSameWeek() {
+        var next = LocalDate.of(2026, 11, 16);
+        when(promotions.proposableBetween(next, next.plusDays(6))).thenReturn(List.of("lit-1"));
+        when(orders.submit(any(), eq(AiRequestType.WEEKLY_PROPOSALS), any(), any(), any())).thenReturn("t1");
+        var saved = new java.util.HashSet<AiAutoOrderEntity.Key>();
+        when(done.existsById(any())).thenAnswer(i -> saved.contains(i.<AiAutoOrderEntity.Key>getArgument(0)));
+        org.mockito.Mockito.doAnswer(i -> {
+            AiAutoOrderEntity e = i.getArgument(0);
+            saved.add(new AiAutoOrderEntity.Key(e.getPromotionId(), e.getType(), e.getWeekStart()));
+            return e;
+        }).when(done).save(any());
+        // Jueves 12: pide W+1; domingo 15 a las 23:00: no la repite
+        assertThat(at(at(12, 10)).createDue()).isEqualTo(1);
+        assertThat(at(at(15, 23)).createDue()).isZero();
+        verify(orders, org.mockito.Mockito.times(1)).submit(eq("lit-1"), eq(AiRequestType.WEEKLY_PROPOSALS), any(), any(), eq(List.of("2026-11-16")));
+        // Si no estaba pedida, el domingo a las 23:00 la pide
+        saved.clear();
+        assertThat(at(at(15, 23)).createDue()).isEqualTo(1);
     }
 
     @Test
@@ -54,5 +135,46 @@ class AiAutoOrdersTest {
         assertThat(AiAutoOrders.firstWeek(at(8, 19), LocalDate.of(2026, 11, 30), LocalDate.of(2026, 12, 31))).isEmpty();
         // Su primera semana ya terminó
         assertThat(AiAutoOrders.firstWeek(at(16, 10), LocalDate.of(2026, 11, 9), LocalDate.of(2026, 12, 31))).isEmpty();
+    }
+
+    @Test
+    void aPlannedPromotionThatStartsTodayIsActivatedAndAsksForItsFirstWeek() {
+        // Lunes 9 de nov a las 10:00; la promoción empieza hoy y sigue «Planificada» hasta esta ronda
+        var today = LocalDate.of(2026, 11, 9);
+        when(promotionService.activateStarted(today)).thenReturn(List.of("lit-1"));
+        when(promotions.proposableDates()).thenReturn(List.of(new PromotionQueries.PromotionDates("lit-1", today, LocalDate.of(2026, 12, 31))));
+        when(orders.submit(any(), eq(AiRequestType.WEEKLY_PROPOSALS), any(), any(), any())).thenReturn("t1");
+        assertThat(at(at(9, 10)).createDue()).isEqualTo(1);
+        verify(promotionService).activateStarted(today);
+        verify(orders).submit(eq("lit-1"), eq(AiRequestType.WEEKLY_PROPOSALS), any(), any(), eq(List.of("2026-11-09")));
+        verify(done, org.mockito.Mockito.times(2)).save(any()); // la activación y el encargo
+    }
+
+    @Test
+    void aPlannedPromotionStartingNextMondayAsksOnThePreviousMondayAtSixAndIsNotActivatedBeforeItsDay() {
+        var next = LocalDate.of(2026, 11, 16);
+        var end = LocalDate.of(2026, 12, 31);
+        when(promotions.proposableDates()).thenReturn(List.of(new PromotionQueries.PromotionDates("lit-2", next, end)));
+        when(promotions.proposableBetween(next, next.plusDays(6))).thenReturn(List.of("lit-2"));
+        when(orders.submit(any(), eq(AiRequestType.WEEKLY_PROPOSALS), any(), any(), any())).thenReturn("t2");
+        // El registro de lo ya pedido recuerda lo que se guarda, como el real
+        var saved = new java.util.HashSet<AiAutoOrderEntity.Key>();
+        when(done.existsById(any())).thenAnswer(i -> saved.contains(i.<AiAutoOrderEntity.Key>getArgument(0)));
+        org.mockito.Mockito.doAnswer(i -> {
+            AiAutoOrderEntity e = i.getArgument(0);
+            saved.add(new AiAutoOrderEntity.Key(e.getPromotionId(), e.getType(), e.getWeekStart()));
+            return e;
+        }).when(done).save(any());
+        // Lunes 9 a las 17:00: aún no toca
+        assertThat(at(at(9, 17)).createDue()).isZero();
+        verify(orders, never()).submit(any(), any(), any(), any(), any());
+        // Lunes 9 a las 18:00: se piden las de la semana del 16 (la de siempre y la de la primera semana son la misma)
+        assertThat(at(at(9, 18)).createDue()).isGreaterThanOrEqualTo(1);
+        verify(orders).submit(eq("lit-2"), eq(AiRequestType.WEEKLY_PROPOSALS), any(), any(), eq(List.of("2026-11-16")));
+        // Hasta el lunes 16 la ronda no la activa (la activación se pide con la fecha de hoy)
+        verify(promotionService, org.mockito.Mockito.times(2)).activateStarted(LocalDate.of(2026, 11, 9));
+        verify(promotionService, never()).activateStarted(next);
+        at(at(16, 9)).createDue();
+        verify(promotionService).activateStarted(next);
     }
 }

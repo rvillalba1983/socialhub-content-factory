@@ -419,3 +419,23 @@ Tras la primera prueba de Raúl con una marca y una promoción nuevas:
 - **Sin suspensión** (respuesta de Raúl): mientras el script está en marcha, Windows no se duerme; la pantalla sí puede apagarse.
 - **SocialHub también** (respuesta de Raúl): se abre al iniciar sesión y se reabre solo si se cae; si se cierra con «Cerrar», se respeta hasta el siguiente inicio de sesión. Se distingue por su registro (técnica).
 - **Cómo arranca** (técnica): acceso directo en la carpeta «Inicio» del usuario, sin ventana y sin permisos de administrador. Abre los programas por su nombre en el menú Inicio, sin rutas fijas. Se prueba en Windows con `.github/workflows/siempre-abierto.yml`.
+
+## Fase 11 · Arreglos de la primera semana real (11 nov 2026)
+
+- **Semana fija** (técnica): un encargo de propuestas toma la semana que lleva escrita en sus datos (se escribe al crearlo). Los antiguos, sin fecha, toman la semana del último archivo de «para-claude» que se les envió (`inputs.week.from`) y, si no se puede leer, el lunes siguiente al día en que se crearon; nunca la de cuando se lee el resultado.
+- **Planificadas** (respuesta de Raúl): pasan solas a «Activa» el día que empiezan, y sus propuestas de la primera semana se piden igual que las de una activa.
+- **Aviso de la activación** (respuesta de Raúl): el día que una promoción pasa sola a «Activa», «Qué hacer ahora» enseña una fila informativa, sin botón, al final: «Promoción «X» activada sola: empieza hoy». Desaparece al día siguiente (hora de España) y no sale si Raúl la activó a mano. Técnica: se anota en `ai_auto_order` con el tipo `PROMOTION_AUTO_STARTED` y el día, sin migración.
+- **Propuestas no válidas** (respuesta de Raúl): se quitan solo las malas y entran las buenas. Son no válidas las que tienen fecha u hora ilegible, una red desconocida, caen fuera de la semana o de las fechas de la promoción, o son para dentro de menos de 6 horas (margen aprobado por Raúl). Si no queda ninguna, el encargo falla y se reintenta.
+- **Propuestas paradas** (respuesta de Raúl): la fila de retenidas de la franja dice también si es por Drive no disponible o por el límite diario. Para el límite, lleva a la pantalla «Claude».
+- **Al momento** (respuesta de Raúl): las propuestas de la primera semana se piden al guardar la promoción, sin esperar a la ronda de 10 minutos.
+- **Especificación** (respuesta de Raúl): no se pide mientras la semana no tenga publicaciones aprobadas, y la franja lo dice.
+- **Avisar si falta algo para publicar** (petición de Raúl): «Agentes y herramientas» enseña Claude en la nube, Claude en el PC · Publer y Publora. «Necesita atención» avisa si la tarea del PC no contesta o si no hay forma de publicar.
+- **Tarea «Publicar con Chrome»** (OK de Raúl): reactivada el 11 nov. Estaba desactivada desde el 8 nov, tras fallar por el límite de uso.
+- **Buffer** (respuesta de Raúl, 11 nov): descartado para siempre. No se integrará en SocialHub.
+- **Fase 12 única** (respuesta de Raúl, 11 nov): todo lo pendiente va en una sola fase, por bloques. Contenido inicial:
+  - pestaña «Métricas» de la promoción, con las dudas en `docs/estado.md`;
+  - instalador de macOS;
+  - API oficial de Instagram, junto con un estudio de si programar desde la web de Instagram o desde Meta Business Suite con Chrome puede sustituir a Publer.
+  - TikTok en SocialHub (cuenta personal de Raúl, `@litoques.eldelito`, para las dos marcas) y detalles visuales de «Necesita atención».
+- **Ventana del encargo semanal** (decisión de Raúl, 11 nov): las propuestas de W+1 se piden desde el lunes de W a las 18:00 hasta el domingo de W a las 23:59; al guardar una promoción sin margen en su primera semana, o de jueves a domingo, se piden también en el acto, sin duplicar.
+- **Merge de las PR #33, #34 y #35** (petición de Raúl, 11 nov): los hizo Claude porque Raúl lo pidió expresamente; la regla general sigue siendo que solo Raúl hace merge.

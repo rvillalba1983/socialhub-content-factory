@@ -48,6 +48,8 @@ class AiDispatcher {
     private final ApplicationEventPublisher events;
     /** Encargos de esta ronda que esperan a Raúl. */
     private java.util.Map<String, AiHeldOrders.Held> holding = AiHeldOrders.collector();
+    /** Propuestas de esta ronda paradas por Drive o por el límite diario. */
+    private java.util.Map<String, AiHeldOrders.Stalled> stalling = AiHeldOrders.stalledCollector();
 
     @Scheduled(initialDelayString = "${socialhub.ai.initial-delay-millis:10000}",
                fixedDelayString = "${socialhub.ai.dispatch-millis:30000}")
@@ -65,6 +67,7 @@ class AiDispatcher {
     int dispatchQueued() {
         int sent = 0;
         holding = AiHeldOrders.collector();
+        stalling = AiHeldOrders.stalledCollector();
         for (AiTask task : production.queuedAiTasks()) {
             try {
                 if (dispatch(task)) sent++;
@@ -74,9 +77,30 @@ class AiDispatcher {
                         + ". Se vuelve a intentar en el siguiente envío.");
             }
         }
+        stallBlockedProposals();
         // Solo si cambia lo retenido, para no despertar a la pantalla cada 30 s sin motivo
-        if (held.replace(holding)) events.publishEvent(new FactoryChanged("ai", null));
+        if (held.replace(holding, stalling)) events.publishEvent(new FactoryChanged("ai", null));
         return sent;
+    }
+
+    /**
+     * Las propuestas bloqueadas por la carpeta de «Encargos» (ya no están en cola, pero siguen paradas por Drive) también
+     * cuentan: si no, el motivo desaparecería en la ronda siguiente, a los 30 s.
+     */
+    private void stallBlockedProposals() {
+        for (ProductionService.BlockedAi blocked : production.blockedAiTasks()) {
+            AiTask task = blocked.task();
+            if (task.promotionId() == null
+                    || AiRequestType.ofTaskType(task.type()).filter(t -> t == AiRequestType.WEEKLY_PROPOSALS).isEmpty()) continue;
+            try {
+                Optional<String> orders = promotions.brandOrdersFolder(promotions.brandOf(task.promotionId()));
+                if (orders.isPresent() && orders.get().equals(blocked.waitingFor()) && !AiFolders.available(orders.get())) {
+                    stall(task, AiRequestType.WEEKLY_PROPOSALS, AiHeldOrders.Cause.DRIVE_UNAVAILABLE, 0);
+                }
+            } catch (RuntimeException e) {
+                log.debug("No se ha podido comprobar la carpeta del encargo {}: {}", task.id(), e.toString());
+            }
+        }
     }
 
     private boolean dispatch(AiTask task) {
@@ -98,12 +122,14 @@ class AiDispatcher {
         if (!AiFolders.available(orders.get())) {
             production.blockQueued(task.id(), "La carpeta de «Encargos» (" + orders.get() + ") no está disponible en este "
                     + "ordenador. ¿Está abierto Google Drive para ordenador? Saldrá sola cuando aparezca.", orders.get());
+            stall(task, type.get(), AiHeldOrders.Cause.DRIVE_UNAVAILABLE, 0);
             return false;
         }
         int limit = settings.dailyLimit();
         if (!type.get().onPc() && settings.usedToday() >= limit) {
             production.keepQueued(task.id(), "Límite diario de encargos a Claude alcanzado (" + limit
                     + "). Sale mañana, o sube el límite en «Claude».");
+            stall(task, type.get(), AiHeldOrders.Cause.DAILY_LIMIT, limit);
             return false;
         }
 
@@ -130,6 +156,13 @@ class AiDispatcher {
         });
         log.info("Encargo {} ({}) enviado a Claude {}: {}", task.id(), type.get(), model.label(), file);
         return true;
+    }
+
+    /** Las propuestas de una promoción no salen por Drive o por el límite diario: lo recoge «Qué hacer ahora». */
+    private void stall(AiTask task, AiRequestType type, AiHeldOrders.Cause cause, int limit) {
+        if (type == AiRequestType.WEEKLY_PROPOSALS && task.promotionId() != null) {
+            stalling.put(task.id(), new AiHeldOrders.Stalled(task.promotionId(), cause, limit));
+        }
     }
 
     /** Sigue en cola por algo que tiene que arreglar Raúl: queda anotado en la tarea y sale en «Necesita atención». */
@@ -159,7 +192,7 @@ class AiDispatcher {
             inputs.put("title", task.title());
             inputs.put("items", task.inputs());
             AiJob job = new AiJob(task.id(), type, java.util.Objects.requireNonNull(task.promotionId()), brandId,
-                    task.title(), task.goal(), task.inputs());
+                    task.title(), task.goal(), task.inputs(), task.createdAt(), lastRequestPath(task.id()));
             Map<String, Object> identity = promotions.identityOf(task.promotionId()).forAi();
             if (!identity.isEmpty()) inputs.put("brand_identity", identity);
             contexts.forEach(c -> inputs.putAll(c.context(task.promotionId(), brandId)));
@@ -176,6 +209,12 @@ class AiDispatcher {
         } catch (IOException e) {
             throw new IllegalStateException(e.getMessage(), e);
         }
+    }
+
+    /** El archivo del último envío de ese encargo (si es un reintento), para los manejadores que lo necesitan. */
+    private @org.jspecify.annotations.Nullable String lastRequestPath(String taskId) {
+        var sentBefore = requests.findByTaskIdOrderBySentAt(taskId);
+        return sentBefore.isEmpty() ? null : sentBefore.getLast().getRequestPath();
     }
 
     private static Path fresh(Path dir, String name) {

@@ -81,4 +81,23 @@ class FactoryControllerTest {
         assertThat(factory.getAlerts()).isEmpty();
         verify(recommendations, never()).compute();
     }
+
+    @Test
+    void whatBlocksPublishingAlsoShowsAsAlertsInNeedsAttention() {
+        when(mode.selected()).thenReturn(AppMode.REAL);
+        var silent = new RecommendationDto("pc-task-silent", RecommendationDto.KindEnum.PC_TASK_SILENT, "La tarea «Publicar con Chrome» no contesta")
+                .detail("2 encargos sin contestar");
+        var noRoute = new RecommendationDto("no-publishing-route:litoques", RecommendationDto.KindEnum.NO_PUBLISHING_ROUTE, "No hay forma de publicar Litoques");
+        FactoryDto factory = controller(noRoute, silent, recommendation).getFactory().getBody();
+        var alerts = factory.getAlerts();
+        assertThat(alerts).extracting(a -> a.getTitle()).containsSequence("No hay forma de publicar Litoques", "La tarea «Publicar con Chrome» no contesta");
+        var pc = alerts.stream().filter(a -> a.getTitle().contains("Chrome")).findFirst().orElseThrow();
+        assertThat(pc.getKind()).isEqualTo(com.socialhub.api.model.AlertDto.KindEnum.FAILED);
+        assertThat(pc.getTargetType()).isEqualTo(com.socialhub.api.model.AlertDto.TargetTypeEnum.ARMORY);
+        assertThat(pc.getTargetId()).isEqualTo("claude-pc");
+        assertThat(pc.getDetail()).isEqualTo("2 encargos sin contestar");
+        var route = alerts.stream().filter(a -> a.getTitle().contains("Litoques")).findFirst().orElseThrow();
+        assertThat(route.getKind()).isEqualTo(com.socialhub.api.model.AlertDto.KindEnum.BLOCKED);
+        assertThat(route.getTargetId()).isEqualTo("publora");
+    }
 }

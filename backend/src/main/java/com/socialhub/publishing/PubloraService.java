@@ -58,6 +58,24 @@ public class PubloraService {
         return new Status(true, hint(clean), connections, null);
     }
 
+    /** Hay clave de Publora guardada (no se comprueba con Publora: sin llamadas externas). */
+    public boolean hasKey() { return secrets.get(PubloraRoute.KEY).isPresent(); }
+
+    /** Qué impide publicar con Publora. */
+    public enum Gap { NONE, NO_KEY, DISMISSED, NO_ACCOUNT }
+
+    /**
+     * Qué falta para publicar en esa red con Publora (por orden): la clave, que la marca no la haya descartado con «No uso
+     * Publora» o su cuenta de esa red. {@code NONE}: se puede.
+     */
+    @Transactional(readOnly = true)
+    public Gap gap(String brandId, Platform platform) {
+        // «No uso Publora» va antes que la clave: si la marca lo descartó, no hay nada que conectar
+        if (accounts.dismissed(brandId)) return Gap.DISMISSED;
+        if (!hasKey()) return Gap.NO_KEY;
+        return accounts.account(brandId, platform).isPresent() ? Gap.NONE : Gap.NO_ACCOUNT;
+    }
+
     public void deleteKey() { secrets.delete(PubloraRoute.KEY); }
 
     @Transactional(readOnly = true)

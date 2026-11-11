@@ -78,7 +78,7 @@ class AiTypesTest {
     void setup() throws Exception {
         write(post("/api/brands"), "{\"name\":\"El DeLito\",\"handle\":\"@elde_lito\",\"color\":\"#D23A2E\"}");
         write(post("/api/promotions"), """
-                {"brand_id":"el-delito","name":"Poemario","starts_on":"2026-11-03","ends_on":"2027-01-25","status":"ACTIVE"}""")
+                {"brand_id":"el-delito","name":"Poemario","starts_on":"2026-11-03","ends_on":"2031-01-25","status":"ACTIVE"}""")
                 .andExpect(status().isCreated());
         write(put("/api/brands/el-delito/folders"), """
                 {"items":[{"role":"ORDERS","location":%s},{"role":"REPORTS","location":%s},{"role":"MATERIAL","location":%s}]}"""
@@ -267,9 +267,10 @@ class AiTypesTest {
                    "title":"Tres versos de la herida","idea":"Carrusel con tres versos","why":"Funciona el formato"},
                   {"scheduled_on":"2030-11-20","scheduled_time":"13:00","platform":"tiktok","type":"Reel","title":"Leer en voz alta"}],
                  "summary":"Semana tranquila"}""";
-        result(task, completed(task, twoProposals.replace("2030-11-20", "2030-11-30")));
-        waitFor(() -> "FAILED".equals(task(task).get("status").asString()), "propuesta fuera de la semana");
-        assertThat(task(task).get("error").asString()).contains("Propuesta 2").contains("fuera de la semana");
+        // Ninguna válida (las dos fuera de la semana): el encargo falla con el resumen de motivos
+        result(task, completed(task, twoProposals.replace("2030-11-20", "2030-11-30").replace("2030-11-18", "2030-11-25")));
+        waitFor(() -> "FAILED".equals(task(task).get("status").asString()), "propuestas fuera de la semana");
+        assertThat(task(task).get("error").asString()).contains("Ninguna propuesta es válida").contains("2 fuera de la semana");
 
         mvc.perform(post("/api/tasks/{id}/commands", task).header("X-SocialHub-Request", "1")
                 .contentType(MediaType.APPLICATION_JSON).content("{\"type\":\"RETRY\"}")).andExpect(status().isOk());

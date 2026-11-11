@@ -20,6 +20,18 @@ public interface AiTypeHandler {
      */
     default void validateOrder(String promotionId, java.util.List<String> inputs) {}
 
+    /**
+     * Completa los datos de entrada al crear el encargo, para que lo que depende del momento (por ejemplo, «el lunes que
+     * viene») quede escrito en el encargo y no se recalcule después.
+     */
+    default java.util.List<String> completeInputs(java.util.List<String> inputs) { return inputs; }
+
+    /**
+     * Si tiene sentido pedir ya el encargo semanal automático de esa promoción y semana (el lunes). Si no, no se crea ni
+     * se marca como hecho, y se vuelve a mirar en la ronda siguiente.
+     */
+    default boolean readyForAutoOrder(String promotionId, java.time.LocalDate week) { return true; }
+
     /** Hora límite del encargo («deadline» del contrato): pasada esa hora, Claude no debe hacerlo. */
     default java.time.@org.jspecify.annotations.Nullable Instant deadline(AiJob job) { return null; }
 
