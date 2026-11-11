@@ -1,6 +1,6 @@
 # Fase 12 · Todo lo pendiente (una sola fase)
 
-Estado: **plan propuesto el 11 nov 2026, pendiente del OK de Raúl.** No se programa nada hasta entonces.
+Estado: **dudas contestadas el 11 nov 2026; plan pendiente del OK final de Raúl.** No se programa nada hasta entonces.
 
 Raúl pidió seguir sin él y revisar todo al final con pruebas funcionales completas. Sobre SocialHub 0.9.3 no contestó qué había visto: se toma «nada».
 
@@ -43,6 +43,19 @@ Una rama y una PR por bloque.
 - 4 → cuenta personal (la de empresa exige demostrar que es una empresa real) · 5 → (b) públicas desde la primera · 6 → (b) sin aviso ni separación entre marcas.
 - 7 → Claude lo miró en Publer: plan **Free**, con Instagram de El DeLito y Litoques conectados. Admite 3 cuentas (TikTok cabe justo) y 10 publicaciones programadas por cuenta a la vez, así que TikTok tendrá como mucho 10 programadas entre las dos marcas.
 - 8 → (a) · 9 → (a) · 10 → (a) · 11 → (b) solo a los 7 días · 12 → (a) · 13 → (a).
+- 14 → (b) API oficial para todo («si lo conseguimos podríamos prescindir de Publer»). 14b → (c) enlace público de Drive para las imágenes; si Meta lo rechaza, túnel temporal de Cloudflare (pedirá OK para añadir `cloudflared`).
+- 15 → (b) Publer sigue como respaldo de Instagram; así TikTok sigue en Publer.
+- 16 → (b) Raúl crea la app de Meta y Claude le acompaña en su Chrome, leyendo sin escribir.
+- 17 → (a) el `.dmg` se prueba solo en GitHub · 18 → (a) PostgreSQL y FFmpeg de macOS (Apple Silicon) dentro del `.dmg`; OK de Raúl para añadirlos.
+
+## Plan decidido por bloque
+
+1. **Visual** (`fase-12-visual`): «Necesita atención» enseña como mucho 2 avisos, crece hacia arriba sin tapar la estación 07 y «Ver N más» abre la lista entera. Títulos a 2 líneas y texto completo al pasar el ratón o tocar. En «Qué hacer ahora», «Ver N más» pegado bajo la última fila visible. Comprobado con Playwright, con 1, 3 y 6 avisos y con muchas recomendaciones.
+2. **TikTok** (`fase-12-tiktok`): Raúl conecta `@litoques.eldelito` (personal, pública) en Publer; se añade a las dos marcas en SocialHub. Publicaciones públicas desde la primera, sin separación entre marcas. SocialHub tiene en cuenta el límite de 10 programadas por cuenta del plan Free de Publer.
+3. **Métricas** (`fase-12-metricas`): la pestaña enseña las 6 cifras que se leen (quita las otras 4): totales de la promoción y comparación por formato y por red, con Instagram y TikTok por separado y una fila de total. Grupos de menos de 5 publicaciones, marcados «pocos datos». Se sigue midiendo a los 7 días, con Claude y Chrome.
+4. **Instagram** (`fase-12-instagram`): ruta nueva «API oficial» (Business Login for Instagram) para imágenes, carruseles, reels e historias. Vídeos subidos desde el PC; imágenes por enlace público de Drive (o túnel si falla). Publica a la hora con SocialHub abierto; si falla, pasa a Publer. Botón «Conectar Instagram» en la ficha de la marca. Estudio de Meta Business Suite y de la web de Instagram en este documento.
+5. **macOS** (`fase-12-macos`): `.dmg` con PostgreSQL y FFmpeg de macOS dentro, probado en la máquina macOS de GitHub (instalar, arrancar, abrir la web).
+
 
 ## Dudas para Raúl (de una en una, la recomendada primero)
 
