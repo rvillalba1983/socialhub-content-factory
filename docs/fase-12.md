@@ -37,6 +37,10 @@ Una rama y una PR por bloque.
 - **Web de Instagram:** desde agosto de 2026 Instagram está probando programar publicaciones y reels desde instagram.com (hasta un mes antes), pero solo en algunas cuentas. Las historias no se pueden programar ni en la app ni en la web.
 - **TikTok en Publer:** admite cuentas personales y de empresa. Vídeos de 3 s a 10 min y hasta 1 GB, y carruseles de fotos. Privacidad y permisos (comentarios, dúos, stitch) se eligen en cada vídeo; los sonidos tienen que ir ya en el vídeo. Una cuenta de empresa de TikTok solo puede usar la biblioteca de música comercial.
 
+## Respuestas de Raúl
+
+- 11 nov: 0 → orden de la tabla · 1 → (a) · 2 → (a) · 3 → (a).
+
 ## Dudas para Raúl (de una en una, la recomendada primero)
 
 ### General
