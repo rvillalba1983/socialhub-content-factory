@@ -40,6 +40,9 @@ Una rama y una PR por bloque.
 ## Respuestas de Raúl
 
 - 11 nov: 0 → orden de la tabla · 1 → (a) · 2 → (a) · 3 → (a).
+- 4 → cuenta personal (la de empresa exige demostrar que es una empresa real) · 5 → (b) públicas desde la primera · 6 → (b) sin aviso ni separación entre marcas.
+- 7 → Claude lo miró en Publer: plan **Free**, con Instagram de El DeLito y Litoques conectados. Admite 3 cuentas (TikTok cabe justo) y 10 publicaciones programadas por cuenta a la vez, así que TikTok tendrá como mucho 10 programadas entre las dos marcas.
+- 8 → (a) · 9 → (a) · 10 → (a) · 11 → (b) solo a los 7 días · 12 → (a) · 13 → (a).
 
 ## Dudas para Raúl (de una en una, la recomendada primero)
 
