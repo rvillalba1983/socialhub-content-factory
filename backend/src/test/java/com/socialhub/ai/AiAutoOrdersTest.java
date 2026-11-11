@@ -117,7 +117,7 @@ class AiAutoOrdersTest {
         assertThat(at(at(9, 10)).createDue()).isEqualTo(1);
         verify(promotionService).activateStarted(today);
         verify(orders).submit(eq("lit-1"), eq(AiRequestType.WEEKLY_PROPOSALS), any(), any(), eq(List.of("2026-11-09")));
-        verify(done).save(any());
+        verify(done, org.mockito.Mockito.times(2)).save(any()); // la activación y el encargo
     }
 
     @Test

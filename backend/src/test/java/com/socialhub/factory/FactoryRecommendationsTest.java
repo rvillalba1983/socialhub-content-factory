@@ -35,6 +35,7 @@ class FactoryRecommendationsTest {
     private final PromotionQueries promotions = mock(PromotionQueries.class);
     private final PublishingQueries publishing = mock(PublishingQueries.class);
     private final PubloraService publora = mock(PubloraService.class);
+    private final com.socialhub.ai.AiAutoStarted autoStarted = mock(com.socialhub.ai.AiAutoStarted.class);
     private final BackupService backups = mock(BackupService.class);
 
     /** Lunes 9 de noviembre de 2026, 11:00 en España. */
@@ -49,7 +50,7 @@ class FactoryRecommendationsTest {
     }
 
     private FactoryRecommendations subject() {
-        return new FactoryRecommendations(held, sent, promotions, publishing, publora, backups,
+        return new FactoryRecommendations(held, sent, promotions, publishing, publora, backups, autoStarted,
                 Clock.fixed(now, ClaudePickups.ZONE));
     }
 
@@ -74,6 +75,28 @@ class FactoryRecommendationsTest {
 
     private static AiSentOrders.Sent sentOrder(AiRequestType type, Instant at) {
         return new AiSentOrders.Sent("lit-1", type, at, type.onPc(), true);
+    }
+
+    @Test
+    void anAutoStartedPromotionIsAnnouncedOnlyOnItsDayAndWithoutButton() {
+        // El 9 de nov SocialHub activó la promoción
+        when(autoStarted.on(LocalDate.of(2026, 11, 9))).thenReturn(java.util.Set.of("lit-1"));
+        var rows = subject().compute();
+        assertThat(rows).hasSize(1);
+        var row = rows.getFirst();
+        assertThat(row.getKind()).isEqualTo(KindEnum.PROMOTION_AUTO_STARTED);
+        assertThat(row.getTitle()).isEqualTo("Promoción «Test inicial» activada sola: empieza hoy");
+        assertThat(row.getTarget()).isNull();
+        // Va al final, detrás del resto de filas
+        backupFolderMissing();
+        assertThat(kinds()).containsExactly(KindEnum.BACKUP_FOLDER_MISSING, KindEnum.PROMOTION_AUTO_STARTED);
+        // Al día siguiente ya no sale
+        now = madrid(11, 10, 0, 5);
+        assertThat(kinds()).containsExactly(KindEnum.BACKUP_FOLDER_MISSING);
+        // Si Raúl la activó a mano no hay anotación y no sale nunca
+        now = madrid(11, 9, 11, 0);
+        when(autoStarted.on(any())).thenReturn(java.util.Set.of());
+        assertThat(kinds()).containsExactly(KindEnum.BACKUP_FOLDER_MISSING);
     }
 
     @Test
@@ -279,6 +302,10 @@ class FactoryRecommendationsTest {
         now = madrid(11, 9, 6, 0);
         when(sent.waiting()).thenReturn(List.of(sentOrder(AiRequestType.WEEKLY_PROPOSALS, madrid(11, 8, 21, 0))));
         assertThat(subject().compute().getFirst().getTitle()).endsWith("Llegarán sobre las 9:40");
+        // Enviado a las 14:37 (con los 5 min de sincronización no llega a la de las 14:40): le toca la de las 20:40
+        now = madrid(11, 9, 14, 38);
+        when(sent.waiting()).thenReturn(List.of(sentOrder(AiRequestType.WEEKLY_PROPOSALS, madrid(11, 9, 14, 37))));
+        assertThat(subject().compute().getFirst().getEtaText()).isEqualTo("sobre las 20:40");
     }
 
     @Test

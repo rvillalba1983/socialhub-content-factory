@@ -92,6 +92,7 @@ class PubloraRouteTest {
     @Autowired MockMvc mvc;
     @Autowired org.springframework.test.context.event.ApplicationEvents events;
     @Autowired PublishingEngine engine;
+    @Autowired PubloraService publoraService;
     @Autowired ExternalCalendar external;
     private final JsonMapper json = JsonMapper.builder().build();
 
@@ -194,6 +195,13 @@ class PubloraRouteTest {
                 .andExpect(status().isOk());
 
         assertThat(get("/api/publora").get("configured").asBoolean()).isFalse();
+        // Sin clave falta la clave; con «No uso Publora» el motivo es el descarte, aunque no haya clave
+        assertThat(publoraService.gap("el-delito", com.socialhub.publishing.domain.Platform.INSTAGRAM))
+                .isEqualTo(PubloraService.Gap.NO_KEY);
+        write(put("/api/brands/el-delito/publora-dismissed"), "{\"dismissed\":true}").andExpect(status().isOk());
+        assertThat(publoraService.gap("el-delito", com.socialhub.publishing.domain.Platform.INSTAGRAM))
+                .isEqualTo(PubloraService.Gap.DISMISSED);
+        write(put("/api/brands/el-delito/publora-dismissed"), "{\"dismissed\":false}").andExpect(status().isOk());
         // Sin clave no se eligen cuentas
         write(put("/api/brands/el-delito/publora-accounts"), "{\"items\":[{\"platform\":\"INSTAGRAM\",\"connection_id\":\"instagram-111\"}]}")
                 .andExpect(status().isBadRequest());

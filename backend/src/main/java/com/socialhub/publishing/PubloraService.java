@@ -70,8 +70,9 @@ public class PubloraService {
      */
     @Transactional(readOnly = true)
     public Gap gap(String brandId, Platform platform) {
-        if (!hasKey()) return Gap.NO_KEY;
+        // «No uso Publora» va antes que la clave: si la marca lo descartó, no hay nada que conectar
         if (accounts.dismissed(brandId)) return Gap.DISMISSED;
+        if (!hasKey()) return Gap.NO_KEY;
         return accounts.account(brandId, platform).isPresent() ? Gap.NONE : Gap.NO_ACCOUNT;
     }
 

@@ -51,15 +51,25 @@ class AiProposalsOnSave implements PromotionSavedHook {
         LocalDate week = promotion.startsOn().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
         LocalDate askOn = week.minusWeeks(1);
         if (now.isBefore(askOn.atTime(AiAutoOrders.PROPOSALS_FROM).atZone(ClaudePickups.ZONE))) {
-            return Optional.of("Sus propuestas se pedirán el lunes " + askOn.getDayOfMonth() + " de "
-                    + askOn.getMonth().getDisplayName(TextStyle.SHORT, Locale.of("es", "ES")) + " a las "
-                    + AiAutoOrders.PROPOSALS_FROM.getHour() + ":00");
+            return Optional.of("Sus propuestas se pedirán " + mondayAt18(askOn));
         }
         var result = autoOrders.requestFirstWeek(promotion.id(), promotion.startsOn(), promotion.endsOn(), now);
+        if (result == AiAutoOrders.FirstWeekResult.NO_ROOM) {
+            // Sin hueco válido en lo que queda de semana: no se pide; el encargo semanal normal las pedirá
+            return Optional.of("No queda margen para proponer lo que resta de esta semana. Sus propuestas se pedirán con las "
+                    + "de la semana siguiente, " + mondayAt18(today.with(TemporalAdjusters.next(DayOfWeek.MONDAY))));
+        }
         if (result != AiAutoOrders.FirstWeekResult.REQUESTED) return Optional.empty();
         String why = blocker(promotion);
         if (why != null) return Optional.of("Propuestas de la primera semana pedidas, pero no pueden salir: " + why);
         return Optional.of("Propuestas de la primera semana pedidas: llegarán " + ClaudePickups.etaText(now.toInstant()));
+    }
+
+    /** «el lunes 9 de nov a las 18:00». */
+    private static String mondayAt18(LocalDate monday) {
+        return "el lunes " + monday.getDayOfMonth() + " de "
+                + monday.getMonth().getDisplayName(TextStyle.SHORT, Locale.of("es", "ES")) + " a las "
+                + AiAutoOrders.PROPOSALS_FROM.getHour() + ":00";
     }
 
     /** Lo que ya se sabe que impedirá que el encargo salga, en una frase; nulo si nada lo impide. */

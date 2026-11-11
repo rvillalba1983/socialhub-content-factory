@@ -77,9 +77,30 @@ class AiDispatcher {
                         + ". Se vuelve a intentar en el siguiente envío.");
             }
         }
+        stallBlockedProposals();
         // Solo si cambia lo retenido, para no despertar a la pantalla cada 30 s sin motivo
         if (held.replace(holding, stalling)) events.publishEvent(new FactoryChanged("ai", null));
         return sent;
+    }
+
+    /**
+     * Las propuestas bloqueadas por la carpeta de «Encargos» (ya no están en cola, pero siguen paradas por Drive) también
+     * cuentan: si no, el motivo desaparecería en la ronda siguiente, a los 30 s.
+     */
+    private void stallBlockedProposals() {
+        for (ProductionService.BlockedAi blocked : production.blockedAiTasks()) {
+            AiTask task = blocked.task();
+            if (task.promotionId() == null
+                    || AiRequestType.ofTaskType(task.type()).filter(t -> t == AiRequestType.WEEKLY_PROPOSALS).isEmpty()) continue;
+            try {
+                Optional<String> orders = promotions.brandOrdersFolder(promotions.brandOf(task.promotionId()));
+                if (orders.isPresent() && orders.get().equals(blocked.waitingFor()) && !AiFolders.available(orders.get())) {
+                    stall(task, AiRequestType.WEEKLY_PROPOSALS, AiHeldOrders.Cause.DRIVE_UNAVAILABLE, 0);
+                }
+            } catch (RuntimeException e) {
+                log.debug("No se ha podido comprobar la carpeta del encargo {}: {}", task.id(), e.toString());
+            }
+        }
     }
 
     private boolean dispatch(AiTask task) {
@@ -171,7 +192,7 @@ class AiDispatcher {
             inputs.put("title", task.title());
             inputs.put("items", task.inputs());
             AiJob job = new AiJob(task.id(), type, java.util.Objects.requireNonNull(task.promotionId()), brandId,
-                    task.title(), task.goal(), task.inputs(), task.createdAt());
+                    task.title(), task.goal(), task.inputs(), task.createdAt(), lastRequestPath(task.id()));
             Map<String, Object> identity = promotions.identityOf(task.promotionId()).forAi();
             if (!identity.isEmpty()) inputs.put("brand_identity", identity);
             contexts.forEach(c -> inputs.putAll(c.context(task.promotionId(), brandId)));
@@ -188,6 +209,12 @@ class AiDispatcher {
         } catch (IOException e) {
             throw new IllegalStateException(e.getMessage(), e);
         }
+    }
+
+    /** El archivo del último envío de ese encargo (si es un reintento), para los manejadores que lo necesitan. */
+    private @org.jspecify.annotations.Nullable String lastRequestPath(String taskId) {
+        var sentBefore = requests.findByTaskIdOrderBySentAt(taskId);
+        return sentBefore.isEmpty() ? null : sentBefore.getLast().getRequestPath();
     }
 
     private static Path fresh(Path dir, String name) {

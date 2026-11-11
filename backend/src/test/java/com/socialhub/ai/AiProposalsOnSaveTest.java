@@ -103,6 +103,48 @@ class AiProposalsOnSaveTest {
     }
 
     @Test
+    void theArrivalCountsTheSendAndTheSyncMarginAtTheEdge() {
+        // 14:34: sale como mucho a las 14:34:30 y a las 14:39:30 ya está sincronizado: llega a la de las 14:40
+        var p = promotion("ACTIVE", LocalDate.of(2026, 11, 9), END);
+        assertThat(onSave(at(11, 9, 14, 34)).afterSave(p).orElseThrow()).endsWith("llegarán sobre las 14:40");
+        saved.clear();
+        // 14:37: con el margen ya no llega a la de las 14:40, le toca la de las 20:40
+        assertThat(onSave(at(11, 9, 14, 37)).afterSave(p).orElseThrow()).endsWith("llegarán sobre las 20:40");
+    }
+
+    @Test
+    void ifNoValidSlotIsLeftThisWeekNothingIsAskedAndTheNoteSaysWhenTheyWillBe() {
+        // Domingo 15 de nov, 20:00: recogida a las 20:40; +6 h pasa de la medianoche del domingo
+        var p = promotion("ACTIVE", LocalDate.of(2026, 11, 15), END);
+        assertThat(onSave(at(11, 15, 20, 0)).afterSave(p).orElseThrow())
+                .contains("Sus propuestas se pedirán con las de la semana siguiente, el lunes 16 de nov a las 18:00");
+        verify(orders, never()).submit(any(), any(), any(), any(), any());
+        assertThat(saved).isEmpty();
+        // La ronda tampoco la pide
+        when(promotions.proposableDates()).thenReturn(List.of(new PromotionQueries.PromotionDates("lit-1", p.startsOn(), END)));
+        assertThat(autoOrders.createFirstWeeks(at(11, 15, 20, 0))).isZero();
+        verify(orders, never()).submit(any(), any(), any(), any(), any());
+        // Domingo a las 14:34 aún cabe (recogida 14:40 + 6 h = 20:40); a las 14:35 ya no (recogida 20:40)
+        assertThat(onSave(at(11, 15, 14, 34)).afterSave(p).orElseThrow()).contains("Propuestas de la primera semana pedidas");
+    }
+
+    @Test
+    void onlyWhatSocialHubActivatesItselfIsNotedForTheDay() {
+        var now = at(11, 9, 10, 0);
+        onSave(now);
+        when(promotionService.activateStarted(any())).thenReturn(List.of("lit-1"));
+        autoOrders.createDue();
+        assertThat(saved).containsExactly(new AiAutoOrderEntity.Key("lit-1", "PROMOTION_AUTO_STARTED", LocalDate.of(2026, 11, 9)));
+        // Otra ronda el mismo día no la duplica; y sin activación no se anota nada
+        autoOrders.createDue();
+        assertThat(saved).hasSize(1);
+        saved.clear();
+        when(promotionService.activateStarted(any())).thenReturn(List.of());
+        autoOrders.createDue();
+        assertThat(saved).isEmpty();
+    }
+
+    @Test
     void afterTheLastPickupOfTheDayItSaysTomorrow() {
         var p = promotion("ACTIVE", LocalDate.of(2026, 11, 9), END);
         assertThat(onSave(at(11, 9, 21, 0)).afterSave(p))

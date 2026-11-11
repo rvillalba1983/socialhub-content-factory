@@ -1,6 +1,7 @@
 package com.socialhub.factory;
 
 import com.socialhub.ai.AiHeldOrders;
+import com.socialhub.ai.AiAutoStarted;
 import com.socialhub.ai.AiRequestType;
 import com.socialhub.ai.AiSentOrders;
 import com.socialhub.ai.AiWeeklySchedule;
@@ -54,6 +55,9 @@ import org.springframework.stereotype.Component;
  *   <li>Especificación semanal en espera: ya tocaría pedirla (domingo desde las 9:00 o durante la semana) pero la
  *   promoción no tiene publicaciones aprobadas esa semana. Informativa, sin botón. Va la última: no hay nada que
  *   hacer salvo aprobar publicaciones, que ya se pide en las filas de propuestas.</li>
+ *   <li>Promoción activada sola hoy: el día en que SocialHub la pasa de «Planificada» a «Activa» (empieza hoy), una fila
+ *   informativa, sin botón, que desaparece al día siguiente (hora de España). No sale si Raúl la activó a mano. Va la
+ *   última: es solo un aviso.</li>
  * </ol>
  * Solo tiene sentido en modo real; quien lo llama decide.
  */
@@ -67,6 +71,7 @@ class FactoryRecommendations {
     private final PublishingQueries publishing;
     private final PubloraService publora;
     private final BackupService backups;
+    private final AiAutoStarted autoStarted;
     private final Clock clock;
 
     List<RecommendationDto> compute() {
@@ -179,11 +184,11 @@ class FactoryRecommendations {
                 waiting.putIfAbsent(s.promotionId(), s.sentAt());
             }
         }
-        String eta = ClaudePickups.etaText(now);
-        waiting.keySet().forEach(promotionId -> all.add(recommendation("proposals-pending:" + promotionId,
+        waiting.forEach((promotionId, sentAt) -> all.add(recommendation("proposals-pending:" + promotionId,
                 RecommendationDto.KindEnum.PROPOSALS_PENDING,
-                "Propuestas de «" + promotionById.get(promotionId).name() + "» pedidas. Llegarán " + eta,
-                null, null, null, null).promotionId(promotionId).etaText(eta)));
+                "Propuestas de «" + promotionById.get(promotionId).name() + "» pedidas. Llegarán "
+                        + ClaudePickups.etaText(sentAt, now),
+                null, null, null, null).promotionId(promotionId).etaText(ClaudePickups.etaText(sentAt, now))));
 
         // 9. Especificación semanal esperando publicaciones aprobadas
         ZonedDateTime local = now.atZone(ClaudePickups.ZONE);
@@ -197,6 +202,12 @@ class FactoryRecommendations {
                         null, null, null, null).promotionId(promotionId));
             }
         });
+
+        // 10. Promociones que SocialHub ha activado solas hoy (informativa, sin botón)
+        autoStarted.on(today).stream().sorted().filter(promotionById::containsKey).forEach(id -> all.add(
+                recommendation("promotion-auto-started:" + id, RecommendationDto.KindEnum.PROMOTION_AUTO_STARTED,
+                        "Promoción «" + promotionById.get(id).name() + "» activada sola: empieza hoy", null, null, null, null)
+                        .promotionId(id)));
 
         return List.copyOf(all);
     }

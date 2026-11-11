@@ -415,8 +415,9 @@ Tras la primera prueba de Raúl con una marca y una promoción nuevas:
 
 ## Fase 11 · Arreglos de la primera semana real (11 nov 2026)
 
-- **Semana fija** (técnica): un encargo de propuestas sin fecha toma la semana de cuando se creó, no la de cuando se envía o se lee.
+- **Semana fija** (técnica): un encargo de propuestas toma la semana que lleva escrita en sus datos (se escribe al crearlo). Los antiguos, sin fecha, toman la semana del último archivo de «para-claude» que se les envió (`inputs.week.from`) y, si no se puede leer, el lunes siguiente al día en que se crearon; nunca la de cuando se lee el resultado.
 - **Planificadas** (respuesta de Raúl): pasan solas a «Activa» el día que empiezan, y sus propuestas de la primera semana se piden igual que las de una activa.
+- **Aviso de la activación** (respuesta de Raúl): el día que una promoción pasa sola a «Activa», «Qué hacer ahora» enseña una fila informativa, sin botón, al final: «Promoción «X» activada sola: empieza hoy». Desaparece al día siguiente (hora de España) y no sale si Raúl la activó a mano. Técnica: se anota en `ai_auto_order` con el tipo `PROMOTION_AUTO_STARTED` y el día, sin migración.
 - **Propuestas no válidas** (respuesta de Raúl): se quitan solo las malas y entran las buenas. Son no válidas las que tienen fecha u hora ilegible, una red desconocida, caen fuera de la semana o de las fechas de la promoción, o son para dentro de menos de 6 horas (margen aprobado por Raúl). Si no queda ninguna, el encargo falla y se reintenta.
 - **Propuestas paradas** (respuesta de Raúl): la fila de retenidas de la franja dice también si es por Drive no disponible o por el límite diario. Para el límite, lleva a la pantalla «Claude».
 - **Al momento** (respuesta de Raúl): las propuestas de la primera semana se piden al guardar la promoción, sin esperar a la ronda de 10 minutos.

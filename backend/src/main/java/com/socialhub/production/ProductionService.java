@@ -188,6 +188,19 @@ public class ProductionService {
                 .toList();
     }
 
+    /** Encargo a Claude bloqueado esperando una carpeta, con la ruta que espera. */
+    public record BlockedAi(AiTask task, String waitingFor) {}
+
+    /** Encargos a Claude bloqueados porque les falta una carpeta (salen solos cuando aparece). */
+    @Transactional(readOnly = true)
+    public List<BlockedAi> blockedAiTasks() {
+        return tasks.findByStatusIn(List.of(TaskStatus.BLOCKED)).stream()
+                .filter(t -> t.isAiRequest() && t.getWaitingFor() != null)
+                .map(t -> new BlockedAi(toAiTask(t), t.getWaitingFor()))
+                .sorted(java.util.Comparator.comparing((BlockedAi b) -> b.task().createdAt()).thenComparing(b -> b.task().id()))
+                .toList();
+    }
+
     /** Encargo a Claude fallido que aún tiene intentos, con cuándo falló. */
     public record RetryableAi(String id, String type, java.time.Instant failedAt) {}
 

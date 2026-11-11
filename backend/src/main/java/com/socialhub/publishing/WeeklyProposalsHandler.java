@@ -7,6 +7,9 @@ import com.socialhub.promotion.PromotionQueries;
 import com.socialhub.publishing.domain.Platform;
 import com.socialhub.publishing.domain.Publication;
 import com.socialhub.publishing.domain.PublicationStatus;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -25,8 +28,10 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Propuestas de la semana: Claude propone las publicaciones de una semana y SocialHub las crea como «Propuesta» para
@@ -44,6 +49,7 @@ class WeeklyProposalsHandler implements AiTypeHandler {
     private final PublishingService service;
     private final Clock clock;
     private final ExternalCalendar external;
+    private final ObjectMapper json;
 
     @Override public AiRequestType type() { return AiRequestType.WEEKLY_PROPOSALS; }
 
@@ -65,13 +71,27 @@ class WeeklyProposalsHandler implements AiTypeHandler {
 
     /**
      * La semana del encargo: la del primer dato de entrada si es una fecha (así se guarda al crearlo). Los encargos
-     * antiguos, sin fecha, toman el lunes siguiente al día en que se crearon, nunca el de «hoy».
+     * antiguos, sin fecha, toman la semana que se envió en su último archivo de «para-claude» ({@code inputs.week.from});
+     * si no se puede leer, el lunes siguiente al día en que se crearon, nunca el de «hoy».
      */
     LocalDate weekStart(AiJob job) {
-        return explicitWeek(job.inputs()).orElseGet(() -> {
+        return explicitWeek(job.inputs()).or(() -> sentWeek(job.requestPath())).orElseGet(() -> {
             Instant created = job.createdAt() == null || job.createdAt().equals(Instant.EPOCH) ? clock.instant() : job.createdAt();
             return nextMonday(created.atZone(MADRID).toLocalDate());
         });
+    }
+
+    /** La semana (su lunes) escrita en un archivo de petición ya enviado, si existe, se lee y trae una fecha. */
+    private Optional<LocalDate> sentWeek(@Nullable String requestPath) {
+        if (requestPath == null || requestPath.isBlank()) return Optional.empty();
+        try {
+            Path file = Path.of(requestPath);
+            if (!Files.isRegularFile(file)) return Optional.empty();
+            String from = json.readTree(Files.readString(file)).path("inputs").path("week").path("from").asString("");
+            return Optional.of(LocalDate.parse(from).with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)));
+        } catch (IOException | RuntimeException e) {
+            return Optional.empty();
+        }
     }
 
     /** Al crear el encargo sin fecha, se escribe en sus datos el lunes que viene, para que no se recalcule nunca. */

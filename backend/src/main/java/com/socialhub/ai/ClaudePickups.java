@@ -49,10 +49,21 @@ public final class ClaudePickups {
         return time.getHour() + ":" + String.format("%02d", time.getMinute());
     }
 
-    /** Cuándo llegará lo pedido ahora: «sobre las 14:40», o «mañana sobre las 9:40» si la recogida es otro día. */
+    /** Lo máximo que tarda el envío de un encargo en cola (la ronda del envío es cada 30 s). */
+    public static final Duration DISPATCH_MAX = Duration.ofSeconds(30);
+
+    /**
+     * Cuándo llegará lo que se pide ahora: la recogida que le tocará contando lo que tarda en salir (hasta 30 s) y el
+     * margen de sincronización. «sobre las 14:40», o «mañana sobre las 9:40» si la recogida es otro día.
+     */
     public static String etaText(Instant now) {
-        ZonedDateTime next = nextAfter(now);
-        boolean tomorrow = !next.toLocalDate().equals(now.atZone(ZONE).toLocalDate());
+        return etaText(now.plus(DISPATCH_MAX), now);
+    }
+
+    /** Cuándo llegará un encargo ya enviado en {@code sentAt}, visto desde {@code now}. */
+    public static String etaText(Instant sentAt, Instant now) {
+        ZonedDateTime next = pickupFor(sentAt);
+        boolean tomorrow = next.toLocalDate().isAfter(now.atZone(ZONE).toLocalDate());
         return (tomorrow ? "mañana " : "") + "sobre las " + hour(next);
     }
 }

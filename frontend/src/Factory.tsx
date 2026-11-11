@@ -424,7 +424,7 @@ export function Factory({ data, live, onRefresh }: {
           <div className="float avisos" aria-label="Avisos">
             <h4>Atención</h4>
             {byPriority(data.alerts).slice(0, 3).map(a => (
-              <button key={a.kind + a.target_id} className={`aviso s-${alertTone(a.kind)}`} title={a.detail}
+              <button key={`${a.kind}|${a.target_id}|${a.title}`} className={`aviso s-${alertTone(a.kind)}`} title={a.detail}
                 onClick={() => openAlert(a, { onTask: goTask, onStation: goStation, onPublication: goPublication, onArmory: id => { setCc(null); setSel({ type: 'armory', id }); } })}>
                 <Dot s={a.kind} /><span><b>{a.title}</b> · {a.detail}</span>
               </button>

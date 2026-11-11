@@ -55,7 +55,7 @@ Vistos y dejados fuera por Raúl: la hora sin el día en «Próximas publicacion
 - Prueba con el caso real: encargo creado un domingo y resultado leído el lunes.
 
 ### 1. Las promociones planificadas se activan solas
-- Una promoción «Planificada» pasa sola a «Activa» el día en que empieza (`starts_on` ≤ hoy, hora de España), en la ronda de encargos automáticos. Queda anotado en su historial.
+- Una promoción «Planificada» pasa sola a «Activa» el día en que empieza (`starts_on` ≤ hoy, hora de España), en la ronda de encargos automáticos. El día que se activa, la franja lo avisa con una fila informativa («Promoción «X» activada sola: empieza hoy», sin botón, hasta el día siguiente); no sale si Raúl la activó a mano (decisión de Raúl).
 - Sus propuestas de la primera semana se piden igual que las de una activa: el lunes anterior a las 18:00 o, si esa hora ya pasó, en el acto. Las promociones «En pausa» y «Terminadas» siguen sin recibir nada.
 - Al guardar una promoción, el mensaje dice qué pasará: «Propuestas pedidas: llegarán sobre las HH:MM», «Sus propuestas se pedirán el lunes D a las 18:00» o qué las retiene.
 - La recomendación «Activa una promoción de {marca}» deja de salir para las planificadas que empiezan en el futuro, porque se activarán solas. Sigue saliendo si la marca solo tiene promociones en pausa o terminadas.

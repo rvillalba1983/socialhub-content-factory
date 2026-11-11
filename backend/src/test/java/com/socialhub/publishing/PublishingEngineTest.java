@@ -106,7 +106,15 @@ class PublishingEngineTest {
                 .formatted(q(orders), q(approved))).andExpect(status().isOk());
         // El límite diario no frena los encargos de publicación
         write(put("/api/ai/settings"), "{\"daily_limit\":1,\"models\":[]}").andExpect(status().isOk());
+        // Al guardar la promoción se pidió ya la primera semana de propuestas (un encargo normal, que sí cuenta para el
+        // límite). Se espera a que salga para que lo que se mida después sea solo lo de publicación.
+        long deadline = System.currentTimeMillis() + 5_000;
+        while (get("/api/ai/settings").get("used_today").asLong() == 0 && System.currentTimeMillis() < deadline) Thread.sleep(100);
+        usedBeforePublishing = get("/api/ai/settings").get("used_today").asLong();
     }
+
+    /** Encargos normales ya gastados hoy antes de publicar (las propuestas de la primera semana, pedidas al guardar). */
+    static long usedBeforePublishing;
 
     @Test
     @Order(2)
@@ -134,7 +142,8 @@ class PublishingEngineTest {
         assertThat(Files.exists(orders.resolve("para-claude"))
                 ? list(orders.resolve("para-claude")).stream().noneMatch(p -> p.getFileName().toString().startsWith(task)) : true)
                 .isTrue();
-        assertThat(get("/api/ai/settings").get("used_today").asLong()).isZero();
+        // Los encargos de publicación (en el PC) no cuentan para el límite diario
+        assertThat(get("/api/ai/settings").get("used_today").asLong()).isEqualTo(usedBeforePublishing);
 
         // Quedó a otra hora: no vale
         result(task, completed(task, "{\"scheduled\":true,\"scheduled_for\":\"%s\"}".formatted(at.plusSeconds(3600))));

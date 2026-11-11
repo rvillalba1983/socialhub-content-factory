@@ -38,7 +38,7 @@ class WeeklyProposalsHandlerTest {
 
     private WeeklyProposalsHandler at(Instant now) {
         return new WeeklyProposalsHandler(promotions, mock(PublishingQueries.class), service, Clock.fixed(now, MADRID),
-                mock(ExternalCalendar.class));
+                mock(ExternalCalendar.class), JSON);
     }
 
     private static AiJob job(List<String> inputs, Instant created) {
@@ -81,6 +81,30 @@ class WeeklyProposalsHandlerTest {
         String text = handler.apply(old, proposals(p("2026-11-10", "19:00", "INSTAGRAM"), p("2026-11-12", "13:00", "tiktok")), JSON.createObjectNode());
         assertThat(text).startsWith("2 propuestas para revisar en Publicaciones").doesNotContain("descartada");
         verify(service, times(2)).create(eq("lit-1"), any(), eq(PublicationStatus.PROPOSAL));
+    }
+
+    @Test
+    void anOldOrderWithoutDateTakesTheWeekOfItsLastSentFile(@org.junit.jupiter.api.io.TempDir java.nio.file.Path tmp) throws Exception {
+        var handler = monday();
+        java.nio.file.Path sent = tmp.resolve("t1-1.json");
+        java.nio.file.Files.writeString(sent, "{\"inputs\":{\"week\":{\"from\":\"2026-11-02\",\"to\":\"2026-11-08\"}}}");
+        // Creado el 8 (le tocaría el lunes 9), pero el archivo enviado decía la semana del 2: manda el archivo
+        AiJob old = new AiJob("t1", AiRequestType.WEEKLY_PROPOSALS, "lit-1", "litoques", "Propuestas", "goal", List.of(),
+                madrid(8, 20, 42), sent.toString());
+        assertThat(handler.weekStart(old)).isEqualTo(LocalDate.of(2026, 11, 2));
+        // Una fecha en los datos de entrada manda sobre el archivo
+        AiJob dated = new AiJob("t1", AiRequestType.WEEKLY_PROPOSALS, "lit-1", "litoques", "Propuestas", "goal",
+                List.of("2026-11-09"), madrid(8, 20, 42), sent.toString());
+        assertThat(handler.weekStart(dated)).isEqualTo(LocalDate.of(2026, 11, 9));
+        // Archivo que no existe, ilegible o sin semana: el lunes siguiente a la creación
+        java.nio.file.Files.writeString(tmp.resolve("roto.json"), "no es json");
+        java.nio.file.Files.writeString(tmp.resolve("sin-semana.json"), "{\"inputs\":{}}");
+        for (String path : List.of(tmp.resolve("no-existe.json").toString(), tmp.resolve("roto.json").toString(),
+                tmp.resolve("sin-semana.json").toString())) {
+            AiJob job = new AiJob("t1", AiRequestType.WEEKLY_PROPOSALS, "lit-1", "litoques", "Propuestas", "goal", List.of(),
+                    madrid(8, 20, 42), path);
+            assertThat(handler.weekStart(job)).isEqualTo(LocalDate.of(2026, 11, 9));
+        }
     }
 
     @Test

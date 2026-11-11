@@ -69,6 +69,17 @@ describe('World', () => {
     expect(prog.querySelector('.badge')).toHaveTextContent('1');
     expect(screen.getByText('Necesita atención')).toBeInTheDocument();
   });
+
+  it('no repite claves con varias alertas de «sin vía para publicar» (todas con el mismo destino)', () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const alert = (brand: string) => ({ kind: 'NO_PUBLISHING_ROUTE', target_type: 'ARMORY', target_id: 'publora', station_id: 'pub',
+      title: `No hay forma de publicar ${brand}`, detail: '1 publicación' }) as unknown as Snapshot['alerts'][number];
+    render(<World data={{ ...snapshot, alerts: [alert('El DeLito'), alert('Litoques')] }} sel={{ type: null, id: null }}
+      onStation={() => {}} onTask={() => {}} onTaskAction={() => {}} onArmory={() => {}} onPromotion={() => {}} onRegister={() => {}} />);
+    expect(screen.getByText('No hay forma de publicar El DeLito')).toBeInTheDocument();
+    expect(screen.getByText('No hay forma de publicar Litoques')).toBeInTheDocument();
+    expect(error.mock.calls.filter(c => String(c[0]).includes('same key'))).toHaveLength(0);
+  });
 });
 
 describe('TaskPanel', () => {

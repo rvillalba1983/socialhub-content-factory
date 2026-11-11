@@ -5,6 +5,7 @@ import com.socialhub.platform.AppModeHolder;
 import com.socialhub.promotion.PromotionQueries;
 import com.socialhub.promotion.PromotionService;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -34,6 +35,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  * Antes de nada, las promociones planificadas que ya han empezado pasan a activas.
  * Además, una promoción nueva pide enseguida las propuestas de su primera semana si ya pasó el lunes en que se habrían
  * pedido (si empieza a mitad de semana, para los días que quedan).
+ * Esa primera semana no se pide si ya no queda hueco válido (su último día acaba antes de la recogida más 6 h).
  * Cada encargo se crea una sola vez por promoción y semana. Los demás tipos se piden a mano.
  */
 @Slf4j
@@ -69,6 +71,11 @@ class AiAutoOrders {
         int n = 0;
         for (String id : promotionService.activateStarted(now.toLocalDate())) {
             log.info("Promoción {} activada sola: empieza hoy", id);
+            // Se anota el día (hora de España) para avisarlo en «Qué hacer ahora» ese día
+            LocalDate day = now.withZoneSameInstant(ClaudePickups.ZONE).toLocalDate();
+            if (!done.existsById(new AiAutoOrderEntity.Key(id, AiAutoStarted.TYPE, day))) {
+                done.save(new AiAutoOrderEntity(id, AiAutoStarted.TYPE, day, null, clock.instant()));
+            }
         }
         Optional<LocalDate> spec = specWeek(now);
         if (spec.isPresent()) n += create(AiRequestType.WEEKLY_SPEC, spec.get());
@@ -93,7 +100,7 @@ class AiAutoOrders {
     }
 
     /** Qué ha pasado al intentar pedir las propuestas de la primera semana. */
-    enum FirstWeekResult { REQUESTED, ALREADY_REQUESTED, NOT_DUE }
+    enum FirstWeekResult { REQUESTED, ALREADY_REQUESTED, NOT_DUE, NO_ROOM }
 
     /**
      * Pide las propuestas de la primera semana de una promoción si ya toca y no estaban pedidas. Lo usan la ronda y el
@@ -102,6 +109,7 @@ class AiAutoOrders {
     synchronized FirstWeekResult requestFirstWeek(String promotionId, LocalDate startsOn, LocalDate endsOn, ZonedDateTime now) {
         Optional<FirstWeek> first = firstWeek(now, startsOn, endsOn);
         if (first.isEmpty()) return FirstWeekResult.NOT_DUE;
+        if (!hasRoom(now, first.get().to())) return FirstWeekResult.NO_ROOM;
         LocalDate week = first.get().week(), from = first.get().from(), to = first.get().to();
         var key = new AiAutoOrderEntity.Key(promotionId, AiRequestType.WEEKLY_PROPOSALS.name(), week);
         if (done.existsById(key)) return FirstWeekResult.ALREADY_REQUESTED;
@@ -116,6 +124,20 @@ class AiAutoOrders {
         });
         log.info("Propuestas de la primera semana pedidas: {} (del {} al {})", promotionId, from, to);
         return FirstWeekResult.REQUESTED;
+    }
+
+    /** Margen mínimo entre la recogida y la hora de una propuesta (el mismo que exige el manejador al aplicar el resultado). */
+    static final Duration MIN_LEAD = Duration.ofHours(6);
+
+    /**
+     * Si queda hueco válido para proponer: con la recogida que le tocaría al encargo pedido ahora, alguna propuesta tiene
+     * que poder estar a 6 h o más de la recogida y dentro del último día. Si no (p. ej. domingo por la noche con solo ese
+     * día por delante), el encargo fallaría siempre y se reintentaría gastando encargos.
+     */
+    static boolean hasRoom(ZonedDateTime now, LocalDate lastDay) {
+        ZonedDateTime pickup = ClaudePickups.pickupFor(now.toInstant().plus(ClaudePickups.DISPATCH_MAX));
+        ZonedDateTime endOfLastDay = lastDay.plusDays(1).atStartOfDay(now.getZone());
+        return !endOfLastDay.toInstant().isBefore(pickup.toInstant().plus(MIN_LEAD));
     }
 
     /** Primera semana de una promoción: su lunes y los días que quedan por proponer. */
