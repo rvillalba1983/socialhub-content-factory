@@ -110,10 +110,13 @@ const data = {
 const three = fs.readFileSync(path.join(here, 'node_modules/three/build/three.module.min.js'), 'utf8');
 const orbit = fs.readFileSync(path.join(here, 'node_modules/three/examples/jsm/controls/OrbitControls.js'), 'utf8');
 const toDataUrl = js => 'data:text/javascript;base64,' + Buffer.from(js).toString('base64');
+// Reemplazos con función: con una cadena, «$'», «$&» o «$`» del código (p. ej. `$'\t'` en un script de bash)
+// se interpretarían como patrones y pegarían trozos del HTML en medio de los datos.
 const html = fs.readFileSync(path.join(here, 'visor.html'), 'utf8')
-  .replace('"__THREE__"', JSON.stringify(toDataUrl(three)))
-  .replace('"__ORBIT__"', JSON.stringify(toDataUrl(orbit)))
-  .replace('/*__DATA__*/null', JSON.stringify(data).replace(/</g, '\\u003c'));
+  .replace('"__THREE__"', () => JSON.stringify(toDataUrl(three)))
+  .replace('"__ORBIT__"', () => JSON.stringify(toDataUrl(orbit)))
+  .replace('/*__DATA__*/null', () => JSON.stringify(data).replace(/</g, '\\u003c'));
+if (html.split('</html>').length !== 2) throw new Error('El mapa ha salido mal formado: más de un </html>');
 
 fs.mkdirSync(out, { recursive: true });
 fs.writeFileSync(path.join(out, 'index.html'), html);
