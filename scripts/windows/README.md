@@ -15,3 +15,15 @@ Pasos que hace:
 Si se repite, reutiliza lo ya descargado y descomprimido.
 
 Resultado el 26 oct 2026 en Windows 10 (19045): todo OK. Ver `docs/decisiones.md`.
+
+## siempre-abierto/
+
+Mantiene abiertos en el PC de Raúl la app de Claude de escritorio, OpenCode y Chrome. Cada minuto mira si están abiertos y, si falta alguno, lo abre desde el menú Inicio. Mientras está en marcha, Windows no se duerme (la pantalla sí puede apagarse). Así Claude puede llegar al PC y las tareas programadas («Publicar con Chrome») encuentran Chrome abierto.
+
+- **Instalar:** doble clic en `instalar.bat`. Copia el script a `%LOCALAPPDATA%\SiempreAbierto`, lo pone en la carpeta «Inicio» del usuario (arranca solo al iniciar sesión, sin ventana) y lo arranca ya. No necesita permisos de administrador.
+- **Quitar:** doble clic en `desinstalar.bat`. Lo para, lo quita del inicio de sesión y Windows vuelve a dormirse como siempre. No cierra ningún programa.
+- **Registro:** `%LOCALAPPDATA%\SiempreAbierto\registro.log`. Apunta lo que abre y lo que no encuentra.
+- **Si no encuentra un programa,** se cambia su nombre del menú Inicio o del proceso al principio de `mantener-abiertos.ps1`. Los de OpenCode (`OpenCode`, `opencode`, `opencode-desktop`) están sin comprobar en el PC de Raúl.
+- **Límites:** solo funciona con la sesión iniciada; si el PC se reinicia, hay que entrar en Windows. Para que no se duerma, el PC no puede estar apagado ni con la tapa cerrada (en un portátil, según su configuración).
+
+La prueba en un Windows real está en `.github/workflows/siempre-abierto.yml`. Se lanza sola en cada PR que cambia estos archivos.

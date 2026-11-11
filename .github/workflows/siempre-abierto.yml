@@ -1,0 +1,69 @@
+name: Siempre abierto (Windows)
+
+# Prueba el script de scripts/windows/siempre-abierto en un Windows real: sintaxis, una pasada,
+# instalación (arranque al iniciar sesión y sin suspensión) y desinstalación.
+on:
+  pull_request:
+    paths:
+      - 'scripts/windows/siempre-abierto/**'
+      - '.github/workflows/siempre-abierto.yml'
+  workflow_dispatch:
+
+jobs:
+  probar:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: powershell
+        working-directory: scripts/windows/siempre-abierto
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sintaxis (PowerShell 5.1, el de Windows)
+        run: |
+          $bad = 0
+          foreach ($f in Get-ChildItem *.ps1) {
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref]$null, [ref]$errors) | Out-Null
+            if ($errors) { $bad++; $errors | ForEach-Object { Write-Host "$($f.Name): $($_.Message) (línea $($_.Extent.StartLineNumber))" } }
+            $bytes = [IO.File]::ReadAllBytes($f.FullName)
+            if (-not ($bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF)) { $bad++; Write-Host "$($f.Name): sin BOM UTF-8 (PowerShell 5.1 leería mal las tildes)" }
+          }
+          if ($bad) { exit 1 }
+          Write-Host 'Sintaxis OK'
+
+      - name: Una pasada (Chrome está en la máquina; Claude y OpenCode no)
+        run: |
+          Get-Process chrome -ErrorAction SilentlyContinue | Stop-Process -Force
+          .\mantener-abiertos.ps1 -Once
+          $log = Get-Content "$env:LOCALAPPDATA\SiempreAbierto\registro.log" -Raw
+          Write-Host '--- registro ---'; Write-Host $log
+          if ($log -notmatch 'Chrome estaba cerrado: abierto') { Write-Host 'No ha abierto Chrome'; exit 1 }
+          if ($log -notmatch 'No encuentro Claude') { Write-Host 'No avisa de que falta Claude'; exit 1 }
+          Start-Sleep -Seconds 10
+          if (-not (Get-Process chrome -ErrorAction SilentlyContinue)) { Write-Host 'Chrome no sigue abierto'; exit 1 }
+          Write-Host 'Pasada OK'
+
+      - name: Instalar, comprobar y desinstalar
+        run: |
+          .\instalar.ps1
+          Start-Sleep -Seconds 15
+          $link = Join-Path ([Environment]::GetFolderPath('Startup')) 'Siempre abierto (Claude, OpenCode y Chrome).lnk'
+          if (-not (Test-Path $link)) { Write-Host 'Falta el acceso directo de Inicio'; exit 1 }
+          $p = Get-CimInstance Win32_Process -Filter "Name = 'powershell.exe'" | Where-Object { $_.CommandLine -like '*mantener-abiertos.ps1*' }
+          if (-not $p) { Write-Host 'No está en marcha'; Get-Content "$env:LOCALAPPDATA\SiempreAbierto\registro.log"; exit 1 }
+          $req = powercfg /requests | Out-String
+          Write-Host $req
+          if ($req -notmatch '(?s)SYSTEM:.*powershell') { Write-Host 'No impide la suspensión'; exit 1 }
+          # Segunda copia: debe cerrarse sola
+          .\mantener-abiertos.ps1 -Once
+          if ((Get-Content "$env:LOCALAPPDATA\SiempreAbierto\registro.log" -Raw) -notmatch 'Ya hay otra copia') { Write-Host 'Deja arrancar dos copias'; exit 1 }
+          .\desinstalar.ps1
+          Start-Sleep -Seconds 3
+          if (Test-Path $link) { Write-Host 'No ha quitado el acceso directo'; exit 1 }
+          $p = Get-CimInstance Win32_Process -Filter "Name = 'powershell.exe'" | Where-Object { $_.CommandLine -like '*mantener-abiertos.ps1*' }
+          if ($p) { Write-Host 'Sigue en marcha'; exit 1 }
+          if ((powercfg /requests | Out-String) -match '(?s)SYSTEM:.*powershell') { Write-Host 'Sigue impidiendo la suspensión'; exit 1 }
+          Write-Host '--- registro ---'; Get-Content "$env:LOCALAPPDATA\SiempreAbierto\registro.log"
+          Write-Host 'Instalación y desinstalación OK'
