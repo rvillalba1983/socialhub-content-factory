@@ -27,3 +27,6 @@ secrets/
 credentials*.json
 token*.json
 frontend/dist/
+
+# Fichas de equipo generadas por scripts/windows/ficha-equipo
+scripts/windows/ficha-equipo/ficha-*.txt
