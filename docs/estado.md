@@ -47,8 +47,14 @@ Desde la fase 10 (PR #32) la pantalla principal tiene la franja «Qué hacer aho
 
 ## Siguiente
 
-Lo decide Raúl al empezar la próxima conversación. Candidatos:
-- Comprobar en real la franja «Qué hacer ahora» con Litoques y seguir con lo que salga de la primera semana (fallos y mejoras de uso).
-- Pestaña «Métricas» de la promoción con las métricas reales (ofrecido, sin respuesta).
-- Instalador de macOS (`.dmg`) y pruebas en macOS, cuando haya una versión utilizable.
-- API oficial de publicación (fase 7, bloque 3), si Raúl la retoma.
+Tras cerrar la fase 11 (merge junto con las PR #33 y #34), una fase por conversación:
+- **Métricas:** pestaña de la promoción con métricas reales. Dudas pendientes:
+  1. qué cifras (hoy se leen 6 por publicación, pero la pestaña enseña 8; impresiones, seguidores ganados y clics son de la cuenta);
+  2. cómo resumirlas (totales, medias o comparación por formato, día, hora y red);
+  3. muestra mínima para sacar conclusiones;
+  4. medir también a las 24–48 h o solo a los 7 días;
+  5. Instagram y TikTok juntos o por separado.
+- **macOS:** instalador (`.dmg`) y pruebas.
+- **API oficial de Instagram**, y estudio de si programar con Chrome desde la web de Instagram o desde Meta Business Suite puede sustituir a Publer.
+- **TikTok:** Raúl crea las cuentas de Litoques y El DeLito (11 nov). Luego hay que conectarlas a Publer y a SocialHub.
+- Buffer: descartado para siempre.
