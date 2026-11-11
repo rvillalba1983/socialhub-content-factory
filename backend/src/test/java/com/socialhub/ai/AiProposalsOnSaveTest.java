@@ -113,19 +113,62 @@ class AiProposalsOnSaveTest {
     }
 
     @Test
-    void ifNoValidSlotIsLeftThisWeekNothingIsAskedAndTheNoteSaysWhenTheyWillBe() {
+    void ifNoValidSlotIsLeftThisWeekTheNextWeekIsAskedNowAndTheNoteSaysSo() {
         // Domingo 15 de nov, 20:00: recogida a las 20:40; +6 h pasa de la medianoche del domingo
         var p = promotion("ACTIVE", LocalDate.of(2026, 11, 15), END);
         assertThat(onSave(at(11, 15, 20, 0)).afterSave(p).orElseThrow())
-                .contains("Sus propuestas se pedirán con las de la semana siguiente, el lunes 16 de nov a las 18:00");
-        verify(orders, never()).submit(any(), any(), any(), any(), any());
-        assertThat(saved).isEmpty();
-        // La ronda tampoco la pide
+                .isEqualTo("No queda margen para lo que resta de esta semana. "
+                        + "Propuestas de la semana del 16 de nov pedidas: llegarán sobre las 20:40");
+        // Solo se pide la semana del 16 (nada de la primera semana, que no tenía margen)
+        verify(orders, times(1)).submit(eq("lit-1"), eq(AiRequestType.WEEKLY_PROPOSALS), any(), any(), eq(List.of("2026-11-16")));
+        assertThat(saved).containsExactly(new AiAutoOrderEntity.Key("lit-1", "WEEKLY_PROPOSALS", LocalDate.of(2026, 11, 16)));
+        // Guardar otra vez no la repite
+        assertThat(onSave(at(11, 15, 20, 5)).afterSave(p).orElseThrow())
+                .isEqualTo("No queda margen para lo que resta de esta semana. Las propuestas de la semana del 16 de nov ya estaban pedidas.");
+        verify(orders, times(1)).submit(any(), any(), any(), any(), any());
+        // La ronda tampoco la repite
         when(promotions.proposableDates()).thenReturn(List.of(new PromotionQueries.PromotionDates("lit-1", p.startsOn(), END)));
-        assertThat(autoOrders.createFirstWeeks(at(11, 15, 20, 0))).isZero();
+        when(promotions.proposableBetween(any(), any())).thenReturn(List.of("lit-1"));
+        assertThat(autoOrders.createDue()).isZero();
+        verify(orders, times(1)).submit(any(), any(), any(), any(), any());
+        // Domingo a las 14:34 aún cabe la primera semana (recogida 14:40 + 6 h = 20:40) y, como es domingo, también W+1
+        saved.clear();
+        assertThat(onSave(at(11, 15, 14, 34)).afterSave(p).orElseThrow())
+                .isEqualTo("Propuestas de la primera semana y de la semana del 16 de nov pedidas: llegarán sobre las 14:40");
+    }
+
+    @Test
+    void ifNoSlotIsLeftAndThePromotionEndsThisWeekThereIsNothingElseToAsk() {
+        var p = promotion("ACTIVE", LocalDate.of(2026, 11, 15), LocalDate.of(2026, 11, 15));
+        assertThat(onSave(at(11, 15, 20, 0)).afterSave(p)).contains("No queda margen para lo que resta de esta semana.");
         verify(orders, never()).submit(any(), any(), any(), any(), any());
-        // Domingo a las 14:34 aún cabe (recogida 14:40 + 6 h = 20:40); a las 14:35 ya no (recogida 20:40)
-        assertThat(onSave(at(11, 15, 14, 34)).afterSave(p).orElseThrow()).contains("Propuestas de la primera semana pedidas");
+    }
+
+    @Test
+    void savingOnThursdayOrSundayNightAlsoAsksForTheNextWeekOfAnOldPromotion() {
+        var p = promotion("ACTIVE", LocalDate.of(2026, 10, 1), END);
+        // Jueves 12 a las 10:00: su primera semana ya pasó; le toca W+1 (semana del 16)
+        assertThat(onSave(at(11, 12, 10, 0)).afterSave(p))
+                .contains("Propuestas de la semana del 16 de nov pedidas: llegarán sobre las 14:40");
+        verify(orders).submit(eq("lit-1"), eq(AiRequestType.WEEKLY_PROPOSALS), any(), any(), eq(List.of("2026-11-16")));
+        assertThat(onSave(at(11, 12, 10, 5)).afterSave(p)).isEmpty();
+        // Domingo 23:00 de otra promoción sin pedir
+        saved.clear();
+        assertThat(onSave(at(11, 15, 23, 0)).afterSave(p).orElseThrow()).startsWith("Propuestas de la semana del 16 de nov pedidas");
+        // Martes: no se pide en el guardado, lo hará la ronda
+        saved.clear();
+        assertThat(onSave(at(11, 10, 10, 0)).afterSave(p)).isEmpty();
+        verify(orders, times(2)).submit(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void savingOnThursdayWithAFirstWeekAsksForBothAndTheNoteSaysWhatCannotLeave() {
+        var p = promotion("ACTIVE", LocalDate.of(2026, 11, 9), END);
+        when(promotions.brandOrdersFolder("litoques")).thenReturn(Optional.empty());
+        assertThat(onSave(at(11, 12, 10, 0)).afterSave(p).orElseThrow()).isEqualTo(
+                "Propuestas de la primera semana y de la semana del 16 de nov pedidas, pero no pueden salir: "
+                        + "la marca no tiene carpeta de «Encargos»");
+        verify(orders, times(2)).submit(any(), any(), any(), any(), any());
     }
 
     @Test

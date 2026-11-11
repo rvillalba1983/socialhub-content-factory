@@ -28,7 +28,10 @@ import org.springframework.transaction.support.TransactionTemplate;
  *       no tenía aún publicaciones aprobadas, se pide el de la semana en curso en cuanto las haya (hasta el sábado).
  *       Sin publicaciones aprobadas no se pide nada ni se marca como hecho.</li>
  *   <li>Lunes desde las 9:00: balance de la semana pasada. Si estaba cerrado, se pide el martes o el miércoles.</li>
- *   <li>Lunes desde las 18:00: propuestas de la semana siguiente. Si estaba cerrado, se piden el martes o el miércoles.</li>
+ *   <li>Propuestas de la semana siguiente (W+1): desde el lunes de la semana en curso (W) a las 18:00 hasta el domingo de
+ *       W a las 23:59. Si SocialHub estaba cerrado el lunes, se piden cualquier día después, hasta el domingo. Así, una
+ *       promoción guardada de jueves a domingo, o cuya primera semana ya no tenía margen, también las tiene. Las de W+1
+ *       se piden una sola vez por promoción (registro de lo ya pedido), pidan lo que las pida (ronda o guardado).</li>
  * </ul>
  * Las propuestas se piden también para las promociones planificadas (se activan solas el día que empiezan); el spec y
  * el balance, solo para las activas, que son las que tienen publicaciones aprobadas.
@@ -173,15 +176,27 @@ class AiAutoOrders {
 
     static final LocalTime PROPOSALS_FROM = LocalTime.of(18, 0);
 
-    /** Lunes de la semana cuyas propuestas toca pedir ahora (la siguiente), si toca alguna. */
+    /**
+     * Lunes de la semana cuyas propuestas toca pedir ahora (la siguiente, W+1), si toca alguna: desde el lunes de la
+     * semana en curso a las 18:00 hasta el domingo a las 23:59. El lunes antes de las 18:00 no toca ninguna (las de esa
+     * semana se pidieron la semana anterior).
+     */
     static Optional<LocalDate> proposalsWeek(ZonedDateTime now) {
         LocalDate today = now.toLocalDate();
         LocalDate next = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).plusWeeks(1);
-        return switch (today.getDayOfWeek()) {
-            case MONDAY -> now.toLocalTime().isBefore(PROPOSALS_FROM) ? Optional.empty() : Optional.of(next);
-            case TUESDAY, WEDNESDAY -> Optional.of(next);
-            default -> Optional.empty();
-        };
+        if (today.getDayOfWeek() == DayOfWeek.MONDAY && now.toLocalTime().isBefore(PROPOSALS_FROM)) return Optional.empty();
+        return Optional.of(next);
+    }
+
+    /** Qué ha pasado al intentar pedir un encargo semanal. */
+    enum WeekResult { REQUESTED, ALREADY_REQUESTED, NOT_READY }
+
+    /**
+     * Pide las propuestas de la semana W+1 de una promoción si toca ahora y no estaban pedidas. Lo usan el guardado de la
+     * promoción y (por el mismo camino, {@link #requestWeek}) la ronda; comparten el registro de lo ya pedido.
+     */
+    synchronized WeekResult requestNextWeekProposals(String promotionId, LocalDate week) {
+        return requestWeek(promotionId, AiRequestType.WEEKLY_PROPOSALS, week);
     }
 
     private synchronized int create(AiRequestType type, LocalDate week) {
@@ -190,27 +205,32 @@ class AiAutoOrders {
         List<String> active = type == AiRequestType.WEEKLY_PROPOSALS
                 ? promotions.proposableBetween(week, week.plusDays(6)) : promotions.activeBetween(week, week.plusDays(6));
         for (String promotionId : active) {
-            var key = new AiAutoOrderEntity.Key(promotionId, type.name(), week);
-            if (done.existsById(key)) continue;
-            // Sin nada que hacer todavía (p. ej., sin publicaciones aprobadas): no se crea ni se marca como hecho
-            if (!handlers.of(type).map(h -> h.readyForAutoOrder(promotionId, week)).orElse(true)) continue;
-            transactions.executeWithoutResult(s -> {
-                String title = type.label() + " · semana del " + week.getDayOfMonth() + " "
-                        + week.getMonth().getDisplayName(TextStyle.SHORT, Locale.of("es", "ES"));
-                String goal = switch (type) {
-                    case WEEKLY_SPEC -> "Prepara el spec.json de piezas de la semana del " + week + " para esta promoción: "
-                            + "las piezas de sus publicaciones aprobadas, con el material de sus carpetas y sus normas.";
-                    case WEEKLY_PROPOSALS -> "Propón las publicaciones de la semana del " + week + " para esta promoción, "
-                            + "según su cadencia, sus objetivos, sus hitos y su memoria editorial.";
-                    default -> "Haz el balance de la semana del " + week + " de esta promoción: qué se publicó, qué falló y "
-                            + "qué conviene cambiar. Sin inventar cifras.";
-                };
-                String taskId = orders.submit(promotionId, type, title, goal, List.of(week.toString()));
-                done.save(new AiAutoOrderEntity(promotionId, type.name(), week, taskId, clock.instant()));
-            });
-            log.info("Encargo semanal creado: {} de {} (semana del {})", type, promotionId, week);
-            n++;
+            if (requestWeek(promotionId, type, week) == WeekResult.REQUESTED) n++;
         }
         return n;
+    }
+
+    /** Crea el encargo semanal de una promoción si no estaba ya pedido (y hay algo que hacer). */
+    private synchronized WeekResult requestWeek(String promotionId, AiRequestType type, LocalDate week) {
+        var key = new AiAutoOrderEntity.Key(promotionId, type.name(), week);
+        if (done.existsById(key)) return WeekResult.ALREADY_REQUESTED;
+        // Sin nada que hacer todavía (p. ej., sin publicaciones aprobadas): no se crea ni se marca como hecho
+        if (!handlers.of(type).map(h -> h.readyForAutoOrder(promotionId, week)).orElse(true)) return WeekResult.NOT_READY;
+        transactions.executeWithoutResult(s -> {
+            String title = type.label() + " · semana del " + week.getDayOfMonth() + " "
+                    + week.getMonth().getDisplayName(TextStyle.SHORT, Locale.of("es", "ES"));
+            String goal = switch (type) {
+                case WEEKLY_SPEC -> "Prepara el spec.json de piezas de la semana del " + week + " para esta promoción: "
+                        + "las piezas de sus publicaciones aprobadas, con el material de sus carpetas y sus normas.";
+                case WEEKLY_PROPOSALS -> "Propón las publicaciones de la semana del " + week + " para esta promoción, "
+                        + "según su cadencia, sus objetivos, sus hitos y su memoria editorial.";
+                default -> "Haz el balance de la semana del " + week + " de esta promoción: qué se publicó, qué falló y "
+                        + "qué conviene cambiar. Sin inventar cifras.";
+            };
+            String taskId = orders.submit(promotionId, type, title, goal, List.of(week.toString()));
+            done.save(new AiAutoOrderEntity(promotionId, type.name(), week, taskId, clock.instant()));
+        });
+        log.info("Encargo semanal creado: {} de {} (semana del {})", type, promotionId, week);
+        return WeekResult.REQUESTED;
     }
 }

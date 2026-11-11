@@ -18,6 +18,8 @@ import org.springframework.stereotype.Component;
 /**
  * Al guardar una promoción: si ya toca pedir las propuestas de su primera semana, se piden en ese momento con la misma
  * lógica y el mismo registro que la ronda de {@link AiAutoOrders}, y se devuelve el aviso que enseña el guardado.
+ * Si su primera semana no tiene margen (NO_ROOM) o se guarda de jueves a domingo, y la promoción cubre la semana
+ * siguiente, se piden también las propuestas de esa semana (sin duplicar lo que ya pidió la ronda).
  * Se llama cuando el guardado ya está confirmado, así que un fallo al guardar no deja ningún encargo huérfano.
  */
 @Slf4j
@@ -53,16 +55,36 @@ class AiProposalsOnSave implements PromotionSavedHook {
         if (now.isBefore(askOn.atTime(AiAutoOrders.PROPOSALS_FROM).atZone(ClaudePickups.ZONE))) {
             return Optional.of("Sus propuestas se pedirán " + mondayAt18(askOn));
         }
-        var result = autoOrders.requestFirstWeek(promotion.id(), promotion.startsOn(), promotion.endsOn(), now);
-        if (result == AiAutoOrders.FirstWeekResult.NO_ROOM) {
-            // Sin hueco válido en lo que queda de semana: no se pide; el encargo semanal normal las pedirá
-            return Optional.of("No queda margen para proponer lo que resta de esta semana. Sus propuestas se pedirán con las "
-                    + "de la semana siguiente, " + mondayAt18(today.with(TemporalAdjusters.next(DayOfWeek.MONDAY))));
+        var first = autoOrders.requestFirstWeek(promotion.id(), promotion.startsOn(), promotion.endsOn(), now);
+        // La semana siguiente (W+1) también se pide en el acto si la primera no tiene margen o si se guarda de jueves a
+        // domingo; los demás días la pedirá la ronda sola. Mismo registro que la ronda: no se pide dos veces.
+        boolean noRoom = first == AiAutoOrders.FirstWeekResult.NO_ROOM;
+        AiAutoOrders.WeekResult next = null;
+        LocalDate nextWeek = AiAutoOrders.proposalsWeek(now).orElse(null);
+        boolean thursdayOrLater = today.getDayOfWeek().getValue() >= DayOfWeek.THURSDAY.getValue();
+        if (nextWeek != null && (noRoom || thursdayOrLater) && !promotion.startsOn().isAfter(nextWeek.plusDays(6))
+                && !promotion.endsOn().isBefore(nextWeek)) {
+            next = autoOrders.requestNextWeekProposals(promotion.id(), nextWeek);
         }
-        if (result != AiAutoOrders.FirstWeekResult.REQUESTED) return Optional.empty();
+        java.util.List<String> asked = new java.util.ArrayList<>();
+        if (first == AiAutoOrders.FirstWeekResult.REQUESTED) asked.add("de la primera semana");
+        if (next == AiAutoOrders.WeekResult.REQUESTED) asked.add("de la semana del " + dayMonth(nextWeek));
+        String lead = noRoom ? "No queda margen para lo que resta de esta semana. " : "";
+        if (asked.isEmpty()) {
+            if (noRoom && next == AiAutoOrders.WeekResult.ALREADY_REQUESTED) {
+                return Optional.of(lead + "Las propuestas de la semana del " + dayMonth(nextWeek) + " ya estaban pedidas.");
+            }
+            return noRoom ? Optional.of(lead.trim()) : Optional.empty();
+        }
         String why = blocker(promotion);
-        if (why != null) return Optional.of("Propuestas de la primera semana pedidas, pero no pueden salir: " + why);
-        return Optional.of("Propuestas de la primera semana pedidas: llegarán " + ClaudePickups.etaText(now.toInstant()));
+        String what = lead + "Propuestas " + String.join(" y ", asked) + " pedidas";
+        if (why != null) return Optional.of(what + ", pero no pueden salir: " + why);
+        return Optional.of(what + ": llegarán " + ClaudePickups.etaText(now.toInstant()));
+    }
+
+    /** «16 de nov». */
+    private static String dayMonth(LocalDate day) {
+        return day.getDayOfMonth() + " de " + day.getMonth().getDisplayName(TextStyle.SHORT, Locale.of("es", "ES"));
     }
 
     /** «el lunes 9 de nov a las 18:00». */

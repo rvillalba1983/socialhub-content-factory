@@ -430,3 +430,4 @@ Tras la primera prueba de Raúl con una marca y una promoción nuevas:
   - instalador de macOS;
   - API oficial de Instagram, junto con un estudio de si programar desde la web de Instagram o desde Meta Business Suite con Chrome puede sustituir a Publer.
   Raúl crea ya las cuentas de TikTok de Litoques y El DeLito para probar esa red.
+- **Ventana del encargo semanal** (decisión de Raúl, 11 nov): las propuestas de W+1 se piden desde el lunes de W a las 18:00 hasta el domingo de W a las 23:59; al guardar una promoción sin margen en su primera semana, o de jueves a domingo, se piden también en el acto, sin duplicar.

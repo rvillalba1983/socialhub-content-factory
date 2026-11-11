@@ -99,6 +99,9 @@ Aprobado por Raúl, que pidió que «si falta algo que conectar para poder publi
   - **«No hay forma de publicar {marca}»:** hay publicaciones aprobadas o en producción para los próximos 7 días, la tarea del PC no contesta y no hay Publora. El botón lleva a lo que falta.
 - Sin llamadas nuevas a servicios externos: todo se deduce de los encargos y resultados que SocialHub ya tiene.
 
+### 8. Ventana del encargo semanal
+Decisión de Raúl (11 nov): las propuestas de la semana W+1 se pueden pedir desde el lunes de W a las 18:00 hasta el domingo de W a las 23:59 (hora de España), no solo hasta el miércoles. Así, una promoción guardada de jueves a domingo, o cuya primera semana ya no tiene margen, no se queda sin las de la semana siguiente. Sigue el registro de lo ya pedido (una vez por promoción y semana) y la semana fija del encargo. Al guardar, si la primera semana no tiene margen o se guarda de jueves a domingo, se piden también las de W+1 en el acto y el aviso lo dice.
+
 ## Fuera de esta fase
 - Los detalles menores que Raúl no ha elegido (ver arriba).
 - Las tareas programadas de Claude no se tocan.

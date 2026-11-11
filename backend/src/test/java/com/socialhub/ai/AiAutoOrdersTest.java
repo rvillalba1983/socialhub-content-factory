@@ -86,11 +86,41 @@ class AiAutoOrdersTest {
     }
 
     @Test
-    void proposalsAreAskedOnMondayFromSixPmForTheNextWeek() {
-        assertThat(AiAutoOrders.proposalsWeek(at(9, 17))).isEmpty();
-        assertThat(AiAutoOrders.proposalsWeek(at(9, 18))).contains(LocalDate.of(2026, 11, 16));
-        assertThat(AiAutoOrders.proposalsWeek(at(11, 10))).contains(LocalDate.of(2026, 11, 16));
-        assertThat(AiAutoOrders.proposalsWeek(at(12, 10))).isEmpty();
+    void proposalsForTheNextWeekAreAskedFromMondayAtSixPmUntilSundayNight() {
+        var next = LocalDate.of(2026, 11, 16);
+        // El lunes 9 antes de las 18:00 no toca (las de esa semana se pidieron la anterior)
+        assertThat(AiAutoOrders.proposalsWeek(ZonedDateTime.of(2026, 11, 9, 17, 59, 0, 0, MADRID))).isEmpty();
+        assertThat(AiAutoOrders.proposalsWeek(at(9, 18))).contains(next);
+        // Martes, miércoles, jueves, sábado y domingo hasta las 23:59: siempre la semana siguiente
+        assertThat(AiAutoOrders.proposalsWeek(at(11, 10))).contains(next);
+        assertThat(AiAutoOrders.proposalsWeek(at(12, 23))).contains(next);
+        assertThat(AiAutoOrders.proposalsWeek(at(14, 9))).contains(next);
+        assertThat(AiAutoOrders.proposalsWeek(at(15, 23))).contains(next);
+        assertThat(AiAutoOrders.proposalsWeek(ZonedDateTime.of(2026, 11, 15, 23, 59, 0, 0, MADRID))).contains(next);
+        // El lunes 16 a las 17:59 no vuelve a pedir la de la semana anterior; a las 18:00 pide la nueva (W+1 = 23)
+        assertThat(AiAutoOrders.proposalsWeek(ZonedDateTime.of(2026, 11, 16, 17, 59, 0, 0, MADRID))).isEmpty();
+        assertThat(AiAutoOrders.proposalsWeek(at(16, 18))).contains(LocalDate.of(2026, 11, 23));
+    }
+
+    @Test
+    void theRoundAsksOnThursdayAndSundayNightAndNeverTwiceForTheSameWeek() {
+        var next = LocalDate.of(2026, 11, 16);
+        when(promotions.proposableBetween(next, next.plusDays(6))).thenReturn(List.of("lit-1"));
+        when(orders.submit(any(), eq(AiRequestType.WEEKLY_PROPOSALS), any(), any(), any())).thenReturn("t1");
+        var saved = new java.util.HashSet<AiAutoOrderEntity.Key>();
+        when(done.existsById(any())).thenAnswer(i -> saved.contains(i.<AiAutoOrderEntity.Key>getArgument(0)));
+        org.mockito.Mockito.doAnswer(i -> {
+            AiAutoOrderEntity e = i.getArgument(0);
+            saved.add(new AiAutoOrderEntity.Key(e.getPromotionId(), e.getType(), e.getWeekStart()));
+            return e;
+        }).when(done).save(any());
+        // Jueves 12: pide W+1; domingo 15 a las 23:00: no la repite
+        assertThat(at(at(12, 10)).createDue()).isEqualTo(1);
+        assertThat(at(at(15, 23)).createDue()).isZero();
+        verify(orders, org.mockito.Mockito.times(1)).submit(eq("lit-1"), eq(AiRequestType.WEEKLY_PROPOSALS), any(), any(), eq(List.of("2026-11-16")));
+        // Si no estaba pedida, el domingo a las 23:00 la pide
+        saved.clear();
+        assertThat(at(at(15, 23)).createDue()).isEqualTo(1);
     }
 
     @Test
