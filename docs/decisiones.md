@@ -413,6 +413,13 @@ Tras la primera prueba de Raúl con una marca y una promoción nuevas:
 - **Filas 4 y 7 ajustadas tras la revisión** (técnica): la fila 4 solo se mira si la carpeta de «Encargos» de la marca está disponible, y la fila 7 pide activar una promoción planificada o en pausa antes que dar de alta una nueva.
 - **Merge de la PR #32** (petición de Raúl): lo hizo Claude porque Raúl lo pidió expresamente para esta PR; la regla general sigue siendo que solo Raúl hace merge.
 
+## PC de Raúl siempre disponible (11 nov 2026)
+
+- **Siempre abiertos** (petición de Raúl): un script de Windows (`scripts/windows/siempre-abierto/`) mantiene abiertos Claude de escritorio, OpenCode Desktop y Chrome, y los reabre si se cierran.
+- **Sin suspensión** (respuesta de Raúl): mientras el script está en marcha, Windows no se duerme; la pantalla sí puede apagarse.
+- **SocialHub también** (respuesta de Raúl): se abre al iniciar sesión y se reabre solo si se cae; si se cierra con «Cerrar», se respeta hasta el siguiente inicio de sesión. Se distingue por su registro (técnica).
+- **Cómo arranca** (técnica): acceso directo en la carpeta «Inicio» del usuario, sin ventana y sin permisos de administrador. Abre los programas por su nombre en el menú Inicio, sin rutas fijas. Se prueba en Windows con `.github/workflows/siempre-abierto.yml`.
+
 ## Fase 11 · Arreglos de la primera semana real (11 nov 2026)
 
 - **Semana fija** (técnica): un encargo de propuestas toma la semana que lleva escrita en sus datos (se escribe al crearlo). Los antiguos, sin fecha, toman la semana del último archivo de «para-claude» que se les envió (`inputs.week.from`) y, si no se puede leer, el lunes siguiente al día en que se crearon; nunca la de cuando se lee el resultado.
@@ -429,5 +436,6 @@ Tras la primera prueba de Raúl con una marca y una promoción nuevas:
   - pestaña «Métricas» de la promoción, con las dudas en `docs/estado.md`;
   - instalador de macOS;
   - API oficial de Instagram, junto con un estudio de si programar desde la web de Instagram o desde Meta Business Suite con Chrome puede sustituir a Publer.
-  Raúl crea ya las cuentas de TikTok de Litoques y El DeLito para probar esa red.
+  - TikTok en SocialHub (cuenta personal de Raúl, `@litoques.eldelito`, para las dos marcas) y detalles visuales de «Necesita atención».
 - **Ventana del encargo semanal** (decisión de Raúl, 11 nov): las propuestas de W+1 se piden desde el lunes de W a las 18:00 hasta el domingo de W a las 23:59; al guardar una promoción sin margen en su primera semana, o de jueves a domingo, se piden también en el acto, sin duplicar.
+- **Merge de las PR #33, #34 y #35** (petición de Raúl, 11 nov): los hizo Claude porque Raúl lo pidió expresamente; la regla general sigue siendo que solo Raúl hace merge.
