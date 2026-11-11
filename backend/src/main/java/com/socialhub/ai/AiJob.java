@@ -1,7 +1,8 @@
 package com.socialhub.ai;
 
+import java.time.Instant;
 import java.util.List;
 
-/** Un encargo a Claude tal como lo ven los manejadores de cada tipo. */
+/** Un encargo a Claude tal como lo ven los manejadores de cada tipo. {@code createdAt}: cuándo se creó la tarea. */
 public record AiJob(String taskId, AiRequestType type, String promotionId, String brandId, String title, String goal,
-                    List<String> inputs) {}
+                    List<String> inputs, Instant createdAt) {}

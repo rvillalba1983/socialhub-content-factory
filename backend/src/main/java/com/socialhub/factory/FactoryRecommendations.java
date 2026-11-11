@@ -3,6 +3,7 @@ package com.socialhub.factory;
 import com.socialhub.ai.AiHeldOrders;
 import com.socialhub.ai.AiRequestType;
 import com.socialhub.ai.AiSentOrders;
+import com.socialhub.ai.AiWeeklySchedule;
 import com.socialhub.api.model.RecommendationDto;
 import com.socialhub.api.model.RecommendationTargetDto;
 import com.socialhub.backup.BackupService;
@@ -12,10 +13,12 @@ import com.socialhub.publishing.PubloraService;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZonedDateTime;
+import java.time.format.TextStyle;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -36,6 +39,9 @@ import org.springframework.stereotype.Component;
  *   <li>Sin carpeta de copias.</li>
  *   <li>Marca sin ninguna promoción activa: dar de alta la primera, o activar una planificada o en pausa.</li>
  *   <li>Propuestas pedidas y en camino, con la hora de la próxima recogida.</li>
+ *   <li>Especificación semanal en espera: ya tocaría pedirla (domingo desde las 9:00 o durante la semana) pero la
+ *   promoción no tiene publicaciones aprobadas esa semana. Informativa, sin botón. Va la última: no hay nada que
+ *   hacer salvo aprobar publicaciones, que ya se pide en las filas de propuestas.</li>
  * </ol>
  * Solo tiene sentido en modo real; quien lo llama decide.
  */
@@ -148,6 +154,19 @@ class FactoryRecommendations {
                 RecommendationDto.KindEnum.PROPOSALS_PENDING,
                 "Propuestas de «" + promotionById.get(promotionId).name() + "» pedidas. Llegarán " + eta,
                 null, null, null, null).promotionId(promotionId).etaText(eta)));
+
+        // 9. Especificación semanal esperando publicaciones aprobadas
+        ZonedDateTime local = now.atZone(ClaudePickups.ZONE);
+        AiWeeklySchedule.specWeek(local).ifPresent(week -> {
+            String day = week.getDayOfMonth() + " de " + week.getMonth().getDisplayName(TextStyle.SHORT, Locale.of("es", "ES"));
+            for (String promotionId : promotions.activeBetween(week, week.plusDays(6))) {
+                var promotion = promotionById.get(promotionId);
+                if (promotion == null || !publishing.approvedForAi(promotionId, week, week.plusDays(6)).isEmpty()) continue;
+                all.add(recommendation("spec-waiting:" + promotionId, RecommendationDto.KindEnum.SPEC_WAITING,
+                        "La especificación de «" + promotion.name() + "» espera a que apruebes publicaciones de la semana del " + day,
+                        null, null, null, null).promotionId(promotionId));
+            }
+        });
 
         return List.copyOf(all);
     }

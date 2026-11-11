@@ -175,7 +175,7 @@ class AiResultReader {
         var handler = handlers.of(type);
         if (handler.isEmpty() || sent.getPromotionId() == null) return;
         production.waitingAiTask(sent.getTaskId()).ifPresent(task -> handler.get().onFailed(
-                new AiJob(task.id(), type, sent.getPromotionId(), sent.getBrandId(), task.title(), task.goal(), task.inputs()),
+                new AiJob(task.id(), type, sent.getPromotionId(), sent.getBrandId(), task.title(), task.goal(), task.inputs(), task.createdAt()),
                 reason));
     }
 
@@ -185,7 +185,7 @@ class AiResultReader {
         if (handler.isEmpty() || sent.getPromotionId() == null) return summary(result, file);
         var task = production.waitingAiTask(sent.getTaskId()).orElseThrow();
         AiJob job = new AiJob(task.id(), type, sent.getPromotionId(), sent.getBrandId(), task.title(), task.goal(),
-                task.inputs());
+                task.inputs(), task.createdAt());
         String text = handler.get().apply(job, result.path("outputs"), result);
         List<String> warnings = warnings(result);
         return warnings.isEmpty() ? text : text + " · Avisos: " + String.join(" · ", warnings);

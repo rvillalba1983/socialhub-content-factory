@@ -2,7 +2,19 @@ package com.socialhub.ai;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import com.socialhub.promotion.PromotionQueries;
+import java.time.Clock;
 import java.time.LocalDate;
+import java.util.List;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.TransactionTemplate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Optional;
@@ -22,7 +34,44 @@ class AiAutoOrdersTest {
         // Si SocialHub estaba cerrado el domingo, el lunes o el martes se pide el de la semana en curso
         assertThat(AiAutoOrders.specWeek(at(9, 7))).contains(LocalDate.of(2026, 11, 9));
         assertThat(AiAutoOrders.specWeek(at(10, 20))).contains(LocalDate.of(2026, 11, 9));
-        assertThat(AiAutoOrders.specWeek(at(11, 12))).isEqualTo(Optional.empty());
+        // Si la semana no tenía publicaciones aprobadas, se sigue mirando el resto de la semana en curso
+        assertThat(AiAutoOrders.specWeek(at(11, 12))).contains(LocalDate.of(2026, 11, 9));
+        assertThat(AiAutoOrders.specWeek(at(14, 23))).contains(LocalDate.of(2026, 11, 9));
+        // El domingo antes de las 9:00 no toca nada; desde las 9:00, la semana siguiente
+        assertThat(AiAutoOrders.specWeek(at(15, 8))).isEqualTo(Optional.empty());
+        assertThat(AiAutoOrders.specWeek(at(15, 9))).contains(LocalDate.of(2026, 11, 16));
+    }
+
+    private final PromotionQueries promotions = mock(PromotionQueries.class);
+    private final AiOrders orders = mock(AiOrders.class);
+    private final AiHandlers handlers = mock(AiHandlers.class);
+    private final AiAutoOrderRepository done = mock(AiAutoOrderRepository.class);
+    private final AiTypeHandler specHandler = mock(AiTypeHandler.class);
+    private final TransactionTemplate transactions = new TransactionTemplate() {
+        @Override public void executeWithoutResult(java.util.function.Consumer<TransactionStatus> action) { action.accept(null); }
+    };
+
+    private AiAutoOrders at(ZonedDateTime now) {
+        return new AiAutoOrders(promotions, orders, handlers, done, transactions, Clock.fixed(now.toInstant(), MADRID));
+    }
+
+    @Test
+    void theSpecIsNotOrderedWhileTheWeekHasNoApprovedPublicationsAndIsOrderedAsSoonAsThereAreSome() {
+        when(promotions.activeBetween(LocalDate.of(2026, 11, 9), LocalDate.of(2026, 11, 15))).thenReturn(List.of("lit-1"));
+        when(promotions.activeDates()).thenReturn(List.of());
+        when(handlers.of(AiRequestType.WEEKLY_SPEC)).thenReturn(Optional.of(specHandler));
+        when(orders.submit(any(), eq(AiRequestType.WEEKLY_SPEC), any(), any(), any())).thenReturn("t1");
+        // Domingo 8 a las 9:00 y a las 9:10: nada aprobado
+        when(specHandler.readyForAutoOrder("lit-1", LocalDate.of(2026, 11, 9))).thenReturn(false);
+        assertThat(at(at(8, 9)).createDue()).isZero();
+        assertThat(at(at(9, 12)).createDue()).isZero();
+        verify(orders, never()).submit(any(), eq(AiRequestType.WEEKLY_SPEC), any(), any(), any());
+        verify(done, never()).save(any());
+        // El martes se aprueba una: se pide en la ronda siguiente y se marca como hecho
+        when(specHandler.readyForAutoOrder("lit-1", LocalDate.of(2026, 11, 9))).thenReturn(true);
+        assertThat(at(at(10, 10)).createDue()).isGreaterThanOrEqualTo(1);
+        verify(orders).submit(eq("lit-1"), eq(AiRequestType.WEEKLY_SPEC), any(), any(), eq(List.of("2026-11-09")));
+        verify(done).save(any());
     }
 
     @Test

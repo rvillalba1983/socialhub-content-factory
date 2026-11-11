@@ -22,8 +22,9 @@ import org.springframework.transaction.support.TransactionTemplate;
 /**
  * Encargos que salen solos cada semana, para cada promoción activa (hora de España):
  * <ul>
- *   <li>Domingo desde las 9:00: spec.json de la semana que empieza el lunes. Si SocialHub estaba cerrado, el lunes o
- *       el martes se pide el de la semana en curso.</li>
+ *   <li>Domingo desde las 9:00: spec.json de la semana que empieza el lunes. Si SocialHub estaba cerrado, o la semana
+ *       no tenía aún publicaciones aprobadas, se pide el de la semana en curso en cuanto las haya (hasta el sábado).
+ *       Sin publicaciones aprobadas no se pide nada ni se marca como hecho.</li>
  *   <li>Lunes desde las 9:00: balance de la semana pasada. Si estaba cerrado, se pide el martes o el miércoles.</li>
  *   <li>Lunes desde las 18:00: propuestas de la semana siguiente. Si estaba cerrado, se piden el martes o el miércoles.</li>
  * </ul>
@@ -40,6 +41,7 @@ class AiAutoOrders {
 
     private final PromotionQueries promotions;
     private final AiOrders orders;
+    private final AiHandlers handlers;
     private final AiAutoOrderRepository done;
     private final TransactionTemplate transactions;
     private final Clock clock;
@@ -115,15 +117,7 @@ class AiAutoOrders {
     }
 
     /** Lunes de la semana cuyo spec toca pedir ahora, si toca alguno. */
-    static Optional<LocalDate> specWeek(ZonedDateTime now) {
-        LocalDate today = now.toLocalDate();
-        boolean afterNine = !now.toLocalTime().isBefore(FROM);
-        return switch (today.getDayOfWeek()) {
-            case SUNDAY -> afterNine ? Optional.of(today.plusDays(1)) : Optional.empty();
-            case MONDAY, TUESDAY -> Optional.of(today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)));
-            default -> Optional.empty();
-        };
-    }
+    static Optional<LocalDate> specWeek(ZonedDateTime now) { return AiWeeklySchedule.specWeek(now); }
 
     /** Lunes de la semana cuyo balance toca pedir ahora, si toca alguno. */
     static Optional<LocalDate> balanceWeek(ZonedDateTime now) {
@@ -155,6 +149,8 @@ class AiAutoOrders {
         for (String promotionId : active) {
             var key = new AiAutoOrderEntity.Key(promotionId, type.name(), week);
             if (done.existsById(key)) continue;
+            // Sin nada que hacer todavía (p. ej., sin publicaciones aprobadas): no se crea ni se marca como hecho
+            if (!handlers.of(type).map(h -> h.readyForAutoOrder(promotionId, week)).orElse(true)) continue;
             transactions.executeWithoutResult(s -> {
                 String title = type.label() + " · semana del " + week.getDayOfMonth() + " "
                         + week.getMonth().getDisplayName(TextStyle.SHORT, Locale.of("es", "ES"));

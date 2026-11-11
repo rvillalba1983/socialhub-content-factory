@@ -143,6 +143,14 @@ public class PromotionQueries {
         return m;
     }
 
+    /** Fechas de una promoción (la de fin puede faltar: sin límite). */
+    public record Dates(java.time.LocalDate startsOn, java.time.@org.jspecify.annotations.Nullable LocalDate endsOn) {}
+
+    public Dates datesOf(String promotionId) {
+        Promotion p = promotion(promotionId);
+        return new Dates(p.startsOn(), p.endsOn());
+    }
+
     /** Promociones de una marca. */
     public List<String> promotionIdsOf(String brandId) {
         return repository.promotions().stream().filter(p -> p.brandId().equals(brandId)).map(Promotion::id).toList();

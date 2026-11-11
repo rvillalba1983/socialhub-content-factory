@@ -311,4 +311,39 @@ class FactoryRecommendationsTest {
         assertThat(subject().compute()).extracting(RecommendationDto::getId)
                 .containsExactly("brand-folders:delito", "no-promotion:delito");
     }
+
+    @Test
+    void row9TheSpecWaitsForApprovedPublicationsOnceItWouldHaveBeenAsked() {
+        // Lunes 9 de nov, 11:00: la semana en curso, sin publicaciones aprobadas
+        var week = java.time.LocalDate.of(2026, 11, 9);
+        when(promotions.activeBetween(week, week.plusDays(6))).thenReturn(List.of("lit-1"));
+        when(publishing.approvedForAi("lit-1", week, week.plusDays(6))).thenReturn(List.of());
+        var all = subject().compute();
+        assertThat(all).hasSize(1);
+        var row = all.getFirst();
+        assertThat(row.getKind()).isEqualTo(KindEnum.SPEC_WAITING);
+        assertThat(row.getTitle()).isEqualTo("La especificación de «Test inicial» espera a que apruebes publicaciones de la semana del 9 de nov");
+        assertThat(row.getTarget()).isNull();
+        // En cuanto hay una aprobada, desaparece
+        when(publishing.approvedForAi("lit-1", week, week.plusDays(6))).thenReturn(List.of(Map.of("id", "x")));
+        assertThat(subject().compute()).isEmpty();
+    }
+
+    @Test
+    void row9DoesNotShowBeforeSundayNineAndLooksAtTheNextWeekAfterwards() {
+        var thisWeek = java.time.LocalDate.of(2026, 11, 9);
+        var nextWeek = thisWeek.plusWeeks(1);
+        when(promotions.activeBetween(thisWeek, thisWeek.plusDays(6))).thenReturn(List.of("lit-1"));
+        when(promotions.activeBetween(nextWeek, nextWeek.plusDays(6))).thenReturn(List.of("lit-1"));
+        // Domingo 15 a las 8:00: todavía no tocaría pedirla
+        now = madrid(11, 15, 8, 0);
+        assertThat(subject().compute()).isEmpty();
+        // Domingo 15 a las 9:00: la de la semana del 16, y va después de las filas de propuestas
+        now = madrid(11, 15, 9, 0);
+        when(publishing.proposalCounts()).thenReturn(Map.of("lit-1", 2L));
+        var all = subject().compute();
+        assertThat(all.stream().map(RecommendationDto::getKind).toList())
+                .containsExactly(KindEnum.PROPOSALS_TO_REVIEW, KindEnum.SPEC_WAITING);
+        assertThat(all.getLast().getTitle()).endsWith("de la semana del 16 de nov");
+    }
 }
