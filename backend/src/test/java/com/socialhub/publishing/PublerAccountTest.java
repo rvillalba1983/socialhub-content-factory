@@ -225,12 +225,6 @@ class PublerAccountTest {
         String missing = approvedTikTok("poemario", DAY.plusDays(4), "22:00");
         schedule(missing);
         assertThat(job(missing).get("status").asString()).isEqualTo("HELD");
-        // Con la cuenta, pero con el plan lleno (las programadas de antes siguen contando con el reloj al día de hoy)
-        String full = approvedTikTok("versos", DAY.plusDays(5), "22:30");
-        schedule(full);
-        assertThat(job(full).get("status").asString()).isEqualTo("HELD");
-        assertThat(job(full).get("last_error").asString()).contains("límite del plan gratuito");
-
         // 7 h antes de la primera Publer ya no llega: sin Publora ni API oficial no hay vía y, sin margen para reintentar, a mano
         CLOCK.set(DAY.plusDays(4).atTime(22, 0).atZone(MADRID).toInstant().minus(Duration.ofHours(7)).plusSeconds(60));
         engine.tick();
@@ -238,6 +232,21 @@ class PublerAccountTest {
         assertThat(job.get("status").asString()).isEqualTo("MANUAL");
         assertThat(job.get("log").toString()).contains("Publer: ya no da tiempo");
         assertThat(publication(missing).get("flag").asString()).startsWith("Publicación manual con LEEME");
+
+        // Con la cuenta, pero con el plan lleno: dos programadas más adelante llenan el tope (2 en esta prueba)
+        for (String time : List.of("23:00", "23:30")) {
+            String filler = approvedTikTok("versos", DAY.plusDays(6), time);
+            schedule(filler);
+            String task = job(filler).get("task_id").asString();
+            waitFor(() -> "WAITING".equals(task(task).get("status").asString()), "encargo enviado");
+            result(task, completed(task, "{\"scheduled\":true,\"scheduled_for\":\"%s\"}"
+                    .formatted(DAY.plusDays(6).atTime(Integer.parseInt(time.substring(0, 2)), Integer.parseInt(time.substring(3))).atZone(MADRID).toInstant())));
+            waitFor(() -> "SCHEDULED".equals(job(filler).get("status").asString()), "programada");
+        }
+        String full = approvedTikTok("versos", DAY.plusDays(5), "22:30");
+        schedule(full);
+        assertThat(job(full).get("status").asString()).isEqualTo("HELD");
+        assertThat(job(full).get("last_error").asString()).contains("límite del plan gratuito");
 
         CLOCK.set(DAY.plusDays(5).atTime(22, 30).atZone(MADRID).toInstant().minus(Duration.ofHours(7)).plusSeconds(60));
         engine.tick();
