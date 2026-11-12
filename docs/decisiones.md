@@ -439,6 +439,7 @@ Tras la primera prueba de Raúl con una marca y una promoción nuevas:
   - TikTok en SocialHub (cuenta personal de Raúl, `@litoques.eldelito`, para las dos marcas) y detalles visuales de «Necesita atención».
 - **Ventana del encargo semanal** (decisión de Raúl, 11 nov): las propuestas de W+1 se piden desde el lunes de W a las 18:00 hasta el domingo de W a las 23:59; al guardar una promoción sin margen en su primera semana, o de jueves a domingo, se piden también en el acto, sin duplicar.
 - **Merge de las PR #33, #34 y #35** (petición de Raúl, 11 nov): los hizo Claude porque Raúl lo pidió expresamente; la regla general sigue siendo que solo Raúl hace merge.
+- **Reloj fijo en las pruebas de integración que crean promociones** (técnica, 12 nov): `PinnedClock` (martes 10:00, Madrid, avanza en tiempo real). Sin él, desde el jueves el guardado pide también las propuestas de la semana siguiente y fallaban 6 pruebas según el día. No es un fallo del código: es el comportamiento decidido el 11 nov.
 
 ## Fase 12 · Instalador de macOS (12 nov 2026)
 
