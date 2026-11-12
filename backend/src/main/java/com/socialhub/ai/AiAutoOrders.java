@@ -160,7 +160,8 @@ class AiAutoOrders {
     }
 
     /**
-     * Pide el spec de cada promoción activa que tenga un lote pendiente ({@link AiTypeHandler#autoOrderBatch}). Los
+     * Pide el spec de cada promoción activa o planificada (una planificada no espera al día en que se activa) que tenga un lote
+     * pendiente ({@link AiTypeHandler#autoOrderBatch}). Los
      * encargos abiertos ya cuentan para no repetir publicaciones, así que no hace falta registro de lo ya pedido.
      */
     synchronized int createSpecBatches(ZonedDateTime now) {
@@ -168,7 +169,7 @@ class AiAutoOrders {
         if (handler.isEmpty()) return 0;
         int n = 0;
         LocalDate today = now.toLocalDate();
-        for (String promotionId : promotions.activeBetween(today, today.plusYears(50))) {
+        for (String promotionId : promotions.proposableBetween(today, today.plusYears(50))) {
             try {
                 List<String> batch = handler.get().autoOrderBatch(promotionId, now.toInstant());
                 if (batch.isEmpty()) continue;

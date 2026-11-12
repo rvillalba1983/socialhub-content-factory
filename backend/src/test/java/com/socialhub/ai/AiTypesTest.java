@@ -330,6 +330,22 @@ class AiTypesTest {
         assertThat(autoOrders.createSpecBatches(now)).isZero();
     }
 
+    @Test
+    @Order(21)
+    void aPlannedPromotionAsksForItsSpecWithoutWaitingToBeActivated() throws Exception {
+        write(post("/api/promotions"), """
+                {"brand_id":"el-delito","name":"Futura","starts_on":"2030-01-01","ends_on":"2031-01-25","status":"PLANNED"}""")
+                .andExpect(status().isCreated());
+        for (int day : new int[] {10, 11, 12}) {
+            write(post("/api/promotions/futura/publications"), """
+                    {"platform":"INSTAGRAM","type":"Historia","title":"Futura %d","scheduled_on":"2030-02-%d",
+                     "scheduled_time":"13:00","initial_status":"IN_PRODUCTION"}""".formatted(day, day)).andExpect(status().isCreated());
+        }
+        var now = java.time.ZonedDateTime.now(java.time.ZoneId.of("Europe/Madrid"));
+        assertThat(autoOrders.createSpecBatches(now)).isEqualTo(1);
+        assertThat(production.coveringAiTasks(AiRequestType.WEEKLY_SPEC.taskType(), "futura")).hasSize(1);
+    }
+
     // ---------------------------------------------------------------- utilidades
 
     private String order(String type, String goal, String input) throws Exception {

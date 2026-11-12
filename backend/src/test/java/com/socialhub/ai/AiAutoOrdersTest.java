@@ -44,7 +44,7 @@ class AiAutoOrdersTest {
 
     @Test
     void theSpecIsOrderedPerBatchOnlyWhenTheHandlerSaysThereIsOneAndNeverWithoutPublications() {
-        when(promotions.activeBetween(any(), any())).thenReturn(List.of("lit-1"));
+        when(promotions.proposableBetween(any(), any())).thenReturn(List.of("lit-1"));
         when(promotions.proposableDates()).thenReturn(List.of());
         when(handlers.of(AiRequestType.WEEKLY_SPEC)).thenReturn(Optional.of(specHandler));
         when(orders.submit(any(), eq(AiRequestType.WEEKLY_SPEC), any(), any(), any())).thenReturn("t1");
@@ -65,7 +65,7 @@ class AiAutoOrdersTest {
 
     @Test
     void aFailingPromotionDoesNotStopTheOthers() {
-        when(promotions.activeBetween(any(), any())).thenReturn(List.of("a", "b"));
+        when(promotions.proposableBetween(any(), any())).thenReturn(List.of("a", "b"));
         when(handlers.of(AiRequestType.WEEKLY_SPEC)).thenReturn(Optional.of(specHandler));
         when(specHandler.autoOrderBatch(eq("a"), any())).thenReturn(List.of("x"));
         when(specHandler.autoOrderBatch(eq("b"), any())).thenReturn(List.of("y"));
