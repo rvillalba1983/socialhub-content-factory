@@ -18,6 +18,22 @@ function buttonLabel(t: RecommendationTarget): string {
   return t.screen === 'NEW_PROMOTION' && t.promotion_id ? 'Abrir la promoción' : BUTTON_LABEL[t.screen];
 }
 
+/**
+ * Dentro de la ficha de una marca, sus avisos ya salen en «Te falta por completar» (`BrandNotices`), así que se quitan de
+ * «Qué hacer ahora»: las carpetas sin crear (BRAND_FOLDERS_MISSING) y la cuenta de Publer de Instagram o TikTok
+ * (PUBLER_ACCOUNT_MISSING, cuyo id acaba en la red). Identidad, Instagram API y «publico» no tienen recomendación.
+ * Lo demás (propuestas retenidas, Publora, otras marcas…) se queda.
+ */
+export function withoutBrandNotices(items: Recommendation[], brandId: string | null | undefined): Recommendation[] {
+  if (!brandId) return items;
+  return items.filter(r => {
+    if (r.target?.brand_id !== brandId) return true;
+    if (r.kind === 'BRAND_FOLDERS_MISSING') return false;
+    if (r.kind === 'PUBLER_ACCOUNT_MISSING') return !/:(INSTAGRAM|TIKTOK)$/.test(r.id);
+    return true;
+  });
+}
+
 /** Cuántas recomendaciones se ven sin desplegar. */
 export const VISIBLE = 3;
 

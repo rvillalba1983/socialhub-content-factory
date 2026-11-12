@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { api } from './api';
 import { BrandNotices } from './BrandNotices';
 import { IdentityForm } from './Identity';
@@ -107,6 +107,37 @@ describe('Importar la identidad desde un .txt', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Guardar estos cambios' }));
     await waitFor(() => expect(save).toHaveBeenCalled());
     expect(save.mock.calls[0][1]).toMatchObject({ tone: 'Irónico', audience: 'Lectores', colors: ['rojo', 'negro'] });
+  });
+
+  it('el selector de archivo es un botón en español con el nombre del archivo elegido', async () => {
+    vi.spyOn(api, 'brandIdentity').mockResolvedValue(identity());
+    render(<IdentityForm brandId="b" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Importar desde .txt' }));
+    expect(screen.getByRole('button', { name: 'Elegir archivo .txt' })).toBeInTheDocument();
+    expect(screen.getByTestId('identity-file-name')).toHaveTextContent('Ningún archivo elegido');
+    const input = screen.getByLabelText('Archivo .txt de la identidad') as HTMLInputElement;
+    expect(input.hidden).toBe(true);
+    const click = vi.spyOn(input, 'click');
+    fireEvent.click(screen.getByRole('button', { name: 'Elegir archivo .txt' }));
+    expect(click).toHaveBeenCalled();
+    const file = new File(['## Tono\nIrónico\n'], 'identidad.txt', { type: 'text/plain' });
+    Object.defineProperty(file, 'text', { value: () => Promise.resolve('## Tono\nIrónico\n') });
+    fireEvent.change(input, { target: { files: [file] } });
+    await waitFor(() => expect(screen.getByTestId('identity-file-name')).toHaveTextContent('identidad.txt'));
+    expect(await screen.findByLabelText('Tono después')).toHaveTextContent('Irónico');
+  });
+
+  it('la vista previa es una tabla con cabeceras Campo, Ahora y Después de importar, y las listas una por línea', async () => {
+    vi.spyOn(api, 'brandIdentity').mockResolvedValue(identity({ colors: ['rojo'] }));
+    render(<IdentityForm brandId="b" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Importar desde .txt' }));
+    fireEvent.change(screen.getByLabelText('Texto de la identidad'), { target: { value: '## Tono\nIrónico\n## Colores\n- rojo\n- negro\n' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Ver cambios' }));
+    const table = await screen.findByRole('table');
+    expect(within(table).getAllByRole('columnheader').map(h => h.textContent)).toEqual(['Campo', 'Ahora', 'Después de importar']);
+    const row = within(table).getByRole('row', { name: /Colores/ });
+    expect(within(row).getByLabelText('Colores después').querySelectorAll('div')).toHaveLength(2);
+    expect(table.querySelector('pre')).toBeNull();
   });
 
   it('enseña un error claro y no deja guardar', async () => {

@@ -5,6 +5,9 @@
 .identity-import{display:grid;gap:10px;padding-top:12px;border-top:1px solid var(--line)}
 .identity-import textarea{font-family:ui-monospace,monospace;font-size:13px}
 .identity-diff{display:grid;gap:8px}
-.identity-diff pre{margin:0;white-space:pre-wrap;font-size:13px}
-.identity-diff .cols{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-@media (max-width:640px){.identity-diff .cols{grid-template-columns:1fr}}
+.file-pick{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.diff-table{width:100%;border-collapse:collapse;font:inherit;font-size:14px}
+.diff-table th,.diff-table td{text-align:left;vertical-align:top;padding:6px 10px;border-bottom:1px solid var(--line);overflow-wrap:anywhere}
+.diff-table thead th{font-weight:600;color:var(--muted,inherit)}
+.diff-table tbody th{font-weight:600;width:22%}
+.diff-table td{width:39%}

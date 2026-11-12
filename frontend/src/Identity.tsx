@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from './api';
 import type { BrandIdentity } from './model';
 import { identityChanges, identityTemplate, parseIdentityText, type IdentityChange } from './identityImport';
@@ -18,6 +18,8 @@ export function IdentityForm({ brandId, brand, onSaved }: {
   const [raw, setRaw] = useState('');
   const [preview, setPreview] = useState<{ values: Partial<BrandIdentity>; changes: IdentityChange[]; errors: string[] } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [fileName, setFileName] = useState<string | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     api.brandIdentity(brandId).then(setIdentity).catch(e => setError(e instanceof Error ? e.message : String(e)));
@@ -59,6 +61,7 @@ export function IdentityForm({ brandId, brand, onSaved }: {
 
   const onFile = async (file: File | undefined) => {
     if (!file) return;
+    setFileName(file.name);
     const t = await file.text();
     setRaw(t);
     check(t);
@@ -74,6 +77,7 @@ export function IdentityForm({ brandId, brand, onSaved }: {
       setVersion(v => v + 1);
       setPreview(null);
       setRaw('');
+      setFileName(null);
       setImporting(false);
       onSaved?.('Identidad importada y guardada');
     } catch (err) { setError(err instanceof Error ? err.message : String(err)); } finally { setBusy(false); }
@@ -91,7 +95,12 @@ export function IdentityForm({ brandId, brand, onSaved }: {
       {importing && (
         <div className="identity-import" aria-label="Importar identidad">
           <p className="src">Sube un .txt o pega el texto (formato de «Copiar plantilla»). Antes de guardar verás qué campos cambian; los que no vengan en el archivo se quedan como están.</p>
-          <input type="file" accept=".txt,text/plain" aria-label="Archivo .txt de la identidad" onChange={e => void onFile(e.target.files?.[0])} />
+          <div className="file-pick">
+            <input ref={fileInput} type="file" accept=".txt,text/plain" hidden aria-label="Archivo .txt de la identidad"
+              onChange={e => { void onFile(e.target.files?.[0]); e.target.value = ''; }} />
+            <button type="button" className="btn" onClick={() => fileInput.current?.click()}>Elegir archivo .txt</button>
+            <span className="src" data-testid="identity-file-name">{fileName ?? 'Ningún archivo elegido'}</span>
+          </div>
           <textarea rows={8} aria-label="Texto de la identidad" placeholder="## Tono&#10;…" value={raw} onChange={e => { setRaw(e.target.value); setPreview(null); }} />
           <div className="form-actions">
             <button type="button" className="btn" disabled={raw.trim() === ''} onClick={() => check(raw)}>Ver cambios</button>
@@ -103,11 +112,20 @@ export function IdentityForm({ brandId, brand, onSaved }: {
           {preview && preview.errors.length === 0 && (
             <div className="identity-diff" role="region" aria-label="Cambios de la identidad">
               {preview.changes.length === 0 && <p className="src">No cambia ningún campo.</p>}
-              {preview.changes.map(c => (
-                <div key={c.key}><b>{c.label}</b>
-                  <div className="cols"><pre aria-label={`${c.label} antes`}>{c.before || '(vacío)'}</pre>
-                    <pre aria-label={`${c.label} después`}>{c.after || '(vacío)'}</pre></div></div>
-              ))}
+              {preview.changes.length > 0 && (
+                <table className="diff-table">
+                  <thead><tr><th scope="col">Campo</th><th scope="col">Ahora</th><th scope="col">Después de importar</th></tr></thead>
+                  <tbody>
+                    {preview.changes.map(c => (
+                      <tr key={c.key}>
+                        <th scope="row">{c.label}</th>
+                        <td aria-label={`${c.label} antes`}><DiffValue text={c.before} /></td>
+                        <td aria-label={`${c.label} después`}><DiffValue text={c.after} /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
               {preview.changes.length > 0 && (
                 <div className="form-actions">
                   <button type="button" className="btn primary" disabled={busy} onClick={() => void saveImported()}>Guardar estos cambios</button>
@@ -145,4 +163,10 @@ function ListField({ label, value, onChange }: { label: string; value: string[];
     <label className="field"><span>{label} (una por línea)</span>
       <textarea rows={3} value={text} onChange={e => { setText(e.target.value); onChange(parse(e.target.value)); }} /></label>
   );
+}
+
+/** Valor de la vista previa con la letra normal de la interfaz; las listas, una línea por elemento. */
+function DiffValue({ text }: { text: string }) {
+  if (text === '') return <span className="src">(vacío)</span>;
+  return <>{text.split('\n').map((l, i) => <div key={i}>{l}</div>)}</>;
 }

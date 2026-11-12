@@ -522,3 +522,13 @@ Decisiones técnicas:
 - **Marca «publico compartida»:** se guarda en `app_setting` (clave `public-share:<marca>`, valor = carpeta de Encargos con la que se marcó), sin migración nueva. Endpoint `/api/brands/{brand_id}/public-share`.
 - **Los avisos se calculan en el frontal** con los endpoints que ya existen (sin endpoint nuevo de «pendientes»).
 - **Límites del mapa:** se calculan en el frontal (`viewLimits.ts`) con la caja del contenido a nivel de detalle 1.
+
+## Fase 12 · Usabilidad 2 (12 nov 2026)
+
+Peticiones de Raúl, 12 nov:
+- **Importar identidad en español:** el selector nativo («Choose File / No file chosen») se sustituye por un botón «Elegir archivo .txt» (el input file queda oculto) y, al lado, el nombre del archivo elegido o «Ningún archivo elegido».
+- **Vista previa de la importación en tabla:** cabeceras «Campo», «Ahora» y «Después de importar», con la letra normal de la interfaz (no monoespaciada); las listas, un elemento por línea.
+- **Cada aviso, en un solo sitio:** en la ficha de una marca, lo que ya sale en «Te falta por completar» no se repite en «Qué hacer ahora». Fuera de la ficha (mapa, otras pantallas) siguen saliendo como antes.
+
+Decisiones técnicas:
+- **Filtro en el frontal** (`withoutBrandNotices`, en `Recommendations.tsx`), sin cambiar el backend ni el contrato. Con la ficha de una marca abierta, se quitan de la franja solo las recomendaciones de esa marca que duplican un aviso: `BRAND_FOLDERS_MISSING` (carpetas) y `PUBLER_ACCOUNT_MISSING` de Instagram y TikTok (las únicas redes que avisa la ficha). Identidad, Instagram API y «publico» no tienen recomendación, así que no hay nada que quitar. Se quedan en la franja las propuestas retenidas, Publora (la ficha no la avisa arriba), las de otras marcas y las generales.

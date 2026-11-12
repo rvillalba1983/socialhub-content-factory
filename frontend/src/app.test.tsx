@@ -15,7 +15,7 @@ import { PublerCard } from './Publer';
 import { BrandForm, PromotionForm, Registration } from './Registration';
 import { Factory } from './Factory';
 import { useFactory } from './useFactory';
-import { NextSteps, savedMessage, toastDuration } from './Recommendations';
+import { NextSteps, savedMessage, toastDuration, withoutBrandNotices } from './Recommendations';
 import type { PromotionMetrics, Recommendation } from './api/schema';
 import { PieceOrders } from './PieceOrders';
 import type { ExternalOperationPage, Snapshot, Station, Task } from './model';
@@ -908,6 +908,34 @@ const world = (data: Snapshot, onRecommendation = vi.fn()) => render(
     <World data={data} sel={{ type: null, id: null }} onStation={() => {}} onTask={() => {}} onTaskAction={() => {}}
       onArmory={() => {}} onPromotion={() => {}} onRegister={() => {}} />
   </>);
+
+describe('Qué hacer ahora dentro de la ficha de una marca', () => {
+  const publer = (brand: string, platform: string) => rec({ id: `publer-account:${brand}:${platform}`, kind: 'PUBLER_ACCOUNT_MISSING',
+    title: `Indica la cuenta de Publer de ${brand} para ${platform}`, target: { screen: 'PUBLER', brand_id: brand } });
+  const all: Recommendation[] = [
+    ...three, publer('b', 'INSTAGRAM'), publer('b', 'TIKTOK'), publer('b', 'YOUTUBE'), publer('otra', 'INSTAGRAM'),
+    rec({ id: 'publora:b', kind: 'PUBLORA_MISSING', title: 'Publora de b', target: { screen: 'PUBLORA', brand_id: 'b' } }),
+    rec({ id: 'brand-folders:otra', kind: 'BRAND_FOLDERS_MISSING', title: 'Crea las carpetas de otra', target: { screen: 'BRAND_FOLDERS', brand_id: 'otra' } }),
+  ];
+
+  it('fuera de la ficha salen todas', () => {
+    expect(withoutBrandNotices(all, null)).toHaveLength(all.length);
+  });
+
+  it('en la ficha de b quita sus carpetas y sus cuentas de Publer de Instagram y TikTok, y deja lo demás', () => {
+    const ids = withoutBrandNotices(all, 'b').map(r => r.id);
+    expect(ids).not.toContain('brand-folders:b');
+    expect(ids).not.toContain('publer-account:b:INSTAGRAM');
+    expect(ids).not.toContain('publer-account:b:TIKTOK');
+    expect(ids).toEqual(expect.arrayContaining(['proposals-review:p', 'orders-not-collected', 'publer-account:b:YOUTUBE',
+      'publer-account:otra:INSTAGRAM', 'publora:b', 'brand-folders:otra']));
+  });
+
+  it('si no queda ninguna, la franja no se pinta', () => {
+    render(<NextSteps items={withoutBrandNotices([three[1]], 'b')} onOpen={() => {}} />);
+    expect(screen.queryByRole('region', { name: 'Qué hacer ahora' })).toBeNull();
+  });
+});
 
 describe('Qué hacer ahora', () => {
   it('no se muestra con la lista vacía', () => {

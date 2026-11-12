@@ -5,7 +5,7 @@ import { ControlCenter } from './ControlCenter';
 import { ExternalOperations } from './ExternalOperations';
 import { Backups, Closed, Halted, ShutdownButton } from './Backups';
 import { Registration } from './Registration';
-import { NextSteps, savedMessage, toastDuration, type SavedRef } from './Recommendations';
+import { NextSteps, savedMessage, toastDuration, withoutBrandNotices, type SavedRef } from './Recommendations';
 import type { RecommendationTarget } from './api/schema';
 import { Icon } from './icons';
 import {
@@ -450,7 +450,7 @@ export function Factory({ data, live, onRefresh }: {
       </header>
 
       <div className="stage">
-      <NextSteps items={data.recommendations} onOpen={goRecommendation} onDismissPublora={dismissPublora} />
+      <NextSteps items={withoutBrandNotices(data.recommendations, reg && reg.kind === 'brand' ? reg.id : null)} onOpen={goRecommendation} onDismissPublora={dismissPublora} />
       <main className="vp" ref={vp} data-lod="1">
         <div className="world" ref={world}>
           <World data={data} sel={sel} onStation={goStation} onTask={goTask}
