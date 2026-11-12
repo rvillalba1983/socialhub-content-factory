@@ -197,7 +197,7 @@ function PublicationFiles({ id, locked }: { id: string; locked: boolean }) {
 }
 
 const JOB_STATUS: Record<PublishJob['status'], StatusCode> = {
-  WORKING: 'RUNNING', RETRY_WAIT: 'WAITING', SCHEDULED: 'OK', CHECKING: 'RUNNING', MANUAL: 'BLOCKED',
+  WORKING: 'RUNNING', HELD: 'WAITING', RETRY_WAIT: 'WAITING', SCHEDULED: 'OK', CHECKING: 'RUNNING', MANUAL: 'BLOCKED',
   PUBLISHED: 'OK', FAILED: 'FAILED', CANCELLED: 'WAITING',
 };
 

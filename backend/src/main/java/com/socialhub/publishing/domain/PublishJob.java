@@ -22,6 +22,8 @@ public final class PublishJob {
     public enum Status {
         /** Probando una vía (puede estar esperando a Claude). */
         WORKING("Programando"),
+        /** Retenida: la vía no puede programarla todavía (falta la cuenta o el plan está al límite). Se vuelve a mirar. */
+        HELD("Retenida"),
         /** Han fallado todas las vías: se vuelve a probar a la hora indicada. */
         RETRY_WAIT("Reintento pendiente"),
         /** Programada en una vía: espera a la hora de publicación. */
@@ -158,6 +160,41 @@ public final class PublishJob {
     public void waitingFor(String task, Instant now) {
         requireOpen();
         taskId = task;
+        updatedAt = now;
+    }
+
+    /**
+     * La vía no puede programarla todavía, pero no es un fallo: queda retenida con el motivo visible y se vuelve a probar
+     * en la misma vía a la hora indicada. Solo se anota en el historial cuando cambia el motivo.
+     */
+    public void hold(String reason, Instant retryAt, Instant now) {
+        requireOpen();
+        boolean same = reason.equals(lastError);
+        status = Status.HELD;
+        taskId = null;
+        nextTryAt = retryAt;
+        lastError = reason;
+        if (same) updatedAt = now;
+        else note(now, (route == null ? "Vía" : route) + ": retenida. " + reason);
+    }
+
+    /** Raúl la manda ya a otra vía (por ejemplo, de Publer, con el plan lleno, a Publora). */
+    public void skipTo(int index, String routeLabel, Instant now) {
+        requireOpen();
+        status = Status.WORKING;
+        routeIndex = index;
+        route = routeLabel;
+        taskId = null;
+        nextTryAt = null;
+        lastError = null;
+        note(now, "Pasada a " + routeLabel + " a petición de Raúl");
+    }
+
+    /** Se vuelve a probar la vía en la que estaba retenida. */
+    public void resume(Instant now) {
+        requireOpen();
+        status = Status.WORKING;
+        nextTryAt = null;
         updatedAt = now;
     }
 

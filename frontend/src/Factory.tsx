@@ -38,7 +38,7 @@ export function Factory({ data, live, onRefresh }: {
   const [copias, setCopias] = useState(false);
   const [halted, setHalted] = useState<string | null>(null);
   const [closed, setClosed] = useState(false);
-  const [reg, setReg] = useState<{ kind: 'brand' | 'promotion'; id: string | null; brandId?: string; focus?: 'folders' | 'publora' } | false | null>(false);
+  const [reg, setReg] = useState<{ kind: 'brand' | 'promotion'; id: string | null; brandId?: string; focus?: 'folders' | 'publora' | 'publer' } | false | null>(false);
   const [demoAvailable, setDemoAvailable] = useState(true);
   useEffect(() => { api.appMode().then(m => { setDemoAvailable(m.demo_available); setHalted(m.halted_reason ?? null); }).catch(() => {}); }, []);
   // Abrir una promoción cierra el registro de operaciones
@@ -226,8 +226,8 @@ export function Factory({ data, live, onRefresh }: {
   const goRecommendation = useCallback((t: RecommendationTarget) => {
     setSel({ type: null, id: null }); setCc(null); setOps(false); setClaude(false); setCopias(false); setReg(false);
     if (t.screen === 'PROPOSALS' && t.promotion_id) setCc({ promo: t.promotion_id, tab: 'publicaciones', hl: null, filter: 'PROPOSAL' });
-    else if ((t.screen === 'BRAND_FOLDERS' || t.screen === 'PUBLORA') && t.brand_id) {
-      setReg({ kind: 'brand', id: t.brand_id, focus: t.screen === 'PUBLORA' ? 'publora' : 'folders' });
+    else if ((t.screen === 'BRAND_FOLDERS' || t.screen === 'PUBLORA' || t.screen === 'PUBLER') && t.brand_id) {
+      setReg({ kind: 'brand', id: t.brand_id, focus: t.screen === 'PUBLORA' ? 'publora' : t.screen === 'PUBLER' ? 'publer' : 'folders' });
     }
     // Con promotion_id (activar una planificada o en pausa) se abre esa promoción; sin él, el alta de una nueva
     else if (t.screen === 'NEW_PROMOTION' && t.brand_id) {
@@ -273,6 +273,16 @@ export function Factory({ data, live, onRefresh }: {
       onRefresh();
     } catch (e) {
       say(e instanceof Error ? e.message : 'No se pudo guardar.');
+    }
+  }, [onRefresh, say]);
+  /** «Pasar a Publora» en una cuenta de Publer llena: manda ya las retenidas y refresca. */
+  const alertAction = useCallback(async (action: NonNullable<Snapshot['alerts'][number]['action']>) => {
+    try {
+      const r = await api.moveHeldToPublora({ account_name: action.account_name, platform: action.platform });
+      say(r.moved === 1 ? '1 publicación pasada a Publora' : `${r.moved} publicaciones pasadas a Publora`);
+      onRefresh();
+    } catch (e) {
+      say(e instanceof Error ? e.message : 'No se pudo pasar a Publora.');
     }
   }, [onRefresh, say]);
   const runTask = useCallback(async (t: Task, type: TaskCommandType, model?: AiModel) => {
@@ -416,6 +426,7 @@ export function Factory({ data, live, onRefresh }: {
             onTaskAction={(t, a) => (t.available_commands.find(x => x.type === a)?.needs_confirmation ? goTask(t.id) : runTask(t, a))}
             onArmory={id => { setCc(null); setSel({ type: 'armory', id }); }}
             onPublication={goPublication}
+            onAlertAction={alertAction}
             onPromotion={id => { setSel({ type: null, id: null }); setCc({ promo: id, tab: 'resumen', hl: null }); }}
             onRegister={() => setReg(null)} />
         </div>

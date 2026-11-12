@@ -109,12 +109,16 @@ Eres el agente «Publicar con Chrome» de SocialHub, la app de Raúl Villalba (L
    «de-claude» no hay ningún archivo cuyo nombre empiece por «<tarea>-<intento>». Si no hay pendientes, termina con
    «Sin encargos» sin abrir Chrome.
 3. Hazlos por orden de nombre, tú mismo, con Claude in Chrome y siguiendo inputs.how:
-   · socialhub.publer-schedule → programa en Publer la publicación de inputs.publication (texto, hashtags y archivos
-     de «files», en ese orden) para «scheduled_at». Comprueba en el calendario de Publer que aparece una sola vez a esa
-     hora. outputs: {scheduled: true, scheduled_for: "<ISO 8601 con zona>", publer_id (si se ve), url (si la hay),
-     summary}.
-   · socialhub.publish-check → mira en Publer y en el perfil de la red si ya está publicada. outputs: {published:
-     true|false, url: "https://…" (si la ves), external_id (si se ve), note, summary}.
+   · socialhub.publer-schedule → programa en Publer, en la cuenta inputs.publer_account (el nombre de la cuenta tal
+     como sale en Publer; no uses otra), la publicación de inputs.publication (texto, hashtags y archivos de «files»,
+     en ese orden) para «scheduled_at». Comprueba en el calendario de Publer, en esa cuenta, que aparece una sola vez a
+     esa hora. Si inputs.publer_account viene vacío, no programes nada: status "failed". Si la red es TIKTOK, en las
+     opciones de publicación de Publer: privacidad «Todo el mundo» (pública desde la primera), Comentarios, Dúo y
+     Stitch activados, y no añadas música ni sonidos (los sonidos ya van en el vídeo). outputs: {scheduled: true,
+     scheduled_for: "<ISO 8601 con zona>", publer_id (si se ve), url (si la hay), summary}.
+   · socialhub.publish-check → mira en Publer (en la cuenta inputs.publer_account) y en el perfil de la red si ya está
+     publicada. outputs: {published: true|false, url: "https://…" (si la ves), external_id (si se ve), note, summary}.
+   · socialhub.calendar-read → mira lo programado en las cuentas de Publer de inputs.publer_accounts (por red).
 4. Con cada resultado, crea en la «de-claude» de esa marca «<tarea>-<intento>.json» (application/json) según el contrato
    socialhub.task-result v1, con agent.runtime "tarea programada en el PC".
 5. Termina con un mensaje breve a Raúl: qué has hecho y cómo ha quedado.
@@ -130,3 +134,13 @@ REGLAS
 - No supongas nada: «published» solo es true si la ves, con su enlace.
 - Si no puedes, status "failed" con el motivo en «error».
 ```
+
+### Cuenta de Publer y TikTok (Fase 12, bloque 2)
+
+Publer tiene el Instagram de «El DeLito», el de «Litoques» y una sola cuenta de TikTok, «Lito · Litoques · El DeLito» (`@litoques.eldelito`), que usan las dos marcas. Por eso cada encargo de Publer indica la cuenta:
+
+- **`inputs.publer_account`:** la cuenta de Publer de la marca en la red de la publicación (la escribe Raúl en la tarjeta «Cuenta en Publer» de la ficha de la marca). Los encargos «Programar en Publer» y «Comprobar publicación» la llevan, y `inputs.how` dice «en la cuenta «X» de Publer». «Leer calendario» lleva `inputs.publer_accounts` (red → cuenta).
+- **Sin cuenta no hay encargo:** si la marca no tiene cuenta de Publer en esa red, SocialHub no crea el encargo; la publicación queda «Retenida» con el motivo y sale la recomendación «Indica la cuenta de Publer de {marca} para {red}».
+- **Opciones de TikTok** (van en `inputs.how` de las publicaciones de TikTok): privacidad «Todo el mundo» (pública desde la primera publicación), Comentarios, Dúo y Stitch activados, y los sonidos ya van en el vídeo (no se añade música ni sonido de la biblioteca).
+- **Límite del plan gratuito de Publer:** 10 publicaciones programadas a la vez por cuenta (`socialhub.publer.scheduled-limit`, 10 por defecto). Se cuenta por cuenta y red, sumando marcas: las dos marcas comparten el tope de TikTok. Con la cuenta llena no se crea el encargo: la publicación queda en espera, con el motivo visible, hasta que salga alguna. SocialHub solo cuenta lo que él mismo ha programado en Publer.
+- **Para aplicarlo:** el texto de la tarea programada «Publicar con Chrome» tiene que llevar estas instrucciones. Se actualiza con el OK de Raúl; no se toca sola.

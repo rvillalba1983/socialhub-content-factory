@@ -9,6 +9,7 @@ import com.socialhub.publishing.domain.ExternalCalendarRepository.Source;
 import com.socialhub.publishing.domain.ExternalCalendarRepository.Status;
 import com.socialhub.publishing.domain.Platform;
 import com.socialhub.publishing.domain.Publication;
+import com.socialhub.publishing.domain.PublerAccountRepository;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -39,11 +40,14 @@ class CalendarReadHandler implements AiTypeHandler {
     private final PublishingQueries queries;
     private final PromotionQueries promotions;
     private final ExternalCalendar calendar;
+    private final PublerAccountRepository accounts;
 
-    CalendarReadHandler(PublishingQueries queries, PromotionQueries promotions, @Lazy ExternalCalendar calendar) {
+    CalendarReadHandler(PublishingQueries queries, PromotionQueries promotions, @Lazy ExternalCalendar calendar,
+                        PublerAccountRepository accounts) {
         this.queries = queries;
         this.promotions = promotions;
         this.calendar = calendar;
+        this.accounts = accounts;
     }
 
     @Override public AiRequestType type() { return AiRequestType.CALENDAR_READ; }
@@ -59,11 +63,14 @@ class CalendarReadHandler implements AiTypeHandler {
         LocalDate day = day(job.inputs().getFirst());
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("brand", Map.of("id", job.brandId(), "handle", handle(job.brandId())));
+        Map<String, String> publerAccounts = new LinkedHashMap<>();
+        accounts.accounts(job.brandId()).forEach((platform, name) -> publerAccounts.put(platform.name(), name));
+        m.put("publer_accounts", publerAccounts);
         m.put("publer_window", window(ExternalCalendar.publerWindow(day)));
         m.put("network_window", window(ExternalCalendar.networkWindow(day)));
         m.put("socialhub_publications", ours(job.promotionId(), day));
         m.put("how", List.of(
-                "Abre Publer en Chrome con la sesión de Raúl y apunta lo programado para las cuentas de la marca dentro de publer_window.",
+                "Abre Publer en Chrome con la sesión de Raúl y apunta lo programado dentro de publer_window en las cuentas de Publer de la marca («publer_accounts», por red; la de TikTok puede ser la misma para las dos marcas).",
                 "Abre los perfiles de Instagram y TikTok de la marca y apunta lo publicado dentro de network_window.",
                 "Si algo coincide con una de socialhub_publications (misma red y hora, mismo texto), pon su id en publication_id.",
                 "Solo lectura: no programes, no publiques, no borres, no comentes y no des me gusta. No inicies sesión por Raúl."));

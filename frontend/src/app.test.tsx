@@ -10,6 +10,7 @@ import { InstagramAccountCard, InstagramKeyCard } from './Instagram';
 import { MemoryCard } from './Memory';
 import { PublicationEditor } from './PublicationEditor';
 import { PubloraCard } from './Publora';
+import { PublerCard } from './Publer';
 import { BrandForm, PromotionForm, Registration } from './Registration';
 import { Factory } from './Factory';
 import { useFactory } from './useFactory';
@@ -80,6 +81,31 @@ describe('World', () => {
     expect(screen.getByText('No hay forma de publicar El DeLito')).toBeInTheDocument();
     expect(screen.getByText('No hay forma de publicar Litoques')).toBeInTheDocument();
     expect(error.mock.calls.filter(c => String(c[0]).includes('same key'))).toHaveLength(0);
+  });
+
+  describe('cuenta de Publer llena', () => {
+    const full = (action: boolean) => ({ kind: 'BLOCKED', target_type: 'STATION', target_id: 'pub', station_id: 'pub',
+      title: 'La cuenta «Lito» de Publer está llena: 3 publicaciones en espera',
+      detail: action ? '2 pueden pasar ya a Publora' : 'Publora no está configurada para Litoques/TikTok',
+      ...(action ? { action: { type: 'PUBLER_TO_PUBLORA', label: 'Pasar a Publora', account_name: 'Lito', platform: 'TIKTOK' } } : {}) }) as unknown as Snapshot['alerts'][number];
+    const draw = (a: Snapshot['alerts'][number], onAlertAction = vi.fn()) => {
+      render(<World data={{ ...snapshot, alerts: [a] }} sel={{ type: null, id: null }} onStation={() => {}} onTask={() => {}}
+        onTaskAction={() => {}} onArmory={() => {}} onAlertAction={onAlertAction} onPromotion={() => {}} onRegister={() => {}} />);
+      return onAlertAction;
+    };
+
+    it('muestra la fila con el botón «Pasar a Publora» y lo pulsa con la cuenta y la red', () => {
+      const onAction = draw(full(true));
+      expect(screen.getByText('La cuenta «Lito» de Publer está llena: 3 publicaciones en espera')).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Pasar a Publora' }));
+      expect(onAction).toHaveBeenCalledWith({ type: 'PUBLER_TO_PUBLORA', label: 'Pasar a Publora', account_name: 'Lito', platform: 'TIKTOK' });
+    });
+
+    it('sin Publora para ninguna, la fila lo dice y no hay botón', () => {
+      draw(full(false));
+      expect(screen.getByText(/Publora no está configurada para Litoques\/TikTok/)).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Pasar a Publora' })).toBeNull();
+    });
   });
 
   describe('tarjeta «Necesita atención» con muchos avisos', () => {
@@ -438,6 +464,37 @@ describe('Publora', () => {
     fireEvent.change(screen.getByLabelText('Cuenta de Publora para Instagram'), { target: { value: 'instagram-111' } });
     fireEvent.click(screen.getByRole('button', { name: 'Guardar cuentas' }));
     await waitFor(() => expect(saveAccounts).toHaveBeenCalledWith('el-delito', [{ platform: 'INSTAGRAM', connection_id: 'instagram-111' }]));
+  });
+});
+
+describe('Cuenta en Publer', () => {
+  it('muestra las cuentas guardadas, con ejemplos de ayuda, y guarda solo las que tienen nombre', async () => {
+    vi.spyOn(api, 'brandPublerAccounts').mockResolvedValue({ items: [{ platform: 'TIKTOK', account_name: 'Lito · Litoques · El DeLito' }] });
+    const save = vi.spyOn(api, 'saveBrandPublerAccounts').mockResolvedValue({
+      items: [{ platform: 'INSTAGRAM', account_name: 'Litoques' }, { platform: 'TIKTOK', account_name: 'Lito · Litoques · El DeLito' }],
+    });
+    const onSaved = vi.fn();
+    render(<PublerCard brandId="litoques" onSaved={onSaved} />);
+    const tiktok = await screen.findByLabelText('Cuenta de Publer para TikTok');
+    expect(tiktok).toHaveValue('Lito · Litoques · El DeLito');
+    const instagram = screen.getByLabelText('Cuenta de Publer para Instagram');
+    expect(instagram).toHaveValue('');
+    expect(instagram).toHaveAttribute('placeholder', 'Por ejemplo: «Litoques»');
+    expect(tiktok).toHaveAttribute('placeholder', 'Por ejemplo: «Lito · Litoques · El DeLito»');
+    fireEvent.change(instagram, { target: { value: ' Litoques ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cuentas' }));
+    await waitFor(() => expect(save).toHaveBeenCalledWith('litoques', [
+      { platform: 'INSTAGRAM', account_name: 'Litoques' }, { platform: 'TIKTOK', account_name: 'Lito · Litoques · El DeLito' }]));
+    expect(onSaved).toHaveBeenCalledWith('Cuentas de Publer guardadas');
+  });
+
+  it('vaciar un campo quita la cuenta de esa red', async () => {
+    vi.spyOn(api, 'brandPublerAccounts').mockResolvedValue({ items: [{ platform: 'INSTAGRAM', account_name: 'Litoques' }] });
+    const save = vi.spyOn(api, 'saveBrandPublerAccounts').mockResolvedValue({ items: [] });
+    render(<PublerCard brandId="litoques" />);
+    fireEvent.change(await screen.findByLabelText('Cuenta de Publer para Instagram'), { target: { value: '  ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cuentas' }));
+    await waitFor(() => expect(save).toHaveBeenCalledWith('litoques', []));
   });
 });
 
@@ -917,6 +974,15 @@ describe('Qué hacer ahora', () => {
       await waitFor(() => expect(scroll).toHaveBeenCalledTimes(1));
       expect((scroll.mock.contexts[0] as HTMLElement).getAttribute('data-card')).toBe('publora');
       unmount();
+      scroll.mockClear();
+      const publer = rec({ id: 'publer-account:b:TIKTOK', kind: 'PUBLER_ACCOUNT_MISSING', title: 'Indica la cuenta de Publer de El DeLito para TikTok',
+        detail: '2 publicaciones retenidas', target: { screen: 'PUBLER', brand_id: 'b' } });
+      const second = render(<Factory data={withRecs([publer])} live={false} onRefresh={() => {}} />);
+      fireEvent.click(screen.getByRole('button', { name: /Indica la cuenta de Publer de El DeLito para TikTok\. Indicar la cuenta de Publer/ }));
+      await screen.findByLabelText('Cuenta en Publer');
+      await waitFor(() => expect(scroll).toHaveBeenCalledTimes(1));
+      expect((scroll.mock.contexts[0] as HTMLElement).getAttribute('data-card')).toBe('publer');
+      second.unmount();
       scroll.mockClear();
       render(<Factory data={withRecs(three)} live={false} onRefresh={() => {}} />);
       fireEvent.click(screen.getByRole('button', { name: /Crea las carpetas/ }));

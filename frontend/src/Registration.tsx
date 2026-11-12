@@ -7,6 +7,7 @@ import {
 } from './model';
 import { Pill } from './ui';
 import { PubloraCard } from './Publora';
+import { PublerCard } from './Publer';
 import { InstagramAccountCard } from './Instagram';
 import { FolderRoles } from './Folders';
 import { IdentityForm } from './Identity';
@@ -14,7 +15,7 @@ import { MemoryCard } from './Memory';
 import type { SavedRef } from './Recommendations';
 
 /** `focus`: tarjeta de la marca a la que bajar al abrir (desde una recomendación). */
-type Editing = { kind: 'brand'; id: string | null; focus?: 'folders' | 'publora' } | { kind: 'promotion'; id: string | null; brandId?: string } | null;
+type Editing = { kind: 'brand'; id: string | null; focus?: 'folders' | 'publora' | 'publer' } | { kind: 'promotion'; id: string | null; brandId?: string } | null;
 
 const PROMOTION_STATUS: [PromotionInput['status'], string][] = [
   ['PLANNED', 'Planificada'], ['ACTIVE', 'Activa'], ['PAUSED', 'En pausa'], ['FINISHED', 'Terminada'],
@@ -81,6 +82,7 @@ export function Registration({ data, initial, onClose, onSaved }: {
         {editing?.kind === 'brand' && editing.id && <IdentityForm brandId={editing.id} onSaved={onSaved} />}
         {editing?.kind === 'brand' && editing.id && <MemoryCard brandId={editing.id} onSaved={onSaved} />}
         {editing?.kind === 'brand' && editing.id && <FolderRoles owner="brand" id={editing.id} onSaved={onSaved} />}
+        {editing?.kind === 'brand' && editing.id && <PublerCard brandId={editing.id} onSaved={onSaved} />}
         {editing?.kind === 'brand' && editing.id && <PubloraCard brandId={editing.id} onSaved={onSaved} />}
         {editing?.kind === 'brand' && editing.id && <InstagramAccountCard brandId={editing.id} onSaved={onSaved} />}
         {editing?.kind === 'promotion' && (

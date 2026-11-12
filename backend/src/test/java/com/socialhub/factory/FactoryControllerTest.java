@@ -18,6 +18,7 @@ import com.socialhub.platform.AppModeHolder;
 import com.socialhub.production.adapter.in.web.ProductionView;
 import com.socialhub.promotion.PromotionQueries;
 import com.socialhub.promotion.adapter.in.web.PromotionWebMapper;
+import com.socialhub.publishing.PublerAccountService;
 import com.socialhub.publishing.PublishingQueries;
 import com.socialhub.publishing.adapter.in.web.PublicationWebMapper;
 import java.time.Clock;
@@ -38,6 +39,7 @@ class FactoryControllerTest {
     private final ArmoryQueries armory = mock(ArmoryQueries.class);
     private final ArmoryWebMapper armoryMapper = mock(ArmoryWebMapper.class);
     private final PublicationWebMapper publicationMapper = mock(PublicationWebMapper.class);
+    private final PublerAccountService publer = mock(PublerAccountService.class);
 
     private final RecommendationDto recommendation = new RecommendationDto("x", RecommendationDto.KindEnum.PUBLORA_MISSING, "Conecta Publora");
 
@@ -51,7 +53,25 @@ class FactoryControllerTest {
                 new AiHeldOrders.Held("t3", "est", "Propuestas sin promoción", "Sin promoción", null, AiRequestType.WEEKLY_PROPOSALS)));
         when(recommendations.compute()).thenReturn(List.of(shown));
         return new FactoryController(promotions, promotionMapper, production, publishing, publicationMapper, armory,
-                armoryMapper, mode, Clock.fixed(Instant.parse("2026-11-09T10:00:00Z"), ZoneOffset.UTC), held, recommendations);
+                armoryMapper, mode, Clock.fixed(Instant.parse("2026-11-09T10:00:00Z"), ZoneOffset.UTC), held, recommendations, publer);
+    }
+
+    @Test
+    void aFullPublerAccountShowsARowWithTheMoveButtonOnlyWhenSomethingCanMove() {
+        when(mode.selected()).thenReturn(AppMode.REAL);
+        when(publer.full()).thenReturn(List.of(
+                new PublerAccountService.Full("Lito", "TIKTOK", "TikTok", 3, 2, List.of("Litoques/TikTok")),
+                new PublerAccountService.Full("Otra", "INSTAGRAM", "Instagram", 1, 0, List.of("El DeLito/Instagram"))));
+        var alerts = controller().getFactory().getBody().getAlerts().stream()
+                .filter(a -> a.getTitle().contains("de Publer está llena")).toList();
+        assertThat(alerts).hasSize(2);
+        assertThat(alerts.get(0).getTitle()).isEqualTo("La cuenta «Lito» de Publer está llena: 3 publicaciones en espera");
+        assertThat(alerts.get(0).getAction().getLabel()).isEqualTo("Pasar a Publora");
+        assertThat(alerts.get(0).getAction().getAccountName()).isEqualTo("Lito");
+        assertThat(alerts.get(0).getDetail()).contains("2 pueden pasar ya").contains("Litoques/TikTok");
+        assertThat(alerts.get(1).getTitle()).endsWith("1 publicación en espera");
+        assertThat(alerts.get(1).getAction()).isNull();
+        assertThat(alerts.get(1).getDetail()).isEqualTo("Publora no está configurada para El DeLito/Instagram");
     }
 
     @Test

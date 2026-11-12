@@ -60,6 +60,9 @@ class PublishingEngine {
     static final String LATE_FLAG = "Posible duplicado: ";
     static final String STILL_SCHEDULED = "Estaba programada en ";
     static final String ERROR_FLAG = "Error de publicación: ";
+    static final String HELD_FLAG = "Retenida: ";
+    /** Cada cuánto se vuelve a probar una publicación retenida (se habrá indicado la cuenta o habrá salido alguna). */
+    static final Duration HELD_RETRY = Duration.ofMinutes(5);
     /** La API oficial no pudo y se sigue por otra vía (el motivo queda visible). */
     static final String OFFICIAL_FLAG = "API oficial: ";
     /** No se sabe si Instagram llegó a publicarla: no se reintenta, se revisa. */
@@ -70,7 +73,7 @@ class PublishingEngine {
     static final Duration DELAY_NOTICE = Duration.ofMinutes(10);
     private static final DateTimeFormatter WHEN = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm").withZone(ZoneId.of("Europe/Madrid"));
     private static final EnumSet<PublishJob.Status> TIMED = EnumSet.of(PublishJob.Status.WORKING,
-            PublishJob.Status.RETRY_WAIT, PublishJob.Status.SCHEDULED, PublishJob.Status.MANUAL, PublishJob.Status.CHECKING);
+            PublishJob.Status.HELD, PublishJob.Status.RETRY_WAIT, PublishJob.Status.SCHEDULED, PublishJob.Status.MANUAL, PublishJob.Status.CHECKING);
 
     private final PublishJobRepository jobs;
     private final PublicationRepository publications;
@@ -127,6 +130,7 @@ class PublishingEngine {
             boolean scheduledSomewhere = job.getStatus() == PublishJob.Status.SCHEDULED;
             String route = job.getRoute();
             job.cancel(reason, now);
+            if (p.getFlag() != null && p.getFlag().startsWith(HELD_FLAG)) p.flag(null);
             if (scheduledSomewhere) {
                 PublishRoute owner = route(route);
                 boolean removed;
@@ -148,11 +152,32 @@ class PublishingEngine {
         });
     }
 
+    /**
+     * Raúl manda ya a otra vía una publicación retenida (sin esperar a que Publer deje de llegar). Sigue el flujo normal
+     * de esa vía.
+     *
+     * @return {@code false} si no estaba retenida o la vía no existe
+     */
+    boolean moveHeld(String publicationId, PublishRoute.Id target) {
+        PublishJob job = jobs.find(publicationId).orElse(null);
+        Publication p = publications.findById(publicationId).orElse(null);
+        if (job == null || p == null || job.getStatus() != PublishJob.Status.HELD) return false;
+        int index = -1;
+        for (int i = 0; i < routes.size(); i++) if (routes.get(i).id() == target) index = i;
+        if (index < 0) return false;
+        job.skipTo(index, target.label(), clock.instant());
+        advance(job, p, clock.instant());
+        publications.save(p);
+        jobs.save(job);
+        changed(publicationId);
+        return true;
+    }
+
     /** Incidencias que anota el motor: al volver a programarla se quitan. */
     static boolean ownFlag(@Nullable String flag) {
         return flag != null && (flag.startsWith(LATE_FLAG) || flag.startsWith(STILL_SCHEDULED)
-                || flag.startsWith(ERROR_FLAG) || flag.startsWith(OFFICIAL_FLAG) || flag.startsWith(DOUBT_FLAG)
-                || flag.startsWith(DELAY_FLAG)
+                || flag.startsWith(ERROR_FLAG) || flag.startsWith(HELD_FLAG) || flag.startsWith(OFFICIAL_FLAG)
+                || flag.startsWith(DOUBT_FLAG) || flag.startsWith(DELAY_FLAG)
                 || flag.startsWith(PublishingService.MANUAL_FLAG));
     }
 
@@ -289,6 +314,14 @@ class PublishingEngine {
                 }
                 yield false;
             }
+            case HELD -> {
+                if (job.getNextTryAt() == null || now.isBefore(job.getNextTryAt())) yield false;
+                String before = job.getLastError();
+                job.resume(now);
+                advance(job, p, now);
+                // Sigue retenida por lo mismo: no se guarda ni se avisa a la interfaz (se vuelve a mirar en el siguiente turno)
+                yield !(job.getStatus() == PublishJob.Status.HELD && java.util.Objects.equals(before, job.getLastError()));
+            }
             case RETRY_WAIT -> {
                 if (job.getNextTryAt() == null || now.isBefore(job.getNextTryAt())) yield false;
                 job.nextRound(now);
@@ -333,6 +366,7 @@ class PublishingEngine {
     /** Prueba las vías desde la actual. Si no queda ninguna, reintento o manual. */
     private void advance(PublishJob job, Publication p, Instant now) {
         Instant at = p.scheduledAt();
+        if (p.getFlag() != null && p.getFlag().startsWith(HELD_FLAG)) p.flag(null);
         while (job.getRouteIndex() < routes.size()) {
             PublishRoute route = routes.get(job.getRouteIndex());
             if (!route.applies(p)) {
@@ -364,6 +398,12 @@ class PublishingEngine {
                 case PublishRoute.Outcome.Pending pending -> {
                     job.waitingFor(pending.taskId(), now);
                     job.note(now, route.id().label() + ": encargo a Claude " + pending.taskId());
+                    return;
+                }
+                case PublishRoute.Outcome.Held h -> {
+                    job.hold(h.reason(), now.plus(HELD_RETRY), now);
+                    // No pisa otra incidencia de la publicación: entonces el motivo queda solo en la tarea
+                    if (p.getFlag() == null) p.flag(HELD_FLAG + h.reason());
                     return;
                 }
                 case PublishRoute.Outcome.Failed f -> {
@@ -417,6 +457,10 @@ class PublishingEngine {
                     fail(job, p, "Sigue programada en " + job.getRoute() + " pasada la hora", now);
                 }
                 case PublishRoute.Outcome.NotYet n -> {
+                    if (job.getStatus() != PublishJob.Status.CHECKING) job.checking(null, now);
+                    job.touch(now);
+                }
+                case PublishRoute.Outcome.Held h -> {
                     if (job.getStatus() != PublishJob.Status.CHECKING) job.checking(null, now);
                     job.touch(now);
                 }
