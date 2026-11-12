@@ -136,4 +136,4 @@ Hecho el 11-12 nov 2026. Conclusión: **la API oficial pasa a ser la vía princi
 
 ### Sin comprobar
 
-- FFmpeg en macOS: en la prueba de GitHub el binario extraído dio «Permission denied» al ejecutarlo a mano. No se ha probado a generar una pieza en un Mac.
+- Nada de FFmpeg: probado en la máquina macOS de GitHub (herramientas locales por la API y una pieza de 2 s). No hay Mac real de Raúl.
