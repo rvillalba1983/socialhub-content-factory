@@ -5,7 +5,7 @@ import java.util.Optional;
 
 /** Tipos de encargo a Claude, con la estación donde aparecen y su modelo por defecto. */
 public enum AiRequestType {
-    WEEKLY_SPEC("spec.json de la semana", "gen", "socialhub.weekly-spec"),
+    WEEKLY_SPEC("spec.json por lotes", "gen", "socialhub.weekly-spec"),
     CAPTIONS("Textos y hashtags", "gen", "socialhub.captions"),
     WEEKLY_BALANCE("Balance semanal", "ana", "socialhub.weekly-balance"),
     RESEARCH("Investigación", "inv", "socialhub.research"),
@@ -39,6 +39,15 @@ public enum AiRequestType {
         this.onPc = onPc;
         this.automatic = automatic;
     }
+
+    /** Tiene «deadline» (hora límite del contrato). */
+    public boolean hasDeadline() { return this == PUBLER_SCHEDULE || this == PUBLIC_LINK; }
+
+    /** Su urgencia depende de lo cerca que salga una publicación: spec, textos y revisión de calidad. */
+    public boolean dependsOnPublications() { return this == WEEKLY_SPEC || this == CAPTIONS || this == QUALITY_REVIEW; }
+
+    /** Puede volverse urgente con el tiempo: tiene «deadline» o depende de una publicación que se acerca. */
+    public boolean urgencyCanRise() { return hasDeadline() || dependsOnPublications(); }
 
     /** Lo encarga SocialHub, no Raúl, y no cuenta en el límite diario: tiene hora fija y no puede esperar. */
     public boolean automatic() { return automatic; }

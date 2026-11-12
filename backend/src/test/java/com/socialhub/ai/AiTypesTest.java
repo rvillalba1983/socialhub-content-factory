@@ -57,6 +57,9 @@ class AiTypesTest {
     static Path material;
 
     @Autowired MockMvc mvc;
+    @Autowired AiRequestRepository requests;
+    @Autowired AiAutoOrders autoOrders;
+    @Autowired com.socialhub.production.ProductionService production;
     @Autowired com.socialhub.publishing.PublishingQueries publishing;
     private final JsonMapper json = JsonMapper.builder().build();
 
@@ -145,22 +148,33 @@ class AiTypesTest {
     @Test
     @Order(4)
     void theWeeklySpecOrdersThePiecesAndAttachesThemToThePublication() throws Exception {
-        String task = order("WEEKLY_SPEC", "spec de la semana", "2030-11-12");
+        String task = order("WEEKLY_SPEC", "spec por lotes", "2030-11-12-instagram");
         JsonNode request = request(task);
-        assertThat(request.get("inputs").get("week").get("from").asString()).isEqualTo("2030-11-11");
+        String today = java.time.LocalDate.now(java.time.ZoneId.of("Europe/Madrid")).toString();
+        // Por lotes: el encargo no depende de ninguna semana y lleva solo las publicaciones indicadas, con su fecha
+        assertThat(request.get("inputs").has("week")).isFalse();
+        // Pedido a mano por Raúl: urgente siempre, aunque la publicación esté lejos
+        assertThat(request.get("urgent").asBoolean()).isTrue();
+        // Y la base de datos guarda la misma marca
+        assertThat(requests.findByTaskIdOrderBySentAt(task).getLast().isUrgent()).isTrue();
+        assertThat(request.get("inputs").get("publications").size()).isEqualTo(1);
+        assertThat(request.get("inputs").get("publications").get(0).get("scheduled_on").asString()).isEqualTo("2030-11-12");
         assertThat(request.get("inputs").get("publications").get(0).get("id").asString()).isEqualTo("2030-11-12-instagram");
         assertThat(request.get("inputs").get("folders").get("MATERIAL").asString()).isEqualTo(material.toString());
 
         String spec = """
                 {"out":%s,"piezas":[{"tipo":"historia","nombre":"2_martes_historia","publicacion":"2030-11-12-instagram",
-                 "img":%s,"titulo":"Pregunta grande","texto":"frase"}]}"""
-                .formatted(q(drive.resolve("DeLito/generados")), q(material.resolve("pagina 58.png")));
+                 "img":%s,"titulo":"Pregunta grande","texto":"frase"},
+                {"tipo":"historia","nombre":"3_ajena_historia","publicacion":"2030-12-31-instagram",
+                 "img":%s,"titulo":"De otro lote","texto":"frase"}]}"""
+                .formatted(q(drive.resolve("DeLito/generados")), q(material.resolve("pagina 58.png")),
+                        q(material.resolve("pagina 58.png")));
         // «generados» aún no es una carpeta de la promoción: el spec no se puede encargar
         result(task, completed(task, "{\"spec\":" + spec + "}"));
         waitFor(() -> "FAILED".equals(task(task).get("status").asString()), "spec rechazado");
         assertThat(task(task).get("error").asString()).contains("El spec no se puede encargar").contains("Fuera de las carpetas");
         assertThat(list(orders.resolve("specs-de-claude"))).extracting(p -> p.getFileName().toString())
-                .containsExactly("spec-2030-11-11.rechazado");
+                .containsExactly("spec-" + today + ".rechazado");
 
         write(put("/api/promotions/poemario/folders"), "{\"items\":[{\"role\":\"GENERATED\",\"location\":"
                 + q(Files.createDirectories(drive.resolve("DeLito/generados"))) + "}]}").andExpect(status().isOk());
@@ -170,7 +184,11 @@ class AiTypesTest {
         result(task, completed(task, "{\"spec\":" + spec + ",\"summary\":\"1 historia\"}"));
         waitFor(() -> "COMPLETED".equals(task(task).get("status").asString()), "spec aplicado");
         String resultText = task(task).get("result").asString();
-        assertThat(resultText).contains("spec-2030-11-11.json").contains("piezas encargadas");
+        assertThat(resultText).contains("spec-" + today + ".json").contains("piezas encargadas")
+                // La pieza de una publicación que no es del lote se descarta, con aviso
+                .contains("aviso: 1 pieza descartada");
+        assertThat(Files.readString(orders.resolve("specs-de-claude").resolve("spec-" + today + ".json")))
+                .contains("2_martes_historia").doesNotContain("3_ajena_historia");
         String pieces = resultText.replaceAll(".*\\(tarea ([0-9a-f-]+)\\).*", "$1");
         waitFor(() -> "COMPLETED".equals(task(pieces).get("status").asString()), "piezas generadas");
         assertThat(drive.resolve("DeLito/generados/2_martes_historia.jpg")).exists();
@@ -287,10 +305,75 @@ class AiTypesTest {
 
         // Se aprueba una y la otra no: el spec solo ve la aprobada
         write(post("/api/publications/2030-11-18-instagram/status-changes"), "{\"status\":\"IN_PRODUCTION\"}").andExpect(status().isOk());
-        String spec = order("WEEKLY_SPEC", "spec", "2030-11-18");
+        String spec = order("WEEKLY_SPEC", "spec", "2030-11-18-instagram");
         JsonNode planned = request(spec).get("inputs").get("publications");
         assertThat(planned.size()).isEqualTo(1);
         assertThat(planned.get(0).get("id").asString()).isEqualTo("2030-11-18-instagram");
+    }
+
+    @Test
+    @Order(20)
+    void theRoundOrdersTheSpecOfABatchOfThreeAndDoesNotRepeatIt() throws Exception {
+        for (int day : new int[] {10, 11, 12}) {
+            write(post("/api/promotions/poemario/publications"), """
+                    {"platform":"INSTAGRAM","type":"Historia","title":"Lote %d","scheduled_on":"2030-12-%d",
+                     "scheduled_time":"13:00","initial_status":"IN_PRODUCTION"}""".formatted(day, day)).andExpect(status().isCreated());
+        }
+        var now = java.time.ZonedDateTime.now(java.time.ZoneId.of("Europe/Madrid"));
+        assertThat(autoOrders.createSpecBatches(now)).isEqualTo(1);
+        var batch = production.coveringAiTasks(AiRequestType.WEEKLY_SPEC.taskType(), "poemario").stream()
+                .map(c -> c.task()).filter(t -> t.inputs().contains("2030-12-10-instagram")).toList();
+        assertThat(batch).hasSize(1);
+        assertThat(batch.getFirst().title()).isEqualTo(AiRequestType.WEEKLY_SPEC.label() + " · 3 publicaciones");
+        assertThat(batch.getFirst().goal()).contains("3 publicaciones");
+        assertThat(batch.getFirst().inputs()).containsExactly("2030-12-10-instagram", "2030-12-11-instagram", "2030-12-12-instagram");
+        // Ya está en un spec abierto: la ronda siguiente no lo repite
+        assertThat(autoOrders.createSpecBatches(now)).isZero();
+        // Lo pide SocialHub y las publicaciones están lejos: sigue la regla normal, no es urgente
+        String batchTask = batch.getFirst().id();
+        waitFor(() -> "WAITING".equals(task(batchTask).get("status").asString()), "spec por lotes enviado");
+        assertThat(request(batchTask).get("urgent").asBoolean()).isFalse();
+        assertThat(requests.findByTaskIdOrderBySentAt(batchTask).getLast().isUrgent()).isFalse();
+    }
+
+    @Test
+    @Order(21)
+    void aPlannedPromotionAsksForItsSpecWithoutWaitingToBeActivated() throws Exception {
+        write(post("/api/promotions"), """
+                {"brand_id":"el-delito","name":"Futura","starts_on":"2030-01-01","ends_on":"2031-01-25","status":"PLANNED"}""")
+                .andExpect(status().isCreated());
+        for (int day : new int[] {10, 11, 12}) {
+            write(post("/api/promotions/futura/publications"), """
+                    {"platform":"INSTAGRAM","type":"Historia","title":"Futura %d","scheduled_on":"2030-02-%d",
+                     "scheduled_time":"13:00","initial_status":"IN_PRODUCTION"}""".formatted(day, day)).andExpect(status().isCreated());
+        }
+        var now = java.time.ZonedDateTime.now(java.time.ZoneId.of("Europe/Madrid"));
+        assertThat(autoOrders.createSpecBatches(now)).isEqualTo(1);
+        assertThat(production.coveringAiTasks(AiRequestType.WEEKLY_SPEC.taskType(), "futura")).hasSize(1);
+    }
+
+    @Test
+    @Order(22)
+    void aRetryPressedByRaulIsUrgentButTheOneSocialHubDoesAloneIsNot() throws Exception {
+        String byHand = automatic("Textos a mano");
+        production.aiFailed(byHand, "falló");
+        production.execute(byHand, com.socialhub.production.domain.TaskCommandType.RETRY, null);
+        waitFor(() -> "WAITING".equals(task(byHand).get("status").asString()) && task(byHand).get("attempts").asInt() == 2, "reintento enviado");
+        assertThat(request(byHand).get("urgent").asBoolean()).isTrue();
+
+        String alone = automatic("Textos solos");
+        production.aiFailed(alone, "falló");
+        production.autoRetry(alone);
+        waitFor(() -> "WAITING".equals(task(alone).get("status").asString()) && task(alone).get("attempts").asInt() == 2, "reintento enviado");
+        assertThat(request(alone).get("urgent").asBoolean()).isFalse();
+    }
+
+    /** Un encargo de textos de una publicación lejana pedido por SocialHub (no urgente), ya enviado. */
+    private String automatic(String title) throws Exception {
+        String id = production.submitAi(new com.socialhub.production.TaskRequest(AiRequestType.CAPTIONS.stationId(), "poemario",
+                AiRequestType.CAPTIONS.taskType(), title, "Textos", List.of("2030-11-12-instagram"), List.of()), "SONNET");
+        waitFor(() -> "WAITING".equals(task(id).get("status").asString()), "encargo enviado");
+        return id;
     }
 
     // ---------------------------------------------------------------- utilidades

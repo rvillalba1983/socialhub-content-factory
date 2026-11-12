@@ -1027,6 +1027,32 @@ describe('Qué hacer ahora', () => {
     expect(onOpen).toHaveBeenCalledWith({ screen: 'PUBLORA', brand_id: 'b' });
   });
 
+  it('«no tiene contenido» lleva un botón «Pedir contenido ya» aparte que pide el spec de esas publicaciones', () => {
+    const onRequest = vi.fn(), onOpen = vi.fn();
+    const missing = rec({ id: 'content-missing:p', kind: 'CONTENT_MISSING', title: 'Pregunta grande no tiene contenido',
+      promotion_id: 'p', publication_ids: ['2026-11-11-instagram', '2026-11-12-instagram'] });
+    render(<NextSteps items={[missing, three[1]]} onOpen={onOpen} onRequestContent={onRequest} />);
+    const side = screen.getByRole('button', { name: /Pedir contenido ya/ });
+    expect(side.closest('button.aitem')).toBeNull();
+    fireEvent.click(side);
+    expect(onRequest).toHaveBeenCalledWith('p', ['2026-11-11-instagram', '2026-11-12-instagram']);
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
+  it('en la fábrica, «Pedir contenido ya» pide un spec por lotes a mano y refresca', async () => {
+    vi.spyOn(api, 'appMode').mockResolvedValue({ mode: 'REAL', demo_available: false } as never);
+    const order = vi.spyOn(api, 'orderFromClaude').mockResolvedValue({ task_id: 't1' } as never);
+    const onRefresh = vi.fn();
+    const missing = rec({ id: 'content-missing:p', kind: 'CONTENT_MISSING', title: 'Pregunta grande no tiene contenido',
+      promotion_id: 'p', publication_ids: ['2026-11-11-instagram'] });
+    render(<Factory data={withRecs([missing])} live={false} onRefresh={onRefresh} />);
+    fireEvent.click(screen.getByRole('button', { name: /Pedir contenido ya/ }));
+    await waitFor(() => expect(order).toHaveBeenCalled());
+    expect(order.mock.calls[0][0]).toBe('p');
+    expect(order.mock.calls[0][1]).toMatchObject({ type: 'WEEKLY_SPEC', inputs: ['2026-11-11-instagram'] });
+    await waitFor(() => expect(onRefresh).toHaveBeenCalled());
+  });
+
   it('en la fábrica, «No uso Publora» guarda el descarte y refresca', async () => {
     vi.spyOn(api, 'appMode').mockResolvedValue({ mode: 'REAL', demo_available: false } as never);
     const set = vi.spyOn(api, 'setBrandPubloraDismissed').mockResolvedValue({ items: [], dismissed: true });

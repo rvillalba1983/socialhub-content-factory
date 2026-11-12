@@ -46,9 +46,34 @@ public class ProductionService {
     public Task execute(String taskId, TaskCommandType command, @Nullable AiModel model) {
         Task task = task(taskId);
         task.execute(command, model, clock.instant());
+        // Lo que Raúl vuelve a lanzar a mano sale siempre como urgente (el reintento solo de SocialHub no pasa por aquí)
+        if (command == TaskCommandType.RETRY || command == TaskCommandType.RERUN || command == TaskCommandType.REOPEN) {
+            task.markManual();
+        }
         Task saved = persist(task);
         unblockReadyTasks();
         return saved;
+    }
+
+    /** Marca un encargo a Claude recién creado como pedido por Raúl desde la interfaz. */
+    @Transactional
+    public void markManual(String taskId) {
+        Task task = task(taskId);
+        task.markManual();
+        persist(task);
+    }
+
+    /** La tarea ya terminó (completada, fallida o cancelada), no está en cola ni en curso. Una que no existe cuenta como terminada. */
+    @Transactional(readOnly = true)
+    public boolean isFinished(String taskId) {
+        return tasks.findById(taskId).map(t -> t.getStatus() == TaskStatus.COMPLETED || t.getStatus() == TaskStatus.FAILED
+                || t.getStatus() == TaskStatus.CANCELLED).orElse(true);
+    }
+
+    /** Cancela un encargo a Claude en cola que ya no tiene nada que hacer. */
+    @Transactional
+    public void cancelAi(String taskId) {
+        execute(taskId, TaskCommandType.CANCEL, null);
     }
 
     @Transactional
@@ -201,6 +226,33 @@ public class ProductionService {
                 .toList();
     }
 
+    /** Cómo ocupa un encargo a Claude sus datos de entrada. */
+    public enum Cover {
+        /** Sigue vivo: en cola, en curso, en espera, bloqueado o fallido con reintentos por delante. */
+        OPEN,
+        /** Ya se completó. */
+        DONE,
+        /** Falló del todo (sin reintentos): no ocupa nada, pero se sabe cuándo falló. */
+        FAILED
+    }
+
+    /** Un encargo a Claude, cómo cubre sus datos y cuándo cambió de estado por última vez. */
+    public record Covering(AiTask task, Cover cover, java.time.Instant at, @Nullable String result) {}
+
+    /** Encargos a Claude de un tipo y promoción en cola, vivos, completados o fallidos del todo (no los cancelados). */
+    @Transactional(readOnly = true)
+    public List<Covering> coveringAiTasks(String type, String promotionId) {
+        return tasks.findByTypeAndPromotion(type, promotionId, List.of(TaskStatus.QUEUED, TaskStatus.RUNNING,
+                        TaskStatus.WAITING, TaskStatus.BLOCKED, TaskStatus.FAILED, TaskStatus.COMPLETED)).stream()
+                .filter(Task::isAiRequest)
+                .map(t -> new Covering(toAiTask(t), switch (t.getStatus()) {
+                    case COMPLETED -> Cover.DONE;
+                    case FAILED -> t.canAutoRetry() ? Cover.OPEN : Cover.FAILED;
+                    default -> Cover.OPEN;
+                }, t.lastChangeAt(), t.getResult()))
+                .toList();
+    }
+
     /** Encargo a Claude fallido que aún tiene intentos, con cuándo falló. */
     public record RetryableAi(String id, String type, java.time.Instant failedAt) {}
 
@@ -278,7 +330,7 @@ public class ProductionService {
                 : AiModel.SONNET.name();
         Instant created = t.getHistory().isEmpty() ? Instant.EPOCH : t.getHistory().getFirst().at();
         return new AiTask(t.getId(), t.getType(), t.getPromotionId(), t.getTitle(), t.getGoal(), t.getInputs(),
-                t.getAttempts(), model, created);
+                t.getAttempts(), model, created, t.isManual());
     }
 
     /** Toma de la cola hasta {@code limit} tareas de esos tipos en estaciones que aceptan trabajo y las pone en marcha. */

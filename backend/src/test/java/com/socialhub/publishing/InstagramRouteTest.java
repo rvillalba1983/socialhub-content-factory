@@ -116,6 +116,7 @@ class InstagramRouteTest {
 
     @Autowired MockMvc mvc;
     @Autowired PublishingEngine engine;
+    @Autowired com.socialhub.ai.AiOrders aiOrders;
     @Autowired PublishingQueries alerts;
     @Autowired com.socialhub.platform.postgres.ModeDataSources databases;
     private final JsonMapper json = JsonMapper.builder().build();
@@ -416,7 +417,7 @@ class InstagramRouteTest {
     void anInvalidKeyFallsBackAtScheduleTimeAndAtPublishTime() throws Exception {
         // Al programarla: Meta no acepta la clave → se sigue por otra vía desde el primer momento
         Instant at = at(13);
-        CLOCK.set(at.minus(Duration.ofHours(12)));
+        CLOCK.set(at.minus(Duration.ofHours(24)));
         acceptKey = false;
         String id = publication("Reel", 13, "Reel con clave mala", List.of(reel));
         schedule(id);
@@ -531,7 +532,7 @@ class InstagramRouteTest {
     void linksThatArriveLetTheOfficialApiPublishAndThePublicFolderIsCleaned() throws Exception {
         Files.createDirectories(publicFolder);
         Instant at = at(17);
-        CLOCK.set(at.minus(Duration.ofHours(12)));
+        CLOCK.set(at.minus(Duration.ofHours(24)));
         String id = publication("Post", 17, "Foto con enlaces", List.of(photo));
         schedule(id);
 
@@ -547,6 +548,12 @@ class InstagramRouteTest {
         assertThat(request.get("type").asString()).isEqualTo("socialhub.public-link");
         assertThat(request.get("inputs").get("files").get(0).asString()).isEqualTo(staged.getFirst().getFileName().toString());
         assertThat(Instant.parse(request.get("deadline").asString())).isEqualTo(PublerRoute.handoverBy(at));
+        // «urgent» sale calculado con el límite del encargo y el momento en que Claude puede verlo
+        assertThat(request.get("urgent").asBoolean()).isEqualTo(com.socialhub.ai.ClaudePasses.urgent(false,
+                PublerRoute.handoverBy(at), com.socialhub.ai.ClaudePickups.visibleAt(CLOCK.instant())));
+
+        // y la base de datos guarda la misma marca que el archivo
+        assertThat(aiOrders.urgentOf(request.get("taskId").asString())).contains(request.get("urgent").asBoolean());
 
         answer(request, "[{\"file\":\"" + staged.getFirst().getFileName() + "\",\"id\":\"drive-ok-0001\"}]");
         waitFor(() -> "SCHEDULED".equals(job(id).get("status").asString()), "enlaces recibidos");
@@ -564,14 +571,14 @@ class InstagramRouteTest {
     @Order(11)
     void linksThatDoNotArriveInTimeGoToPublerBeforeItsLimit() throws Exception {
         Instant at = at(18);
-        CLOCK.set(at.minus(Duration.ofHours(12)));
+        CLOCK.set(at.minus(Duration.ofHours(24)));
         String id = publication("Post", 18, "Foto sin enlaces", List.of(photo));
         schedule(id);
         assertThat(job(id).get("status").asString()).isEqualTo("WORKING");
         assertThat(list(publicFolder)).hasSize(1);
 
         // Pasa el corte (9 h antes): Publer aún llega (necesita 8 h)
-        CLOCK.set(at.minus(Duration.ofHours(9)).plusSeconds(60));
+        CLOCK.set(PublerRoute.handoverBy(at).plusSeconds(60));
         engine.tick();
         JsonNode job = job(id);
         assertThat(job.get("route").asString()).isEqualTo("Publer");
@@ -582,10 +589,25 @@ class InstagramRouteTest {
     }
 
     @Test
+    @Order(27)
+    void whenNoCloudPassReachesTheCutoffTheLinksAreNotEvenAskedAndItGoesToPubler() throws Exception {
+        // Publicación a las 22:00: el corte es a las 10:20; a las 6:00 la siguiente pasada de la nube (10:30) llega tarde
+        Instant at = at(22);
+        CLOCK.set(at.minus(Duration.ofHours(16)));
+        String id = publication("Post", 22, "Foto sin pasada", List.of(photo));
+        schedule(id);
+        JsonNode job = job(id);
+        assertThat(job.get("route").asString()).isEqualTo("Publer");
+        assertThat(job.get("log").toString()).contains("API oficial: ninguna pasada de Claude llega a dar los enlaces públicos");
+        assertThat(publication(id).get("flag").asString()).startsWith("API oficial:");
+        write(post("/api/publications/" + id + "/status-changes"), "{\"status\":\"APPROVED\"}").andExpect(status().isOk());
+    }
+
+    @Test
     @Order(12)
     void aLinkThatIsNotAnImageGoesToPubler() throws Exception {
         Instant at = at(19);
-        CLOCK.set(at.minus(Duration.ofHours(12)));
+        CLOCK.set(at.minus(Duration.ofHours(24)));
         String id = publication("Post", 19, "Foto con enlace malo", List.of(photo));
         schedule(id);
         Path staged = list(publicFolder).getFirst();
@@ -601,7 +623,7 @@ class InstagramRouteTest {
     @Order(13)
     void aLinkThatStopsBeingAnImageAtPublishTimeFailsWithoutPublishing() throws Exception {
         Instant at = at(20);
-        CLOCK.set(at.minus(Duration.ofHours(12)));
+        CLOCK.set(at.minus(Duration.ofHours(24)));
         String id = publication("Post", 20, "Foto que se rompe", List.of(photo));
         schedule(id);
         Path staged = list(publicFolder).getFirst();
@@ -622,7 +644,7 @@ class InstagramRouteTest {
     @Order(14)
     void leavingScheduledCleansThePublicFolder() throws Exception {
         Instant at = at(21);
-        CLOCK.set(at.minus(Duration.ofHours(12)));
+        CLOCK.set(at.minus(Duration.ofHours(24)));
         String id = publication("Post", 21, "Foto que se descarta", List.of(photo));
         schedule(id);
         assertThat(list(publicFolder)).hasSize(1);
@@ -800,7 +822,7 @@ class InstagramRouteTest {
         for (String status : List.of("needs_human", "failed")) {
             int hour = status.equals("failed") ? 21 : 20;
             Instant at = at(DAY2, hour);
-            CLOCK.set(at.minus(Duration.ofHours(14)));
+            CLOCK.set(at.minus(Duration.ofHours(24)));
             String id = publication("INSTAGRAM", DAY2, "Post", hour, "Foto con encargo " + status, List.of(photo));
             schedule(id);
             Path staged = list(publicFolder).getFirst();
@@ -821,8 +843,8 @@ class InstagramRouteTest {
         String id = publication("INSTAGRAM", DAY2.plusDays(1), "Post", 22, "Foto con encargo tardío", List.of(photo));
         schedule(id);
         assertThat(job(id).get("status").asString()).isEqualTo("WORKING");
-        // Su recogida (9:40) ya pasó hace más de media hora y nadie contesta, pero aún falta para el corte
-        CLOCK.set(at.minus(Duration.ofHours(11)));
+        // Su pasada (la completa de las 5:30; el corte es a las 10:20) ya pasó hace más de media hora y nadie contesta, pero aún falta para el corte
+        CLOCK.set(at.minus(Duration.ofHours(16)));
         assertThat(CLOCK.instant()).isBefore(PublerRoute.handoverBy(at));
         engine.tick();
         assertThat(job(id).get("route").asString()).isEqualTo("Publer");
@@ -914,7 +936,7 @@ class InstagramRouteTest {
     }
 
     @Test
-    @Order(27)
+    @Order(28)
     void deletingTheKeyLeavesTheRouteUnconfigured() throws Exception {
         write(delete("/api/instagram/key"), "").andExpect(status().isNoContent());
         assertThat(get("/api/instagram").get("configured").asBoolean()).isFalse();

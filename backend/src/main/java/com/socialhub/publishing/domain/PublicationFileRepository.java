@@ -10,6 +10,9 @@ public interface PublicationFileRepository {
     /** Por orden de alta. */
     List<PublicationFile> files(String publicationId);
 
+    /** De esas publicaciones, las que tienen algún archivo (una sola consulta). */
+    java.util.Set<String> withFiles(java.util.Collection<String> publicationIds);
+
     /** Asocia el archivo. Si ya estaba asociado, no hace nada y devuelve {@code false}. */
     boolean add(String publicationId, PublicationFile file);
 

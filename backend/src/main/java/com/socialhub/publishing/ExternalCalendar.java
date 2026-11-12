@@ -54,7 +54,7 @@ public class ExternalCalendar {
     static final Duration PAST = Duration.ofDays(14);
     static final Duration FUTURE = Duration.ofDays(60);
     static final int PUBLER_DAYS = 14;
-    /** El encargo diario sale desde esta hora (la tarea del PC pasa a y 40). */
+    /** El encargo diario sale desde esta hora (la tarea del PC pasa a las 00:50, 05:50, 10:50, 15:50 y 20:50). */
     static final LocalTime DAILY_FROM = LocalTime.of(7, 0);
 
     public record View(List<Item> items, List<State> states) {}

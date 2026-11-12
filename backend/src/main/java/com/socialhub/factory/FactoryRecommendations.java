@@ -4,12 +4,12 @@ import com.socialhub.ai.AiHeldOrders;
 import com.socialhub.ai.AiAutoStarted;
 import com.socialhub.ai.AiRequestType;
 import com.socialhub.ai.AiSentOrders;
-import com.socialhub.ai.AiWeeklySchedule;
 import com.socialhub.ai.ClaudeActivity;
 import com.socialhub.ai.ClaudePickups;
 import com.socialhub.api.model.RecommendationDto;
 import com.socialhub.api.model.RecommendationTargetDto;
 import com.socialhub.backup.BackupService;
+import com.socialhub.pieces.ContentGaps;
 import com.socialhub.promotion.PromotionQueries;
 import com.socialhub.publishing.PublerAccountService;
 import com.socialhub.publishing.PublishingQueries;
@@ -43,11 +43,14 @@ import org.springframework.stereotype.Component;
  *   <li>Marca con promoción activa sin cuenta de Publer en alguna red, o con publicaciones retenidas por eso: una fila por
  *   marca y red, con botón a la tarjeta «Cuenta en Publer» de la ficha. Va tras las de publicación: bloquea publicaciones reales.</li>
  *   <li>La tarea «Publicar con Chrome» no contesta: encargos de {@code para-claude-pc} sin resultado desde hace 90
- *   minutos dentro de su horario (8:40-22:40). Sin botón.</li>
+ *   minutos después de la pasada que les tocaba (cada 5 h, desde las 0:50). Sin botón.</li>
  *   <li>Propuestas de una promoción retenidas, con el motivo (la marca sin carpeta de «Encargos», la carpeta no
  *   disponible porque Drive está cerrado o el límite diario alcanzado, este último con botón a «Claude»). Una sola
  *   fila por promoción, con este orden de motivos.</li>
  *   <li>Propuestas listas para revisar, con su contador.</li>
+ *   <li>Publicación en producción sin contenido (sin piezas y fuera de cualquier spec abierto) que sale en menos de 3
+ *   días: «{título} no tiene contenido», con botón «Pedir contenido ya» (un spec urgente a mano de esa publicación o de las
+ *   de su promoción en la misma situación). Una fila por promoción.</li>
  *   <li>Marca sin todas sus carpetas.</li>
  *   <li>Encargo sin resultado tras la recogida que le tocaba (5 minutos de sincronización y 30 de margen), si la
  *   carpeta de «Encargos» de su marca está disponible.</li>
@@ -55,9 +58,6 @@ import org.springframework.stereotype.Component;
  *   <li>Sin carpeta de copias.</li>
  *   <li>Marca sin ninguna promoción activa ni planificada por empezar (esa se activa sola): dar de alta la primera, o activar una en pausa.</li>
  *   <li>Propuestas pedidas y en camino, con la hora de la próxima recogida.</li>
- *   <li>Especificación semanal en espera: ya tocaría pedirla (domingo desde las 9:00 o durante la semana) pero la
- *   promoción no tiene publicaciones aprobadas esa semana. Informativa, sin botón. Va la última: no hay nada que
- *   hacer salvo aprobar publicaciones, que ya se pide en las filas de propuestas.</li>
  *   <li>Promoción activada sola hoy: el día en que SocialHub la pasa de «Planificada» a «Activa» (empieza hoy), una fila
  *   informativa, sin botón, que desaparece al día siguiente (hora de España). No sale si Raúl la activó a mano. Va la
  *   última: es solo un aviso.</li>
@@ -76,6 +76,7 @@ class FactoryRecommendations {
     private final PublerAccountService publer;
     private final BackupService backups;
     private final AiAutoStarted autoStarted;
+    private final ContentGaps contentGaps;
     private final Clock clock;
 
     List<RecommendationDto> compute() {
@@ -147,6 +148,24 @@ class FactoryRecommendations {
                     null, RecommendationTargetDto.ScreenEnum.PROPOSALS, promotion.brandId(), promotion.id()).promotionId(promotion.id()));
         }
 
+        // 2b. Publicaciones en producción sin contenido que salen en menos de 3 días (y fuera de cualquier spec abierto)
+        for (var promotion : allPromotions) {
+            if (!promotion.active() && !promotion.plannedAhead(today)) continue;
+            var gaps = contentGaps.of(promotion.id());
+            if (gaps.isEmpty() || !gaps.getFirst().scheduledAt().isBefore(now.plus(ContentGaps.SOON))) continue;
+            var first = gaps.getFirst();
+            var when = first.scheduledAt().atZone(ClaudePickups.ZONE);
+            var dto = recommendation("content-missing:" + promotion.id(), RecommendationDto.KindEnum.CONTENT_MISSING,
+                    first.title() + " no tiene contenido",
+                    "Sale el " + when.getDayOfMonth() + " de " + when.getMonth().getDisplayName(TextStyle.SHORT, Locale.of("es", "ES"))
+                            + " a las " + hour(when) + ". «Pedir contenido ya» pide un spec urgente de "
+                            + (gaps.size() == 1 ? "esa publicación" : "las " + gaps.size() + " publicaciones de «" + promotion.name()
+                            + "» que están así"),
+                    null, null, null).promotionId(promotion.id());
+            dto.setPublicationIds(gaps.stream().map(ContentGaps.Gap::publicationId).toList());
+            all.add(dto);
+        }
+
         // 3. Marca sin todas sus carpetas
         for (var brand : brands) {
             if (promotions.hasAllBrandFolders(brand.id())) continue;
@@ -157,8 +176,8 @@ class FactoryRecommendations {
 
         // 4. Encargo sin recoger (los del PC los recoge otra tarea y no se miran)
         // Si la carpeta de «Encargos» de la marca no está disponible, no se sabe si Claude ha dejado el resultado
-        sent.stream().filter(s -> !s.onPc() && s.ordersAvailable() && ClaudePickups.overdue(s.sentAt(), now))
-                .map(s -> ClaudePickups.pickupFor(s.sentAt()))
+        sent.stream().filter(s -> !s.onPc() && s.ordersAvailable() && ClaudePickups.overdue(s.sentAt(), now, s.urgent()))
+                .map(s -> ClaudePickups.pickupFor(s.sentAt(), s.urgent()))
                 .max(Comparator.naturalOrder())
                 .ifPresent(pickup -> all.add(recommendation("orders-not-collected",
                         RecommendationDto.KindEnum.ORDERS_NOT_COLLECTED,
@@ -201,33 +220,20 @@ class FactoryRecommendations {
         }
 
         // 8. Propuestas pedidas y en camino
-        Map<String, Instant> waiting = new LinkedHashMap<>();
+        Map<String, AiSentOrders.Sent> waiting = new LinkedHashMap<>();
         for (var s : sent) {
             if (s.type() == AiRequestType.WEEKLY_PROPOSALS && s.promotionId() != null
                     && promotionById.containsKey(s.promotionId())) {
-                waiting.putIfAbsent(s.promotionId(), s.sentAt());
+                waiting.putIfAbsent(s.promotionId(), s);
             }
         }
-        waiting.forEach((promotionId, sentAt) -> all.add(recommendation("proposals-pending:" + promotionId,
+        waiting.forEach((promotionId, order) -> all.add(recommendation("proposals-pending:" + promotionId,
                 RecommendationDto.KindEnum.PROPOSALS_PENDING,
                 "Propuestas de «" + promotionById.get(promotionId).name() + "» pedidas. Llegarán "
-                        + ClaudePickups.etaText(sentAt, now),
-                null, null, null, null).promotionId(promotionId).etaText(ClaudePickups.etaText(sentAt, now))));
+                        + ClaudePickups.etaText(order.sentAt(), now, order.urgent()),
+                null, null, null, null).promotionId(promotionId).etaText(ClaudePickups.etaText(order.sentAt(), now, order.urgent()))));
 
-        // 9. Especificación semanal esperando publicaciones aprobadas
-        ZonedDateTime local = now.atZone(ClaudePickups.ZONE);
-        AiWeeklySchedule.specWeek(local).ifPresent(week -> {
-            String day = week.getDayOfMonth() + " de " + week.getMonth().getDisplayName(TextStyle.SHORT, Locale.of("es", "ES"));
-            for (String promotionId : promotions.activeBetween(week, week.plusDays(6))) {
-                var promotion = promotionById.get(promotionId);
-                if (promotion == null || !publishing.approvedForAi(promotionId, week, week.plusDays(6)).isEmpty()) continue;
-                all.add(recommendation("spec-waiting:" + promotionId, RecommendationDto.KindEnum.SPEC_WAITING,
-                        "La especificación de «" + promotion.name() + "» espera a que apruebes publicaciones de la semana del " + day,
-                        null, null, null, null).promotionId(promotionId));
-            }
-        });
-
-        // 10. Promociones que SocialHub ha activado solas hoy (informativa, sin botón)
+        // 9. Promociones que SocialHub ha activado solas hoy (informativa, sin botón)
         autoStarted.on(today).stream().sorted().filter(promotionById::containsKey).forEach(id -> all.add(
                 recommendation("promotion-auto-started:" + id, RecommendationDto.KindEnum.PROMOTION_AUTO_STARTED,
                         "Promoción «" + promotionById.get(id).name() + "» activada sola: empieza hoy", null, null, null, null)

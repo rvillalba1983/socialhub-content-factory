@@ -44,15 +44,15 @@ public class ClaudeActivity {
      * cuentan los de una marca cuya carpeta de «Encargos» no está disponible: no se sabe si Claude ha contestado.
      */
     public static Optional<Silence> cloudSilence(List<AiSentOrders.Sent> sent, Instant now) {
-        return silence(sent.stream().filter(s -> !s.onPc() && s.ordersAvailable() && ClaudePickups.overdue(s.sentAt(), now)).toList());
+        return silence(sent.stream().filter(s -> !s.onPc() && s.ordersAvailable() && ClaudePickups.overdue(s.sentAt(), now, s.urgent())).toList());
     }
 
     /**
-     * Encargos del PC sin resultado desde hace 90 minutos o más dentro del horario de la tarea ({@link PcSchedule}).
+     * Encargos del PC sin resultado 90 minutos o más después de la pasada que les tocaba ({@link PcSchedule}).
      * Misma regla de la carpeta de «Encargos» que en {@link #cloudSilence}.
      */
     public static Optional<Silence> pcSilence(List<AiSentOrders.Sent> sent, Instant now) {
-        return silence(sent.stream().filter(s -> s.onPc() && s.ordersAvailable() && PcSchedule.late(s.sentAt(), now)).toList());
+        return silence(sent.stream().filter(s -> s.onPc() && s.ordersAvailable() && PcSchedule.late(s.sentAt(), now, s.urgent())).toList());
     }
 
     /** Hay encargos enviados de ese tipo (nube o PC) esperando, tarde o no. */

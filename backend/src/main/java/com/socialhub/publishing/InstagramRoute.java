@@ -131,6 +131,11 @@ class InstagramRoute implements PublishRoute {
         if (folder == null || !host.available(folder)) {
             return new Outcome.Failed("las imágenes necesitan la carpeta pública «publico» de Drive y no está disponible");
         }
+        // Las pasadas de Claude en la nube son cada 5 h: si ninguna llega a hacer el encargo antes del corte, ni se pide
+        if (!com.socialhub.ai.ClaudePasses.canMeet(false, cutoff(p.scheduledAt()),
+                now.plus(com.socialhub.ai.ClaudePickups.DISPATCH_MAX).plus(com.socialhub.ai.ClaudePickups.SYNC_MARGIN))) {
+            return new Outcome.Failed("ninguna pasada de Claude llega a dar los enlaces públicos antes del corte");
+        }
         cleanup(p);
         // Si la transacción se deshace o encargar los enlaces falla, lo que se dejó en «publico» se borra
         List<String> names = new ArrayList<>();

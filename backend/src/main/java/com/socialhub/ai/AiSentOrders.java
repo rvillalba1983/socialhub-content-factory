@@ -16,11 +16,17 @@ public class AiSentOrders {
 
     /**
      * Un encargo enviado y sin resultado. {@code onPc}: lo hace Claude con Chrome en el PC (otra carpeta y otra tarea).
+     * {@code urgent}: se marcó urgente al enviarlo (lo recoge cualquier pasada, no solo las completas).
      * {@code ordersAvailable}: la carpeta de «Encargos» de su marca está disponible ahora en este ordenador; si no lo
      * está, no se sabe si Claude ha dejado su resultado.
      */
     public record Sent(@Nullable String promotionId, AiRequestType type, Instant sentAt, boolean onPc,
-                       boolean ordersAvailable) {}
+                       boolean ordersAvailable, boolean urgent) {
+
+        public Sent(@Nullable String promotionId, AiRequestType type, Instant sentAt, boolean onPc, boolean ordersAvailable) {
+            this(promotionId, type, sentAt, onPc, ordersAvailable, false);
+        }
+    }
 
     private final AiRequestRepository requests;
     private final ProductionService production;
@@ -37,7 +43,7 @@ public class AiSentOrders {
                 .map(r -> {
                     AiRequestType type = AiRequestType.valueOf(r.getType());
                     boolean available = promotions.brandOrdersFolder(r.getBrandId()).map(AiFolders::available).orElse(false);
-                    return new Sent(r.getPromotionId(), type, r.getSentAt(), type.onPc(), available);
+                    return new Sent(r.getPromotionId(), type, r.getSentAt(), type.onPc(), available, r.isUrgent());
                 })
                 .sorted(java.util.Comparator.comparing(Sent::sentAt))
                 .toList();

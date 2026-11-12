@@ -2,6 +2,7 @@ package com.socialhub.publishing;
 
 import com.socialhub.ai.AiOrders;
 import com.socialhub.ai.AiRequestType;
+import com.socialhub.ai.ClaudePasses;
 import com.socialhub.ai.ClaudePickups;
 import com.socialhub.platform.AppMode;
 import com.socialhub.platform.AppModeHolder;
@@ -305,7 +306,10 @@ class PublishingEngine {
                     yield true;
                 }
                 // El encargo de enlaces va con retraso (su recogida ya pasó): no se espera al corte, se sigue por Publer
-                if (route != null && isOfficial(job.getRoute()) && ClaudePickups.overdue(job.getUpdatedAt(), now)) {
+                if (route != null && isOfficial(job.getRoute())
+                        && ClaudePickups.overdue(job.getUpdatedAt(), now, orders.urgentOf(job.getTaskId())
+                                .orElseGet(() -> ClaudePasses.urgent(false, route.lastMoment(p),
+                                        ClaudePickups.visibleAt(job.getUpdatedAt()))))) {
                     p.flag(OFFICIAL_FLAG + "Claude no ha recogido el encargo de los enlaces públicos: se sigue por otra vía");
                     cleanup(p);
                     job.abandonTask("el encargo de los enlaces públicos va con retraso", now);

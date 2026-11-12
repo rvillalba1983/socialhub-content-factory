@@ -39,6 +39,7 @@ class FactoryRecommendationsTest {
     private final PublerAccountService publer = mock(PublerAccountService.class);
     private final com.socialhub.ai.AiAutoStarted autoStarted = mock(com.socialhub.ai.AiAutoStarted.class);
     private final BackupService backups = mock(BackupService.class);
+    private final com.socialhub.pieces.ContentGaps contentGaps = mock(com.socialhub.pieces.ContentGaps.class);
 
     /** Lunes 9 de noviembre de 2026, 11:00 en España. */
     private Instant now = madrid(11, 9, 11, 0);
@@ -53,7 +54,7 @@ class FactoryRecommendationsTest {
 
     private FactoryRecommendations subject() {
         return new FactoryRecommendations(held, sent, promotions, publishing, publora, publer, backups, autoStarted,
-                Clock.fixed(now, ClaudePickups.ZONE));
+                contentGaps, Clock.fixed(now, ClaudePickups.ZONE));
     }
 
     /** Una marca «Litoques» con una promoción activa, todo en orden. */
@@ -201,29 +202,40 @@ class FactoryRecommendationsTest {
 
     @Test
     void row4OrdersNotCollectedAfterThePickupPlusThirtyMinutes() {
+        // Sin prisa: solo lo recogen las pasadas completas, así que a las 9:30 le toca la de las 20:30
         when(sent.waiting()).thenReturn(List.of(sentOrder(AiRequestType.CAPTIONS, madrid(11, 9, 9, 30))));
-        now = madrid(11, 9, 10, 9);
+        now = madrid(11, 9, 20, 59);
         assertThat(subject().compute()).isEmpty();
-        now = madrid(11, 9, 10, 10);
+        now = madrid(11, 9, 21, 0);
         var r = subject().compute().getFirst();
         assertThat(r.getKind()).isEqualTo(KindEnum.ORDERS_NOT_COLLECTED);
-        assertThat(r.getTitle()).isEqualTo("No ha llegado el resultado de los encargos de las 9:40. Revisa la tarea programada");
+        assertThat(r.getTitle()).isEqualTo("No ha llegado el resultado de los encargos de las 20:30. Revisa la tarea programada");
         assertThat(r.getTarget()).isNull();
     }
 
     @Test
-    void row4CountsFiveMinutesOfSyncMarginBeforeThePickup() {
-        // Enviado a las 9:36: con 5 minutos de sincronización no llega a la de las 9:40, le toca la de las 14:40
-        when(sent.waiting()).thenReturn(List.of(sentOrder(AiRequestType.CAPTIONS, madrid(11, 9, 9, 36))));
-        now = madrid(11, 9, 10, 30);
+    void row4AnUrgentOrderIsExpectedAtTheNextPassWhateverItIs() {
+        when(sent.waiting()).thenReturn(List.of(
+                new AiSentOrders.Sent("lit-1", AiRequestType.CAPTIONS, madrid(11, 9, 9, 30), false, true, true)));
+        now = madrid(11, 9, 10, 59);
         assertThat(subject().compute()).isEmpty();
-        now = madrid(11, 9, 15, 10);
-        assertThat(subject().compute().getFirst().getTitle()).contains("de las 14:40");
+        now = madrid(11, 9, 11, 0);
+        assertThat(subject().compute().getFirst().getTitle()).contains("de las 10:30");
+    }
+
+    @Test
+    void row4CountsFiveMinutesOfSyncMarginBeforeThePickup() {
+        // Enviado a las 20:26: con 5 minutos de sincronización no llega a la de las 20:30, le toca la de las 0:30
+        when(sent.waiting()).thenReturn(List.of(sentOrder(AiRequestType.CAPTIONS, madrid(11, 9, 20, 26))));
+        now = madrid(11, 9, 22, 30);
+        assertThat(subject().compute()).isEmpty();
+        now = madrid(11, 10, 1, 10);
+        assertThat(subject().compute().getFirst().getTitle()).contains("de las 0:30");
     }
 
     @Test
     void row4IgnoresOrdersForTheLaterPickupAndTheOnesDoneOnThePc() {
-        // Enviado a las 9:45: toca la de las 14:40, que aún no ha pasado
+        // Enviado a las 9:45: toca la de las 20:30, que aún no ha pasado
         when(sent.waiting()).thenReturn(List.of(sentOrder(AiRequestType.CAPTIONS, madrid(11, 9, 9, 45))));
         now = madrid(11, 9, 11, 0);
         assertThat(subject().compute()).isEmpty();
@@ -244,9 +256,9 @@ class FactoryRecommendationsTest {
     void row4NamesTheMostRecentMissedPickup() {
         when(sent.waiting()).thenReturn(List.of(
                 sentOrder(AiRequestType.CAPTIONS, madrid(11, 9, 9, 30)),
-                sentOrder(AiRequestType.CAPTIONS, madrid(11, 9, 14, 0))));
-        now = madrid(11, 9, 16, 0);
-        assertThat(subject().compute().getFirst().getTitle()).contains("de las 14:40");
+                sentOrder(AiRequestType.CAPTIONS, madrid(11, 9, 21, 0))));
+        now = madrid(11, 10, 2, 0);
+        assertThat(subject().compute().getFirst().getTitle()).contains("de las 0:30");
     }
 
     @Test
@@ -329,27 +341,59 @@ class FactoryRecommendationsTest {
     }
 
     @Test
+    void aPublicationWithoutContentThatLeavesInLessThanThreeDaysAsksToRequestItNow() {
+        var close = new com.socialhub.pieces.ContentGaps.Gap("2026-11-11-instagram", "Pregunta grande", madrid(11, 11, 13, 0));
+        var far = new com.socialhub.pieces.ContentGaps.Gap("2026-11-20-instagram", "Otra", madrid(11, 20, 13, 0));
+        when(contentGaps.of("lit-1")).thenReturn(List.of(close, far));
+        var r = subject().compute().getFirst();
+        assertThat(r.getKind()).isEqualTo(KindEnum.CONTENT_MISSING);
+        assertThat(r.getTitle()).isEqualTo("Pregunta grande no tiene contenido");
+        assertThat(r.getDetail()).contains("Sale el 11 de nov a las 13:00").contains("Pedir contenido ya").contains("las 2 publicaciones");
+        assertThat(r.getPromotionId()).isEqualTo("lit-1");
+        assertThat(r.getPublicationIds()).containsExactly("2026-11-11-instagram", "2026-11-20-instagram");
+        assertThat(r.getTarget()).isNull();
+        // Si la más próxima sale dentro de 3 días o más, no hay fila
+        when(contentGaps.of("lit-1")).thenReturn(List.of(far));
+        assertThat(subject().compute()).isEmpty();
+        // Una promoción pausada tampoco
+        when(contentGaps.of("lit-1")).thenReturn(List.of(close));
+        when(promotions.promotionRefs()).thenReturn(List.of(ref("PAUSED", LocalDate.of(2026, 11, 1), LocalDate.of(2026, 12, 31))));
+        assertThat(subject().compute().stream().map(x -> x.getKind())).doesNotContain(KindEnum.CONTENT_MISSING);
+    }
+
+    @Test
+    void row8AnUrgentOrderArrivesAtTheNextPassAndOneWithoutRushAtTheNightOne() {
+        now = madrid(11, 9, 9, 40);
+        when(sent.waiting()).thenReturn(List.of(
+                new AiSentOrders.Sent("lit-1", AiRequestType.WEEKLY_PROPOSALS, madrid(11, 9, 9, 30), false, true, true)));
+        assertThat(subject().compute().getFirst().getEtaText()).isEqualTo("sobre las 10:30");
+        when(sent.waiting()).thenReturn(List.of(
+                new AiSentOrders.Sent("lit-1", AiRequestType.WEEKLY_PROPOSALS, madrid(11, 9, 9, 30), false, true, false)));
+        assertThat(subject().compute().getFirst().getEtaText()).isEqualTo("sobre las 20:30");
+    }
+
+    @Test
     void row8ProposalsOnTheWayGiveTheNextPickup() {
         when(sent.waiting()).thenReturn(List.of(sentOrder(AiRequestType.WEEKLY_PROPOSALS, madrid(11, 9, 10, 50))));
         var r = subject().compute().getFirst();
         assertThat(r.getKind()).isEqualTo(KindEnum.PROPOSALS_PENDING);
-        assertThat(r.getTitle()).isEqualTo("Propuestas de «Test inicial» pedidas. Llegarán sobre las 14:40");
+        assertThat(r.getTitle()).isEqualTo("Propuestas de «Test inicial» pedidas. Llegarán sobre las 20:30");
         assertThat(r.getTarget()).isNull();
         assertThat(r.getPromotionId()).isEqualTo("lit-1");
-        assertThat(r.getEtaText()).isEqualTo("sobre las 14:40");
+        assertThat(r.getEtaText()).isEqualTo("sobre las 20:30");
 
         now = madrid(11, 9, 22, 0);
         when(sent.waiting()).thenReturn(List.of(sentOrder(AiRequestType.WEEKLY_PROPOSALS, madrid(11, 9, 21, 0))));
         assertThat(subject().compute().getFirst().getTitle())
-                .isEqualTo("Propuestas de «Test inicial» pedidas. Llegarán mañana sobre las 9:40");
-        assertThat(subject().compute().getFirst().getEtaText()).isEqualTo("mañana sobre las 9:40");
-        now = madrid(11, 9, 6, 0);
+                .isEqualTo("Propuestas de «Test inicial» pedidas. Llegarán mañana sobre las 0:30");
+        assertThat(subject().compute().getFirst().getEtaText()).isEqualTo("mañana sobre las 0:30");
+        now = madrid(11, 9, 0, 10);
         when(sent.waiting()).thenReturn(List.of(sentOrder(AiRequestType.WEEKLY_PROPOSALS, madrid(11, 8, 21, 0))));
-        assertThat(subject().compute().getFirst().getTitle()).endsWith("Llegarán sobre las 9:40");
-        // Enviado a las 14:37 (con los 5 min de sincronización no llega a la de las 14:40): le toca la de las 20:40
-        now = madrid(11, 9, 14, 38);
-        when(sent.waiting()).thenReturn(List.of(sentOrder(AiRequestType.WEEKLY_PROPOSALS, madrid(11, 9, 14, 37))));
-        assertThat(subject().compute().getFirst().getEtaText()).isEqualTo("sobre las 20:40");
+        assertThat(subject().compute().getFirst().getTitle()).endsWith("Llegarán sobre las 0:30");
+        // Enviado a las 20:26 (con los 5 min de sincronización no llega a la de las 20:30): le toca la de las 0:30
+        now = madrid(11, 9, 20, 27);
+        when(sent.waiting()).thenReturn(List.of(sentOrder(AiRequestType.WEEKLY_PROPOSALS, madrid(11, 9, 20, 26))));
+        assertThat(subject().compute().getFirst().getEtaText()).isEqualTo("mañana sobre las 0:30");
     }
 
     @Test
@@ -364,7 +408,7 @@ class FactoryRecommendationsTest {
         when(publishing.proposalCounts()).thenReturn(Map.of("lit-1", 2L));
         when(promotions.hasAllBrandFolders("litoques")).thenReturn(false);
         when(sent.waiting()).thenReturn(List.of(sentOrder(AiRequestType.WEEKLY_PROPOSALS, madrid(11, 9, 9, 30))));
-        now = madrid(11, 9, 10, 30);
+        now = madrid(11, 9, 21, 0);
         when(publora.hasAccounts("litoques")).thenReturn(false);
         backupFolderMissing();
         // Con todo a la vez sale la lista completa, sin recortar
@@ -407,41 +451,6 @@ class FactoryRecommendationsTest {
         when(promotions.promotionRefs()).thenReturn(List.of(ref("ACTIVE", LocalDate.of(2026, 11, 1), LocalDate.of(2026, 12, 31))));
         assertThat(subject().compute()).extracting(RecommendationDto::getId)
                 .containsExactly("brand-folders:delito", "no-promotion:delito");
-    }
-
-    @Test
-    void row9TheSpecWaitsForApprovedPublicationsOnceItWouldHaveBeenAsked() {
-        // Lunes 9 de nov, 11:00: la semana en curso, sin publicaciones aprobadas
-        var week = java.time.LocalDate.of(2026, 11, 9);
-        when(promotions.activeBetween(week, week.plusDays(6))).thenReturn(List.of("lit-1"));
-        when(publishing.approvedForAi("lit-1", week, week.plusDays(6))).thenReturn(List.of());
-        var all = subject().compute();
-        assertThat(all).hasSize(1);
-        var row = all.getFirst();
-        assertThat(row.getKind()).isEqualTo(KindEnum.SPEC_WAITING);
-        assertThat(row.getTitle()).isEqualTo("La especificación de «Test inicial» espera a que apruebes publicaciones de la semana del 9 de nov");
-        assertThat(row.getTarget()).isNull();
-        // En cuanto hay una aprobada, desaparece
-        when(publishing.approvedForAi("lit-1", week, week.plusDays(6))).thenReturn(List.of(Map.of("id", "x")));
-        assertThat(subject().compute()).isEmpty();
-    }
-
-    @Test
-    void row9DoesNotShowBeforeSundayNineAndLooksAtTheNextWeekAfterwards() {
-        var thisWeek = java.time.LocalDate.of(2026, 11, 9);
-        var nextWeek = thisWeek.plusWeeks(1);
-        when(promotions.activeBetween(thisWeek, thisWeek.plusDays(6))).thenReturn(List.of("lit-1"));
-        when(promotions.activeBetween(nextWeek, nextWeek.plusDays(6))).thenReturn(List.of("lit-1"));
-        // Domingo 15 a las 8:00: todavía no tocaría pedirla
-        now = madrid(11, 15, 8, 0);
-        assertThat(subject().compute()).isEmpty();
-        // Domingo 15 a las 9:00: la de la semana del 16, y va después de las filas de propuestas
-        now = madrid(11, 15, 9, 0);
-        when(publishing.proposalCounts()).thenReturn(Map.of("lit-1", 2L));
-        var all = subject().compute();
-        assertThat(all.stream().map(RecommendationDto::getKind).toList())
-                .containsExactly(KindEnum.PROPOSALS_TO_REVIEW, KindEnum.SPEC_WAITING);
-        assertThat(all.getLast().getTitle()).endsWith("de la semana del 16 de nov");
     }
 
     // ------------------------------------------------------------------ Propuestas paradas por Drive o por el límite
@@ -501,8 +510,10 @@ class FactoryRecommendationsTest {
     }
 
     private void pcSilent() {
-        // Enviado el lunes a las 9:00 y ahora son las 11:00: 120 minutos de horario sin respuesta
-        when(sent.waiting()).thenReturn(List.of(sentOrder(AiRequestType.PUBLER_SCHEDULE, madrid(11, 9, 9, 0))));
+        // Urgente enviado el lunes a las 9:00 (le tocaba la pasada de las 10:50) y ahora son las 12:30: más de 90 minutos tarde
+        now = madrid(11, 9, 12, 30);
+        when(sent.waiting()).thenReturn(List.of(
+                new AiSentOrders.Sent("lit-1", AiRequestType.PUBLER_SCHEDULE, madrid(11, 9, 9, 0), true, true, true)));
     }
 
     private void unroutableThisWeek(PubloraService.Gap gap) {

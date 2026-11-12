@@ -88,7 +88,7 @@ A la derecha, **Agentes y herramientas** lista lo que usa la fábrica (Claude, p
 Encima del mapa hay una franja con lo siguiente que te toca hacer, por ejemplo crear las carpetas de una marca o revisar propuestas. Cada recomendación tiene un botón que te lleva a donde se resuelve. Se ven las 3 más importantes; si hay más, **Ver N más** las despliega. Cada una desaparece sola cuando la haces. Si no hay nada que hacer, la franja no se muestra.
 
 - **No uso Publora:** si una marca no va a usar Publora, pulsa este botón en la recomendación y deja de salir. Para deshacerlo, ve a la tarjeta de Publora de la marca.
-- **Propuestas iniciales:** se piden solas cuando una marca tiene una promoción activa y llegan en las recogidas de las 9:40, 14:40 y 20:40.
+- **Propuestas iniciales:** se piden solas cuando una marca tiene una promoción activa y llegan en la siguiente pasada de la noche de la tarea de Claude (20:30, 0:30 o 5:30; ver el apartado 7).
 
 ### Necesita atención y resumen de hoy
 
@@ -204,13 +204,15 @@ Una publicación **programada no se edita**: para cambiarla, vuelve a «Aprobada
 1. **API oficial de Instagram** es la vía principal de Instagram, cuando está configurada (clave de Meta en «Agentes y herramientas» y cuenta de Instagram en la ficha de la marca). Meta no programa: SocialHub la publica él mismo a su hora.
    - **Vídeos, reels y carruseles de vídeo:** los sube desde tu PC.
    - **Imágenes:** Meta las descarga de una URL pública. SocialHub deja una copia (JPEG) en la carpeta `publico` de Drive (la compartes tú a mano con «cualquier persona con el enlace») y Claude, en la nube, le da el id de Drive; SocialHub construye el enlace y comprueba que devuelve una imagen. Borra la copia al terminar.
-   - **El corte previo** (normalmente 9 h antes, antes si Publer necesita una pasada de Claude con Chrome en horario): SocialHub comprueba todo (clave, cuenta, archivos y, en imágenes, los enlaces ya llegados). Si algo falla o el enlace no llega (o el encargo de enlaces va con retraso), la publicación pasa **a Publer** con el motivo a la vista en «Necesita atención».
+   - **El corte previo** (entre 9 h y unas 13 h 40 min antes de la hora de publicación: 30 minutos antes de la última pasada de Claude con Chrome que cabe antes del límite de Publer, y nunca menos de 9 h): SocialHub comprueba todo (clave, cuenta, archivos y, en imágenes, los enlaces ya llegados). Si algo falla o el enlace no llega (o el encargo de enlaces va con retraso), la publicación pasa **a Publer** con el motivo a la vista en «Necesita atención».
    - **A la hora, si algo falla** (límite de 100 al día, contenedor con error, enlace que ya no es imagen, clave rechazada…): ya no hay otra vía que llegue. Sale en «Necesita atención» con el motivo y deja un LEEME: la hora ya pasó, publícala tú cuanto antes o cámbiale la fecha.
    - **Si SocialHub está cerrado a la hora,** la publica en cuanto se abre, aunque sea al día siguiente, y avisa en «Necesita atención» de cuánto retraso tuvo («Publicada con 3 h 20 min de retraso»).
    - **Si no se sabe** si Meta llegó a publicarla (corte, error al publicar, SocialHub cerrado a mitad), **no se reintenta**: queda en «Error de publicación» con «Revisar antes de reintentar… mira en Instagram». Lo mismo si Meta ya dio el identificador pero no llega el enlace en 24 h (se cuentan desde que se publicó de verdad).
+   - **Antelación mínima con imágenes:** como los enlaces necesitan una pasada de Claude en la nube antes del corte, la programación de una imagen por la API oficial tiene que quedar con **entre 12,6 h y 18,5 h** de antelación según la hora de publicación; con menos, SocialHub ni lo pide y sigue por Publer.
    - **TikTok** no la usa.
-2. **Publer** es la vía de respaldo de Instagram y la principal de TikTok. Su API es de pago, así que la programa Claude con Chrome en tu PC: la tarea «Publicar con Chrome» pasa cada hora.
+2. **Publer** es la vía de respaldo de Instagram y la principal de TikTok. Su API es de pago, así que la programa Claude con Chrome en tu PC: la tarea «Publicar con Chrome» pasa cada 5 horas (00:50, 05:50, 10:50, 15:50 y 20:50).
    - Tiene que quedar programada **8 h antes**. SocialHub espera su resultado hasta 7 h antes.
+   - Como la tarea pasa cada 5 horas, SocialHub solo pide el encargo si alguna pasada llega antes de ese límite; si no, sigue por otra vía o deja el LEEME. Por eso conviene programar con margen.
    - Si programas algo con menos de 8 h de margen, Publer se salta.
 3. **Publora** es la siguiente vía, con su API y tu clave (plan gratuito: pocas publicaciones al mes).
    - SocialHub sube los archivos y la programa, hasta 6 h antes.
@@ -232,19 +234,23 @@ Una publicación **programada no se edita**: para cambiarla, vuelve a «Aprobada
 
 Cada encargo es un archivo en la carpeta **Encargos** de la marca, en Drive.
 
-**Carpeta `para-claude`.** La recoge la tarea programada **«Encargos de SocialHub»**, en la nube, a las 9:40, 14:40 y 20:40. Lleva estos encargos:
-- Especificación de piezas de la semana.
+**Carpeta `para-claude`.** La recoge la tarea programada **«Encargos de SocialHub»**, en la nube, cada 5 horas: 00:30, 05:30, 10:30, 15:30 y 20:30. Lleva estos encargos:
+- Especificación de piezas por lotes (ya no es semanal).
 - Textos y hashtags.
 - Revisión de calidad.
 - Balance semanal.
 - Investigación.
 - Propuestas de la semana.
 
-**Carpeta `para-claude-pc`.** La recoge la tarea **«Publicar con Chrome (SocialHub)»** en tu PC, cada hora de 8:40 a 22:40. Necesita el PC encendido, la app de Claude abierta y Chrome con tu sesión de Publer. Lleva estos encargos:
+**Carpeta `para-claude-pc`.** La recoge la tarea **«Publicar con Chrome (SocialHub)»** en tu PC, cada 5 horas, 20 minutos después de la de la nube: 00:50, 05:50, 10:50, 15:50 y 20:50. El PC no debe apagarse. Necesita el PC encendido, la app de Claude abierta y Chrome con tu sesión de Publer. Lleva estos encargos:
 - Programar en Publer.
 - Comprobar la publicación.
 - Leer el calendario.
 - Leer las métricas.
+
+**Pasadas de día y de noche.** Para aprovechar las ventanas de uso de Claude, las pasadas de las 10:30 y las 15:30 (y las de las 10:50 y las 15:50 del PC) solo hacen los encargos **urgentes**; las de las 20:30, 00:30 y 05:30 (y las del PC 20:50, 00:50 y 05:50) lo hacen todo. Son urgentes: **lo que pides tú a mano** desde la interfaz (incluido «Volver a ejecutar» y los reintentos que pulsas), lo que vence antes de la pasada de la noche (programar en Publer, enlaces de imágenes) y el **spec, los textos y la revisión de calidad de publicaciones que salen en menos de 48 h**. Lo que pide SocialHub por su cuenta y no es urgente (propuestas semanales, balance, textos de publicaciones lejanas…) tarda hasta la pasada de la noche en llegar. SocialHub marca cada encargo (`urgent`) al escribirlo y lo recalcula mientras espera.
+
+**Especificación de piezas por lotes.** SocialHub la pide por promoción, sin esperar al domingo, en cuanto hay **3 o más publicaciones pendientes de contenido** (en «En producción» y sin piezas) o la más próxima sale en **menos de 3 días** (aunque sean 1 o 2). El spec lleva solo esas publicaciones. Una publicación no entra en dos specs a la vez; si el spec falla del todo o lo cancelas, vuelve a contar como pendiente (ese mismo lote no se pide solo otra vez hasta pasadas 24 h; a mano sí). Si el spec se completa y, cuando terminan de generarse sus piezas, una publicación sigue sin ninguna, vuelve a contar como pendiente y entra sola en el siguiente spec, como mucho dos veces; después solo a mano. Las promociones **planificadas** también piden su spec, sin esperar a activarse. Si una publicación en producción sin piezas y fuera de cualquier spec abierto sale en menos de 3 días, en «Qué hacer ahora» aparece «{título} no tiene contenido» con el botón **«Pedir contenido ya»**, que pide un spec urgente de esa publicación (o de las de su promoción en la misma situación).
 
 Los resultados vuelven a la carpeta `de-claude`. SocialHub los comprueba contra el contrato y los aplica; si un resultado no cumple el contrato, la tarea falla con el motivo.
 
@@ -331,7 +337,7 @@ El modo Demo no tiene copias: sus datos son de ejemplo.
 
 | SocialHub, solo | Tú |
 |---|---|
-| Pide cada domingo la especificación de piezas, cada lunes el balance y, el lunes a las 18:00, las propuestas | Apruebas o rechazas las propuestas, con motivo |
+| Pide la especificación de piezas por lotes (3 pendientes, o la más próxima en menos de 3 días), cada lunes el balance y, el lunes a las 18:00, las propuestas | Apruebas o rechazas las propuestas, con motivo |
 | Pide los textos de lo que está en producción sin texto | Corriges los textos si hace falta |
 | Pide la revisión de calidad al pasar a «Pendiente de revisión» | Corriges o aceptas cada aviso de calidad |
 | Reintenta los encargos fallidos a los 30 minutos, hasta el tercer intento (con un modelo más potente) | Pasas a «Aprobada» y a «Programada» |

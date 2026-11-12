@@ -23,9 +23,11 @@ Las fases 0 a 12 están hechas y en `main`:
 
 ## Fase 12 en una línea por PR
 
-- #36 plan · #37 instalador de macOS (`.dmg`) y versión 1.0.0 en todos los sistemas · #38 API oficial de Instagram (vía principal; Publer de respaldo) · #39 pruebas con reloj fijo · #40 detalles visuales de «Necesita atención» y «Qué hacer ahora» · #41 TikTok y cuenta de Publer por marca y red, con el límite de 10 del plan Free · #42 métricas reales de la promoción.
+- #36 plan · #37 instalador de macOS (`.dmg`) y versión 1.0.0 en todos los sistemas · #38 API oficial de Instagram (vía principal; Publer de respaldo) · #39 pruebas con reloj fijo · #40 detalles visuales de «Necesita atención» y «Qué hacer ahora» · #41 TikTok y cuenta de Publer por marca y red, con el límite de 10 del plan Free · #42 métricas reales de la promoción · #45 ritmo de Claude (pasadas cada 5 h, urgencia, spec por lotes; versión 1.1.0).
 - El repositorio es público desde el 12 nov (GitHub Actions se había quedado sin minutos).
 - Configurado fuera del código: Meta (app, porfolio, usuario del sistema), carpeta `publico` de Litoques en Drive, Publer con 3 cuentas, y las tareas «Encargos de SocialHub» y «Publicar con Chrome» actualizadas. Detalle en `fase-12.md`.
+
+- Orden con la #45: **primero se instala la 1.1.0 y después se cambian las tareas programadas** (nube y PC) a los horarios y la regla de 08:00-18:00 nuevos; el detalle está en `docs/tarea-programada-encargos.md`.
 
 ## Siguiente (para Raúl)
 

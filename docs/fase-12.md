@@ -16,6 +16,8 @@ Una rama y una PR por bloque.
 | 4 | API oficial de Instagram y estudio de Chrome (web de Instagram / Meta Business Suite) | `fase-12-instagram` | Depende de que Raúl cree una app de Meta. El estudio puede ir antes como documento |
 | 5 | Instalador de macOS (`.dmg`) y sus pruebas | `fase-12-macos` | Sin un Mac para probar, es lo de menos uso. Gasta 10 veces más minutos de GitHub |
 
+**Añadido después:** PR #45 (`fase-12-ritmo-claude`), ritmo de Claude: pasadas cada 5 h, urgencia, spec por lotes y versión 1.1.0. Orden: primero se instala la 1.1.0 y después se cambian las tareas programadas (`docs/tarea-programada-encargos.md`).
+
 ## Lo que hay hoy (leído en el código)
 
 - **Métricas por publicación:** 6 cifras (reproducciones, alcance, me gusta, comentarios, guardados, compartidos, más una nota) en `publication_metric` (`V20`). Las lee Claude con Chrome en el PC de Raúl (encargo «Leer métricas»), a los **7 días**, hasta 10 publicaciones por encargo y 3 intentos.

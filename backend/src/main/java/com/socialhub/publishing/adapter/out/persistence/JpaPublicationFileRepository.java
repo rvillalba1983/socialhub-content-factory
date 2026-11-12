@@ -20,6 +20,11 @@ class JpaPublicationFileRepository implements PublicationFileRepository {
     }
 
     @Override
+    public java.util.Set<String> withFiles(java.util.Collection<String> publicationIds) {
+        return publicationIds.isEmpty() ? java.util.Set.of() : jpa.withFiles(publicationIds);
+    }
+
+    @Override
     public boolean add(String publicationId, PublicationFile file) {
         var key = new PublicationFileEntity.Key(publicationId, file.path());
         if (jpa.existsById(key)) return false;
