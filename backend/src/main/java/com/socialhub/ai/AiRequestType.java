@@ -5,7 +5,7 @@ import java.util.Optional;
 
 /** Tipos de encargo a Claude, con la estación donde aparecen y su modelo por defecto. */
 public enum AiRequestType {
-    WEEKLY_SPEC("spec.json de la semana", "gen", "socialhub.weekly-spec"),
+    WEEKLY_SPEC("spec.json por lotes", "gen", "socialhub.weekly-spec"),
     CAPTIONS("Textos y hashtags", "gen", "socialhub.captions"),
     WEEKLY_BALANCE("Balance semanal", "ana", "socialhub.weekly-balance"),
     RESEARCH("Investigación", "inv", "socialhub.research"),

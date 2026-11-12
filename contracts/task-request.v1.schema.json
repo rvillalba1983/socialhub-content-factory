@@ -17,6 +17,11 @@
     "rules": { "type": "array", "items": { "type": "string" } },
     "model": { "type": "string", "enum": ["haiku", "sonnet", "opus"] },
     "deadline": { "type": "string", "format": "date-time" },
+    "urgent": {
+      "type": "boolean",
+      "default": false,
+      "description": "Opcional (añadido sin cambiar de versión). true si el encargo no puede esperar a la siguiente pasada completa del agente (las de la noche). Entre las 08:00 y las 18:00 (Europe/Madrid) el agente solo hace los encargos con urgent = true y deja los demás pendientes. Si falta, es false. SocialHub lo calcula al escribir el encargo y lo recalcula, solo hacia true, mientras sigue pendiente."
+    },
     "idempotencyKey": { "type": "string", "format": "uuid" }
   }
 }

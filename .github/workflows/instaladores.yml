@@ -8,7 +8,7 @@ on:
       version:
         description: "Versión (tres números, por ejemplo 1.0.0)"
         required: true
-        default: "1.0.0"
+        default: "1.1.0"
       sistemas:
         description: "Instaladores (macOS gasta x10 minutos)"
         type: choice
@@ -31,7 +31,7 @@ env:
   # Sin tildes: WiX usa la página de códigos 1252 del instalador en inglés y rechaza otros caracteres
   DESCRIPCION: "Fabrica de contenido de El DeLito y Litoques"
   FABRICANTE: "Raul Villalba"
-  VERSION: ${{ inputs.version || '1.0.0' }}
+  VERSION: ${{ inputs.version || '1.1.0' }}
 
 jobs:
   windows:

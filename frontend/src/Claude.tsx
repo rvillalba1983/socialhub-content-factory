@@ -10,7 +10,7 @@ import { Pill } from './ui';
 const PAGE = 50;
 
 const INPUT_HINT: Record<AiRequestType, string> = {
-  WEEKLY_SPEC: 'Opcional: un día de la semana (2026-11-09). Sin fecha, la semana que viene. Sale solo cada domingo.',
+  WEEKLY_SPEC: 'Opcional: los identificadores de las publicaciones (2026-11-10-instagram). Sin ellos, las que esperan contenido. Sale solo con 3 pendientes, o si la más próxima sale en menos de 3 días.',
   CAPTIONS: 'Los identificadores de las publicaciones (por ejemplo, 2026-11-10-instagram). También desde cada publicación.',
   WEEKLY_BALANCE: 'Opcional: un día de la semana. Sin fecha, la semana pasada. Sale solo cada lunes.',
   RESEARCH: 'Lo que Claude deba tener en cuenta: lugares, nombres, enlaces…',

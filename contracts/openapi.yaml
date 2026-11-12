@@ -1543,8 +1543,9 @@ components:
             (PUBLER_ACCOUNT_MISSING, con botón a la tarjeta «Cuenta en Publer»); propuestas retenidas (por la carpeta de Encargos, Drive cerrado o el límite
             diario), propuestas por revisar, marca sin todas sus carpetas, encargos
             sin recoger, marca sin cuenta de Publora, sin carpeta de copias, marca sin promoción activa, propuestas
-            pedidas en camino, especificación semanal esperando publicaciones aprobadas y, la última, promoción activada
-            sola hoy (PROMOTION_AUTO_STARTED, informativa: solo el día en que se activa)
+            pedidas en camino y, la última, promoción activada sola hoy (PROMOTION_AUTO_STARTED, informativa: solo el día
+            en que se activa). SPEC_WAITING ya no se calcula (el spec se pide por lotes, no por semana) y se conserva
+            solo por compatibilidad
         title: { type: string, description: "Texto en español" }
         detail: { type: string, description: "Más información (por ejemplo, el motivo de un encargo retenido)" }
         promotion_id:
@@ -2013,7 +2014,15 @@ components:
         type: { $ref: "#/components/schemas/AiRequestType" }
         title: { type: string, maxLength: 120 }
         goal: { type: string, minLength: 1, maxLength: 4000 }
-        inputs: { type: array, maxItems: 50, items: { type: string, maxLength: 2000 } }
+        inputs:
+          type: array
+          maxItems: 50
+          items: { type: string, maxLength: 2000 }
+          description: >
+            Datos de entrada que lee Claude. Para WEEKLY_SPEC (spec por lotes), los identificadores de las publicaciones
+            «En producción» sin piezas que cubre; sin datos (o solo con una fecha, como antes), las pendientes de ese
+            momento que no estén ya en un spec pedido. No se puede pedir sin publicaciones ni repetir una que ya está en
+            un spec abierto
 
     AiOrder:
       type: object
