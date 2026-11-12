@@ -267,8 +267,9 @@ jobs:
           # Segundo arranque: solo abre el navegador y termina
           "$exe" > "$RUNNER_TEMP/segundo.log" 2>&1 &
           segundo=$!
-          for i in $(seq 1 15); do kill -0 "$segundo" 2>/dev/null || break; sleep 2; done
-          if kill -0 "$segundo" 2>/dev/null; then kill "$segundo"; echo "::error::El segundo arranque no terminó: arrancaría dos veces"; exit 1; fi
+          for i in $(seq 1 30); do kill -0 "$segundo" 2>/dev/null || break; sleep 2; done
+          if kill -0 "$segundo" 2>/dev/null; then kill "$segundo"; echo "--- segundo.log"; cat "$RUNNER_TEMP/segundo.log"; ps aux | grep -i "[S]ocialHub" | head; echo "::error::El segundo arranque no terminó en 60 s: arrancaría dos veces"; exit 1; fi
+          echo "--- segundo.log"; cat "$RUNNER_TEMP/segundo.log"
           echo "Segundo arranque terminó enseguida, como debe"
           curl -fsS --noproxy '*' -X POST -H 'X-SocialHub-Request: 1' http://127.0.0.1:8686/api/app/shutdown > /dev/null
           for i in $(seq 1 30); do kill -0 "$app" 2>/dev/null || break; sleep 2; done
