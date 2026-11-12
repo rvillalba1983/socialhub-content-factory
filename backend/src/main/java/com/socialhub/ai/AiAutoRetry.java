@@ -47,7 +47,7 @@ class AiAutoRetry {
         int n = 0;
         for (var task : production.retryableAiTasks()) {
             AiRequestType type = AiRequestType.ofTaskType(task.type()).orElse(null);
-            if (type == null || type.onPc()) continue;
+            if (type == null || type.automatic()) continue;
             if (now.isBefore(task.failedAt().plus(WAIT))) continue;
             try {
                 production.autoRetry(task.id());

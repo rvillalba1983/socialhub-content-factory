@@ -41,6 +41,8 @@ tags:
     description: Seguimiento de las operaciones con sistemas externos
   - name: Publora
     description: Vía de publicación por la API de Publora (con la clave de Raúl)
+  - name: Instagram
+    description: Vía de publicación por la API oficial de Instagram (Meta Graph API, con la clave de usuario del sistema)
   - name: Backups
     description: Copias de seguridad de la base de datos real, en la carpeta de copias (ajuste general)
   - name: App
@@ -368,6 +370,114 @@ paths:
         - $ref: "#/components/parameters/RequestGuard"
       responses:
         "204": { description: Clave borrada }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/instagram:
+    get:
+      tags: [Instagram]
+      operationId: getInstagram
+      summary: Si la API oficial de Instagram tiene clave
+      description: >
+        La clave nunca sale de SocialHub: solo se indican sus últimos caracteres. No llama a Meta (para comprobarla,
+        «POST /api/instagram/check»).
+      responses:
+        "200":
+          description: Estado de la API oficial
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InstagramStatus" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/instagram/key:
+    put:
+      tags: [Instagram]
+      operationId: saveInstagramKey
+      summary: Guarda la clave de usuario del sistema de Meta
+      description: >
+        Antes de guardarla la comprueba con Meta (GET /me). Es una clave de «usuario del sistema» del porfolio de Meta,
+        sin caducidad, con los permisos instagram_basic e instagram_content_publish. Se guarda en un archivo de la carpeta
+        de datos de SocialHub, legible solo por el usuario; nunca en la base de datos.
+      parameters:
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/InstagramKeyInput" }
+      responses:
+        "200":
+          description: Clave guardada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InstagramStatus" }
+        "400": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+    delete:
+      tags: [Instagram]
+      operationId: deleteInstagramKey
+      summary: Borra la clave (la API oficial queda sin configurar)
+      parameters:
+        - $ref: "#/components/parameters/RequestGuard"
+      responses:
+        "204": { description: Clave borrada }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/instagram/check:
+    post:
+      tags: [Instagram]
+      operationId: checkInstagram
+      summary: Comprueba la clave con Meta y el límite de publicación de cada marca configurada
+      description: >
+        Llama a GET /me y, por cada marca con cuenta de Instagram, a GET /{ig-id} y a content_publishing_limit. Un fallo
+        de Meta no es un error de la API: va en «error» de lo que falló.
+      parameters:
+        - $ref: "#/components/parameters/RequestGuard"
+      responses:
+        "200":
+          description: Resultado de la comprobación
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InstagramCheck" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/brands/{brand_id}/instagram-account:
+    get:
+      tags: [Instagram]
+      operationId: getBrandInstagramAccount
+      summary: Cuenta de Instagram (API oficial) de la marca
+      parameters:
+        - $ref: "#/components/parameters/BrandId"
+      responses:
+        "200":
+          description: Cuenta de la marca (vacía si no tiene)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InstagramAccount" }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+    put:
+      tags: [Instagram]
+      operationId: saveBrandInstagramAccount
+      summary: Guarda la cuenta de Instagram (API oficial) de la marca
+      description: >
+        Recibe el identificador de la cuenta (número largo). Lo comprueba con Meta (GET /{ig-id}?fields=id,username) y
+        guarda el @usuario. Vacío: la quita. Hace falta la clave.
+      parameters:
+        - $ref: "#/components/parameters/BrandId"
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/InstagramAccountInput" }
+      responses:
+        "200":
+          description: Cuenta guardada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InstagramAccount" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
         default: { $ref: "#/components/responses/Problem" }
 
   /api/brands/{brand_id}/publora-accounts:
@@ -1437,7 +1547,7 @@ components:
       description: Tipo de encargo a Claude
       type: string
       enum: [WEEKLY_SPEC, CAPTIONS, WEEKLY_BALANCE, RESEARCH, QUALITY_REVIEW, WEEKLY_PROPOSALS, PUBLER_SCHEDULE,
-             PUBLISH_CHECK, CALENDAR_READ, METRICS_READ]
+             PUBLISH_CHECK, CALENDAR_READ, METRICS_READ, PUBLIC_LINK]
 
     AiTypeModel:
       type: object
@@ -1451,6 +1561,11 @@ components:
           description: >
             Lo hace Claude con Chrome en el PC de Raúl (carpeta «para-claude-pc»). Lo encarga SocialHub al publicar, no
             cuenta en el límite diario y no se puede pedir a mano
+        automatic:
+          type: boolean
+          description: >
+            Lo encarga SocialHub (no Raúl), no cuenta en el límite diario y no se puede pedir a mano. Incluye los de
+            on_pc y otros que hace Claude en la nube, como «Enlaces públicos de imágenes»
 
     PublishJob:
       type: object
@@ -1525,6 +1640,51 @@ components:
         label: { type: string }
         synced_at: { type: string, format: date-time, description: Última lectura buena }
         error: { type: string, description: Por qué falló la última lectura }
+
+    InstagramStatus:
+      type: object
+      required: [configured]
+      properties:
+        configured: { type: boolean }
+        key_hint: { type: string, description: "Últimos 4 caracteres de la clave" }
+
+    InstagramKeyInput:
+      type: object
+      required: [key]
+      properties:
+        key: { type: string, minLength: 10, maxLength: 1000 }
+
+    InstagramAccount:
+      type: object
+      properties:
+        ig_user_id: { type: string, description: Identificador de la cuenta de Instagram (número largo) }
+        username: { type: string, description: "@usuario que devolvió Meta al comprobarla" }
+
+    InstagramAccountInput:
+      type: object
+      required: [ig_user_id]
+      properties:
+        ig_user_id: { type: string, maxLength: 40, description: Vacío para quitarla }
+
+    InstagramBrandCheck:
+      type: object
+      required: [brand_id, brand_name]
+      properties:
+        brand_id: { type: string }
+        brand_name: { type: string }
+        username: { type: string }
+        publishing_used: { type: integer, description: Publicaciones por la API en las últimas 24 h }
+        publishing_total: { type: integer, description: Límite en 24 h }
+        error: { type: string }
+
+    InstagramCheck:
+      type: object
+      required: [ok, brands]
+      properties:
+        ok: { type: boolean, description: La clave vale y todas las marcas configuradas responden }
+        name: { type: string, description: Nombre que devolvió GET /me }
+        error: { type: string, description: Por qué falló la clave }
+        brands: { type: array, items: { $ref: "#/components/schemas/InstagramBrandCheck" } }
 
     PubloraStatus:
       type: object

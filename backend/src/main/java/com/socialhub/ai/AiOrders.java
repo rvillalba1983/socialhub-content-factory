@@ -23,7 +23,7 @@ public class AiOrders {
     /** @return identificador de la tarea */
     @Transactional
     public String submit(String promotionId, AiRequestType type, String title, String goal, List<String> inputs) {
-        if (type.onPc()) throw new IllegalArgumentException("«" + type.label() + "» lo encarga SocialHub al publicar");
+        if (type.automatic()) throw new IllegalArgumentException("«" + type.label() + "» lo encarga SocialHub al publicar");
         return submitInternal(promotionId, type, title, goal, inputs);
     }
 

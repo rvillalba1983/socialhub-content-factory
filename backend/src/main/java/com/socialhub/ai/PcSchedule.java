@@ -41,6 +41,19 @@ public final class PcSchedule {
         return activeTime(sentAt, now).compareTo(LATE_AFTER) >= 0;
     }
 
+    /** La última pasada de la tarea (a y 40, de 8:40 a 22:40) que cae en ese instante o antes. */
+    public static Instant lastPassAtOrBefore(Instant instant) {
+        ZonedDateTime at = instant.atZone(ZONE);
+        for (int day = 0; day <= 2; day++) {
+            LocalDate date = at.toLocalDate().minusDays(day);
+            for (int hour = CLOSES.getHour(); hour >= OPENS.getHour(); hour--) {
+                ZonedDateTime pass = ZonedDateTime.of(date, LocalTime.of(hour, OPENS.getMinute()), ZONE);
+                if (!pass.toInstant().isAfter(instant)) return pass.toInstant();
+            }
+        }
+        throw new IllegalStateException("Sin pasada anterior");
+    }
+
     private static Instant max(Instant a, Instant b) { return a.isAfter(b) ? a : b; }
 
     private static Instant min(Instant a, Instant b) { return a.isBefore(b) ? a : b; }
