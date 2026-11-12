@@ -34,7 +34,6 @@ Las fases 0 a 12 están hechas y en `main`:
 3. Poner en la ficha de cada marca el ID de su cuenta de Instagram y sus cuentas de Publer.
 4. Hacer la primera publicación real por la API oficial (aún no se ha probado una completa).
 5. Crear las carpetas de El DeLito en Drive y, con ellas, crear y compartir su `publico`.
-6. Comprobar FFmpeg en macOS de verdad: en la prueba de GitHub el binario extraído dio «Permission denied» al ejecutarlo a mano y no se ha generado ninguna pieza en un Mac.
-7. Pruebas funcionales completas de Raúl.
+6. Pruebas funcionales completas de Raúl.
 
 Sigue pendiente de antes: carpeta base de Litoques y carpeta de copias, clave de Publora, y comprobar que las tareas programadas recogen los encargos de verdad. Fuera de fase: comparar el portátil con la torre HP de 2013 (`ficha-equipo.bat`). Buffer: descartado para siempre.

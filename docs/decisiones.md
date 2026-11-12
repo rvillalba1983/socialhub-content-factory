@@ -502,3 +502,9 @@ Rama `fase-12-metricas`. Respuestas de Raúl a las dudas de métricas y decisió
 - **Tareas programadas** (respuesta de Raúl, 12 nov): con su OK se actualizaron «Encargos de SocialHub» (encargo `socialhub.public-link`) y «Publicar con Chrome» (cuenta de Publer del encargo, opciones de TikTok, no programar si falta la cuenta).
 - **Carpeta `publico` de El DeLito** (pendiente): El DeLito aún no tiene carpetas en Drive; al crearlas habrá que crear y compartir su `publico`.
 
+
+## Fase 12 · FFmpeg probado en macOS (12 nov 2026)
+
+- **Causa del «Permission denied»** (técnico): no era un fallo de permisos del código. El paso informativo de la prueba ejecutaba el binario en cuanto aparecía en `runtime/javacpp`, mientras SocialHub aún lo estaba extrayendo; `FfmpegTool.executable()` le pone el permiso de ejecución justo después de extraerlo (y también a `ffprobe`). Con la comprobación del arranque ya terminada, el binario queda `-rwxr--r--` y funciona. No hizo falta cambiar código ni quitar cuarentena (lo extrae el propio proceso, sin atributo de cuarentena).
+- **Prueba obligatoria en el `.dmg`** (técnico): con la app instalada y arrancada, el job pasa a modo real, espera la tarea `check-local-tools` del arranque, la relanza por la API (`RERUN`, o `RETRY` si falló) y exige «OK · FFmpeg» en su registro. Después genera con el FFmpeg que SocialHub dejó listo una imagen y un audio de prueba y de ellos un vídeo H.264/AAC de 2 s; comprueba con ffprobe que dura más de 1 s. Si algo falla, el job falla.
+- **Resultado:** FFmpeg 8.1.2 (macOS arm64, GPL, con H.264) funciona en la máquina macOS de GitHub; pieza de 2,0 s. Sigue sin probarse en un Mac real de Raúl (no tiene).
