@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { identityChanges, parseIdentityText } from './identityImport';
+import { identityChanges, identityTemplate, parseIdentityText } from './identityImport';
 import type { BrandIdentity } from './model';
 
 const base: BrandIdentity = {
@@ -30,6 +30,17 @@ describe('parseIdentityText', () => {
     expect(parseIdentityText(`## Tipografía\n${'a'.repeat(201)}`).errors[0]).toMatch(/200/);
     expect(parseIdentityText(`## Colores\n${Array.from({ length: 21 }, (_, i) => `- c${i}`).join('\n')}`).errors[0]).toMatch(/20 elementos/);
     expect(parseIdentityText(`## Colores\n- ${'a'.repeat(41)}`).errors[0]).toMatch(/40/);
+  });
+});
+
+describe('plantilla', () => {
+  it('lo que sale de «Copiar plantilla» (sin la instrucción) se vuelve a importar sin errores y con los valores actuales', () => {
+    const body = identityTemplate({ name: 'X', handle: '@x' }, base).split('\n').slice(2).join('\n');
+    const r = parseIdentityText(body);
+    expect(r.errors).toEqual([]);
+    expect(r.values.tone).toBe('Cercano');
+    expect(r.values.preferred_expressions).toEqual(['hola']);
+    expect(Object.keys(r.values)).toHaveLength(12);
   });
 });
 
