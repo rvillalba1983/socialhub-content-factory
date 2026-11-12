@@ -76,7 +76,7 @@ REGLAS PARA CADA ENCARGO
 
 ### Encargo nuevo «Enlaces públicos de imágenes» (`socialhub.public-link`, fase 12)
 
-Lo necesita la API oficial de Instagram, que solo publica imágenes desde una URL pública. **La instrucción de arriba todavía no está añadida a la tarea programada**: se añadirá con el OK de Raúl (esta documentación no toca la tarea).
+Lo necesita la API oficial de Instagram, que solo publica imágenes desde una URL pública. La instrucción de arriba está añadida a la tarea «Encargos de SocialHub» desde el 12 nov 2026, con el OK de Raúl.
 
 - **Cómo funciona:** SocialHub copia cada imagen (JPEG) de la publicación a `<carpeta «Encargos» de la marca>/publico/{id-aleatorio}.jpg` y deja el encargo en `para-claude`. Raúl comparte a mano la carpeta `publico` («cualquier persona con el enlace»); sus archivos heredan el permiso.
 - **Cuándo se pide:** en cuanto la publicación pasa a «Programada». Como la tarea corre a las 9:40, 14:40 y 20:40, el encargo lleva «deadline» = el corte previo (normalmente 9 h antes de la hora de publicación; antes si el límite de Publer cae de noche).
@@ -143,4 +143,4 @@ Publer tiene el Instagram de «El DeLito», el de «Litoques» y una sola cuenta
 - **Sin cuenta no hay encargo:** si la marca no tiene cuenta de Publer en esa red, SocialHub no crea el encargo; la publicación queda «Retenida» con el motivo y sale la recomendación «Indica la cuenta de Publer de {marca} para {red}».
 - **Opciones de TikTok** (van en `inputs.how` de las publicaciones de TikTok): privacidad «Todo el mundo» (pública desde la primera publicación), Comentarios, Dúo y Stitch activados, y los sonidos ya van en el vídeo (no se añade música ni sonido de la biblioteca).
 - **Límite del plan gratuito de Publer:** 10 publicaciones programadas a la vez por cuenta (`socialhub.publer.scheduled-limit`, 10 por defecto). Se cuenta por cuenta y red, sumando marcas: las dos marcas comparten el tope de TikTok. Con la cuenta llena no se crea el encargo: la publicación queda en espera, con el motivo visible, hasta que salga alguna. SocialHub solo cuenta lo que él mismo ha programado en Publer.
-- **Para aplicarlo:** el texto de la tarea programada «Publicar con Chrome» tiene que llevar estas instrucciones. Se actualiza con el OK de Raúl; no se toca sola.
+- **Aplicado:** la tarea «Publicar con Chrome» lleva estas instrucciones desde el 12 nov 2026, con el OK de Raúl: usa la cuenta de Publer del encargo, aplica las opciones de TikTok y no programa si falta la cuenta.
