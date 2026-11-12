@@ -1076,6 +1076,23 @@ describe('Qué hacer ahora', () => {
     }
   });
 
+  it('la ficha enseña el identificador de la marca bajo el nombre', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() => new Promise<Response>(() => {}));
+    render(<Registration data={snapshot} initial={{ kind: 'brand', id: 'b' }} onClose={() => {}} onSaved={() => {}} />);
+    await screen.findByRole('form', { name: 'Editar marca' });
+    expect(screen.getByText('Identificador: b')).toBeInTheDocument();
+  });
+
+  it('las listas llevan un punto de color, el nombre en grande y el detalle debajo', () => {
+    const { container } = render(<Registration data={snapshot} initial={null} onClose={() => {}} onSaved={() => {}} />);
+    expect(container.querySelector('.swatch')).toBeNull();
+    const dots = container.querySelectorAll('.qrow .color-dot');
+    expect(dots.length).toBe(snapshot.brands.length + snapshot.promotions.length);
+    const first = container.querySelector('.qrow') as HTMLElement;
+    expect(first.querySelector('b.qname')).not.toBeNull();
+    expect(first.querySelector('small')).not.toBeNull();
+  });
+
   it('avisa de qué marca tiene la ficha abierta y lo retira al cerrarla', async () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation(() => new Promise<Response>(() => {}));
     const onBrandOpen = vi.fn();
