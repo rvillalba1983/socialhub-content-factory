@@ -3,7 +3,11 @@ package com.socialhub.publishing;
 import com.socialhub.promotion.PromotionQueries;
 import com.socialhub.publishing.domain.Platform;
 import com.socialhub.publishing.domain.PublerAccountRepository;
+import com.socialhub.publishing.domain.PublicationRepository;
+import com.socialhub.publishing.domain.PublishJob;
+import com.socialhub.publishing.domain.PublishJobRepository;
 import java.util.EnumMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -25,7 +29,12 @@ public class PublerAccountService {
 
     static final int MAX_NAME = 120;
 
+    /** Publicaciones retenidas porque la marca no tiene cuenta de Publer en esa red. */
+    public record Missing(String brandId, Platform platform, int held) {}
+
     private final PublerAccountRepository accounts;
+    private final PublishJobRepository jobs;
+    private final PublicationRepository publications;
     private final PromotionQueries promotions;
     private final org.springframework.context.ApplicationEventPublisher events;
 
@@ -39,6 +48,26 @@ public class PublerAccountService {
     @Transactional(readOnly = true)
     public Optional<String> accountFor(String brandId, Platform platform) {
         return accounts.account(brandId, platform);
+    }
+
+    /**
+     * Marcas y redes con publicaciones retenidas por falta de cuenta de Publer (para «Qué hacer ahora»). Se calcula en
+     * cada consulta: desaparece sola al indicar la cuenta.
+     */
+    @Transactional(readOnly = true)
+    public List<Missing> missing() {
+        Map<String, Integer> counts = new LinkedHashMap<>();
+        for (PublishJob job : jobs.withStatus(java.util.EnumSet.of(PublishJob.Status.HELD))) {
+            var p = publications.findById(job.getPublicationId()).orElse(null);
+            if (p == null) continue;
+            String brandId = promotions.brandOf(p.getPromotionId());
+            if (accounts.account(brandId, p.getPlatform()).isPresent()) continue;
+            counts.merge(brandId + "|" + p.getPlatform().name(), 1, Integer::sum);
+        }
+        return counts.entrySet().stream().map(e -> {
+            String[] key = e.getKey().split("\\|");
+            return new Missing(key[0], Platform.valueOf(key[1]), e.getValue());
+        }).toList();
     }
 
     /** Sustituye las cuentas de la marca: una por red, con el nombre tal como sale en Publer. Un nombre vacío quita la red. */
