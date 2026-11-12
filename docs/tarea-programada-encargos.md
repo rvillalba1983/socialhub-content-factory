@@ -167,9 +167,9 @@ Decisiones de Raúl del 12 nov 2026. Las tareas programadas reales **no se han t
 
 `contracts/task-request.v1.schema.json` tiene un campo opcional nuevo en la raíz, `urgent` (booleano). Es compatible: los encargos antiguos no lo llevan y se toman como `false`; sigue siendo la versión 1 del contrato.
 
-- SocialHub lo calcula al escribir el encargo en Drive: es `true` si el encargo tiene «deadline» y la siguiente pasada completa (la primera de las que hacen todo, fuera de 08:00-18:00) más 10 minutos de margen cae después de ese límite; sin «deadline» es `false`.
-- Mientras el encargo sigue pendiente en Drive, SocialHub lo recalcula cada 5 minutos y, si pasa a `true` (por ejemplo, la pasada de la noche se perdió), reescribe el archivo. Nunca baja de `true` a `false`.
-- Hoy llevan «deadline» «Programar en Publer» (8 h antes de la hora de publicación) y «Enlaces públicos de imágenes» (el corte previo). El resto (textos, propuestas, balance, investigación, comprobaciones, calendario y métricas) no tienen límite: esperan a la pasada de la noche y no se hacen de día.
+- SocialHub lo calcula al escribir el encargo en Drive: es `true` si (1) **lo pidió Raúl a mano** desde la interfaz (o lo reintentó él), (2) tiene «deadline» y la siguiente pasada completa (la primera de las que hacen todo, fuera de 08:00-18:00) más 10 minutos de margen cae después de ese límite, o (3) es un spec, unos textos o una revisión de calidad y alguna de sus publicaciones sale en menos de 48 h (margen configurable, `socialhub.ai.near-content-hours`). Si no, es `false`.
+- Mientras el encargo sigue pendiente en Drive, SocialHub lo recalcula cada 5 minutos y, si pasa a `true` (por ejemplo, la pasada de la noche se perdió), reescribe el archivo. Nunca baja de `true` a `false`. También sube los de contenido (spec, textos, revisión) cuando una publicación entra en las 48 h.
+- Hoy llevan «deadline» «Programar en Publer» (8 h antes de la hora de publicación) y «Enlaces públicos de imágenes» (el corte previo). El resto (textos, propuestas, balance, investigación, comprobaciones, calendario y métricas) no tienen límite: si los pide SocialHub y no son de publicaciones cercanas, esperan a la pasada de la noche y no se hacen de día; lo que pide Raúl a mano sí se hace en la siguiente pasada.
 
 ### Spec por lotes (ya no es semanal)
 
@@ -178,5 +178,8 @@ Antes se pedía un spec por promoción y semana (domingo). Ahora, por promoción
 - **Pendiente de contenido:** publicación en «En producción», sin ninguna pieza (archivo), con la hora de publicación aún por delante y que no esté ya en un spec pedido o completado.
 - **El encargo lleva** solo esas publicaciones (`inputs.publications`, con `scheduled_on` y `scheduled_time`), y ya no lleva `inputs.week`. Los datos de entrada del encargo son los identificadores de las publicaciones.
 - **Sin duplicados:** una publicación no entra en dos specs abiertos (en cola, en curso, en espera, bloqueado o fallido con reintentos pendientes). Si el spec falla del todo (sin reintentos) o se cancela, sus publicaciones vuelven a contar como pendientes. Si el spec se completa, siguen contando como cubiertas aunque Claude no haya incluido alguna: así no se pide en bucle.
+- **Sin contenido tras el spec:** un spec completado deja de cubrir una publicación cuando la generación de sus piezas ha terminado y sigue sin piezas; entra sola en el siguiente spec, como mucho 2 veces por publicación (después, solo a mano). La fila «no tiene contenido» de «Qué hacer ahora» (publicación a menos de 3 días sin contenido ni spec abierto) tiene el botón «Pedir contenido ya», que pide un spec a mano, urgente.
+- **Promociones planificadas:** piden su spec con las mismas reglas que las activas.
+- **Urgencia del spec:** a mano siempre es urgente; el automático lo es si alguna de sus publicaciones sale en menos de 48 h.
 - **Sin publicaciones no hay spec:** no se pide, ni solo ni a mano. A mano, sin datos o con una fecha, lleva las pendientes de ese momento; con identificadores, esas publicaciones (que no estén ya en un spec abierto).
 - El contrato `promo-spec.v1` no cambia.
