@@ -140,7 +140,7 @@ class PublerAccountTest {
         write(put("/api/brands/litoques/publer-accounts"), "{\"items\":[{\"platform\":\"TIKTOK\",\"account_name\":\"  %s \"}]}".formatted(SHARED))
                 .andExpect(status().isOk());
         assertThat(get("/api/brands/litoques/publer-accounts").get("items").get(0).get("account_name").asString()).isEqualTo(SHARED);
-        assertThat(recommendations().toString()).doesNotContain("Indica la cuenta de Publer");
+        assertThat(recommendations().toString()).doesNotContain("Litoques para TikTok");
 
         CLOCK.forward(Duration.ofMinutes(6));
         engine.tick();
@@ -185,7 +185,7 @@ class PublerAccountTest {
         assertThat(held.get("status").asString()).isEqualTo("HELD");
         assertThat(held.get("last_error").asString()).contains("«" + SHARED + "»").contains("2 publicaciones programadas").contains("límite del plan gratuito");
         assertThat(publication(third).get("flag").asString()).startsWith("Retenida: ");
-        assertThat(recommendations().toString()).doesNotContain("Indica la cuenta de Publer"); // no falta la cuenta, es el límite
+        assertThat(recommendations().toString()).doesNotContain("Litoques para TikTok"); // no falta la cuenta, es el límite
 
         // Mientras las dos siguen programadas, sigue en espera
         CLOCK.forward(Duration.ofMinutes(6));

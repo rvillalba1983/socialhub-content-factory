@@ -49,7 +49,6 @@ class PublishingEngineHeldTest {
             @Override public Instant lastMoment(Instant scheduledAt) { return scheduledAt.minus(Duration.ofHours(7)); }
             @Override public Outcome schedule(Publication p, PublishJob job, Instant now) { return new Outcome.Held(reason); }
         };
-        when(transactions.execute(any())).thenAnswer(i -> ((TransactionCallback<?>) i.getArgument(0)).doInTransaction(null));
         return new PublishingEngine(jobs, publications, mock(PublicationFileRepository.class), mock(PromotionQueries.class),
                 List.of(route), events, transactions, mock(AiOrders.class), Clock.fixed(NOW, ZoneId.of("UTC")));
     }
@@ -62,6 +61,8 @@ class PublishingEngineHeldTest {
 
     @BeforeEach
     void saves() {
+        org.mockito.Mockito.doAnswer(i -> ((TransactionCallback<?>) i.getArgument(0)).doInTransaction(null))
+                .when(transactions).execute(any());
         when(jobs.find("p1")).thenReturn(Optional.empty());
     }
 
