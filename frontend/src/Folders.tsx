@@ -1,11 +1,19 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from './api';
 import { FOLDER_ROLES, type Folder, type FolderRole } from './model';
 import { Pill } from './ui';
 
+/** La carpeta raíz no se guarda aparte: es la de Material cuando la de Encargos cuelga de ella como «encargos». */
+function deriveRoot(own: Partial<Record<FolderRole, string>>): string {
+  const material = own.MATERIAL ?? '';
+  const orders = own.ORDERS ?? '';
+  if (!material || !orders.startsWith(material)) return '';
+  return /^[/\\]encargos$/i.test(orders.slice(material.length)) ? material : '';
+}
+
 /**
- * Qué carpeta de Drive hace cada papel. En la marca se fijan todos; en la promoción solo se escriben las
- * excepciones y el resto se hereda de la marca.
+ * Qué carpeta de Drive hace cada papel. En la marca se fijan todos (o se crean desde una carpeta raíz); en la
+ * promoción solo se escriben las excepciones y el resto se hereda de la marca.
  */
 export function FolderRoles({ owner, id, onSaved }: {
   owner: 'brand' | 'promotion'; id: string; onSaved?: (message: string) => void;
@@ -15,6 +23,7 @@ export function FolderRoles({ owner, id, onSaved }: {
   const [values, setValues] = useState<Partial<Record<FolderRole, string>>>({});
   const [busy, setBusy] = useState(false);
   const [base, setBase] = useState('');
+  const touched = useRef(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = (list: Folder[]) => {
@@ -27,6 +36,7 @@ export function FolderRoles({ owner, id, onSaved }: {
     });
     setValues(own);
     setInherited(brand);
+    if (owner === 'brand') setBase(prev => (touched.current ? prev : deriveRoot(own)));
   };
 
   useEffect(() => {
@@ -53,14 +63,14 @@ export function FolderRoles({ owner, id, onSaved }: {
     }
   };
 
-  // Crea las carpetas asignadas que no existan (y, con carpeta base, las de los papeles vacíos)
+  // Crea la estructura desde la carpeta raíz (las que ya existen se respetan) y rellena los 7 papeles
   const create = async () => {
     setBusy(true);
     setError(null);
     try {
       const r = await api.createBrandFolders(id, base.trim() || undefined);
+      touched.current = false;
       load(r.items);
-      setBase('');
       onSaved?.('Carpetas creadas');
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -75,10 +85,19 @@ export function FolderRoles({ owner, id, onSaved }: {
       <h3>Carpetas de Drive</h3>
       <p className="src">
         {owner === 'brand'
-          ? 'Qué carpeta hace cada papel. Las promociones de la marca las heredan. SocialHub crea las que falten, pero nunca borra ni mueve nada.'
+          ? 'Escribe la carpeta raíz de la marca y SocialHub crea en ese disco (el sincronizado con Drive) las carpetas que falten y rellena los 7 papeles. Las que ya existen se respetan: nunca borra ni mueve nada. Las promociones de la marca las heredan.'
           : 'Las vacías se heredan de la marca. Escribe una ruta solo para el papel que cambie en esta promoción.'}
       </p>
       {folders === null && !error && <p className="src">Cargando…</p>}
+      {owner === 'brand' && folders !== null && (
+        <div className="folder-create">
+          <label className="field"><span>Carpeta raíz <small className="src">· Material es la propia raíz; dentro van borradores, generados, aprobados, publicados, informes y encargos (con para-claude, para-claude-pc, de-claude y publico)</small></span>
+            <input aria-label="Carpeta raíz" value={base} onChange={e => { setBase(e.target.value); touched.current = true; }}
+              placeholder="G:\Mi unidad\socialhub\eldelito" spellCheck={false} /></label>
+          <button type="button" className="btn primary" disabled={busy || base.trim() === ''} onClick={create}>Crear carpetas</button>
+        </div>
+      )}
+      {owner === 'brand' && folders !== null && <h4>Rutas de cada papel <small className="src">· avanzado: cámbialas solo si quieres otra ruta</small></h4>}
       {folders !== null && FOLDER_ROLES.map(([role, label, hint]) => {
         const f = byRole.get(role);
         return (
@@ -97,13 +116,6 @@ export function FolderRoles({ owner, id, onSaved }: {
         {error && <p className="error" role="alert">{error}</p>}
         <button className="btn primary" disabled={busy || folders === null}>{busy ? 'Guardando…' : 'Guardar carpetas'}</button>
       </div>
-      {owner === 'brand' && folders !== null && (
-        <div className="folder-create">
-          <label className="field"><span>Carpeta base <small className="src">· los papeles vacíos pasan a ser subcarpetas suyas</small></span>
-            <input aria-label="Carpeta base" value={base} onChange={e => setBase(e.target.value)} placeholder="G:\Mi unidad\SocialHub\…" spellCheck={false} /></label>
-          <button type="button" className="btn" disabled={busy} onClick={create}>Crear las que faltan</button>
-        </div>
-      )}
     </form>
   );
 }
