@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Icon, StationIcon } from './icons';
 import {
   PROMOTION_STATUS, PUBLICATION_STATUS, STATUS, alertTone, byPriority, isoDay, parseDay, shortDate, hhmm, statusClass,
@@ -8,6 +9,8 @@ import { AgentChip, BrandTag, Dot, Pill, StepState, prefersReducedMotion, stepCl
 // Geometría del anillo (coordenadas del lienzo)
 export const TR = { x0: 300, x1: 2260, y0: 620, y1: 1250, r: 150 };
 const SX = [650, 1070, 1490, 1910];
+/** Alto del centro: su borde inferior queda 15 por encima de los nodos de la fila de abajo (radio 40 sobre y1); las tarjetas se anclan abajo y crecen hacia arriba. */
+const HUB_H = TR.y1 - 55 - (TR.y0 + 85);
 export const WORLD = { w: 2780, h: 1700 };
 
 const pos = (i: number) => {
@@ -72,7 +75,7 @@ export function World({ data, sel, onStation, onTask, onTaskAction, onArmory, on
       {(() => { const [x, y] = segMid(7); return (
         <div className="seglabel fbl" style={{ left: x, top: y }}><Icon name="back" />Resultados → Investigación</div>
       ); })()}
-      <div className="hub" style={{ left: TR.x0 + 175, top: TR.y0 + 85, width: TR.x1 - TR.x0 - 350 }}>
+      <div className="hub" style={{ left: TR.x0 + 175, top: TR.y0 + 85, width: TR.x1 - TR.x0 - 350, height: HUB_H }}>
         {data.promotions.map(p => (
           <PromotionCard key={p.id} p={p} brand={brands.get(p.brand_id)} data={data} onOpen={() => onPromotion(p.id)} />
         ))}
@@ -221,7 +224,7 @@ export function TodayCard({ data }: { data: Snapshot }) {
   );
 }
 
-/** Cuántos avisos caben en la tarjeta sin tapar las estaciones de abajo. */
+/** Cuántos avisos se ven sin desplegar: con más, «Ver N más» abre la lista entera dentro de la tarjeta. */
 const ATTENTION_MAX = 2;
 
 /** Abre lo que señala un aviso: la tarea, la estación, el elemento de la armería (por ejemplo, Drive) o la publicación. */
@@ -238,19 +241,43 @@ export function AttentionCard({ data, onStation, onTask, onArmory, onPublication
   data: Snapshot; onStation: (id: string) => void; onTask: (id: string) => void; onArmory?: (id: string) => void;
   onPublication?: (id: string) => void;
 }) {
+  // Lista entera desplegada y aviso con el texto completo: viven en la tarjeta, que no se desmonta al recargar datos
+  const [listOpen, setListOpen] = useState(false);
+  const [fullKey, setFullKey] = useState<string | null>(null);
   const blockedByDeps = data.tasks.filter(t => t.status === 'BLOCKED').length;
   const waitingRaul = data.tasks.filter(t => t.human && t.status !== 'COMPLETED' && t.status !== 'CANCELLED').length;
+  const sorted = byPriority(data.alerts);
+  const extra = sorted.length - ATTENTION_MAX;
+  const shown = listOpen ? sorted : sorted.slice(0, ATTENTION_MAX);
   return (
-    <section className="attn-card" aria-label="Necesita tu atención">
+    <section className={`attn-card${listOpen && extra > 0 ? ' open' : ''}`} aria-label="Necesita tu atención">
       <h2>Necesita atención {data.alerts.length > 0 && <span className="count">{data.alerts.length}</span>}</h2>
       <TodayCard data={data} />
       {data.alerts.length === 0 && <p className="src">Todo en orden.</p>}
-      {byPriority(data.alerts).slice(0, ATTENTION_MAX).map(a => (
-        <button key={`${a.kind}|${a.target_id}|${a.title}`} className={`aitem s-${alertTone(a.kind)}`} onClick={() => openAlert(a, { onTask, onStation, onArmory, onPublication })}>
-          <Dot s={a.kind} /><span><b>{a.title}</b>{a.detail}</span>
+      <div className="attn-list">
+        {shown.map(a => {
+          const key = `${a.kind}|${a.target_id}|${a.title}`;
+          const full = fullKey === key;
+          return (
+            <div key={key} className={`aitem-row attn-row${full ? ' full' : ''}`}>
+              <button className={`aitem s-${alertTone(a.kind)}`} aria-expanded={full} title={a.detail ? `${a.title}. ${a.detail}` : a.title}
+                onClick={() => {
+                  // Primer toque: despliega el texto completo; segundo toque sobre el desplegado: abre su destino
+                  if (!full) setFullKey(key);
+                  else { setFullKey(null); openAlert(a, { onTask, onStation, onArmory, onPublication }); }
+                }}>
+                <Dot s={a.kind} /><span><b>{a.title}</b>{a.detail}</span>
+              </button>
+            </div>
+          );
+        })}
+      </div>
+      {extra > 0 && (
+        <button type="button" className="btn attn-more" aria-expanded={listOpen} onClick={() => setListOpen(!listOpen)}>
+          {listOpen ? 'Ver menos' : `Ver ${extra} más`}
         </button>
-      ))}
-      <p className="src">{data.alerts.length > ATTENTION_MAX ? `Y ${data.alerts.length - ATTENTION_MAX} más en las estaciones marcadas · ` : ''}{blockedByDeps} tareas bloqueadas · {waitingRaul} esperan a Raúl</p>
+      )}
+      <p className="src">{blockedByDeps} tareas bloqueadas · {waitingRaul} esperan a Raúl</p>
     </section>
   );
 }

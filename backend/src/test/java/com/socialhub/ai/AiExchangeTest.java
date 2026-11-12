@@ -44,6 +44,7 @@ import tools.jackson.databind.json.JsonMapper;
         "socialhub.ai.read-millis=300"
 })
 @AutoConfigureMockMvc
+@org.springframework.context.annotation.Import(com.socialhub.PinnedClock.class)
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class AiExchangeTest {
 
@@ -54,6 +55,7 @@ class AiExchangeTest {
     static String research3;
 
     @Autowired MockMvc mvc;
+    @Autowired java.time.Clock clock;
     private final JsonMapper json = JsonMapper.builder().build();
 
     @BeforeAll
@@ -208,7 +210,7 @@ class AiExchangeTest {
         Path file = dir.resolve(taskId + "-" + System.nanoTime() + ".json");
         Files.writeString(file, content);
         // Como si llevara un rato sincronizado
-        Files.setLastModifiedTime(file, FileTime.from(Instant.now().minusSeconds(30)));
+        Files.setLastModifiedTime(file, FileTime.from(clock.instant().minusSeconds(30)));
     }
 
     private static String failed(String taskId, String error) {
