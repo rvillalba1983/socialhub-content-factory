@@ -2,6 +2,7 @@ package com.socialhub.publishing;
 
 import com.socialhub.ai.AiOrders;
 import com.socialhub.ai.AiRequestType;
+import com.socialhub.ai.ClaudePickups;
 import com.socialhub.platform.AppMode;
 import com.socialhub.platform.AppModeHolder;
 import com.socialhub.platform.live.FactoryChanged;
@@ -58,8 +59,10 @@ class PublishingEngine {
     static final String OFFICIAL_FLAG = "API oficial: ";
     /** No se sabe si Instagram llegó a publicarla: no se reintenta, se revisa. */
     static final String DOUBT_FLAG = "Revisar antes de reintentar: ";
-    /** Pasado este tiempo desde la hora, la API oficial ya no publica (SocialHub estaba cerrado). */
-    static final Duration OFFICIAL_GRACE = Duration.ofMinutes(10);
+    /** Publicada por la API oficial con retraso (SocialHub estaba cerrado a la hora): se avisa de cuánto. */
+    static final String DELAY_FLAG = "Publicada con ";
+    /** Retraso a partir del cual se avisa (la ronda del motor es cada minuto y una subida de vídeo tarda). */
+    static final Duration DELAY_NOTICE = Duration.ofMinutes(10);
     private static final DateTimeFormatter WHEN = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm").withZone(ZoneId.of("Europe/Madrid"));
     private static final EnumSet<PublishJob.Status> TIMED = EnumSet.of(PublishJob.Status.WORKING,
             PublishJob.Status.RETRY_WAIT, PublishJob.Status.SCHEDULED, PublishJob.Status.MANUAL, PublishJob.Status.CHECKING);
@@ -144,6 +147,7 @@ class PublishingEngine {
     static boolean ownFlag(@Nullable String flag) {
         return flag != null && (flag.startsWith(LATE_FLAG) || flag.startsWith(STILL_SCHEDULED)
                 || flag.startsWith(ERROR_FLAG) || flag.startsWith(OFFICIAL_FLAG) || flag.startsWith(DOUBT_FLAG)
+                || flag.startsWith(DELAY_FLAG)
                 || flag.startsWith(PublishingService.MANUAL_FLAG));
     }
 
@@ -230,15 +234,17 @@ class PublishingEngine {
 
     /** Hace lo que toque por la hora en cada publicación en marcha. Cada una, en su transacción. */
     int tick() {
+        // La hora de la vuelta se fija al empezar: una subida larga a Meta no debe cambiar lo que toca a las demás
+        Instant round = clock.instant();
         int changed = 0;
         for (PublishJob listed : jobs.withStatus(TIMED)) {
             try {
                 if (listed.getStatus() == PublishJob.Status.SCHEDULED && isOfficial(listed.getRoute())
-                        && publishOfficially(listed.getPublicationId())) {
+                        && officialStep(listed.getPublicationId(), round)) {
                     changed++;
                     continue;
                 }
-                Boolean done = transactions.execute(s -> step(listed.getPublicationId()));
+                Boolean done = transactions.execute(s -> step(listed.getPublicationId(), round));
                 if (Boolean.TRUE.equals(done)) changed++;
             } catch (RuntimeException e) {
                 log.warn("Publicación {}: {}", listed.getPublicationId(), e.toString());
@@ -247,11 +253,10 @@ class PublishingEngine {
         return changed;
     }
 
-    private boolean step(String publicationId) {
+    private boolean step(String publicationId, Instant now) {
         PublishJob job = jobs.find(publicationId).orElse(null);
         Publication p = publications.findById(publicationId).orElse(null);
         if (job == null || p == null || !TIMED.contains(job.getStatus())) return false;
-        Instant now = clock.instant();
         Instant at = p.scheduledAt();
         boolean changed = switch (job.getStatus()) {
             case WORKING -> {
@@ -266,6 +271,14 @@ class PublishingEngine {
                         cleanup(p);
                     }
                     job.abandonTask("Claude no lo hizo a tiempo; se sigue por otra vía", now);
+                    advance(job, p, now);
+                    yield true;
+                }
+                // El encargo de enlaces va con retraso (su recogida ya pasó): no se espera al corte, se sigue por Publer
+                if (route != null && isOfficial(job.getRoute()) && ClaudePickups.overdue(job.getUpdatedAt(), now)) {
+                    p.flag(OFFICIAL_FLAG + "Claude no ha recogido el encargo de los enlaces públicos: se sigue por otra vía");
+                    cleanup(p);
+                    job.abandonTask("el encargo de los enlaces públicos va con retraso", now);
                     advance(job, p, now);
                     yield true;
                 }
@@ -289,7 +302,9 @@ class PublishingEngine {
                 yield true;
             }
             case CHECKING -> {
-                if (now.isBefore(at.plus(CHECK_TIMEOUT))) {
+                // Las 24 h cuentan desde que se publicó de verdad (si SocialHub la publicó con retraso), no desde la hora prevista
+                Instant since = job.getPublishStartedAt() != null && job.getPublishStartedAt().isAfter(at) ? job.getPublishStartedAt() : at;
+                if (now.isBefore(since.plus(CHECK_TIMEOUT))) {
                     // Las vías con API se vuelven a consultar cada pocos minutos; las de Claude esperan su resultado
                     if (job.getTaskId() != null || now.isBefore(job.getUpdatedAt().plus(RECHECK))) yield false;
                     check(job, p, now);
@@ -337,6 +352,8 @@ class PublishingEngine {
             switch (outcome) {
                 case PublishRoute.Outcome.Scheduled s -> {
                     job.scheduled(s.externalId(), s.url(), now);
+                    // Programada ya pasado el corte previo: lo que se acaba de comprobar vale como esa comprobación
+                    if (route.publishesAtTime() && !now.isBefore(route.cutoff(p))) job.preflightDone(now);
                     return;
                 }
                 case PublishRoute.Outcome.Pending pending -> {
@@ -358,7 +375,7 @@ class PublishingEngine {
             job.retryAt(next, now);
             return;
         }
-        String leeme = writeManual(p, job, now);
+        String leeme = writeManual(p, job, now, null);
         job.manual(leeme, now);
         // Si la API oficial falló, su motivo sigue a la vista junto al LEEME
         String official = p.getFlag() != null && p.getFlag().startsWith(OFFICIAL_FLAG) ? " · " + p.getFlag() : "";
@@ -413,6 +430,11 @@ class PublishingEngine {
     }
 
     private void fail(PublishJob job, Publication p, String reason, Instant now) {
+        // Si Meta ya dio el identificador, la publicación existe: nunca es un simple error, se revisa en Instagram
+        if (isOfficial(job.getRoute()) && job.getExternalId() != null) {
+            doubt(job, p, "Meta la publicó con el identificador " + job.getExternalId() + " pero no se pudo confirmar (" + reason + ")", now);
+            return;
+        }
         cleanup(p);
         job.failed(reason, now);
         if (p.getStatus() == PublicationStatus.SCHEDULED) p.moveTo(PublicationStatus.PUBLISHING);
@@ -422,7 +444,7 @@ class PublishingEngine {
 
     // ------------------------------------------------------------------ API oficial: publicar a la hora
 
-    private enum Begin { NOT_DUE, HANDLED, STARTED }
+    private enum Begin { NOT_DUE, HANDLED, PREFLIGHT, STARTED }
 
     private static boolean isOfficial(@Nullable String routeLabel) { return PublishRoute.Id.OFFICIAL.label().equals(routeLabel); }
 
@@ -437,23 +459,35 @@ class PublishingEngine {
     }
 
     /**
-     * La API oficial no programa: llegada la hora, SocialHub publica él mismo. En tres tiempos: (1) en su transacción,
-     * deja la marca «publicando» (si después no hay resultado, hay duda y no se reintenta); (2) sin transacción, habla
-     * con Meta, que puede tardar minutos; (3) aplica el resultado.
+     * La API oficial no programa: SocialHub publica él mismo. En el corte previo (cuando Publer aún llega) comprueba todo;
+     * a la hora, en tres tiempos: (1) en su transacción, deja la marca «publicando» (si después no hay resultado, hay duda
+     * y no se reintenta); (2) sin transacción, habla con Meta, que puede tardar minutos; (3) aplica el resultado. Si
+     * SocialHub estaba cerrado a la hora, publica en cuanto se abre, sin límite de tiempo, y avisa del retraso.
      *
      * @return {@code true} si ha hecho algo con esta publicación en este turno
      */
-    private boolean publishOfficially(String publicationId) {
+    private boolean officialStep(String publicationId, Instant round) {
         PublishRoute[] route = new PublishRoute[1];
-        Begin begin = transactions.execute(s -> beginOfficial(publicationId, route));
+        Begin begin = transactions.execute(s -> beginOfficial(publicationId, round, route));
         if (begin == null || begin == Begin.NOT_DUE) return false;
         if (begin == Begin.HANDLED) return true;
 
         Publication p = publications.findById(publicationId).orElseThrow();
         PublishJob job = jobs.find(publicationId).orElseThrow();
+        if (begin == Begin.PREFLIGHT) {
+            PublishRoute.Outcome outcome;
+            try {
+                outcome = route[0].preflight(p, job, round);
+            } catch (RuntimeException e) {
+                outcome = new PublishRoute.Outcome.Failed(e.getMessage() == null ? e.toString() : e.getMessage());
+            }
+            PublishRoute.Outcome result = outcome;
+            transactions.executeWithoutResult(s -> endPreflight(publicationId, result));
+            return true;
+        }
         PublishRoute.Outcome outcome;
         try {
-            outcome = route[0].publish(p, job, clock.instant());
+            outcome = route[0].publish(p, job, round);
         } catch (RuntimeException e) {
             outcome = new PublishRoute.Outcome.Doubt("error inesperado al publicar: " + (e.getMessage() == null ? e.toString() : e.getMessage()));
         }
@@ -462,18 +496,24 @@ class PublishingEngine {
         return true;
     }
 
-    private Begin beginOfficial(String publicationId, PublishRoute[] routeOut) {
+    private Begin beginOfficial(String publicationId, Instant round, PublishRoute[] routeOut) {
         PublishJob job = jobs.find(publicationId).orElse(null);
         Publication p = publications.findById(publicationId).orElse(null);
         if (job == null || p == null || job.getStatus() != PublishJob.Status.SCHEDULED || !isOfficial(job.getRoute())) return Begin.NOT_DUE;
         PublishRoute route = route(job.getRoute());
-        Instant now = clock.instant();
         Instant at = p.scheduledAt();
-        if (route == null || now.isBefore(at)) return Begin.NOT_DUE;
+        if (route == null) return Begin.NOT_DUE;
+        if (round.isBefore(at)) {
+            // El corte previo: aún no es la hora, pero Publer ya está a punto de dejar de llegar. Se comprueba todo ahora
+            if (job.getPreflightAt() == null && !round.isBefore(route.cutoff(p))) {
+                routeOut[0] = route;
+                return Begin.PREFLIGHT;
+            }
+            return Begin.NOT_DUE;
+        }
+        Instant now = clock.instant();
         if (job.getPublishStartedAt() != null) {
             doubt(job, p, "SocialHub se cerró o se cortó mientras la publicaba por la API oficial: no se sabe si Instagram la publicó", now);
-        } else if (now.isAfter(at.plus(OFFICIAL_GRACE))) {
-            fallback(job, p, "SocialHub estaba cerrado a la hora y ya no se publica por la API oficial", now);
         } else {
             job.startPublishing(now);
             if (p.getStatus() == PublicationStatus.SCHEDULED) p.moveTo(PublicationStatus.PUBLISHING);
@@ -487,6 +527,23 @@ class PublishingEngine {
         jobs.save(job);
         changed(publicationId);
         return Begin.HANDLED;
+    }
+
+    /** Resultado de las comprobaciones del corte previo: todo bien, o se cede a Publer con el motivo. */
+    private void endPreflight(String publicationId, PublishRoute.Outcome outcome) {
+        PublishJob job = jobs.find(publicationId).orElseThrow();
+        Publication p = publications.findById(publicationId).orElseThrow();
+        if (job.getStatus() != PublishJob.Status.SCHEDULED || !isOfficial(job.getRoute())) return;
+        Instant now = clock.instant();
+        if (outcome instanceof PublishRoute.Outcome.Scheduled) {
+            job.preflightDone(now);
+        } else {
+            String reason = outcome instanceof PublishRoute.Outcome.Failed f ? f.reason() : "comprobación no válida";
+            fallback(job, p, reason, now);
+        }
+        publications.save(p);
+        jobs.save(job);
+        changed(publicationId);
     }
 
     private void endOfficial(String publicationId, PublishRoute.Outcome outcome) {
@@ -503,8 +560,9 @@ class PublishingEngine {
                     p.confirmPublished(pub.externalId(), pub.url(), now);
                     job.published(pub.externalId(), pub.url(), now);
                 }
+                noteDelay(job, p);
             }
-            case PublishRoute.Outcome.Failed f -> fallback(job, p, f.reason(), now);
+            case PublishRoute.Outcome.Failed f -> failedAtTime(job, p, f.reason(), now);
             case PublishRoute.Outcome.Doubt d -> doubt(job, p, d.reason(), now);
             default -> doubt(job, p, "respuesta inesperada de la API oficial", now);
         }
@@ -513,12 +571,42 @@ class PublishingEngine {
         changed(publicationId);
     }
 
-    /** Seguro que no se publicó: se sigue por la vía siguiente (Publer), con el motivo a la vista. */
+    /** Si empezó a publicar mucho después de su hora (SocialHub estaba cerrado), se avisa de cuánto. */
+    private void noteDelay(PublishJob job, Publication p) {
+        Instant started = job.getPublishStartedAt();
+        if (started == null) return;
+        Duration late = Duration.between(p.scheduledAt(), started);
+        if (late.compareTo(DELAY_NOTICE) < 0) return;
+        p.flag(DELAY_FLAG + human(late) + " de retraso: SocialHub no estaba abierto a su hora");
+    }
+
+    static String human(Duration d) {
+        long minutes = Math.max(0, d.toMinutes());
+        long h = minutes / 60, m = minutes % 60;
+        if (h == 0) return m + " min";
+        return m == 0 ? h + " h" : h + " h " + m + " min";
+    }
+
+    /** Antes de publicar, Publer aún llegaba: se sigue por la vía siguiente (Publer), con el motivo a la vista. */
     private void fallback(PublishJob job, Publication p, String reason, Instant now) {
         cleanup(p);
         p.flag(OFFICIAL_FLAG + reason + ": se sigue por otra vía");
         job.routeFailed(reason, now);
         advance(job, p, now);
+    }
+
+    /**
+     * Falló a la hora, pero seguro que no se publicó. Ya no hay vía que llegue (Publer necesita 8 h): aviso claro y LEEME
+     * para publicarla a mano o cambiarle la fecha.
+     */
+    private void failedAtTime(PublishJob job, Publication p, String reason, Instant now) {
+        cleanup(p);
+        String leeme = writeManual(p, job, now, reason);
+        String text = reason + ". La hora ya pasó: publícala tú cuanto antes o cámbiale la fecha (LEEME: " + leeme + ")";
+        job.failed(text, now);
+        if (p.getStatus() == PublicationStatus.SCHEDULED) p.moveTo(PublicationStatus.PUBLISHING);
+        if (p.getStatus() == PublicationStatus.PUBLISHING) p.moveTo(PublicationStatus.PUBLISH_ERROR);
+        p.flag(OFFICIAL_FLAG + text);
     }
 
     /** No se sabe si se publicó: ni se reintenta ni se pasa a otra vía. */
@@ -531,13 +619,16 @@ class PublishingEngine {
     }
 
     /** LEEME para publicarla a mano, en la carpeta de aprobados, de generados o la primera que haya. */
-    private String writeManual(Publication p, PublishJob job, Instant now) {
+    private String writeManual(Publication p, PublishJob job, Instant now, @Nullable String lateReason) {
         var folders = promotions.folderMap(p.getPromotionId());
         String folder = folders.getOrDefault("APPROVED", folders.getOrDefault("GENERATED",
                 folders.values().stream().findFirst().orElse(null)));
         StringBuilder text = new StringBuilder()
                 .append("PUBLICAR A MANO · ").append(p.getTitle()).append("\n\n")
-                .append("Ninguna vía pudo programarla con el margen de 6 h. Publícala tú a su hora.\n\n")
+                .append(lateReason == null
+                        ? "Ninguna vía pudo programarla con el margen de 6 h. Publícala tú a su hora.\n\n"
+                        : "La API oficial de Instagram no pudo publicarla: " + lateReason + ".\nLa hora de publicación ya pasó: "
+                                + "publícala tú cuanto antes, o cámbiale la fecha en SocialHub y vuelve a programarla.\n\n")
                 .append("Red: ").append(p.getPlatform()).append(" · ").append(p.getType()).append('\n')
                 .append("Cuándo: ").append(WHEN.format(p.scheduledAt())).append(" (hora de España)\n")
                 .append("Publicación en SocialHub: ").append(p.getId()).append("\n\n")
@@ -547,8 +638,10 @@ class PublishingEngine {
         if (p.getHashtags() != null) text.append('\n').append(p.getHashtags()).append('\n');
         text.append("\nQué falló:\n");
         job.getLog().forEach(line -> text.append("- ").append(line).append('\n'));
-        text.append("\nCuando esté publicada, SocialHub lo comprobará ")
-                .append(CHECK_AFTER_MANUAL.toHours()).append(" h después de la hora.\n");
+        if (lateReason == null) {
+            text.append("\nCuando esté publicada, SocialHub lo comprobará ")
+                    .append(CHECK_AFTER_MANUAL.toHours()).append(" h después de la hora.\n");
+        }
         if (folder == null) return "(sin carpeta de Drive: no se pudo escribir el LEEME)";
         try {
             Path dir = Path.of(folder);

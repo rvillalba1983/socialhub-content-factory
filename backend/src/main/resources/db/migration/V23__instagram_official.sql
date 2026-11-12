@@ -20,5 +20,16 @@ create table publication_public_media (
 -- Cuándo empezó SocialHub a publicar por la API oficial. Si hay marca pero no resultado (cierre, corte), no se sabe si
 -- Meta llegó a publicar: se revisa a mano, nunca se reintenta.
 alter table publish_job add column publish_started_at timestamptz;
+-- Cuándo se comprobó todo (clave, cuenta, archivos y enlaces) en el corte previo, cuando Publer aún llega.
+alter table publish_job add column preflight_at timestamptz;
+
+-- Cambia el orden de las vías: antes Publer, Publora y API oficial (índices 0, 1, 2); ahora API oficial, Publer y
+-- Publora. Los trabajos en curso conservan la vía que tenían: se traduce su índice por el nombre de su vía.
+update publish_job set route_index = case route
+        when 'API oficial' then 0
+        when 'Publer' then 1
+        when 'Publora' then 2
+        else route_index + 1 end
+    where status in ('WORKING', 'SCHEDULED', 'MANUAL', 'CHECKING');
 
 insert into ai_setting (key, value) values ('model.PUBLIC_LINK', 'HAIKU') on conflict (key) do nothing;

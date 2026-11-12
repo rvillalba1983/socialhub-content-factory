@@ -52,6 +52,18 @@ public interface PublishRoute {
     default Instant lastMoment(Publication publication) { return lastMoment(publication.scheduledAt()); }
 
     /**
+     * El corte previo: el último momento en que, si algo falla, la publicación aún puede seguir por Publer (que necesita
+     * 8 h y una pasada de Claude con Chrome). Pasado ese momento se comprueba todo y, si algo falla, ya solo queda el aviso.
+     */
+    default Instant cutoff(Publication publication) { return lastMoment(publication); }
+
+    /**
+     * Comprueba, en el corte previo, que todo está listo para publicar a la hora (clave, cuenta, archivos y, si hacen
+     * falta, enlaces ya llegados y verificados). {@code Scheduled} si todo está bien; {@code Failed} con el motivo si no.
+     */
+    default Outcome preflight(Publication publication, PublishJob job, Instant now) { return new Outcome.Scheduled(null, null); }
+
+    /**
      * La vía no programa: SocialHub la publica él mismo a la hora. El motor llama a {@link #publish} cuando llega y deja
      * antes una marca en la tarea para no repetirla si hay duda.
      */

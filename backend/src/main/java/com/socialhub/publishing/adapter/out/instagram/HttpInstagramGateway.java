@@ -30,6 +30,7 @@ import tools.jackson.databind.json.JsonMapper;
 @Component
 class HttpInstagramGateway implements InstagramGateway {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(HttpInstagramGateway.class);
     static final String SYSTEM = "Instagram";
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
     private static final Duration UPLOAD_TIMEOUT = Duration.ofMinutes(15);
@@ -143,12 +144,14 @@ class HttpInstagramGateway implements InstagramGateway {
     // ---------------------------------------------------------------- HTTP
 
     private JsonNode get(String key, String path, String fields) {
-        return send(HttpRequest.newBuilder(URI.create(graphUrl + "/" + version + path + "?fields=" + enc(fields)))
+        return send(HttpRequest.newBuilder(URI.create(graphUrl + "/" + version + path + "?locale=es_ES&fields=" + enc(fields)))
                 .timeout(TIMEOUT).header("Authorization", "OAuth " + key).header("Accept", "application/json").GET().build());
     }
 
     private JsonNode post(String key, String path, Map<String, String> form) {
-        String body = form.entrySet().stream().map(e -> enc(e.getKey()) + "=" + enc(e.getValue())).collect(Collectors.joining("&"));
+        Map<String, String> withLocale = new java.util.LinkedHashMap<>(form);
+        withLocale.putIfAbsent("locale", "es_ES");
+        String body = withLocale.entrySet().stream().map(e -> enc(e.getKey()) + "=" + enc(e.getValue())).collect(Collectors.joining("&"));
         return send(HttpRequest.newBuilder(URI.create(graphUrl + "/" + version + path)).timeout(TIMEOUT)
                 .header("Authorization", "OAuth " + key).header("Accept", "application/json")
                 .header("Content-Type", "application/x-www-form-urlencoded")
@@ -172,16 +175,18 @@ class HttpInstagramGateway implements InstagramGateway {
     private static void check(int code, JsonNode body) {
         if (code / 100 == 2) return;
         JsonNode error = body.path("error");
-        String message = text(error.path("error_user_msg"));
-        if (message == null) message = text(error.path("message"));
+        String original = text(error.path("error_user_msg"));
+        if (original == null) original = text(error.path("message"));
         int errorCode = error.path("code").asInt(0);
+        int subcode = error.path("error_subcode").asInt(0);
+        // El texto original de Meta solo va al registro; a Raúl se le da la traducción
+        log.warn("Meta respondió {} (código {}, subcódigo {}): {}", code, errorCode, subcode, original);
         if (code == 401 || errorCode == 190) {
             throw new InstagramException(InstagramException.Kind.INVALID_KEY,
-                    "Meta no acepta la clave" + (message == null ? "" : ": " + message));
+                    "Meta no acepta la clave: está caducada, revocada o mal pegada");
         }
-        String text = "Meta respondió " + code + (errorCode == 0 ? "" : " (código " + errorCode + ")")
-                + (message == null ? "" : ": " + message);
-        throw new InstagramException(code / 100 == 5 ? InstagramException.Kind.UNCERTAIN : InstagramException.Kind.REJECTED, text);
+        throw new InstagramException(code / 100 == 5 ? InstagramException.Kind.UNCERTAIN : InstagramException.Kind.REJECTED,
+                MetaErrors.translate(code, errorCode, subcode));
     }
 
     private static String id(JsonNode body, String what) {

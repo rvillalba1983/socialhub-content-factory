@@ -29,6 +29,8 @@ import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * API oficial de Instagram (Meta Graph API), primera vía para Instagram cuando está configurada (clave y cuenta de la
@@ -47,8 +49,12 @@ import org.springframework.stereotype.Component;
 class InstagramRoute implements PublishRoute {
 
     static final String KEY = "instagram-api";
-    /** Margen para conseguir los enlaces públicos: Publer necesita 8 h ({@link PublerRoute#DEADLINE}) y 1 h para que Claude la programe. */
-    static final Duration LINKS_CUTOFF = PublerRoute.DEADLINE.plusHours(1);
+    /**
+     * El corte previo: hasta ahí la publicación aún puede ceder a Publer (8 h, {@link PublerRoute#DEADLINE}, y una pasada
+     * de Claude con Chrome antes de ese límite). Los enlaces públicos tienen que haber llegado antes y, en ese momento, se
+     * comprueba todo.
+     */
+    static Instant cutoff(Instant scheduledAt) { return PublerRoute.handoverBy(scheduledAt); }
     static final int MAX_CAROUSEL = 20;
 
     private final SecretStore secrets;
@@ -91,29 +97,33 @@ class InstagramRoute implements PublishRoute {
 
     @Override
     public Instant lastMoment(Publication p) {
-        return needsPublicImages(p) ? p.scheduledAt().minus(LINKS_CUTOFF) : lastMoment(p.scheduledAt());
+        return needsPublicImages(p) ? cutoff(p) : lastMoment(p.scheduledAt());
+    }
+
+    @Override public Instant cutoff(Publication p) { return cutoff(p.scheduledAt()); }
+
+    /** El corte previo: clave, cuenta, archivos y, para imágenes, los enlaces ya llegados y comprobados. */
+    @Override
+    public Outcome preflight(Publication p, PublishJob job, Instant now) {
+        Outcome basic = checkBasics(p);
+        if (!(basic instanceof Outcome.Scheduled)) return basic;
+        try {
+            Plan plan = plan(p);
+            if (!plan.images().isEmpty()) publicUrls(p, plan);
+        } catch (Problem e) {
+            return new Outcome.Failed(e.getMessage());
+        }
+        return new Outcome.Scheduled(null, null);
     }
 
     // ---------------------------------------------------------------- Programar: solo comprobar que se puede
 
     @Override
     public Outcome schedule(Publication p, PublishJob job, Instant now) {
-        String key = secrets.get(KEY).orElse(null);
-        if (key == null) return new Outcome.Failed("no configurada");
+        Outcome basic = checkBasics(p);
+        if (!(basic instanceof Outcome.Scheduled)) return basic;
         String brand = promotions.brandOf(p.getPromotionId());
-        var account = accounts.account(brand).orElse(null);
-        if (account == null) return new Outcome.Failed("la marca no tiene su «Cuenta de Instagram (API oficial)»");
-        Plan plan;
-        try {
-            plan = plan(p);
-        } catch (Problem e) {
-            return new Outcome.Failed(e.getMessage());
-        }
-        try {
-            instagram.account(key, account.igUserId());
-        } catch (InstagramException e) {
-            return new Outcome.Failed(e.getMessage());
-        }
+        Plan plan = plan(p);
         if (plan.images().isEmpty()) return new Outcome.Scheduled(null, null);
 
         // Imágenes: URL pública. Se dejan en la carpeta pública y Claude encuentra los enlaces
@@ -122,21 +132,37 @@ class InstagramRoute implements PublishRoute {
             return new Outcome.Failed("las imágenes necesitan la carpeta pública «publico» de Drive y no está disponible");
         }
         cleanup(p);
+        // Si la transacción se deshace o encargar los enlaces falla, lo que se dejó en «publico» se borra
+        List<String> names = new ArrayList<>();
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override public void afterCompletion(int status) {
+                    if (status != STATUS_COMMITTED) host.release(folder, List.copyOf(names));
+                }
+            });
+        }
         List<PublicMediaRepository.Item> staged = new ArrayList<>();
         try {
             for (Path image : plan.images()) {
                 String name = host.stage(folder, image).orElseThrow(() -> new Problem("no hay dónde dejar las imágenes públicas"));
                 staged.add(new PublicMediaRepository.Item(p.getId(), image.toString(), name, null));
+                names.add(name);
             }
         } catch (Problem | IllegalArgumentException e) {
             host.release(folder, staged.stream().map(PublicMediaRepository.Item::fileName).toList());
             return new Outcome.Failed(e.getMessage());
         }
-        publicMedia.replace(p.getId(), staged);
-        String task = orders.submitInternal(p.getPromotionId(), AiRequestType.PUBLIC_LINK,
-                "Enlaces públicos: " + p.getTitle(),
-                "Busca en Google Drive, dentro de la carpeta «publico», cada archivo de inputs.files y devuelve su enlace de descarga.",
-                staged.stream().map(PublicMediaRepository.Item::fileName).toList());
+        String task;
+        try {
+            publicMedia.replace(p.getId(), staged);
+            task = orders.submitInternal(p.getPromotionId(), AiRequestType.PUBLIC_LINK,
+                    "Enlaces públicos: " + p.getTitle(),
+                    "Busca en Google Drive, dentro de la carpeta «publico», cada archivo de inputs.files y devuelve su id de Drive.",
+                    List.copyOf(names));
+        } catch (RuntimeException e) {
+            host.release(folder, List.copyOf(names));
+            throw e;
+        }
         return new Outcome.Pending(task);
     }
 
@@ -163,10 +189,7 @@ class InstagramRoute implements PublishRoute {
             try {
                 mediaId = instagram.publish(key, ig, container);
             } catch (InstagramException e) {
-                if (e.kind() == InstagramException.Kind.UNCERTAIN) {
-                    return new Outcome.Doubt("Meta no confirmó si la publicó: " + e.getMessage());
-                }
-                return new Outcome.Failed(e.getMessage());
+                return afterPublishError(key, container, e);
             }
         } catch (Problem | InstagramException e) {
             return new Outcome.Failed(e.getMessage());
@@ -178,6 +201,46 @@ class InstagramRoute implements PublishRoute {
             // Publicada, pero sin enlace todavía: se vuelve a mirar al comprobar
         }
         return new Outcome.Published(mediaId, url);
+    }
+
+    /**
+     * Ante cualquier error de {@code media_publish} (también un 4xx), se mira cómo quedó el contenedor: si consta como
+     * publicado, o no se puede saber, hay duda; solo si sigue en {@code FINISHED} se sabe que no se publicó.
+     */
+    private Outcome afterPublishError(String key, String container, InstagramException error) {
+        InstagramGateway.Container state;
+        try {
+            state = instagram.container(key, container);
+        } catch (InstagramException e) {
+            return new Outcome.Doubt("Meta dio un error al publicar (" + error.getMessage()
+                    + ") y no se pudo comprobar si la publicó: " + e.getMessage());
+        }
+        return switch (state.state()) {
+            case FINISHED -> new Outcome.Failed(error.getMessage());
+            case PUBLISHED -> new Outcome.Doubt("Meta consta que la publicó aunque dio un error (" + error.getMessage() + ")");
+            default -> new Outcome.Doubt("Meta dio un error al publicar (" + error.getMessage() + ") y el contenedor quedó en "
+                    + state.state());
+        };
+    }
+
+    /** Clave, cuenta de la marca, archivos y que Meta reconoce la cuenta. */
+    private Outcome checkBasics(Publication p) {
+        String key = secrets.get(KEY).orElse(null);
+        if (key == null) return new Outcome.Failed("no configurada");
+        String brand = promotions.brandOf(p.getPromotionId());
+        var account = accounts.account(brand).orElse(null);
+        if (account == null) return new Outcome.Failed("la marca no tiene su «Cuenta de Instagram (API oficial)»");
+        try {
+            plan(p);
+        } catch (Problem e) {
+            return new Outcome.Failed(e.getMessage());
+        }
+        try {
+            instagram.account(key, account.igUserId());
+        } catch (InstagramException e) {
+            return new Outcome.Failed(e.getMessage());
+        }
+        return new Outcome.Scheduled(null, null);
     }
 
     @Override

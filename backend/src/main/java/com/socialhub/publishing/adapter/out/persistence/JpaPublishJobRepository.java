@@ -46,6 +46,7 @@ class JpaPublishJobRepository implements PublishJobRepository {
         e.setLastError(job.getLastError());
         e.setManualFile(job.getManualFile());
         e.setPublishStartedAt(job.getPublishStartedAt());
+        e.setPreflightAt(job.getPreflightAt());
         e.setLog(String.join("\n", job.getLog()));
         e.setCreatedAt(job.getCreatedAt());
         e.setUpdatedAt(job.getUpdatedAt());
@@ -55,7 +56,7 @@ class JpaPublishJobRepository implements PublishJobRepository {
     private static PublishJob toDomain(PublishJobEntity e) {
         return new PublishJob(e.getPublicationId(), e.getStatus(), e.getRouteIndex(), e.getRoute(), e.getTaskId(),
                 PublishJob.split(e.getLateTaskIds()), e.getExternalId(), e.getUrl(), e.getNextTryAt(), e.getAttempts(),
-                e.getLastError(), e.getManualFile(), e.getPublishStartedAt(), PublishJob.split(e.getLog()), e.getCreatedAt(), e.getUpdatedAt(),
+                e.getLastError(), e.getManualFile(), e.getPublishStartedAt(), e.getPreflightAt(), PublishJob.split(e.getLog()), e.getCreatedAt(), e.getUpdatedAt(),
                 e.getVersion());
     }
 }

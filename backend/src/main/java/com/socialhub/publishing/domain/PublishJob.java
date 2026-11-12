@@ -62,6 +62,8 @@ public final class PublishJob {
     private @Nullable String manualFile;
     /** Desde cuándo SocialHub publica él mismo por la API oficial (sin resultado todavía): si queda así, hay duda. */
     private @Nullable Instant publishStartedAt;
+    /** Cuándo se comprobó todo en el corte previo (clave, cuenta, archivos y enlaces); antes, la vía aún puede ceder a Publer. */
+    private @Nullable Instant preflightAt;
     private final List<String> log;
     private final Instant createdAt;
     private Instant updatedAt;
@@ -70,7 +72,8 @@ public final class PublishJob {
     public PublishJob(String publicationId, Status status, int routeIndex, @Nullable String route, @Nullable String taskId,
                       List<String> lateTaskIds, @Nullable String externalId, @Nullable String url,
                       @Nullable Instant nextTryAt, int attempts, @Nullable String lastError, @Nullable String manualFile,
-                      @Nullable Instant publishStartedAt, List<String> log, Instant createdAt, Instant updatedAt, long version) {
+                      @Nullable Instant publishStartedAt, @Nullable Instant preflightAt, List<String> log, Instant createdAt,
+                      Instant updatedAt, long version) {
         this.publicationId = publicationId;
         this.status = status;
         this.routeIndex = routeIndex;
@@ -84,6 +87,7 @@ public final class PublishJob {
         this.lastError = lastError;
         this.manualFile = manualFile;
         this.publishStartedAt = publishStartedAt;
+        this.preflightAt = preflightAt;
         this.log = new ArrayList<>(log);
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
@@ -93,7 +97,7 @@ public final class PublishJob {
     /** Una tarea nueva al pasar a «Programada». Sustituye a la anterior si la había. */
     public static PublishJob start(String publicationId, Instant now, long version) {
         PublishJob job = new PublishJob(publicationId, Status.WORKING, 0, null, null, List.of(), null, null, null, 1, null,
-                null, null, List.of(), now, now, version);
+                null, null, null, List.of(), now, now, version);
         job.note(now, "Programada por Raúl: empieza la publicación");
         return job;
     }
@@ -131,6 +135,13 @@ public final class PublishJob {
         requireOpen();
         publishStartedAt = now;
         note(now, "Publicando por " + route + ": SocialHub la publica a la hora");
+    }
+
+    /** Comprobado todo en el corte previo: desde aquí la vía ya no cede a Publer por lo comprobado. */
+    public void preflightDone(Instant now) {
+        requireOpen();
+        preflightAt = now;
+        note(now, route + ": comprobado todo antes del corte (clave, cuenta, archivos y enlaces)");
     }
 
     /** Meta devolvió el identificador, pero falta el enlace que lo confirma: se vuelve a mirar cada pocos minutos. */

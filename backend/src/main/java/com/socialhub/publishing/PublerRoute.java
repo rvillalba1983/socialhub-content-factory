@@ -2,6 +2,7 @@ package com.socialhub.publishing;
 
 import com.socialhub.ai.AiOrders;
 import com.socialhub.ai.AiRequestType;
+import com.socialhub.ai.PcSchedule;
 import com.socialhub.publishing.domain.Publication;
 import com.socialhub.publishing.domain.PublishJob;
 import java.time.Duration;
@@ -36,6 +37,24 @@ class PublerRoute implements PublishRoute {
     @Override public Instant lastMoment(Instant scheduledAt) { return scheduledAt.minus(GIVE_UP); }
 
     static Instant deadline(Instant scheduledAt) { return scheduledAt.minus(DEADLINE); }
+
+    /** Cuánto antes de su límite tiene que ser la última pasada de Claude con Chrome que cuente: le deja tiempo de programarla. */
+    static final Duration PASS_MARGIN = Duration.ofMinutes(10);
+    /** Cuánto antes de esa pasada hay que haber cedido el encargo, para que lo vea (lo que tarda en sincronizar Drive y algo más). */
+    static final Duration HANDOVER_LEAD = Duration.ofMinutes(30);
+
+    /**
+     * El último momento en que una vía anterior puede ceder la publicación a Publer sin que se quede sin una pasada de
+     * Claude con Chrome antes del límite de Publer. Normalmente es una hora más que el límite; si el límite cae de
+     * noche (la tarea corre de 8:40 a 22:40), es antes de la última pasada anterior.
+     */
+    static Instant handoverBy(Instant scheduledAt) {
+        Instant limit = deadline(scheduledAt);
+        Instant pass = PcSchedule.lastPassAtOrBefore(limit.minus(PASS_MARGIN));
+        Instant byPass = pass.minus(HANDOVER_LEAD);
+        Instant usual = limit.minus(Duration.ofHours(1));
+        return byPass.isBefore(usual) ? byPass : usual;
+    }
 
     @Override
     public Outcome schedule(Publication p, PublishJob job, Instant now) {

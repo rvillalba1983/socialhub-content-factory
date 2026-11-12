@@ -7,12 +7,14 @@ import com.socialhub.publishing.domain.PublicMediaHost;
 import com.socialhub.publishing.domain.PublicMediaRepository;
 import com.socialhub.publishing.domain.Publication;
 import java.net.URI;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.jspecify.annotations.Nullable;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
@@ -27,17 +29,26 @@ import tools.jackson.databind.JsonNode;
 class PublicLinkHandler implements AiTypeHandler {
 
     static final String FOLDER = "publico";
+    /** El enlace de descarga de un archivo de Drive: lo construye SocialHub con el id, nunca se acepta uno que traiga Claude. */
+    static final String DRIVE_LINK = "https://drive.google.com/uc?export=download&id=";
+    private static final java.util.regex.Pattern DRIVE_ID = java.util.regex.Pattern.compile("[A-Za-z0-9_-]{10,}");
 
     private final PublicMediaRepository media;
     private final PublicMediaHost host;
     private final PublishingQueries queries;
     private final PublishingEngine engine;
+    private final Clock clock;
+    private final String linkBase;
 
-    PublicLinkHandler(PublicMediaRepository media, PublicMediaHost host, PublishingQueries queries, @Lazy PublishingEngine engine) {
+    PublicLinkHandler(PublicMediaRepository media, PublicMediaHost host, PublishingQueries queries, @Lazy PublishingEngine engine,
+                      Clock clock,
+                      @Value("${socialhub.publishing.public-link-base:" + DRIVE_LINK + "}") String linkBase) {
         this.media = media;
         this.host = host;
         this.queries = queries;
         this.engine = engine;
+        this.clock = clock;
+        this.linkBase = linkBase;
     }
 
     @Override public AiRequestType type() { return AiRequestType.PUBLIC_LINK; }
@@ -60,7 +71,7 @@ class PublicLinkHandler implements AiTypeHandler {
 
     @Override
     public @Nullable Instant deadline(AiJob job) {
-        return publication(job).map(p -> p.scheduledAt().minus(InstagramRoute.LINKS_CUTOFF)).orElse(null);
+        return publication(job).map(p -> InstagramRoute.cutoff(p.scheduledAt())).orElse(null);
     }
 
     @Override
@@ -70,9 +81,9 @@ class PublicLinkHandler implements AiTypeHandler {
         m.put("folder", FOLDER);
         m.put("how", List.of(
                 "Con tu conector de Google Drive, busca dentro de la carpeta «" + FOLDER + "» (dentro de la carpeta de SocialHub) cada archivo de «files» por su nombre exacto.",
-                "Para cada uno devuelve su id de Drive y la url https://drive.google.com/uc?export=download&id={id}.",
+                "Para cada uno devuelve su id de Drive (solo el id: SocialHub construye el enlace).",
                 "Solo lectura: no muevas, no borres, no compartas ni cambies permisos de nada. Si un archivo no aparece, no lo inventes: devuelve status \"failed\" y di cuál falta."));
-        m.put("expected_outputs", "links: [{file (nombre del archivo), id (id de Drive), url}] con un elemento por archivo de «files», y summary");
+        m.put("expected_outputs", "links: [{file (nombre del archivo), id (id de Drive)}] con un elemento por archivo de «files», y summary");
         return m;
     }
 
@@ -82,17 +93,15 @@ class PublicLinkHandler implements AiTypeHandler {
         if (!links.isArray()) throw new IllegalArgumentException("Falta «outputs.links» (una lista con un enlace por archivo)");
         Map<String, String> urls = new LinkedHashMap<>();
         for (String name : job.inputs()) {
-            String url = null;
+            String id = null;
             for (JsonNode l : links) {
                 if (!name.equals(l.path("file").asString("").strip())) continue;
-                String id = l.path("id").asString("").strip();
-                url = l.path("url").asString("").strip();
-                if (id.isEmpty()) throw new IllegalArgumentException("Falta el id de Drive de " + name);
+                id = l.path("id").asString("").strip();
                 break;
             }
-            if (url == null) throw new IllegalArgumentException("Falta el enlace de " + name);
-            if (!secure(url)) throw new IllegalArgumentException("El enlace de " + name + " no es https: " + url);
-            urls.put(name, url);
+            if (id == null) throw new IllegalArgumentException("Falta el enlace de " + name);
+            if (!DRIVE_ID.matcher(id).matches()) throw new IllegalArgumentException("El id de Drive de " + name + " no es válido");
+            urls.put(name, linkBase + id);
         }
         // Antes de dar nada por bueno, cada enlace tiene que devolver una imagen
         for (var e : urls.entrySet()) {
@@ -107,6 +116,12 @@ class PublicLinkHandler implements AiTypeHandler {
             engine.discardPublicMedia(publicationId);
             return "Enlaces llegados tarde: la publicación ya sigue por otra vía y no hacen falta";
         }
+        // Llegados después del corte previo, ya no sirven: Publer necesita su margen
+        boolean late = queries.find(publicationId).map(p -> !clock.instant().isBefore(InstagramRoute.cutoff(p.scheduledAt()))).orElse(true);
+        if (late) {
+            engine.discardPublicMedia(publicationId);
+            return "Enlaces llegados tarde, pasado el corte previo: la publicación sigue por Publer";
+        }
         urls.forEach((name, url) -> media.setUrl(publicationId, name, url));
         return engine.scheduled(publicationId, job.taskId(), null, null);
     }
@@ -119,13 +134,5 @@ class PublicLinkHandler implements AiTypeHandler {
     private Optional<Publication> publication(AiJob job) {
         return job.inputs().stream().findFirst().flatMap(media::byFileName).flatMap(i -> queries.find(i.publicationId()));
     }
-
-    private static boolean secure(@Nullable String url) {
-        if (url == null) return false;
-        // http solo hacia este mismo equipo (pruebas)
-        return url.startsWith("https://") || url.startsWith("http://127.0.0.1") || url.startsWith("http://localhost");
-    }
-
-    /** Nombre de la carpeta pública. */
 
 }
