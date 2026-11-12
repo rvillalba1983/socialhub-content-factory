@@ -9,13 +9,14 @@ import { FolderRoles } from './Folders';
 import { InstagramAccountCard, InstagramKeyCard } from './Instagram';
 import { MemoryCard } from './Memory';
 import { PublicationEditor } from './PublicationEditor';
+import { PromotionMetricsTab } from './PromotionMetrics';
 import { PubloraCard } from './Publora';
 import { PublerCard } from './Publer';
 import { BrandForm, PromotionForm, Registration } from './Registration';
 import { Factory } from './Factory';
 import { useFactory } from './useFactory';
 import { NextSteps, savedMessage, toastDuration } from './Recommendations';
-import type { Recommendation } from './api/schema';
+import type { PromotionMetrics, Recommendation } from './api/schema';
 import { PieceOrders } from './PieceOrders';
 import type { ExternalOperationPage, Snapshot, Station, Task } from './model';
 import { TaskPanel } from './Panel';
@@ -412,6 +413,59 @@ describe('Métricas', () => {
     expect(screen.getByText('Alcance')).toBeInTheDocument();
     expect(screen.getByText('Sin dato')).toBeInTheDocument();
     expect(screen.getByText(/Historia: sin reproducciones/)).toBeInTheDocument();
+  });
+});
+
+describe('Pestaña Métricas de la promoción', () => {
+  const metrics = (o: Partial<PromotionMetrics> = {}): PromotionMetrics => ({
+    measured: 0, pending: 0,
+    by_network: [{ network: 'INSTAGRAM', publications: 0 }, { network: 'TIKTOK', publications: 0 }, { network: 'TOTAL', publications: 0 }],
+    by_format: [], ...o,
+  });
+
+  it('sin nada medido explica que se lee a los 7 días y cuántas esperan', async () => {
+    vi.spyOn(api, 'promotionMetrics').mockResolvedValue(metrics({ pending: 3 }));
+    render(<PromotionMetricsTab promotionId="p" />);
+    expect(await screen.findByText(/Las métricas se leen a los 7 días de publicar/)).toBeInTheDocument();
+    expect(screen.getByText(/3 publicaciones/)).toBeInTheDocument();
+    expect(screen.queryByRole('table')).toBeNull();
+  });
+
+  it('enseña totales por red y medias por formato, con «pocos datos» solo en grupos pequeños', async () => {
+    vi.spyOn(api, 'promotionMetrics').mockResolvedValue(metrics({
+      measured: 7, pending: 1,
+      by_network: [
+        { network: 'INSTAGRAM', publications: 6, views: 1500, reach: 320, likes: 60 },
+        { network: 'TIKTOK', publications: 1, views: 900 },
+        { network: 'TOTAL', publications: 7, views: 2400, reach: 320, likes: 60 },
+      ],
+      by_format: [
+        { type: 'Carrusel', network: 'INSTAGRAM', publications: 1, low_sample: true, reach: 70 },
+        { type: 'Reel', network: 'INSTAGRAM', publications: 5, low_sample: false, views: 300, reach: 50, likes: 10 },
+      ],
+    }));
+    render(<PromotionMetricsTab promotionId="p" />);
+    const totals = await screen.findByRole('table', { name: 'Totales por red' });
+    expect(within(totals).getByText('Instagram')).toBeInTheDocument();
+    expect(within(totals).getByText('TikTok')).toBeInTheDocument();
+    expect(within(totals).getByText('Total')).toBeInTheDocument();
+    expect(within(totals).getByText('2400')).toBeInTheDocument();
+    for (const label of ['Reproducciones', 'Alcance', 'Me gusta', 'Comentarios', 'Guardados', 'Compartidos'])
+      expect(within(totals).getByText(label)).toBeInTheDocument();
+    for (const gone of ['Impresiones', 'Interacciones', 'Seguidores ganados', 'Clics en el enlace'])
+      expect(screen.queryByText(gone)).toBeNull();
+    expect(within(totals).getAllByText('Sin dato').length).toBeGreaterThan(0);
+    const formats = screen.getByRole('table', { name: 'Comparación por formato y red' });
+    expect(within(formats).getAllByText('pocos datos')).toHaveLength(1);
+    const reel = within(formats).getByText('Reel').closest('tr')!;
+    expect(within(reel).getByText('300')).toBeInTheDocument();
+    expect(within(reel).queryByText('pocos datos')).toBeNull();
+  });
+
+  it('muestra el error si el backend falla', async () => {
+    vi.spyOn(api, 'promotionMetrics').mockRejectedValue(new Error('boom'));
+    render(<PromotionMetricsTab promotionId="p" />);
+    expect(await screen.findByRole('alert')).toHaveTextContent('boom');
   });
 });
 
