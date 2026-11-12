@@ -84,4 +84,28 @@ class BrandFolderRootTest {
         write(url, "{\"base\":\"relativa/x\"}").andExpect(status().is4xxClientError());
         assertThat(Path.of("relativa")).doesNotExist();
     }
+
+    @Test
+    void publicShareMarkIsPerBrandAndComesBackWhenOrdersFolderChanges() throws Exception {
+        brand("rootthree");
+        String share = "/api/brands/rootthree/public-share";
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(share))
+                .andExpect(jsonPath("$.shared").value(false));
+        // Sin carpeta de Encargos no se puede marcar
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put(share).header("X-SocialHub-Request", "1")
+                .contentType(MediaType.APPLICATION_JSON).content("{\"shared\":true}")).andExpect(status().isConflict());
+
+        Path root = drive.resolve("a");
+        write("/api/brands/rootthree/folders/creation", json(root)).andExpect(status().isOk());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put(share).header("X-SocialHub-Request", "1")
+                .contentType(MediaType.APPLICATION_JSON).content("{\"shared\":true}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.shared").value(true));
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(share))
+                .andExpect(jsonPath("$.shared").value(true));
+
+        // Otra ruta de Encargos: vuelve el aviso
+        write("/api/brands/rootthree/folders/creation", json(drive.resolve("b"))).andExpect(status().isOk());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(share))
+                .andExpect(jsonPath("$.shared").value(false));
+    }
 }

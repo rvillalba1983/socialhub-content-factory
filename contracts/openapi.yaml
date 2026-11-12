@@ -216,6 +216,47 @@ paths:
         "409": { $ref: "#/components/responses/Problem" }
         default: { $ref: "#/components/responses/Problem" }
 
+  /api/brands/{brand_id}/public-share:
+    get:
+      tags: [Brands]
+      operationId: getBrandPublicShare
+      summary: Si Raúl ha marcado que la carpeta «publico» de la marca ya está compartida
+      description: >
+        SocialHub no puede comprobar el permiso de Drive: lo marca Raúl a mano. La marca solo vale para la carpeta de
+        Encargos con la que se hizo; si esa ruta cambia, vuelve a salir como no compartida.
+      parameters:
+        - $ref: "#/components/parameters/BrandId"
+      responses:
+        "200":
+          description: Estado de la marca
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublicShare" }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+    put:
+      tags: [Brands]
+      operationId: setBrandPublicShare
+      summary: Marca o desmarca «Ya está compartida» para la carpeta «publico» de la marca
+      description: Al marcar, se guarda la carpeta de Encargos actual de la marca (409 si no tiene).
+      parameters:
+        - $ref: "#/components/parameters/BrandId"
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PublicShareInput" }
+      responses:
+        "200":
+          description: Estado guardado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublicShare" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
   /api/promotions/{promotion_id}/external-calendar:
     get:
       tags: [Publications]
@@ -1918,6 +1959,18 @@ components:
         dismissed:
           type: boolean
           description: Raúl ha marcado «No uso Publora» para esta marca (no se le recomienda conectarla)
+
+    PublicShare:
+      type: object
+      required: [shared]
+      properties:
+        shared: { type: boolean }
+
+    PublicShareInput:
+      type: object
+      required: [shared]
+      properties:
+        shared: { type: boolean }
 
     PubloraDismissedInput:
       type: object

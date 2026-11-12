@@ -39,6 +39,7 @@ public class PromotionService {
     private final com.socialhub.promotion.domain.DecisionRepository decisions;
     private final java.time.Clock clock;
     private final com.socialhub.promotion.domain.FolderMaker folderMaker;
+    private final com.socialhub.promotion.domain.PublicShareMemo publicShare;
 
     public Brand createBrand(BrandDraft draft) {
         String id = Slugs.of(draft.name(), repository::brandIdTaken);
@@ -159,6 +160,27 @@ public class PromotionService {
                     + ". ¿Está abierto Google Drive para ordenador?");
         }
         return queries.brandFolders(brandId);
+    }
+
+    /** Si Raúl marcó la carpeta «publico» como compartida y la carpeta de Encargos sigue siendo la misma. */
+    @Transactional(readOnly = true)
+    public boolean publicShared(String brandId) {
+        if (repository.brand(brandId).isEmpty()) throw new NotFoundException("No existe la marca " + brandId);
+        String orders = folders.brandFolders(brandId).get(FolderRole.ORDERS);
+        return orders != null && java.util.Optional.of(orders).equals(publicShare.markedFor(brandId));
+    }
+
+    /** Marca (con la carpeta de Encargos de ahora) o desmarca que la carpeta «publico» ya está compartida. */
+    public boolean setPublicShared(String brandId, boolean shared) {
+        if (repository.brand(brandId).isEmpty()) throw new NotFoundException("No existe la marca " + brandId);
+        if (!shared) {
+            publicShare.clear(brandId);
+            return false;
+        }
+        String orders = folders.brandFolders(brandId).get(FolderRole.ORDERS);
+        if (orders == null) throw new com.socialhub.platform.DomainException("La marca no tiene carpeta de Encargos: configura las carpetas primero.");
+        publicShare.mark(brandId, orders);
+        return true;
     }
 
     /** Sustituye las excepciones de la promoción. Devuelve los papeles que quedan en vigor. */
