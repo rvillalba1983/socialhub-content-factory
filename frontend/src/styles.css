@@ -450,3 +450,6 @@ tr.op-detail td{background:var(--surface-2)}
 .next-strip .aitem>span.go{flex:none;font-size:16px;line-height:1.4}
 .next-strip .aitem{justify-content:space-between}
 @media (max-width:900px){.next-strip{padding-block:8px 10px}.next-list{gap:8px}.next-strip .aitem{padding:8px 12px}}
+
+/* Tarjeta «Cuenta en Publer»: separa los campos */
+[data-card="publer"] .field{margin-bottom:12px}
