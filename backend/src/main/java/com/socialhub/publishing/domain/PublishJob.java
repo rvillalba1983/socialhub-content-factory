@@ -130,7 +130,7 @@ public final class PublishJob {
      */
     public void hold(String reason, Instant retryAt, Instant now) {
         requireOpen();
-        boolean same = status == Status.HELD && reason.equals(lastError);
+        boolean same = reason.equals(lastError);
         status = Status.HELD;
         taskId = null;
         nextTryAt = retryAt;
