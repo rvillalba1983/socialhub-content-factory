@@ -39,6 +39,7 @@ public class PromotionService {
     private final com.socialhub.promotion.domain.DecisionRepository decisions;
     private final java.time.Clock clock;
     private final com.socialhub.promotion.domain.FolderMaker folderMaker;
+    private final com.socialhub.promotion.domain.PublicShareMemo publicShare;
 
     public Brand createBrand(BrandDraft draft) {
         String id = Slugs.of(draft.name(), repository::brandIdTaken);
@@ -105,22 +106,33 @@ public class PromotionService {
         return queries.brandFolders(brandId);
     }
 
+    /** Subcarpetas de intercambio con Claude dentro de «Encargos» (y la pública de Instagram). */
+    static final List<String> ORDER_SUBFOLDERS = List.of("para-claude", "para-claude-pc", "de-claude", "publico");
+
     /**
-     * Carpetas de la marca: con una carpeta base, los papeles sin carpeta pasan a ser subcarpetas suyas con su nombre
-     * (Material, Borradores…). Después se crean las carpetas asignadas que no existan. Nunca se borra ni se mueve nada.
+     * Carpetas de la marca. Con carpeta raíz: Material es la propia raíz, el resto son subcarpetas suyas en minúsculas
+     * (borradores, generados, aprobados, publicados, informes, encargos) y dentro de encargos se crean para-claude,
+     * para-claude-pc, de-claude y publico. Los 7 papeles pasan a apuntar ahí. Sin raíz se crean las carpetas ya asignadas.
+     * Nunca se borra ni se mueve nada: lo que ya exista se respeta.
      */
     public List<FolderAssignment> createBrandFolders(String brandId, @org.jspecify.annotations.Nullable String base) {
         if (repository.brand(brandId).isEmpty()) throw new NotFoundException("No existe la marca " + brandId);
         Map<FolderRole, String> current = new EnumMap<>(FolderRole.class);
         current.putAll(folders.brandFolders(brandId));
-        if (base != null && !base.isBlank()) {
+        boolean fromRoot = base != null && !base.isBlank();
+        if (fromRoot) {
             String root = clean(Map.of(FolderRole.MATERIAL, base)).get(FolderRole.MATERIAL);
+            if (!folderMaker.reachable(root)) {
+                throw new com.socialhub.platform.DomainException("No se puede acceder a la carpeta raíz «" + root
+                        + "». ¿Está la unidad disponible y Google Drive para ordenador abierto?");
+            }
+            current.clear();
             for (FolderRole role : FolderRole.values()) {
-                current.computeIfAbsent(role, r -> Path.of(root).resolve(r.label()).toString());
+                current.put(role, role == FolderRole.MATERIAL ? root : Path.of(root).resolve(role.label().toLowerCase(java.util.Locale.ROOT)).toString());
             }
         }
         if (current.isEmpty()) {
-            throw new com.socialhub.platform.DomainException("Escribe una carpeta base o la ruta de cada papel antes de crear las carpetas.");
+            throw new com.socialhub.platform.DomainException("Escribe una carpeta raíz o la ruta de cada papel antes de crear las carpetas.");
         }
         Map<FolderRole, String> assigned = clean(current);
         java.util.List<String> failed = new java.util.ArrayList<>();
@@ -131,6 +143,16 @@ public class PromotionService {
                 failed.add(f.getKey().label() + " (" + e.getMessage() + ")");
             }
         }
+        String orders = assigned.get(FolderRole.ORDERS);
+        if (fromRoot && orders != null) {
+            for (String sub : ORDER_SUBFOLDERS) {
+                try {
+                    folderMaker.ensure(Path.of(orders).resolve(sub).toString());
+                } catch (RuntimeException e) {
+                    failed.add(sub + " (" + e.getMessage() + ")");
+                }
+            }
+        }
         folders.replaceBrandFolders(brandId, assigned);
         events.publishEvent(new FactoryChanged("brand", brandId));
         if (!failed.isEmpty()) {
@@ -138,6 +160,27 @@ public class PromotionService {
                     + ". ¿Está abierto Google Drive para ordenador?");
         }
         return queries.brandFolders(brandId);
+    }
+
+    /** Si Raúl marcó la carpeta «publico» como compartida y la carpeta de Encargos sigue siendo la misma. */
+    @Transactional(readOnly = true)
+    public boolean publicShared(String brandId) {
+        if (repository.brand(brandId).isEmpty()) throw new NotFoundException("No existe la marca " + brandId);
+        String orders = folders.brandFolders(brandId).get(FolderRole.ORDERS);
+        return orders != null && java.util.Optional.of(orders).equals(publicShare.markedFor(brandId));
+    }
+
+    /** Marca (con la carpeta de Encargos de ahora) o desmarca que la carpeta «publico» ya está compartida. */
+    public boolean setPublicShared(String brandId, boolean shared) {
+        if (repository.brand(brandId).isEmpty()) throw new NotFoundException("No existe la marca " + brandId);
+        if (!shared) {
+            publicShare.clear(brandId);
+            return false;
+        }
+        String orders = folders.brandFolders(brandId).get(FolderRole.ORDERS);
+        if (orders == null) throw new com.socialhub.platform.DomainException("La marca no tiene carpeta de Encargos: configura las carpetas primero.");
+        publicShare.mark(brandId, orders);
+        return true;
     }
 
     /** Sustituye las excepciones de la promoción. Devuelve los papeles que quedan en vigor. */

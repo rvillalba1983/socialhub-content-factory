@@ -1,0 +1,61 @@
+### Identidad de la marca · formato versión 1
+### Cada campo empieza con «## Nombre». Las líneas que empiezan por «###» son comentarios y se ignoran.
+### Campos de texto: el texto que siga hasta el siguiente «##».
+### Campos de lista (Temas que no se tocan, Expresiones preferidas, Expresiones prohibidas, Colores):
+### un elemento por línea, empezando por «- ».
+### Un campo con «##» pero vacío se queda vacío. Un campo que no aparece no se toca.
+### Nombres válidos (sin distinguir mayúsculas ni tildes): Tono, Público, Temas que no se tocan,
+### Expresiones preferidas, Expresiones prohibidas, Colores, Tipografía, Logotipo, Estilo visual,
+### Estilo fotográfico, Llamada a la acción, Hashtags fijos.
+
+## Tono
+### Texto. Máximo 2000 caracteres.
+Cercano, con humor y sin solemnidad. Habla de tú, con frases cortas.
+
+## Público
+### Texto. Máximo 2000 caracteres.
+Lectores de 25 a 45 años a los que les gusta la ironía y las historias de barrio.
+
+## Temas que no se tocan
+### Lista. Máximo 50 elementos de 200 caracteres.
+- Política de partidos
+- Religión
+
+## Expresiones preferidas
+### Lista. Máximo 100 elementos de 200 caracteres.
+- de aquí a la luna
+- ¡a por ello!
+
+## Expresiones prohibidas
+### Lista. Máximo 100 elementos de 200 caracteres.
+- lo mejor del mercado
+- compra ya
+
+## Colores
+### Lista. Máximo 20 elementos de 40 caracteres.
+- #D23A2E
+- #1B1B1B
+
+## Tipografía
+### Texto. Máximo 200 caracteres.
+Fraunces para títulos, Inter para el texto.
+
+## Logotipo
+### Texto. Máximo 500 caracteres.
+G:\Mi unidad\socialhub\eldelito\material\logo.png
+
+## Estilo visual
+### Texto. Máximo 2000 caracteres.
+Colores planos, mucho contraste, composiciones limpias.
+
+## Estilo fotográfico
+### Texto. Máximo 2000 caracteres.
+Luz natural, planos cercanos, nada de bancos de imágenes.
+
+## Llamada a la acción
+### Texto. Máximo 500 caracteres.
+Cuéntanos qué te parece en los comentarios.
+
+## Hashtags fijos
+### Texto. Máximo 1000 caracteres.
+#eldelito #litoques

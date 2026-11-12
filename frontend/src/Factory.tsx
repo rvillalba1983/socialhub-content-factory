@@ -15,9 +15,12 @@ import {
 import { ArmoryPanel, StationPanel, TaskPanel } from './Panel';
 import { Dot, Pill, prefersReducedMotion } from './ui';
 import { World, openAlert, type Selection } from './World';
+import { clampView, fitScale, validBox, type Box } from './viewLimits';
 
 interface View { s: number; tx: number; ty: number }
 const clampS = (s: number) => Math.max(0.08, Math.min(3.5, s));
+/** Lo que cuenta como contenido del mapa: con esto se encuadra y se limita el desplazamiento. */
+const CONTENT = '.st,.hub,.res,.node,.seglabel';
 const lodFor = (s: number) => (s < 0.72 ? 1 : s < 1.55 ? 2 : 3);
 
 interface Hit { kind: string; label: string; s?: StatusCode; go: () => void }
@@ -29,6 +32,9 @@ export function Factory({ data, live, onRefresh }: {
   const world = useRef<HTMLDivElement>(null);
   const view = useRef<View>({ s: 0.5, tx: 0, ty: 0 });
   const anim = useRef<number>(0);
+  // Caja del contenido (nivel de detalle 1) y límites de la vista; se rellenan al encuadrar y al cambiar los datos
+  const bounds = useRef<Box | null>(null);
+  const clampRef = useRef<(v: View) => View>(v => v);
   const [lod, setLod] = useState(1);
   const [zoom, setZoom] = useState(50);
   const [sel, setSel] = useState<Selection>({ type: null, id: null });
@@ -56,6 +62,7 @@ export function Factory({ data, live, onRefresh }: {
 
   // ---------- vista: zoom, desplazamiento y zoom semántico ----------
   const apply = useCallback(() => {
+    view.current = clampRef.current(view.current);
     const v = view.current;
     if (world.current) world.current.style.transform = `translate(${v.tx}px,${v.ty}px) scale(${v.s})`;
     const l = lodFor(v.s);
@@ -99,12 +106,31 @@ export function Factory({ data, live, onRefresh }: {
     return b;
   }, []);
 
+  const pads = useCallback(() => {
+    const wide = vp.current!.clientWidth > 760;
+    return { pt: wide ? 58 : 16, pb: wide ? 52 : 16 };
+  }, []);
+
+  // Límites: el contenido no sale del todo de la vista y no se aleja más de lo que se ve al «Encuadrar todo»
+  const minScale = useCallback(() => {
+    const b = bounds.current;
+    if (!vp.current || !validBox(b)) return 0.08;
+    const { pt, pb } = pads();
+    return fitScale(b, avail(), pt, pb);
+  }, [avail, pads]);
+  const clampZoom = useCallback((s: number) => Math.max(minScale(), Math.min(3.5, s)), [minScale]);
+  clampRef.current = v => {
+    const b = bounds.current;
+    return vp.current && validBox(b) ? clampView(v, b, avail(), minScale()) : v;
+  };
+
   const fit = useCallback(() => {
     if (!vp.current || !world.current) return;
-    const a = avail(), wide = vp.current.clientWidth > 760, pt = wide ? 58 : 16, pb = wide ? 52 : 16, pad = 16;
-    const b = measure(1, '.st,.hub,.res,.node,.seglabel');
+    const a = avail(), { pt, pb } = pads();
+    const b = measure(1, CONTENT);
+    bounds.current = b;
     const w = b.x1 - b.x0, h = b.y1 - b.y0, ah = a.h - pt - pb;
-    const s = clampS(Math.min((a.w - pad * 2) / w, ah / h, 0.7));
+    const s = validBox(b) ? fitScale(b, a, pt, pb) : clampS(0.7);
     animateTo({ s, tx: (a.w - w * s) / 2 - b.x0 * s, ty: pt + (ah - h * s) / 2 - b.y0 * s });
   }, [avail, measure, animateTo]);
 
@@ -118,14 +144,19 @@ export function Factory({ data, live, onRefresh }: {
 
   const zoomAt = useCallback((cx: number, cy: number, f: number) => {
     cancelAnimationFrame(anim.current);
-    const v = view.current, s = clampS(v.s * f), k = s / v.s;
+    const v = view.current, s = clampZoom(v.s * f), k = s / v.s;
     view.current = { s, tx: cx - (cx - v.tx) * k, ty: cy - (cy - v.ty) * k };
     apply();
-  }, [apply]);
+  }, [apply, clampZoom]);
 
   useLayoutEffect(() => {
     if (!fitted.current && world.current) { fitted.current = true; apply(); fit(); }
   }, [apply, fit]);
+
+  // El contenido cambia con los datos (promociones, tarjetas): se vuelve a medir para los límites
+  useLayoutEffect(() => {
+    if (fitted.current && world.current && vp.current) bounds.current = measure(1, CONTENT);
+  }, [data, measure]);
 
   // La franja de «Qué hacer ahora» cambia el alto del mapa: se vuelve a encuadrar al aparecer o desaparecer
   const hasNext = data.recommendations.length > 0;
@@ -166,7 +197,7 @@ export function Factory({ data, live, onRefresh }: {
       if (!ptrs.has(e.pointerId)) return;
       ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (pinch && ptrs.size === 2) {
-        const [p1, p2] = [...ptrs.values()], s = clampS(pinch.s * Math.hypot(p1.x - p2.x, p1.y - p2.y) / pinch.d), k = s / pinch.s;
+        const [p1, p2] = [...ptrs.values()], s = clampZoom(pinch.s * Math.hypot(p1.x - p2.x, p1.y - p2.y) / pinch.d), k = s / pinch.s;
         view.current = { s, tx: pinch.cx - (pinch.cx - pinch.tx) * k, ty: pinch.cy - (pinch.cy - pinch.ty) * k };
         cancelAnimationFrame(anim.current); apply(); suppress = true; return;
       }
@@ -202,7 +233,7 @@ export function Factory({ data, live, onRefresh }: {
       el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up);
       el.removeEventListener('wheel', wheel); document.removeEventListener('click', click, true);
     };
-  }, [apply, zoomAt]);
+  }, [apply, zoomAt, clampZoom]);
 
   // ---------- navegación ----------
   const goStation = useCallback((id: string) => {

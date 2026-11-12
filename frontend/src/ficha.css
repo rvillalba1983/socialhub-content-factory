@@ -1,0 +1,10 @@
+/* Ficha de la marca: avisos e importación de la identidad */
+.brand-notices ul{list-style:none;padding:0;display:grid;gap:8px}
+.brand-notices li{display:flex;gap:12px;justify-content:space-between;align-items:center;flex-wrap:wrap;padding:8px 12px;border:1px solid var(--line);border-radius:12px}
+.notice-actions{display:flex;gap:8px;flex-wrap:wrap}
+.identity-import{display:grid;gap:10px;padding-top:12px;border-top:1px solid var(--line)}
+.identity-import textarea{font-family:ui-monospace,monospace;font-size:13px}
+.identity-diff{display:grid;gap:8px}
+.identity-diff pre{margin:0;white-space:pre-wrap;font-size:13px}
+.identity-diff .cols{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+@media (max-width:640px){.identity-diff .cols{grid-template-columns:1fr}}

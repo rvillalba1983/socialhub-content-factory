@@ -191,11 +191,13 @@ paths:
     post:
       tags: [Brands]
       operationId: createBrandFolders
-      summary: Crea las carpetas de la marca que falten
+      summary: Crea las carpetas de la marca desde una raíz (o las que falten)
       description: >
-        Con «base», los papeles sin carpeta pasan a ser subcarpetas suyas (Material, Borradores, Generados, Aprobados,
-        Publicados, Informes y Encargos). Después crea las carpetas asignadas que no existan. Nunca borra, mueve ni
-        cambia carpetas que ya existan.
+        Con «base» (la carpeta raíz de la marca): Material es la propia raíz; Borradores, Generados, Aprobados,
+        Publicados, Informes y Encargos son subcarpetas suyas (borradores, generados, aprobados, publicados, informes,
+        encargos) y dentro de encargos se crean para-claude, para-claude-pc, de-claude y publico. Los 7 papeles pasan a
+        apuntar a esas rutas. Sin «base», crea las carpetas ya asignadas que no existan. Nunca borra, mueve ni cambia
+        carpetas que ya existan. Si la raíz no es accesible (unidad no disponible) devuelve 409 con el motivo.
       parameters:
         - $ref: "#/components/parameters/BrandId"
         - $ref: "#/components/parameters/RequestGuard"
@@ -210,6 +212,47 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/FolderList" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/brands/{brand_id}/public-share:
+    get:
+      tags: [Brands]
+      operationId: getBrandPublicShare
+      summary: Si Raúl ha marcado que la carpeta «publico» de la marca ya está compartida
+      description: >
+        SocialHub no puede comprobar el permiso de Drive: lo marca Raúl a mano. La marca solo vale para la carpeta de
+        Encargos con la que se hizo; si esa ruta cambia, vuelve a salir como no compartida.
+      parameters:
+        - $ref: "#/components/parameters/BrandId"
+      responses:
+        "200":
+          description: Estado de la marca
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublicShare" }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+    put:
+      tags: [Brands]
+      operationId: setBrandPublicShare
+      summary: Marca o desmarca «Ya está compartida» para la carpeta «publico» de la marca
+      description: Al marcar, se guarda la carpeta de Encargos actual de la marca (409 si no tiene).
+      parameters:
+        - $ref: "#/components/parameters/BrandId"
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PublicShareInput" }
+      responses:
+        "200":
+          description: Estado guardado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublicShare" }
         "404": { $ref: "#/components/responses/Problem" }
         "409": { $ref: "#/components/responses/Problem" }
         default: { $ref: "#/components/responses/Problem" }
@@ -1627,7 +1670,7 @@ components:
     FolderCreationInput:
       type: object
       properties:
-        base: { type: string, description: "Carpeta base de la marca (opcional), por ejemplo G:/Mi unidad/SocialHub/Litoques" }
+        base: { type: string, description: "Carpeta raíz de la marca (opcional), por ejemplo G:/Mi unidad/socialhub/eldelito" }
 
     Folder:
       type: object
@@ -1926,6 +1969,18 @@ components:
         dismissed:
           type: boolean
           description: Raúl ha marcado «No uso Publora» para esta marca (no se le recomienda conectarla)
+
+    PublicShare:
+      type: object
+      required: [shared]
+      properties:
+        shared: { type: boolean }
+
+    PublicShareInput:
+      type: object
+      required: [shared]
+      properties:
+        shared: { type: boolean }
 
     PubloraDismissedInput:
       type: object

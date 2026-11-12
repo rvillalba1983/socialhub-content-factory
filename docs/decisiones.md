@@ -519,3 +519,23 @@ Rama `fase-12-ritmo-claude`, versión 1.1.0. Decisiones de Raúl del 12 nov y de
 - **«Especificación en espera» desaparece** (técnico): la fila SPEC_WAITING de «Qué hacer ahora» avisaba de que faltaban publicaciones aprobadas de la semana; con lotes ya no tiene sentido y no se calcula. El valor sigue en la API por compatibilidad.
 - **Tareas programadas** (respuesta de Raúl): no se tocan desde la sesión de programación. La sesión principal las actualiza cuando Raúl instale la 1.1.0; los textos están en `docs/tarea-programada-encargos.md`.
 - **Sin librerías nuevas.**
+
+## Fase 12 · FFmpeg probado en macOS (12 nov 2026)
+
+- **Causa del «Permission denied»** (técnico): no era un fallo de permisos del código. El paso informativo de la prueba ejecutaba el binario en cuanto aparecía en `runtime/javacpp`, mientras SocialHub aún lo estaba extrayendo; `FfmpegTool.executable()` le pone el permiso de ejecución justo después de extraerlo (y también a `ffprobe`). Con la comprobación del arranque ya terminada, el binario queda `-rwxr--r--` y funciona. No hizo falta cambiar código ni quitar cuarentena (lo extrae el propio proceso, sin atributo de cuarentena).
+- **Prueba obligatoria en el `.dmg`** (técnico): con la app instalada y arrancada, el job pasa a modo real, espera la tarea `check-local-tools` del arranque, la relanza por la API (`RERUN`, o `RETRY` si falló) y exige «OK · FFmpeg» en su registro. Después genera con el FFmpeg que SocialHub dejó listo una imagen y un audio de prueba y de ellos un vídeo H.264/AAC de 2 s; comprueba con ffprobe que dura más de 1 s. Si algo falla, el job falla.
+- **Resultado:** FFmpeg 8.1.2 (macOS arm64, GPL, con H.264) funciona en la máquina macOS de GitHub; pieza de 2,0 s. Sigue sin probarse en un Mac real de Raúl (no tiene).
+
+## Fase 12 · Usabilidad (12 nov 2026)
+
+Decisiones de Raúl:
+- **Carpetas desde una raíz:** en la ficha de la marca, un campo «Carpeta raíz». SocialHub crea en el disco local (sincronizado con Drive) la estructura y rellena los 7 papeles: Material es la propia raíz; `borradores`, `generados`, `aprobados`, `publicados`, `informes` y `encargos`; dentro de `encargos`: `para-claude`, `para-claude-pc`, `de-claude` y `publico`. Lo que ya existe se respeta (nunca se borra ni se mueve nada). Los 7 campos siguen visibles y editables (avanzado). Si la raíz no es accesible, error claro. Sustituye a la «carpeta base» de la decisión del 8 nov (subcarpetas con mayúscula y solo en papeles vacíos).
+- **Avisos en la ficha de la marca:** arriba, con lo que falta por completar y un botón que baja a cada tarjeta: identidad (tono y público), carpetas sin configurar o no disponibles, cuenta de Publer de Instagram y de TikTok, cuenta de Instagram de la API oficial (solo con clave de Meta) y compartir la carpeta «publico» (con la API oficial configurada en la marca). SocialHub no puede comprobar el permiso de Drive: «Ya está compartida» lo oculta, se guarda por marca y vuelve si cambia la ruta de Encargos. Sin pendientes, no sale el bloque.
+- **Mapa:** no se puede arrastrar ni alejar a zonas vacías. El contenido siempre queda a la vista (sus bordes no pasan del centro) y el zoom mínimo es el de «Encuadrar todo».
+- **Importar la identidad desde un .txt** (formato versión 1, en MANUAL.md y `docs/ejemplos/identidad-marca.txt`): campos `## Nombre`, listas con `- `, comentarios `###`. Antes de guardar se enseñan los cambios (antes → después); lo que viene sustituye y lo que no viene se queda. Errores claros (campo desconocido, límites del contrato). «Copiar plantilla» copia una instrucción para una IA más la plantilla con los límites y, si la hay, la identidad actual.
+
+Decisiones técnicas:
+- **Raíz con los 7 papeles:** al dar una raíz explícita, los 7 papeles pasan a apuntar a ella (se sustituyen las rutas guardadas; nada en disco se mueve). La raíz no se guarda aparte: la ficha la deduce (Material con Encargos en `encargos` debajo). «Accesible» = existe la unidad de la ruta y, si la ruta existe, es una carpeta.
+- **Marca «publico compartida»:** se guarda en `app_setting` (clave `public-share:<marca>`, valor = carpeta de Encargos con la que se marcó), sin migración nueva. Endpoint `/api/brands/{brand_id}/public-share`.
+- **Los avisos se calculan en el frontal** con los endpoints que ya existen (sin endpoint nuevo de «pendientes»).
+- **Límites del mapa:** se calculan en el frontal (`viewLimits.ts`) con la caja del contenido a nivel de detalle 1.

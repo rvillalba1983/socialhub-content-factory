@@ -261,9 +261,46 @@ jobs:
           [ -f "$HOME/Library/Application Support/SocialHub/pgdata/postmaster.pid" ] || { echo "::error::No existe postmaster.pid"; exit 1; }
           grep -qi "database system is ready to accept connections\|PostgreSQL" "$logs" || { mostrar_registro; echo "::error::El registro no menciona PostgreSQL"; exit 1; }
           echo "PostgreSQL en marcha"
-          # FFmpeg incluido: se extrae y se ejecuta
+          # FFmpeg incluido (OBLIGATORIO): se relanza por la API la comprobación de herramientas locales y se exige «OK · FFmpeg»
+          api=http://127.0.0.1:8686/api
+          cab=(-H 'X-SocialHub-Request: 1' -H 'Content-Type: application/json')
+          curl -fsS --noproxy '*' "${cab[@]}" -X PUT -d '{"mode":"REAL"}' "$api/app-mode" > /dev/null || { echo "::error::No se pudo pasar a modo real"; exit 1; }
+          tarea() { curl -fsS --noproxy '*' "$api/tasks/check-local-tools"; }
+          estado() { python3 -c 'import sys,json; print(json.load(sys.stdin)["status"])'; }
+          terminada() { case "$1" in [Cc][Oo][Mm][Pp][Ll][Ee][Tt][Ee][Dd]|[Ff][Aa][Ii][Ll][Ee][Dd]) return 0;; esac; return 1; }
+          # Espera a que la comprobación del arranque termine (o a que exista)
+          st=ninguna
+          for i in $(seq 1 60); do
+            st=$(tarea 2>/dev/null | estado 2>/dev/null || echo ninguna)
+            terminada "$st" && break
+            sleep 2
+          done
+          echo "Comprobación del arranque: $st"; tarea | python3 -m json.tool | head -60
+          # Se relanza (RERUN si está completada, RETRY si falló) para comprobar el estado actual
+          cmd=RERUN; case "$st" in [Ff][Aa][Ii][Ll][Ee][Dd]) cmd=RETRY;; esac
+          curl -fsS --noproxy '*' "${cab[@]}" -X POST -d "{\"type\":\"$cmd\"}" "$api/tasks/check-local-tools/commands" > /dev/null || { echo "::error::No se pudo lanzar $cmd"; exit 1; }
+          sleep 3
+          for i in $(seq 1 60); do
+            st=$(tarea | estado)
+            terminada "$st" && break
+            sleep 2
+          done
+          tarea > "$RUNNER_TEMP/tarea.json"; python3 -m json.tool "$RUNNER_TEMP/tarea.json" | head -80
+          grep -q 'OK · FFmpeg' "$RUNNER_TEMP/tarea.json" || { mostrar_registro; echo "::error::La comprobación de herramientas no dice «OK · FFmpeg»"; exit 1; }
+          echo "Comprobación de herramientas: OK · FFmpeg"
+          # Pieza real con el FFmpeg que SocialHub dejó listo: vídeo de 2 s desde una imagen y un audio
           ff=$(find "$HOME/Library/Application Support/SocialHub/runtime" -name ffmpeg -type f 2>/dev/null | head -1)
-          if [ -n "$ff" ]; then "$ff" -version | head -1; else echo "FFmpeg aún no extraído (se extrae al usarlo)"; fi
+          fp="$(dirname "$ff")/ffprobe"
+          ls -la "$(dirname "$ff")" | head; [ -x "$ff" ] || { echo "::error::FFmpeg extraído sin permiso de ejecución: $ff"; exit 1; }
+          pieza="$RUNNER_TEMP/pieza"; mkdir -p "$pieza"
+          "$ff" -y -loglevel error -f lavfi -i color=c=orange:s=540x960 -frames:v 1 "$pieza/imagen.png"
+          "$ff" -y -loglevel error -f lavfi -i "sine=frequency=440:duration=2" "$pieza/audio.m4a"
+          "$ff" -y -loglevel error -loop 1 -i "$pieza/imagen.png" -i "$pieza/audio.m4a" -t 2 -c:v libx264 -pix_fmt yuv420p -c:a aac -shortest -movflags +faststart "$pieza/pieza.mp4"
+          [ -s "$pieza/pieza.mp4" ] || { echo "::error::No se generó la pieza"; exit 1; }
+          dur=$("$fp" -v error -show_entries format=duration -of csv=p=0 "$pieza/pieza.mp4")
+          echo "Pieza generada: $(stat -f %z "$pieza/pieza.mp4") bytes, ${dur}s"
+          python3 -c "import sys; sys.exit(0 if float('$dur')>1 else 1)" || { echo "::error::La pieza dura menos de 1 s ($dur)"; exit 1; }
+          echo "FFmpeg probado en macOS: OK"
           # Segundo arranque: solo abre el navegador y termina
           "$exe" > "$RUNNER_TEMP/segundo.log" 2>&1 &
           segundo=$!

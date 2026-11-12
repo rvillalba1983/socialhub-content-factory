@@ -107,10 +107,34 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Crea las carpetas de la marca que falten
-         * @description Con «base», los papeles sin carpeta pasan a ser subcarpetas suyas (Material, Borradores, Generados, Aprobados, Publicados, Informes y Encargos). Después crea las carpetas asignadas que no existan. Nunca borra, mueve ni cambia carpetas que ya existan.
+         * Crea las carpetas de la marca desde una raíz (o las que falten)
+         * @description Con «base» (la carpeta raíz de la marca): Material es la propia raíz; Borradores, Generados, Aprobados, Publicados, Informes y Encargos son subcarpetas suyas (borradores, generados, aprobados, publicados, informes, encargos) y dentro de encargos se crean para-claude, para-claude-pc, de-claude y publico. Los 7 papeles pasan a apuntar a esas rutas. Sin «base», crea las carpetas ya asignadas que no existan. Nunca borra, mueve ni cambia carpetas que ya existan. Si la raíz no es accesible (unidad no disponible) devuelve 409 con el motivo.
          */
         post: operations["createBrandFolders"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/brands/{brand_id}/public-share": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Si Raúl ha marcado que la carpeta «publico» de la marca ya está compartida
+         * @description SocialHub no puede comprobar el permiso de Drive: lo marca Raúl a mano. La marca solo vale para la carpeta de Encargos con la que se hizo; si esa ruta cambia, vuelve a salir como no compartida.
+         */
+        get: operations["getBrandPublicShare"];
+        /**
+         * Marca o desmarca «Ya está compartida» para la carpeta «publico» de la marca
+         * @description Al marcar, se guarda la carpeta de Encargos actual de la marca (409 si no tiene).
+         */
+        put: operations["setBrandPublicShare"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1111,7 +1135,7 @@ export interface components {
          */
         FolderRole: "MATERIAL" | "DRAFTS" | "GENERATED" | "APPROVED" | "PUBLISHED" | "REPORTS" | "ORDERS";
         FolderCreationInput: {
-            /** @description Carpeta base de la marca (opcional), por ejemplo G:/Mi unidad/SocialHub/Litoques */
+            /** @description Carpeta raíz de la marca (opcional), por ejemplo G:/Mi unidad/socialhub/eldelito */
             base?: string;
         };
         Folder: {
@@ -1390,6 +1414,12 @@ export interface components {
             items: components["schemas"]["PubloraAccount"][];
             /** @description Raúl ha marcado «No uso Publora» para esta marca (no se le recomienda conectarla) */
             dismissed: boolean;
+        };
+        PublicShare: {
+            shared: boolean;
+        };
+        PublicShareInput: {
+            shared: boolean;
         };
         PubloraDismissedInput: {
             dismissed: boolean;
@@ -2027,6 +2057,8 @@ export type PubloraConnection = components['schemas']['PubloraConnection'];
 export type PubloraKeyInput = components['schemas']['PubloraKeyInput'];
 export type PubloraAccount = components['schemas']['PubloraAccount'];
 export type PubloraAccountList = components['schemas']['PubloraAccountList'];
+export type PublicShare = components['schemas']['PublicShare'];
+export type PublicShareInput = components['schemas']['PublicShareInput'];
 export type PubloraDismissedInput = components['schemas']['PubloraDismissedInput'];
 export type PubloraAccountInput = components['schemas']['PubloraAccountInput'];
 export type PubloraAccountListInput = components['schemas']['PubloraAccountListInput'];
@@ -2339,6 +2371,62 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FolderList"];
+                };
+            };
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    getBrandPublicShare: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                brand_id: components["parameters"]["BrandId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Estado de la marca */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicShare"];
+                };
+            };
+            404: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    setBrandPublicShare: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path: {
+                brand_id: components["parameters"]["BrandId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PublicShareInput"];
+            };
+        };
+        responses: {
+            /** @description Estado guardado */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicShare"];
                 };
             };
             404: components["responses"]["Problem"];
