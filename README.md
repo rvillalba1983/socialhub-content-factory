@@ -2,6 +2,8 @@
 
 Fábrica de contenido para redes sociales: investiga, produce, programa, publica y analiza contenido para varias marcas desde una única interfaz visual. Empieza con las promociones de **El DeLito** y **Litoques**.
 
+**→ [Tutorial para empezar de cero](docs/TUTORIAL.md):** instalar y conectar todo paso a paso.
+
 **→ [Manual funcional](MANUAL.md):** cómo funciona la app hoy, con capturas y diagramas.
 
 ![Las 8 estaciones del anillo](docs/diagramas/anillo.svg)
