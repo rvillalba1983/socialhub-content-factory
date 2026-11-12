@@ -532,3 +532,10 @@ Peticiones de Raúl, 12 nov:
 
 Decisiones técnicas:
 - **Filtro en el frontal** (`withoutBrandNotices`, en `Recommendations.tsx`), sin cambiar el backend ni el contrato. Con la ficha de una marca abierta, se quitan de la franja solo las recomendaciones de esa marca que duplican un aviso: `BRAND_FOLDERS_MISSING` (carpetas) y `PUBLER_ACCOUNT_MISSING` de Instagram y TikTok (las únicas redes que avisa la ficha). Identidad, Instagram API y «publico» no tienen recomendación, así que no hay nada que quitar. Se quedan en la franja las propuestas retenidas, Publora (la ficha no la avisa arriba), las de otras marcas y las generales.
+
+Más decisiones de Raúl (12 nov, mismas peticiones):
+- **Listas de «Marcas y promociones»:** punto de color pequeño delante del nombre (en la barra ancha se estiraba por una regla de flex), nombre en grande y debajo la cuenta (@…); en promociones, el punto lleva el color de su marca y debajo van la marca y las fechas.
+- **Ficha de la marca:** bajo el título, en pequeño, «Identificador: el-delito».
+- **Mapa, zoom semántico:** al alejar (nivel 1, por debajo del 72 %) las estaciones muestran solo nombre, estado y número de tareas y avisos (bloqueadas + con error); la promoción, solo marca, estado, nombre, día y el botón; «Necesita atención», solo el número y el primer aviso (sin botones); «Agentes y herramientas», solo los nombres. El detalle completo sale al acercarse. En ese nivel todo el texto mide 42-44 px del lienzo, de modo que al encuadrar mide al menos 12 px en pantalla (comprobado: 1366x768 encuadra al 30 % y 1600x900 al 45 %, sin ningún texto por debajo de 12 px). Las reglas del nivel 1 se limitan al lienzo (`.world`) para que no cambien las fichas que se abren sobre el mapa.
+
+Decisión técnica: el encuadre de 1366x768 queda en el 30 % y no en el 41 %, porque la franja «Qué hacer ahora» le quita altura al mapa; el tamaño de letra se calcula para ese caso, que es el peor.

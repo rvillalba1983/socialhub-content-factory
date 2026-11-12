@@ -909,6 +909,22 @@ const world = (data: Snapshot, onRecommendation = vi.fn()) => render(
       onArmory={() => {}} onPromotion={() => {}} onRegister={() => {}} />
   </>);
 
+describe('Zoom semántico del mapa', () => {
+  it('cada estación lleva su resumen de alejado (tareas y avisos) y el detalle queda marcado para ocultarse', () => {
+    const { container } = render(<World data={snapshot} sel={{ type: null, id: null }} onStation={() => {}} onTask={() => {}}
+      onTaskAction={() => {}} onArmory={() => {}} onPromotion={() => {}} onRegister={() => {}} />);
+    const stations = container.querySelectorAll('article.st');
+    expect(stations.length).toBe(snapshot.stations.length);
+    for (const st of stations) {
+      expect(st.querySelector('.st-sum.only-1')?.textContent).toMatch(/^\d+ tareas?/);
+      expect(st.querySelector('.kpis')?.classList.contains('min-2')).toBe(true);
+      expect(st.querySelector('.st-what')?.classList.contains('min-2')).toBe(true);
+    }
+    const attn = container.querySelector('.attn-card')!;
+    expect(attn.querySelector('.today')?.classList.contains('min-2')).toBe(true);
+  });
+});
+
 describe('Qué hacer ahora dentro de la ficha de una marca', () => {
   const publer = (brand: string, platform: string) => rec({ id: `publer-account:${brand}:${platform}`, kind: 'PUBLER_ACCOUNT_MISSING',
     title: `Indica la cuenta de Publer de ${brand} para ${platform}`, target: { screen: 'PUBLER', brand_id: brand } });

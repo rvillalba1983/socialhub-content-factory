@@ -75,7 +75,7 @@ export function World({ data, sel, onStation, onTask, onTaskAction, onArmory, on
         return <div key={s.id} className="seglabel" style={{ left: x, top: y }}>{queued} en cola</div>;
       })}
       {(() => { const [x, y] = segMid(7); return (
-        <div className="seglabel fbl" style={{ left: x, top: y }}><Icon name="back" />Resultados → Investigación</div>
+        <div className="seglabel fbl" style={{ left: x, top: y }}><Icon name="back" /><span className="min-2">Resultados → Investigación</span><span className="only-1">Resultados</span></div>
       ); })()}
       <div className="hub" style={{ left: TR.x0 + 175, top: TR.y0 + 85, width: TR.x1 - TR.x0 - 350, height: HUB_H }}>
         {data.promotions.map(p => (
@@ -93,13 +93,13 @@ export function World({ data, sel, onStation, onTask, onTaskAction, onArmory, on
       </div>
       <section className="res" style={{ left: TR.x1 + 140, top: TR.y0 - 300, width: 380 }} aria-label="Agentes y herramientas">
         <h2>Agentes y herramientas</h2>
-        <span className="sub">Local primero · solo gratuitas · 0 € de gasto</span>
+        <span className="sub min-2">Local primero · solo gratuitas · 0 € de gasto</span>
         <div className="res-grid">
           {data.armory_items.length === 0 && <p className="src">Todavía no hay herramientas registradas. Llegan con el motor de tareas.</p>}
           {data.armory_items.map(r => (
             <button key={r.id} className="rc" onClick={() => onArmory(r.id)}>
               <Dot s={r.status} /><b>{r.name}</b>
-              <small>{r.description}<span className="min-2"> · {r.note}</span></small>
+              <small className="min-2">{r.description}<span> · {r.note}</span></small>
             </button>
           ))}
         </div>
@@ -172,10 +172,10 @@ function PromotionCard({ p, brand, data, onOpen }: { p: Promotion; brand?: Brand
   return (
     <article className="promo" style={{ ['--pc' as string]: brand?.color }} tabIndex={0} onClick={onOpen}
       onKeyDown={e => e.key === 'Enter' && onOpen()} aria-label={`Abrir el centro de control de ${p.name}`}>
-      <div className="p-top"><span className="eyebrow">{brand?.name} · {brand?.handle}</span><Pill s={PROMOTION_STATUS[p.status].s} label={PROMOTION_STATUS[p.status].label} /></div>
+      <div className="p-top"><span className="eyebrow">{brand?.name}<span className="min-2"> · {brand?.handle}</span></span><Pill s={PROMOTION_STATUS[p.status].s} label={PROMOTION_STATUS[p.status].label} /></div>
       <h2>{p.name}</h2>
       <div className="sub">{phase}<span className="min-2"> · {shortDate(p.starts_on)} – {shortDate(p.ends_on)}</span></div>
-      <div className="timeline" aria-hidden="true">
+      <div className="timeline min-2" aria-hidden="true">
         <i className="rail" /><i className="done" style={{ width: `${done * 100}%` }} />
         {p.milestones.map((m, i) => {
           const q = (parseDay(m.starts_on).getTime() - start) / span;
@@ -183,13 +183,13 @@ function PromotionCard({ p, brand, data, onOpen }: { p: Promotion; brand?: Brand
         })}
         <i className="now" style={{ left: `${done * 100}%` }} />
       </div>
-      <div className="stack" role="img" aria-label="Publicaciones por estado">
+      <div className="stack min-2" role="img" aria-label="Publicaciones por estado">
         {groups.map(([l, n, c]) => <i key={l} style={{ width: `${n / total * 100}%`, background: c }} title={`${l}: ${n}`} />)}
       </div>
       <div className="legend-row min-2">
         {groups.map(([l, n, c]) => <span key={l} style={{ ['--c' as string]: c }}>{l} <b className="mono">{n}</b></span>)}
       </div>
-      <div className="promo-facts">
+      <div className="promo-facts min-2">
         <div><small>Próxima</small><b>{next ? `${shortDate(next.scheduled_on)} ${hhmm(next.scheduled_time)}` : '—'}</b></div>
         <div className={incidents ? 'bad' : ''}><small>Incidencias</small><b>{incidents}</b></div>
         <div><small>Esperan a Raúl</small><b>{waitingRaul}</b></div>
@@ -217,7 +217,7 @@ export function TodayCard({ data }: { data: Snapshot }) {
     ['Para mañana', next, false],
   ];
   return (
-    <div className="today" aria-label="Resumen de hoy">
+    <div className="today min-2" aria-label="Resumen de hoy">
       <div className="promo-facts">
         {rows.map(([label, n, bad]) => <div key={label} className={bad ? 'bad' : ''}><small>{label}</small><b>{n}</b></div>)}
       </div>
@@ -268,7 +268,7 @@ export function AttentionCard({ data, onStation, onTask, onArmory, onPublication
                   if (!full) setFullKey(key);
                   else { setFullKey(null); openAlert(a, { onTask, onStation, onArmory, onPublication }); }
                 }}>
-                <Dot s={a.kind} /><span><b>{a.title}</b>{a.detail}</span>
+                <Dot s={a.kind} /><span><b>{a.title}</b><span className="min-2">{a.detail}</span></span>
               </button>
               {a.action && onAlertAction && (
                 <button type="button" className="btn attn-action" onClick={() => onAlertAction(a.action!)}>{a.action.label}</button>
@@ -278,11 +278,11 @@ export function AttentionCard({ data, onStation, onTask, onArmory, onPublication
         })}
       </div>
       {extra > 0 && (
-        <button type="button" className="btn attn-more" aria-expanded={listOpen} onClick={() => setListOpen(!listOpen)}>
+        <button type="button" className="btn attn-more min-2" aria-expanded={listOpen} onClick={() => setListOpen(!listOpen)}>
           {listOpen ? 'Ver menos' : `Ver ${extra} más`}
         </button>
       )}
-      <p className="src">{blockedByDeps} tareas bloqueadas · {waitingRaul} esperan a Raúl</p>
+      <p className="src min-2">{blockedByDeps} tareas bloqueadas · {waitingRaul} esperan a Raúl</p>
     </section>
   );
 }
@@ -297,6 +297,7 @@ function StationBlock({ s, index, tasks, sel, brandOf, onStation, onTask, onTask
   const v = stationVisual(s);
   const selected = sel.type === 'station' && sel.id === s.id;
   const c = s.counts;
+  const alertCount = c.failed + c.blocked;
   const kpi = (cls: string, n: number, label: string, icon: 'run' | 'clock' | 'lock' | 'alert') => (
     <div className={`kpi k-${cls}${n ? '' : ' zero'}`} title={label}>
       <span className="ki"><Icon name={icon} /></span><b>{n}</b><span className="kl">{label}</span>
@@ -314,11 +315,15 @@ function StationBlock({ s, index, tasks, sel, brandOf, onStation, onTask, onTask
         style={{ left: p.cx - 170, top: p.row ? p.cy + 64 : p.cy - 64 }} tabIndex={0}
         onClick={() => onStation(s.id)} onKeyDown={e => e.key === 'Enter' && onStation(s.id)} aria-label={s.name}>
         <header className="st-h">
-          <span className="st-n">{String(index + 1).padStart(2, '0')}</span><h3>{s.name}</h3><Pill s={s.status} />
+          <span className="st-n min-2">{String(index + 1).padStart(2, '0')}</span><h3>{s.name}</h3><Pill s={s.status} />
         </header>
+        <div className="st-sum only-1">
+          <span>{tasks.length} {tasks.length === 1 ? 'tarea' : 'tareas'}</span>
+          {alertCount > 0 && <span className="bad">{alertCount} {alertCount === 1 ? 'aviso' : 'avisos'}</span>}
+        </div>
         <p className="st-what min-2">{s.description}</p>
         {s.note && <p className="st-note min-2">{s.note}</p>}
-        <div className="kpis">
+        <div className="kpis min-2">
           {kpi('run', c.running, 'En curso', 'run')}{kpi('wait', c.waiting, 'En espera', 'clock')}
           {kpi('block', c.blocked, 'Bloqueadas', 'lock')}{kpi('err', c.failed, 'Errores', 'alert')}
         </div>
