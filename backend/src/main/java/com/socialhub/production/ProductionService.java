@@ -63,6 +63,13 @@ public class ProductionService {
         persist(task);
     }
 
+    /** La tarea ya terminó (completada, fallida o cancelada), no está en cola ni en curso. Una que no existe cuenta como terminada. */
+    @Transactional(readOnly = true)
+    public boolean isFinished(String taskId) {
+        return tasks.findById(taskId).map(t -> t.getStatus() == TaskStatus.COMPLETED || t.getStatus() == TaskStatus.FAILED
+                || t.getStatus() == TaskStatus.CANCELLED).orElse(true);
+    }
+
     /** Cancela un encargo a Claude en cola que ya no tiene nada que hacer. */
     @Transactional
     public void cancelAi(String taskId) {
@@ -230,7 +237,7 @@ public class ProductionService {
     }
 
     /** Un encargo a Claude, cómo cubre sus datos y cuándo cambió de estado por última vez. */
-    public record Covering(AiTask task, Cover cover, java.time.Instant at) {}
+    public record Covering(AiTask task, Cover cover, java.time.Instant at, @Nullable String result) {}
 
     /** Encargos a Claude de un tipo y promoción en cola, vivos, completados o fallidos del todo (no los cancelados). */
     @Transactional(readOnly = true)
@@ -242,7 +249,7 @@ public class ProductionService {
                     case COMPLETED -> Cover.DONE;
                     case FAILED -> t.canAutoRetry() ? Cover.OPEN : Cover.FAILED;
                     default -> Cover.OPEN;
-                }, t.lastChangeAt()))
+                }, t.lastChangeAt(), t.getResult()))
                 .toList();
     }
 

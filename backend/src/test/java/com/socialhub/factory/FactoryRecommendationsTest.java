@@ -39,6 +39,7 @@ class FactoryRecommendationsTest {
     private final PublerAccountService publer = mock(PublerAccountService.class);
     private final com.socialhub.ai.AiAutoStarted autoStarted = mock(com.socialhub.ai.AiAutoStarted.class);
     private final BackupService backups = mock(BackupService.class);
+    private final com.socialhub.pieces.ContentGaps contentGaps = mock(com.socialhub.pieces.ContentGaps.class);
 
     /** Lunes 9 de noviembre de 2026, 11:00 en España. */
     private Instant now = madrid(11, 9, 11, 0);
@@ -53,7 +54,7 @@ class FactoryRecommendationsTest {
 
     private FactoryRecommendations subject() {
         return new FactoryRecommendations(held, sent, promotions, publishing, publora, publer, backups, autoStarted,
-                Clock.fixed(now, ClaudePickups.ZONE));
+                contentGaps, Clock.fixed(now, ClaudePickups.ZONE));
     }
 
     /** Una marca «Litoques» con una promoción activa, todo en orden. */
@@ -337,6 +338,27 @@ class FactoryRecommendationsTest {
         var r = subject().compute().getFirst();
         assertThat(r.getTitle()).isEqualTo("Da de alta una promoción nueva de Litoques");
         assertThat(r.getTarget().getPromotionId()).isNull();
+    }
+
+    @Test
+    void aPublicationWithoutContentThatLeavesInLessThanThreeDaysAsksToRequestItNow() {
+        var close = new com.socialhub.pieces.ContentGaps.Gap("2026-11-11-instagram", "Pregunta grande", madrid(11, 11, 13, 0));
+        var far = new com.socialhub.pieces.ContentGaps.Gap("2026-11-20-instagram", "Otra", madrid(11, 20, 13, 0));
+        when(contentGaps.of("lit-1")).thenReturn(List.of(close, far));
+        var r = subject().compute().getFirst();
+        assertThat(r.getKind()).isEqualTo(KindEnum.CONTENT_MISSING);
+        assertThat(r.getTitle()).isEqualTo("Pregunta grande no tiene contenido");
+        assertThat(r.getDetail()).contains("Sale el 11 de nov a las 13:00").contains("Pedir contenido ya").contains("las 2 publicaciones");
+        assertThat(r.getPromotionId()).isEqualTo("lit-1");
+        assertThat(r.getPublicationIds()).containsExactly("2026-11-11-instagram", "2026-11-20-instagram");
+        assertThat(r.getTarget()).isNull();
+        // Si la más próxima sale dentro de 3 días o más, no hay fila
+        when(contentGaps.of("lit-1")).thenReturn(List.of(far));
+        assertThat(subject().compute()).isEmpty();
+        // Una promoción pausada tampoco
+        when(contentGaps.of("lit-1")).thenReturn(List.of(close));
+        when(promotions.promotionRefs()).thenReturn(List.of(ref("PAUSED", LocalDate.of(2026, 11, 1), LocalDate.of(2026, 12, 31))));
+        assertThat(subject().compute().stream().map(x -> x.getKind())).doesNotContain(KindEnum.CONTENT_MISSING);
     }
 
     @Test

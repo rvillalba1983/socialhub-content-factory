@@ -76,7 +76,8 @@ class WeeklySpecHandler implements AiTypeHandler {
      * Lo que ya ocupan los specs de la promoción: publicaciones en un spec abierto, en uno abierto o completado, semanas
      * enteras de los specs antiguos (que llevaban una fecha como dato) y lotes que fallaron del todo.
      */
-    private record Covered(Set<String> open, Set<String> all, Set<LocalDate> weeks, List<FailedLot> failed) {
+    private record Covered(Set<String> open, Set<String> all, Set<LocalDate> weeks, List<FailedLot> failed,
+                           Set<String> capped) {
         boolean covers(PublishingQueries.AwaitingContent p) {
             return all.contains(p.id()) || weeks.contains(mondayOf(p.scheduledAt()));
         }
@@ -94,11 +95,30 @@ class WeeklySpecHandler implements AiTypeHandler {
         return day.with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY));
     }
 
+    /** Con tres specs completados (el primero y dos re-pedidos) una publicación sin piezas solo se vuelve a pedir a mano. */
+    static final int MAX_AUTO_SPECS = 3;
+    /** Un spec completado sin el número de la tarea de sus piezas deja de cubrir pasado este tiempo. */
+    static final java.time.Duration UNKNOWN_PIECES_AFTER = java.time.Duration.ofHours(24);
+    private static final java.util.regex.Pattern PIECES_TASK = java.util.regex.Pattern.compile("\\(tarea ([0-9A-Za-z-]+)\\)");
+
+    /**
+     * Un spec completado deja de cubrir sus publicaciones cuando la generación de sus piezas terminó (la tarea de piezas
+     * que dejó anotada en su resultado); si no consta, pasadas 24 h. Las que sigan sin piezas vuelven a contar como pendientes.
+     */
+    private boolean piecesFinished(ProductionService.Covering cover, Instant now) {
+        String result = cover.result();
+        var found = result == null ? null : PIECES_TASK.matcher(result);
+        if (found != null && found.find()) return production.isFinished(found.group(1));
+        return cover.at().plus(UNKNOWN_PIECES_AFTER).isBefore(now);
+    }
+
     /** @param except tarea que no cuenta (la que se está preparando) */
     private Covered covered(String promotionId, @org.jspecify.annotations.Nullable String except) {
+        Instant now = clock.instant();
         Set<String> open = new HashSet<>(), all = new HashSet<>();
         Set<LocalDate> weeks = new HashSet<>();
         List<FailedLot> failed = new java.util.ArrayList<>();
+        Map<String, Integer> completed = new java.util.HashMap<>();
         for (var cover : production.coveringAiTasks(AiRequestType.WEEKLY_SPEC.taskType(), promotionId)) {
             if (cover.task().id().equals(except)) continue;
             List<String> ids = cover.task().inputs().stream().filter(i -> !isDate(i)).toList();
@@ -106,17 +126,37 @@ class WeeklySpecHandler implements AiTypeHandler {
                 if (!ids.isEmpty()) failed.add(new FailedLot(Set.copyOf(ids), cover.at()));
                 continue;
             }
+            boolean done = cover.cover() == ProductionService.Cover.DONE;
+            if (done) ids.forEach(id -> completed.merge(id, 1, Integer::sum));
+            // Un spec completado cuyas piezas ya se generaron no cubre lo que sigue sin piezas
+            if (done && piecesFinished(cover, now)) continue;
             // Los specs antiguos llevaban una fecha: cubren las publicaciones de esa semana (de lunes a domingo)
             cover.task().inputs().stream().filter(WeeklySpecHandler::isDate).forEach(d -> weeks.add(mondayOf(LocalDate.parse(d))));
             all.addAll(ids);
             if (cover.cover() == ProductionService.Cover.OPEN) open.addAll(ids);
         }
-        return new Covered(open, all, weeks, failed);
+        Set<String> capped = new HashSet<>();
+        completed.forEach((id, n) -> { if (n >= MAX_AUTO_SPECS) capped.add(id); });
+        return new Covered(open, all, weeks, failed, capped);
+    }
+
+    /** @param automatic si lo pide SocialHub solo: las que ya se re-pidieron dos veces sin éxito quedan para pedirlas a mano */
+    private List<PublishingQueries.AwaitingContent> pending(String promotionId, Instant now, Covered covered, boolean automatic) {
+        return publications.awaitingContent(promotionId).stream()
+                .filter(p -> p.scheduledAt().isAfter(now) && !covered.covers(p)
+                        && !(automatic && covered.capped().contains(p.id()))).toList();
     }
 
     private List<PublishingQueries.AwaitingContent> pending(String promotionId, Instant now, Covered covered) {
-        return publications.awaitingContent(promotionId).stream()
-                .filter(p -> p.scheduledAt().isAfter(now) && !covered.covers(p)).toList();
+        return pending(promotionId, now, covered, false);
+    }
+
+    /** Publicación sin contenido y fuera de cualquier spec abierto, para «Qué hacer ahora». */
+    record Gap(String publicationId, String title, Instant scheduledAt) {}
+
+    /** Las pendientes de la promoción (también las que ya no se piden solas), por hora de publicación. */
+    List<Gap> gaps(String promotionId, Instant now) {
+        return pending(promotionId, now).stream().map(p -> new Gap(p.id(), p.title(), p.scheduledAt())).toList();
     }
 
     /** Pendientes de contenido: en producción, sin piezas, con la hora por delante y fuera de cualquier spec abierto o completado. */
@@ -127,7 +167,7 @@ class WeeklySpecHandler implements AiTypeHandler {
     @Override
     public List<String> autoOrderBatch(String promotionId, Instant now) {
         Covered covered = covered(promotionId, null);
-        var pending = pending(promotionId, now, covered);
+        var pending = pending(promotionId, now, covered, true);
         if (!due(pending.stream().map(PublishingQueries.AwaitingContent::scheduledAt).toList(), now)) return List.of();
         List<String> ids = pending.stream().map(PublishingQueries.AwaitingContent::id).toList();
         // El mismo lote que acaba de fallar del todo no se repite solo: sería un bucle de encargos que fallan

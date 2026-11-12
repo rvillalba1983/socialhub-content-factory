@@ -60,6 +60,7 @@ class SpecBatchesTest {
     @Autowired WeeklySpecHandler handler;
     @Autowired AiOrders orders;
     @Autowired com.socialhub.production.ProductionService production;
+    @Autowired ContentGaps gaps;
     private final JsonMapper json = JsonMapper.builder().build();
 
     private static String id(int daysAhead) { return TODAY.plusDays(daysAhead) + "-instagram"; }
@@ -242,6 +243,51 @@ class SpecBatchesTest {
         } finally {
             pool.shutdown();
         }
+    }
+
+    /** Completa el spec de la tarea con el resultado que deja SocialHub al encargar las piezas (tarea {@code piecesTask}). */
+    private void completeSpec(String task, String piecesTask) throws Exception {
+        waitFor(() -> "WAITING".equals(task(task).get("status").asString()), "spec enviado");
+        production.aiCompleted(task, "spec guardado en spec.json · piezas encargadas (tarea " + piecesTask + ")");
+    }
+
+    @Test
+    @Order(10)
+    void aCompletedSpecStopsCoveringWhenItsPiecesAreDoneAndTheyStillHaveNoneButOnlyTwiceByItself() throws Exception {
+        write(post("/api/promotions"), """
+                {"brand_id":"el-delito","name":"Rescate","starts_on":"%s","ends_on":"%s","status":"ACTIVE"}"""
+                .formatted(TODAY.minusDays(1), TODAY.plusDays(90))).andExpect(status().isCreated());
+        for (int day : new int[] {60, 61, 62}) publication("rescate", day, "IN_PRODUCTION");
+        List<String> ids = List.of(id(60), id(61), id(62));
+        assertThat(batch("rescate")).containsExactlyElementsOf(ids);
+
+        // Un trabajo cualquiera aún sin terminar hace de «generación de piezas en curso»
+        String running = production.submitAi(new com.socialhub.production.TaskRequest(AiRequestType.CAPTIONS.stationId(), "rescate",
+                AiRequestType.CAPTIONS.taskType(), "Textos", "Textos", List.of(id(60)), List.of()), "SONNET");
+        String first = orders.submit("rescate", AiRequestType.WEEKLY_SPEC, "Spec 1", "Spec 1", ids);
+        completeSpec(first, running);
+        // Spec completado y sus piezas aún en marcha: sigue cubriendo
+        assertThat(pendingIds("rescate")).isEmpty();
+        assertThat(batch("rescate")).isEmpty();
+        // Terminan las piezas y las publicaciones siguen sin ninguna: vuelven a contar y entran solas en el siguiente spec
+        command(running, "CANCEL");
+        assertThat(pendingIds("rescate")).containsExactlyElementsOf(ids);
+        assertThat(batch("rescate")).containsExactlyElementsOf(ids);
+
+        // Segundo y tercer spec (el primer re-pedido y el segundo): cada uno deja las piezas hechas y sin piezas en las publicaciones
+        String second = orders.submitInternal("rescate", AiRequestType.WEEKLY_SPEC, "Spec 2", "Spec 2", batch("rescate"));
+        completeSpec(second, "ya-terminada");
+        assertThat(batch("rescate")).containsExactlyElementsOf(ids);
+        String third = orders.submitInternal("rescate", AiRequestType.WEEKLY_SPEC, "Spec 3", "Spec 3", batch("rescate"));
+        completeSpec(third, "ya-terminada");
+        // Tras tres specs completados (el primero y dos re-pedidos) ya no se piden solas...
+        assertThat(batch("rescate")).isEmpty();
+        // ...pero a mano sí, y «Qué hacer ahora» las sigue viendo
+        assertThat(pendingIds("rescate")).containsExactlyElementsOf(ids);
+        assertThat(gaps.of("rescate")).extracting(g -> g.publicationId()).containsExactlyElementsOf(ids);
+        String manual = orders.submit("rescate", AiRequestType.WEEKLY_SPEC, "A mano", "A mano", List.of());
+        assertThat(task(manual).get("status").asString()).isIn("QUEUED", "WAITING");
+        command(manual, "CANCEL");
     }
 
     private com.socialhub.ai.AiJob job(String promotion, List<String> inputs) {

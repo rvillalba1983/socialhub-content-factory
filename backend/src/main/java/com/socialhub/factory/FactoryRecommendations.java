@@ -9,6 +9,7 @@ import com.socialhub.ai.ClaudePickups;
 import com.socialhub.api.model.RecommendationDto;
 import com.socialhub.api.model.RecommendationTargetDto;
 import com.socialhub.backup.BackupService;
+import com.socialhub.pieces.ContentGaps;
 import com.socialhub.promotion.PromotionQueries;
 import com.socialhub.publishing.PublerAccountService;
 import com.socialhub.publishing.PublishingQueries;
@@ -47,6 +48,9 @@ import org.springframework.stereotype.Component;
  *   disponible porque Drive está cerrado o el límite diario alcanzado, este último con botón a «Claude»). Una sola
  *   fila por promoción, con este orden de motivos.</li>
  *   <li>Propuestas listas para revisar, con su contador.</li>
+ *   <li>Publicación en producción sin contenido (sin piezas y fuera de cualquier spec abierto) que sale en menos de 3
+ *   días: «{título} no tiene contenido», con botón «Pedir contenido ya» (un spec urgente a mano de esa publicación o de las
+ *   de su promoción en la misma situación). Una fila por promoción.</li>
  *   <li>Marca sin todas sus carpetas.</li>
  *   <li>Encargo sin resultado tras la recogida que le tocaba (5 minutos de sincronización y 30 de margen), si la
  *   carpeta de «Encargos» de su marca está disponible.</li>
@@ -72,6 +76,7 @@ class FactoryRecommendations {
     private final PublerAccountService publer;
     private final BackupService backups;
     private final AiAutoStarted autoStarted;
+    private final ContentGaps contentGaps;
     private final Clock clock;
 
     List<RecommendationDto> compute() {
@@ -141,6 +146,24 @@ class FactoryRecommendations {
             all.add(recommendation("proposals-review:" + promotion.id(), RecommendationDto.KindEnum.PROPOSALS_TO_REVIEW,
                     "Tienes " + n + (n == 1 ? " propuesta" : " propuestas") + " de «" + promotion.name() + "» para revisar",
                     null, RecommendationTargetDto.ScreenEnum.PROPOSALS, promotion.brandId(), promotion.id()).promotionId(promotion.id()));
+        }
+
+        // 2b. Publicaciones en producción sin contenido que salen en menos de 3 días (y fuera de cualquier spec abierto)
+        for (var promotion : allPromotions) {
+            if (!promotion.active() && !promotion.plannedAhead(today)) continue;
+            var gaps = contentGaps.of(promotion.id());
+            if (gaps.isEmpty() || !gaps.getFirst().scheduledAt().isBefore(now.plus(ContentGaps.SOON))) continue;
+            var first = gaps.getFirst();
+            var when = first.scheduledAt().atZone(ClaudePickups.ZONE);
+            var dto = recommendation("content-missing:" + promotion.id(), RecommendationDto.KindEnum.CONTENT_MISSING,
+                    first.title() + " no tiene contenido",
+                    "Sale el " + when.getDayOfMonth() + " de " + when.getMonth().getDisplayName(TextStyle.SHORT, Locale.of("es", "ES"))
+                            + " a las " + hour(when) + ". «Pedir contenido ya» pide un spec urgente de "
+                            + (gaps.size() == 1 ? "esa publicación" : "las " + gaps.size() + " publicaciones de «" + promotion.name()
+                            + "» que están así"),
+                    null, null, null).promotionId(promotion.id());
+            dto.setPublicationIds(gaps.stream().map(ContentGaps.Gap::publicationId).toList());
+            all.add(dto);
         }
 
         // 3. Marca sin todas sus carpetas

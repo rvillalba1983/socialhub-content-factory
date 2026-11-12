@@ -1536,6 +1536,7 @@ components:
             - NO_PUBLISHING_ROUTE
             - PUBLER_ACCOUNT_MISSING
             - PROMOTION_AUTO_STARTED
+            - CONTENT_MISSING
           description: >
             Por orden de prioridad: marca sin forma de publicar (NO_PUBLISHING_ROUTE) y tarea del PC «Publicar con
             Chrome» sin contestar (PC_TASK_SILENT), que van primero porque bloquean publicaciones reales (también salen
@@ -1544,7 +1545,9 @@ components:
             diario), propuestas por revisar, marca sin todas sus carpetas, encargos
             sin recoger, marca sin cuenta de Publora, sin carpeta de copias, marca sin promoción activa, propuestas
             pedidas en camino y, la última, promoción activada sola hoy (PROMOTION_AUTO_STARTED, informativa: solo el día
-            en que se activa). SPEC_WAITING ya no se calcula (el spec se pide por lotes, no por semana) y se conserva
+            en que se activa). CONTENT_MISSING: publicación en producción sin contenido (sin piezas y fuera de cualquier spec abierto) que
+            sale en menos de 3 días; con «publication_ids» y «promotion_id», el botón «Pedir contenido ya» pide un spec urgente
+            a mano de esas publicaciones (sin target: no navega). SPEC_WAITING ya no se calcula (el spec se pide por lotes, no por semana) y se conserva
             solo por compatibilidad
         title: { type: string, description: "Texto en español" }
         detail: { type: string, description: "Más información (por ejemplo, el motivo de un encargo retenido)" }
@@ -1553,6 +1556,12 @@ components:
           description: >
             Promoción a la que se refiere la recomendación (propuestas retenidas, por revisar o en camino). La
             interfaz usa este campo y no lo deduce del id ni del título
+        publication_ids:
+          type: array
+          items: { type: string }
+          description: >
+            Solo en CONTENT_MISSING: las publicaciones sin contenido de la promoción que pedirá el botón «Pedir contenido
+            ya» (como «inputs» de un encargo WEEKLY_SPEC)
         eta_text:
           type: string
           description: >

@@ -173,7 +173,7 @@ public class PublishingQueries {
     }
 
     /** Una publicación a la espera de contenido: su identificador y la hora a la que se publica. */
-    public record AwaitingContent(String id, java.time.Instant scheduledAt) {}
+    public record AwaitingContent(String id, String title, java.time.Instant scheduledAt) {}
 
     /** Publicaciones «En producción» de la promoción que aún no tienen ningún archivo (piezas), por fecha y hora. */
     public List<AwaitingContent> awaitingContent(String promotionId) {
@@ -182,7 +182,7 @@ public class PublishingQueries {
         var withFiles = files.withFiles(inProduction.stream().map(Publication::getId).toList());
         return inProduction.stream().filter(p -> !withFiles.contains(p.getId()))
                 .sorted(java.util.Comparator.comparing(Publication::scheduledAt))
-                .map(p -> new AwaitingContent(p.getId(), p.scheduledAt()))
+                .map(p -> new AwaitingContent(p.getId(), p.getTitle(), p.scheduledAt()))
                 .toList();
     }
 

@@ -1053,16 +1053,18 @@ export interface components {
             /** @description Estable mientras la recomendación siga haciendo falta (por ejemplo, brand-folders:litoques) */
             id: string;
             /**
-             * @description Por orden de prioridad: marca sin forma de publicar (NO_PUBLISHING_ROUTE) y tarea del PC «Publicar con Chrome» sin contestar (PC_TASK_SILENT), que van primero porque bloquean publicaciones reales (también salen como aviso en «Necesita atención»); marca sin cuenta de Publer para una red con publicaciones retenidas (PUBLER_ACCOUNT_MISSING, con botón a la tarjeta «Cuenta en Publer»); propuestas retenidas (por la carpeta de Encargos, Drive cerrado o el límite diario), propuestas por revisar, marca sin todas sus carpetas, encargos sin recoger, marca sin cuenta de Publora, sin carpeta de copias, marca sin promoción activa, propuestas pedidas en camino y, la última, promoción activada sola hoy (PROMOTION_AUTO_STARTED, informativa: solo el día en que se activa). SPEC_WAITING ya no se calcula (el spec se pide por lotes, no por semana) y se conserva solo por compatibilidad
+             * @description Por orden de prioridad: marca sin forma de publicar (NO_PUBLISHING_ROUTE) y tarea del PC «Publicar con Chrome» sin contestar (PC_TASK_SILENT), que van primero porque bloquean publicaciones reales (también salen como aviso en «Necesita atención»); marca sin cuenta de Publer para una red con publicaciones retenidas (PUBLER_ACCOUNT_MISSING, con botón a la tarjeta «Cuenta en Publer»); propuestas retenidas (por la carpeta de Encargos, Drive cerrado o el límite diario), propuestas por revisar, marca sin todas sus carpetas, encargos sin recoger, marca sin cuenta de Publora, sin carpeta de copias, marca sin promoción activa, propuestas pedidas en camino y, la última, promoción activada sola hoy (PROMOTION_AUTO_STARTED, informativa: solo el día en que se activa). CONTENT_MISSING: publicación en producción sin contenido (sin piezas y fuera de cualquier spec abierto) que sale en menos de 3 días; con «publication_ids» y «promotion_id», el botón «Pedir contenido ya» pide un spec urgente a mano de esas publicaciones (sin target: no navega). SPEC_WAITING ya no se calcula (el spec se pide por lotes, no por semana) y se conserva solo por compatibilidad
              * @enum {string}
              */
-            kind: "HELD_PROPOSALS" | "PROPOSALS_TO_REVIEW" | "BRAND_FOLDERS_MISSING" | "ORDERS_NOT_COLLECTED" | "PUBLORA_MISSING" | "BACKUP_FOLDER_MISSING" | "NO_ACTIVE_PROMOTION" | "PROPOSALS_PENDING" | "SPEC_WAITING" | "PC_TASK_SILENT" | "NO_PUBLISHING_ROUTE" | "PUBLER_ACCOUNT_MISSING" | "PROMOTION_AUTO_STARTED";
+            kind: "HELD_PROPOSALS" | "PROPOSALS_TO_REVIEW" | "BRAND_FOLDERS_MISSING" | "ORDERS_NOT_COLLECTED" | "PUBLORA_MISSING" | "BACKUP_FOLDER_MISSING" | "NO_ACTIVE_PROMOTION" | "PROPOSALS_PENDING" | "SPEC_WAITING" | "PC_TASK_SILENT" | "NO_PUBLISHING_ROUTE" | "PUBLER_ACCOUNT_MISSING" | "PROMOTION_AUTO_STARTED" | "CONTENT_MISSING";
             /** @description Texto en español */
             title: string;
             /** @description Más información (por ejemplo, el motivo de un encargo retenido) */
             detail?: string;
             /** @description Promoción a la que se refiere la recomendación (propuestas retenidas, por revisar o en camino). La interfaz usa este campo y no lo deduce del id ni del título */
             promotion_id?: string;
+            /** @description Solo en CONTENT_MISSING: las publicaciones sin contenido de la promoción que pedirá el botón «Pedir contenido ya» (como «inputs» de un encargo WEEKLY_SPEC) */
+            publication_ids?: string[];
             /** @description Solo en propuestas en camino: cuándo llegarán, en español («sobre las 10:50» o «mañana sobre las 5:50»). La interfaz usa este campo y no lo deduce del título */
             eta_text?: string;
             target?: components["schemas"]["RecommendationTarget"];
