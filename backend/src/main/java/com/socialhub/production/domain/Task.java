@@ -55,6 +55,8 @@ public final class Task {
     private @Nullable String error;
     private @Nullable String result;
     private boolean human;
+    /** Encargo a Claude pedido (o reintentado) por Raúl desde la interfaz: sale siempre como urgente. */
+    private boolean manual;
     private int attempts;
     private final int maxAttempts;
     private @Nullable Instant startedAt;
@@ -76,7 +78,7 @@ public final class Task {
                 boolean paused, double progress, Agent agent, @Nullable String reason, @Nullable String error,
                 @Nullable String result, boolean human, int attempts, int maxAttempts, @Nullable Instant startedAt,
                 @Nullable List<TaskStep> steps, @Nullable List<TaskCheck> checks, @Nullable Set<String> dependsOn,
-                @Nullable List<TaskHistoryEntry> history, boolean demo, long version, @Nullable String waitingFor) {
+                @Nullable List<TaskHistoryEntry> history, boolean demo, long version, @Nullable String waitingFor, boolean manual) {
         this.id = Objects.requireNonNull(id);
         this.stationId = Objects.requireNonNull(stationId);
         this.promotionId = promotionId;
@@ -93,6 +95,7 @@ public final class Task {
         this.error = error;
         this.result = result;
         this.human = human;
+        this.manual = manual;
         this.attempts = Math.max(1, attempts);
         this.maxAttempts = Math.max(1, maxAttempts);
         this.startedAt = startedAt;
@@ -340,6 +343,11 @@ public final class Task {
         human = true;
         reason = reasonText;
         record(now, "Claude pide a Raúl: " + reasonText);
+    }
+
+    /** Lo ha pedido o reintentado Raúl: solo tiene sentido en un encargo a Claude. */
+    public void markManual() {
+        if (isAiRequest()) manual = true;
     }
 
     /** Un encargo a Claude fallido que SocialHub puede reintentar solo (quedan intentos). */

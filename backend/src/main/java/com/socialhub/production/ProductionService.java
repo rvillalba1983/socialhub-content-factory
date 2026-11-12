@@ -46,9 +46,21 @@ public class ProductionService {
     public Task execute(String taskId, TaskCommandType command, @Nullable AiModel model) {
         Task task = task(taskId);
         task.execute(command, model, clock.instant());
+        // Lo que Raúl vuelve a lanzar a mano sale siempre como urgente (el reintento solo de SocialHub no pasa por aquí)
+        if (command == TaskCommandType.RETRY || command == TaskCommandType.RERUN || command == TaskCommandType.REOPEN) {
+            task.markManual();
+        }
         Task saved = persist(task);
         unblockReadyTasks();
         return saved;
+    }
+
+    /** Marca un encargo a Claude recién creado como pedido por Raúl desde la interfaz. */
+    @Transactional
+    public void markManual(String taskId) {
+        Task task = task(taskId);
+        task.markManual();
+        persist(task);
     }
 
     /** Cancela un encargo a Claude en cola que ya no tiene nada que hacer. */
@@ -311,7 +323,7 @@ public class ProductionService {
                 : AiModel.SONNET.name();
         Instant created = t.getHistory().isEmpty() ? Instant.EPOCH : t.getHistory().getFirst().at();
         return new AiTask(t.getId(), t.getType(), t.getPromotionId(), t.getTitle(), t.getGoal(), t.getInputs(),
-                t.getAttempts(), model, created);
+                t.getAttempts(), model, created, t.isManual());
     }
 
     /** Toma de la cola hasta {@code limit} tareas de esos tipos en estaciones que aceptan trabajo y las pone en marcha. */

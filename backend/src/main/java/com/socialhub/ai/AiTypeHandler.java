@@ -55,6 +55,12 @@ public interface AiTypeHandler {
     default void onFailed(AiJob job, String reason) {}
 
     /**
+     * Hora de la publicación más próxima de las que dependen del contenido de este encargo (spec, textos, revisión de
+     * calidad). Si sale pronto, el encargo es urgente ({@link AiUrgentRule}). Vacío en los demás tipos.
+     */
+    default java.time.@org.jspecify.annotations.Nullable Instant contentDueAt(AiJob job) { return null; }
+
+    /**
      * Ya no hay nada que hacer en ese encargo (por ejemplo, todas sus publicaciones se cancelaron): SocialHub lo cancela en
      * vez de enviarlo a Claude.
      */

@@ -121,7 +121,7 @@ class AiAutoOrders {
             String goal = "La promoción empieza ahora: propón sus publicaciones del " + from + " al " + to
                     + ", según su cadencia, sus objetivos, sus hitos y su memoria editorial. No propongas nada antes del "
                     + from + ".";
-            String taskId = orders.submit(promotionId, AiRequestType.WEEKLY_PROPOSALS, title, goal, List.of(week.toString()));
+            String taskId = orders.submitInternal(promotionId, AiRequestType.WEEKLY_PROPOSALS, title, goal, List.of(week.toString()));
             done.save(new AiAutoOrderEntity(promotionId, AiRequestType.WEEKLY_PROPOSALS.name(), week, taskId, clock.instant()));
         });
         log.info("Propuestas de la primera semana pedidas: {} (del {} al {})", promotionId, from, to);
@@ -177,7 +177,7 @@ class AiAutoOrders {
                         + (batch.size() == 1 ? " publicación" : " publicaciones");
                 String goal = "Prepara el spec.json de piezas de estas " + batch.size() + " publicaciones de la promoción "
                         + "(las de «inputs.publications», con sus fechas), con el material de sus carpetas y sus normas.";
-                transactions.executeWithoutResult(s -> orders.submit(promotionId, AiRequestType.WEEKLY_SPEC, title, goal, batch));
+                transactions.executeWithoutResult(s -> orders.submitInternal(promotionId, AiRequestType.WEEKLY_SPEC, title, goal, batch));
                 log.info("Encargo de spec por lotes creado: {} ({} publicaciones)", promotionId, batch.size());
                 n++;
             } catch (RuntimeException e) {
@@ -249,7 +249,7 @@ class AiAutoOrders {
                 default -> "Haz el balance de la semana del " + week + " de esta promoción: qué se publicó, qué falló y "
                         + "qué conviene cambiar. Sin inventar cifras.";
             };
-            String taskId = orders.submit(promotionId, type, title, goal, List.of(week.toString()));
+            String taskId = orders.submitInternal(promotionId, type, title, goal, List.of(week.toString()));
             done.save(new AiAutoOrderEntity(promotionId, type.name(), week, taskId, clock.instant()));
         });
         log.info("Encargo semanal creado: {} de {} (semana del {})", type, promotionId, week);

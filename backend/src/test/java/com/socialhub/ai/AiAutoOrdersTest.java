@@ -47,17 +47,17 @@ class AiAutoOrdersTest {
         when(promotions.proposableBetween(any(), any())).thenReturn(List.of("lit-1"));
         when(promotions.proposableDates()).thenReturn(List.of());
         when(handlers.of(AiRequestType.WEEKLY_SPEC)).thenReturn(Optional.of(specHandler));
-        when(orders.submit(any(), eq(AiRequestType.WEEKLY_SPEC), any(), any(), any())).thenReturn("t1");
+        when(orders.submitInternal(any(), eq(AiRequestType.WEEKLY_SPEC), any(), any(), any())).thenReturn("t1");
         var now = at(10, 11);
         // Sin lote (nada pendiente, o menos de 3 y lejos): no se pide nada, ni siquiera el domingo
         when(specHandler.autoOrderBatch(eq("lit-1"), any())).thenReturn(List.of());
         assertThat(at(now).createSpecBatches(now)).isZero();
         assertThat(at(at(8, 12)).createSpecBatches(at(8, 12))).isZero();
-        verify(orders, never()).submit(any(), eq(AiRequestType.WEEKLY_SPEC), any(), any(), any());
+        verify(orders, never()).submitInternal(any(), eq(AiRequestType.WEEKLY_SPEC), any(), any(), any());
         // Con lote: se pide con las publicaciones del lote como datos de entrada, a cualquier día y hora
         when(specHandler.autoOrderBatch(eq("lit-1"), any())).thenReturn(List.of("p1", "p2", "p3"));
         assertThat(at(now).createSpecBatches(now)).isEqualTo(1);
-        verify(orders).submit(eq("lit-1"), eq(AiRequestType.WEEKLY_SPEC), eq(AiRequestType.WEEKLY_SPEC.label() + " · 3 publicaciones"),
+        verify(orders).submitInternal(eq("lit-1"), eq(AiRequestType.WEEKLY_SPEC), eq(AiRequestType.WEEKLY_SPEC.label() + " · 3 publicaciones"),
                 org.mockito.ArgumentMatchers.contains("3 publicaciones"), eq(List.of("p1", "p2", "p3")));
         // El registro semanal ya no interviene
         verify(done, never()).save(any());
@@ -69,11 +69,11 @@ class AiAutoOrdersTest {
         when(handlers.of(AiRequestType.WEEKLY_SPEC)).thenReturn(Optional.of(specHandler));
         when(specHandler.autoOrderBatch(eq("a"), any())).thenReturn(List.of("x"));
         when(specHandler.autoOrderBatch(eq("b"), any())).thenReturn(List.of("y"));
-        when(orders.submit(eq("a"), eq(AiRequestType.WEEKLY_SPEC), any(), any(), any())).thenThrow(new IllegalArgumentException("no"));
-        when(orders.submit(eq("b"), eq(AiRequestType.WEEKLY_SPEC), any(), any(), any())).thenReturn("t2");
+        when(orders.submitInternal(eq("a"), eq(AiRequestType.WEEKLY_SPEC), any(), any(), any())).thenThrow(new IllegalArgumentException("no"));
+        when(orders.submitInternal(eq("b"), eq(AiRequestType.WEEKLY_SPEC), any(), any(), any())).thenReturn("t2");
         var now = at(10, 11);
         assertThat(at(now).createSpecBatches(now)).isEqualTo(1);
-        verify(orders).submit(eq("b"), eq(AiRequestType.WEEKLY_SPEC), any(), any(), eq(List.of("y")));
+        verify(orders).submitInternal(eq("b"), eq(AiRequestType.WEEKLY_SPEC), any(), any(), eq(List.of("y")));
     }
 
     @Test
@@ -106,7 +106,7 @@ class AiAutoOrdersTest {
     void theRoundAsksOnThursdayAndSundayNightAndNeverTwiceForTheSameWeek() {
         var next = LocalDate.of(2026, 11, 16);
         when(promotions.proposableBetween(next, next.plusDays(6))).thenReturn(List.of("lit-1"));
-        when(orders.submit(any(), eq(AiRequestType.WEEKLY_PROPOSALS), any(), any(), any())).thenReturn("t1");
+        when(orders.submitInternal(any(), eq(AiRequestType.WEEKLY_PROPOSALS), any(), any(), any())).thenReturn("t1");
         var saved = new java.util.HashSet<AiAutoOrderEntity.Key>();
         when(done.existsById(any())).thenAnswer(i -> saved.contains(i.<AiAutoOrderEntity.Key>getArgument(0)));
         org.mockito.Mockito.doAnswer(i -> {
@@ -117,7 +117,7 @@ class AiAutoOrdersTest {
         // Jueves 12: pide W+1; domingo 15 a las 23:00: no la repite
         assertThat(at(at(12, 10)).createDue()).isEqualTo(1);
         assertThat(at(at(15, 23)).createDue()).isZero();
-        verify(orders, org.mockito.Mockito.times(1)).submit(eq("lit-1"), eq(AiRequestType.WEEKLY_PROPOSALS), any(), any(), eq(List.of("2026-11-16")));
+        verify(orders, org.mockito.Mockito.times(1)).submitInternal(eq("lit-1"), eq(AiRequestType.WEEKLY_PROPOSALS), any(), any(), eq(List.of("2026-11-16")));
         // Si no estaba pedida, el domingo a las 23:00 la pide
         saved.clear();
         assertThat(at(at(15, 23)).createDue()).isEqualTo(1);
@@ -143,10 +143,10 @@ class AiAutoOrdersTest {
         var today = LocalDate.of(2026, 11, 9);
         when(promotionService.activateStarted(today)).thenReturn(List.of("lit-1"));
         when(promotions.proposableDates()).thenReturn(List.of(new PromotionQueries.PromotionDates("lit-1", today, LocalDate.of(2026, 12, 31))));
-        when(orders.submit(any(), eq(AiRequestType.WEEKLY_PROPOSALS), any(), any(), any())).thenReturn("t1");
+        when(orders.submitInternal(any(), eq(AiRequestType.WEEKLY_PROPOSALS), any(), any(), any())).thenReturn("t1");
         assertThat(at(at(9, 10)).createDue()).isEqualTo(1);
         verify(promotionService).activateStarted(today);
-        verify(orders).submit(eq("lit-1"), eq(AiRequestType.WEEKLY_PROPOSALS), any(), any(), eq(List.of("2026-11-09")));
+        verify(orders).submitInternal(eq("lit-1"), eq(AiRequestType.WEEKLY_PROPOSALS), any(), any(), eq(List.of("2026-11-09")));
         verify(done, org.mockito.Mockito.times(2)).save(any()); // la activación y el encargo
     }
 
@@ -156,7 +156,7 @@ class AiAutoOrdersTest {
         var end = LocalDate.of(2026, 12, 31);
         when(promotions.proposableDates()).thenReturn(List.of(new PromotionQueries.PromotionDates("lit-2", next, end)));
         when(promotions.proposableBetween(next, next.plusDays(6))).thenReturn(List.of("lit-2"));
-        when(orders.submit(any(), eq(AiRequestType.WEEKLY_PROPOSALS), any(), any(), any())).thenReturn("t2");
+        when(orders.submitInternal(any(), eq(AiRequestType.WEEKLY_PROPOSALS), any(), any(), any())).thenReturn("t2");
         // El registro de lo ya pedido recuerda lo que se guarda, como el real
         var saved = new java.util.HashSet<AiAutoOrderEntity.Key>();
         when(done.existsById(any())).thenAnswer(i -> saved.contains(i.<AiAutoOrderEntity.Key>getArgument(0)));
@@ -167,10 +167,10 @@ class AiAutoOrdersTest {
         }).when(done).save(any());
         // Lunes 9 a las 17:00: aún no toca
         assertThat(at(at(9, 17)).createDue()).isZero();
-        verify(orders, never()).submit(any(), any(), any(), any(), any());
+        verify(orders, never()).submitInternal(any(), any(), any(), any(), any());
         // Lunes 9 a las 18:00: se piden las de la semana del 16 (la de siempre y la de la primera semana son la misma)
         assertThat(at(at(9, 18)).createDue()).isGreaterThanOrEqualTo(1);
-        verify(orders).submit(eq("lit-2"), eq(AiRequestType.WEEKLY_PROPOSALS), any(), any(), eq(List.of("2026-11-16")));
+        verify(orders).submitInternal(eq("lit-2"), eq(AiRequestType.WEEKLY_PROPOSALS), any(), any(), eq(List.of("2026-11-16")));
         // Hasta el lunes 16 la ronda no la activa (la activación se pide con la fecha de hoy)
         verify(promotionService, org.mockito.Mockito.times(2)).activateStarted(LocalDate.of(2026, 11, 9));
         verify(promotionService, never()).activateStarted(next);

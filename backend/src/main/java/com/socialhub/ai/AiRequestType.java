@@ -40,8 +40,14 @@ public enum AiRequestType {
         this.automatic = automatic;
     }
 
-    /** Tiene «deadline»: es el único que puede volverse urgente con el tiempo. */
+    /** Tiene «deadline» (hora límite del contrato). */
     public boolean hasDeadline() { return this == PUBLER_SCHEDULE || this == PUBLIC_LINK; }
+
+    /** Su urgencia depende de lo cerca que salga una publicación: spec, textos y revisión de calidad. */
+    public boolean dependsOnPublications() { return this == WEEKLY_SPEC || this == CAPTIONS || this == QUALITY_REVIEW; }
+
+    /** Puede volverse urgente con el tiempo: tiene «deadline» o depende de una publicación que se acerca. */
+    public boolean urgencyCanRise() { return hasDeadline() || dependsOnPublications(); }
 
     /** Lo encarga SocialHub, no Raúl, y no cuenta en el límite diario: tiene hora fija y no puede esperar. */
     public boolean automatic() { return automatic; }

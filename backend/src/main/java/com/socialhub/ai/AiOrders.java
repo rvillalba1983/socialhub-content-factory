@@ -28,14 +28,21 @@ public class AiOrders {
         return sent.isEmpty() ? java.util.Optional.empty() : java.util.Optional.of(sent.getLast().isUrgent());
     }
 
-    /** @return identificador de la tarea */
+    /**
+     * Alta de un encargo pedido por Raúl desde la interfaz: sale siempre como urgente (se hace en la siguiente pasada,
+     * aunque sea de día). Lo que pide SocialHub por su cuenta va por {@link #submitInternal}.
+     *
+     * @return identificador de la tarea
+     */
     @Transactional
     public String submit(String promotionId, AiRequestType type, String title, String goal, List<String> inputs) {
         if (type.automatic()) throw new IllegalArgumentException("«" + type.label() + "» lo encarga SocialHub al publicar");
-        return submitInternal(promotionId, type, title, goal, inputs);
+        String taskId = submitInternal(promotionId, type, title, goal, inputs);
+        production.markManual(taskId);
+        return taskId;
     }
 
-    /** Alta de un encargo desde otro módulo (también los de publicación con Chrome en el PC). */
+    /** Alta de un encargo que pide SocialHub por su cuenta (también los de publicación con Chrome en el PC): sigue la regla de urgencia. */
     @Transactional
     public String submitInternal(String promotionId, AiRequestType type, String title, String goal, List<String> inputs) {
         promotions.promotion(promotionId);

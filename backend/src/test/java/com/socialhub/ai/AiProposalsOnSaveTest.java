@@ -50,7 +50,7 @@ class AiProposalsOnSaveTest {
 
     @BeforeEach
     void setUp() {
-        when(orders.submit(any(), eq(AiRequestType.WEEKLY_PROPOSALS), any(), any(), any())).thenReturn("t1");
+        when(orders.submitInternal(any(), eq(AiRequestType.WEEKLY_PROPOSALS), any(), any(), any())).thenReturn("t1");
         when(done.existsById(any())).thenAnswer(i -> saved.contains(i.<AiAutoOrderEntity.Key>getArgument(0)));
         doAnswer(i -> {
             AiAutoOrderEntity e = i.getArgument(0);
@@ -86,7 +86,7 @@ class AiProposalsOnSaveTest {
         var p = promotion("PLANNED", LocalDate.of(2026, 11, 9), END);
         assertThat(onSave(at(11, 9, 11, 0)).afterSave(p))
                 .contains("Propuestas de la primera semana pedidas: llegarán sobre las 20:30");
-        verify(orders, times(1)).submit(eq("lit-1"), eq(AiRequestType.WEEKLY_PROPOSALS), any(), any(), eq(List.of("2026-11-09")));
+        verify(orders, times(1)).submitInternal(eq("lit-1"), eq(AiRequestType.WEEKLY_PROPOSALS), any(), any(), eq(List.of("2026-11-09")));
     }
 
     @Test
@@ -99,7 +99,7 @@ class AiProposalsOnSaveTest {
         autoOrders.createDue();
         // Y guardar otra vez tampoco la repite ni dice nada nuevo
         assertThat(hook.afterSave(p)).isEmpty();
-        verify(orders, times(1)).submit(any(), eq(AiRequestType.WEEKLY_PROPOSALS), any(), any(), any());
+        verify(orders, times(1)).submitInternal(any(), eq(AiRequestType.WEEKLY_PROPOSALS), any(), any(), any());
     }
 
     @Test
@@ -121,17 +121,17 @@ class AiProposalsOnSaveTest {
                 .isEqualTo("No queda margen para lo que resta de esta semana. "
                         + "Propuestas de la semana del 16 de nov pedidas: llegarán sobre las 20:30");
         // Solo se pide la semana del 16 (nada de la primera semana, que no tenía margen)
-        verify(orders, times(1)).submit(eq("lit-1"), eq(AiRequestType.WEEKLY_PROPOSALS), any(), any(), eq(List.of("2026-11-16")));
+        verify(orders, times(1)).submitInternal(eq("lit-1"), eq(AiRequestType.WEEKLY_PROPOSALS), any(), any(), eq(List.of("2026-11-16")));
         assertThat(saved).containsExactly(new AiAutoOrderEntity.Key("lit-1", "WEEKLY_PROPOSALS", LocalDate.of(2026, 11, 16)));
         // Guardar otra vez no la repite
         assertThat(onSave(at(11, 15, 20, 5)).afterSave(p).orElseThrow())
                 .isEqualTo("No queda margen para lo que resta de esta semana. Las propuestas de la semana del 16 de nov ya estaban pedidas.");
-        verify(orders, times(1)).submit(any(), any(), any(), any(), any());
+        verify(orders, times(1)).submitInternal(any(), any(), any(), any(), any());
         // La ronda tampoco la repite
         when(promotions.proposableDates()).thenReturn(List.of(new PromotionQueries.PromotionDates("lit-1", p.startsOn(), END)));
         when(promotions.proposableBetween(any(), any())).thenReturn(List.of("lit-1"));
         assertThat(autoOrders.createDue()).isZero();
-        verify(orders, times(1)).submit(any(), any(), any(), any(), any());
+        verify(orders, times(1)).submitInternal(any(), any(), any(), any(), any());
         // Domingo a las 4:00 aún cabe la primera semana (recogida 5:30 + 6 h = 11:30) y, como es domingo, también W+1
         saved.clear();
         assertThat(onSave(at(11, 15, 4, 0)).afterSave(p).orElseThrow())
@@ -142,7 +142,7 @@ class AiProposalsOnSaveTest {
     void ifNoSlotIsLeftAndThePromotionEndsThisWeekThereIsNothingElseToAsk() {
         var p = promotion("ACTIVE", LocalDate.of(2026, 11, 15), LocalDate.of(2026, 11, 15));
         assertThat(onSave(at(11, 15, 20, 0)).afterSave(p)).contains("No queda margen para lo que resta de esta semana.");
-        verify(orders, never()).submit(any(), any(), any(), any(), any());
+        verify(orders, never()).submitInternal(any(), any(), any(), any(), any());
     }
 
     @Test
@@ -151,7 +151,7 @@ class AiProposalsOnSaveTest {
         // Jueves 12 a las 10:00: su primera semana ya pasó; le toca W+1 (semana del 16)
         assertThat(onSave(at(11, 12, 10, 0)).afterSave(p))
                 .contains("Propuestas de la semana del 16 de nov pedidas: llegarán sobre las 20:30");
-        verify(orders).submit(eq("lit-1"), eq(AiRequestType.WEEKLY_PROPOSALS), any(), any(), eq(List.of("2026-11-16")));
+        verify(orders).submitInternal(eq("lit-1"), eq(AiRequestType.WEEKLY_PROPOSALS), any(), any(), eq(List.of("2026-11-16")));
         assertThat(onSave(at(11, 12, 10, 5)).afterSave(p)).isEmpty();
         // Domingo 23:00 de otra promoción sin pedir
         saved.clear();
@@ -159,7 +159,7 @@ class AiProposalsOnSaveTest {
         // Martes: no se pide en el guardado, lo hará la ronda
         saved.clear();
         assertThat(onSave(at(11, 10, 10, 0)).afterSave(p)).isEmpty();
-        verify(orders, times(2)).submit(any(), any(), any(), any(), any());
+        verify(orders, times(2)).submitInternal(any(), any(), any(), any(), any());
     }
 
     @Test
@@ -169,7 +169,7 @@ class AiProposalsOnSaveTest {
         assertThat(onSave(at(11, 12, 10, 0)).afterSave(p).orElseThrow()).isEqualTo(
                 "Propuestas de la primera semana y de la semana del 16 de nov pedidas, pero no pueden salir: "
                         + "la marca no tiene carpeta de «Encargos»");
-        verify(orders, times(2)).submit(any(), any(), any(), any(), any());
+        verify(orders, times(2)).submitInternal(any(), any(), any(), any(), any());
     }
 
     @Test
@@ -199,7 +199,7 @@ class AiProposalsOnSaveTest {
     void aPromotionStartingNextMondayWillAskOnThePreviousMondayAtSix() {
         var p = promotion("PLANNED", LocalDate.of(2026, 11, 16), END);
         assertThat(onSave(at(11, 9, 11, 0)).afterSave(p)).contains("Sus propuestas se pedirán el lunes 9 de nov a las 18:00");
-        verify(orders, never()).submit(any(), any(), any(), any(), any());
+        verify(orders, never()).submitInternal(any(), any(), any(), any(), any());
         // Empezando dentro de tres semanas, el lunes anterior es el 16
         var far = promotion("PLANNED", LocalDate.of(2026, 11, 30), END);
         assertThat(onSave(at(11, 9, 11, 0)).afterSave(far)).contains("Sus propuestas se pedirán el lunes 23 de nov a las 18:00");
@@ -234,6 +234,6 @@ class AiProposalsOnSaveTest {
         assertThat(onSave(at(11, 18, 11, 0)).afterSave(promotion("ACTIVE", LocalDate.of(2026, 11, 9), END))).isEmpty();
         when(mode.isDemo()).thenReturn(true);
         assertThat(onSave(at(11, 9, 11, 0)).afterSave(promotion("PLANNED", LocalDate.of(2026, 11, 9), END))).isEmpty();
-        verify(orders, never()).submit(any(), any(), any(), any(), any());
+        verify(orders, never()).submitInternal(any(), any(), any(), any(), any());
     }
 }

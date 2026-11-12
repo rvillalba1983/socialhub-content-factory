@@ -45,6 +45,7 @@ class AiDispatcher {
     private final AiHandlers handlers;
     private final java.util.List<AiContextProvider> contexts;
     private final AiHeldOrders held;
+    private final AiUrgentRule urgency;
     private final ApplicationEventPublisher events;
     /** Encargos de esta ronda que esperan a Raúl. */
     private java.util.Map<String, AiHeldOrders.Held> holding = AiHeldOrders.collector();
@@ -213,8 +214,9 @@ class AiDispatcher {
             request.put("model", model.name().toLowerCase(java.util.Locale.ROOT));
             @org.jspecify.annotations.Nullable Instant deadline = handlers.of(type).map(h -> h.deadline(job)).orElse(null);
             if (deadline != null) request.put("deadline", deadline.toString());
-            // Las pasadas de las 8:00 a las 18:00 solo hacen los urgentes: los que no pueden esperar a la pasada de la noche
-            boolean urgent = ClaudePasses.urgent(type.onPc(), deadline, ClaudePickups.visibleAt(clock.instant()));
+            // Las pasadas de las 8:00 a las 18:00 solo hacen los urgentes: lo pedido a mano, lo que vence antes de la pasada de la noche y el contenido de publicaciones cercanas
+            @org.jspecify.annotations.Nullable Instant contentDue = handlers.of(type).map(h -> h.contentDueAt(job)).orElse(null);
+            boolean urgent = urgency.urgent(type.onPc(), task.manual(), deadline, contentDue, clock.instant());
             request.put("urgent", urgent);
             request.put("idempotencyKey", requestId);
             Path target = fresh(dir, task.id() + "-" + task.attempt());

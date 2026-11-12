@@ -102,7 +102,7 @@ class AutoRequests {
         try {
             transactions.executeWithoutResult(s -> {
                 List<String> ids = batch.stream().map(Publication::getId).toList();
-                String task = orders.submit(promotionId, AiRequestType.CAPTIONS,
+                String task = orders.submitInternal(promotionId, AiRequestType.CAPTIONS,
                         "Textos de " + ids.size() + (ids.size() == 1 ? " publicación" : " publicaciones") + " en producción",
                         "Escribe el texto y los hashtags de estas publicaciones en producción que aún no tienen texto, "
                                 + "con la identidad y la memoria editorial de la marca.", ids);
@@ -119,7 +119,7 @@ class AutoRequests {
     private boolean review(Publication p) {
         try {
             transactions.executeWithoutResult(s -> {
-                String task = orders.submit(p.getPromotionId(), AiRequestType.QUALITY_REVIEW, "Revisión · " + p.getTitle(),
+                String task = orders.submitInternal(p.getPromotionId(), AiRequestType.QUALITY_REVIEW, "Revisión · " + p.getTitle(),
                         "Revisa la calidad de «" + p.getTitle() + "»: coherencia, tono de la marca, ortografía y afirmaciones sin fuente.",
                         List.of(p.getId()));
                 done.add(p.getId(), REVIEW, fingerprint(p), task, clock.instant());

@@ -186,6 +186,13 @@ public class PublishingQueries {
                 .toList();
     }
 
+    /** La hora de publicación más próxima de esas publicaciones (se omiten las que no existen o están canceladas). */
+    public java.util.Optional<java.time.Instant> earliestScheduled(java.util.Collection<String> ids) {
+        return ids.stream().map(publications::findById).flatMap(java.util.Optional::stream)
+                .filter(p -> p.getStatus() != com.socialhub.publishing.domain.PublicationStatus.CANCELLED)
+                .map(Publication::scheduledAt).min(java.util.Comparator.naturalOrder());
+    }
+
     /** Publicaciones de esas ids, como datos sencillos para un encargo a Claude (se omiten las que no existen o están canceladas). */
     public List<java.util.Map<String, Object>> forAi(java.util.Collection<String> ids) {
         return ids.stream().map(publications::findById).flatMap(java.util.Optional::stream)

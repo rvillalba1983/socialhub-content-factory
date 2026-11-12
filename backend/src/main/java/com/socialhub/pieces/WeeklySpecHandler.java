@@ -169,6 +169,16 @@ class WeeklySpecHandler implements AiTypeHandler {
         }
     }
 
+    /** La publicación más próxima del lote: si sale pronto, el spec es urgente. */
+    @Override
+    public java.time.@org.jspecify.annotations.Nullable Instant contentDueAt(AiJob job) {
+        if (job.inputs().stream().allMatch(WeeklySpecHandler::isDate)) {
+            return pending(job.promotionId(), clock.instant(), covered(job.promotionId(), job.taskId())).stream()
+                    .map(PublishingQueries.AwaitingContent::scheduledAt).min(java.util.Comparator.naturalOrder()).orElse(null);
+        }
+        return publications.earliestScheduled(job.inputs()).orElse(null);
+    }
+
     /** Ya no hay nada que preparar: todas las publicaciones del lote se cancelaron (o ya no hay pendientes, en los antiguos). */
     @Override
     public boolean obsolete(AiJob job) {

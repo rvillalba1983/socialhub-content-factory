@@ -153,9 +153,10 @@ class AiTypesTest {
         String today = java.time.LocalDate.now(java.time.ZoneId.of("Europe/Madrid")).toString();
         // Por lotes: el encargo no depende de ninguna semana y lleva solo las publicaciones indicadas, con su fecha
         assertThat(request.get("inputs").has("week")).isFalse();
-        assertThat(request.get("urgent").asBoolean()).isFalse();
+        // Pedido a mano por Raúl: urgente siempre, aunque la publicación esté lejos
+        assertThat(request.get("urgent").asBoolean()).isTrue();
         // Y la base de datos guarda la misma marca
-        assertThat(requests.findByTaskIdOrderBySentAt(task).getLast().isUrgent()).isFalse();
+        assertThat(requests.findByTaskIdOrderBySentAt(task).getLast().isUrgent()).isTrue();
         assertThat(request.get("inputs").get("publications").size()).isEqualTo(1);
         assertThat(request.get("inputs").get("publications").get(0).get("scheduled_on").asString()).isEqualTo("2030-11-12");
         assertThat(request.get("inputs").get("publications").get(0).get("id").asString()).isEqualTo("2030-11-12-instagram");
@@ -328,6 +329,11 @@ class AiTypesTest {
         assertThat(batch.getFirst().inputs()).containsExactly("2030-12-10-instagram", "2030-12-11-instagram", "2030-12-12-instagram");
         // Ya está en un spec abierto: la ronda siguiente no lo repite
         assertThat(autoOrders.createSpecBatches(now)).isZero();
+        // Lo pide SocialHub y las publicaciones están lejos: sigue la regla normal, no es urgente
+        String batchTask = batch.getFirst().id();
+        waitFor(() -> "WAITING".equals(task(batchTask).get("status").asString()), "spec por lotes enviado");
+        assertThat(request(batchTask).get("urgent").asBoolean()).isFalse();
+        assertThat(requests.findByTaskIdOrderBySentAt(batchTask).getLast().isUrgent()).isFalse();
     }
 
     @Test
@@ -344,6 +350,30 @@ class AiTypesTest {
         var now = java.time.ZonedDateTime.now(java.time.ZoneId.of("Europe/Madrid"));
         assertThat(autoOrders.createSpecBatches(now)).isEqualTo(1);
         assertThat(production.coveringAiTasks(AiRequestType.WEEKLY_SPEC.taskType(), "futura")).hasSize(1);
+    }
+
+    @Test
+    @Order(22)
+    void aRetryPressedByRaulIsUrgentButTheOneSocialHubDoesAloneIsNot() throws Exception {
+        String byHand = automatic("Textos a mano");
+        production.aiFailed(byHand, "falló");
+        production.execute(byHand, com.socialhub.production.domain.TaskCommandType.RETRY, null);
+        waitFor(() -> "WAITING".equals(task(byHand).get("status").asString()) && task(byHand).get("attempts").asInt() == 2, "reintento enviado");
+        assertThat(request(byHand).get("urgent").asBoolean()).isTrue();
+
+        String alone = automatic("Textos solos");
+        production.aiFailed(alone, "falló");
+        production.autoRetry(alone);
+        waitFor(() -> "WAITING".equals(task(alone).get("status").asString()) && task(alone).get("attempts").asInt() == 2, "reintento enviado");
+        assertThat(request(alone).get("urgent").asBoolean()).isFalse();
+    }
+
+    /** Un encargo de textos de una publicación lejana pedido por SocialHub (no urgente), ya enviado. */
+    private String automatic(String title) throws Exception {
+        String id = production.submitAi(new com.socialhub.production.TaskRequest(AiRequestType.CAPTIONS.stationId(), "poemario",
+                AiRequestType.CAPTIONS.taskType(), title, "Textos", List.of("2030-11-12-instagram"), List.of()), "SONNET");
+        waitFor(() -> "WAITING".equals(task(id).get("status").asString()), "encargo enviado");
+        return id;
     }
 
     // ---------------------------------------------------------------- utilidades
