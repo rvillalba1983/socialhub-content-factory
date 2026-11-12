@@ -191,11 +191,13 @@ paths:
     post:
       tags: [Brands]
       operationId: createBrandFolders
-      summary: Crea las carpetas de la marca que falten
+      summary: Crea las carpetas de la marca desde una raíz (o las que falten)
       description: >
-        Con «base», los papeles sin carpeta pasan a ser subcarpetas suyas (Material, Borradores, Generados, Aprobados,
-        Publicados, Informes y Encargos). Después crea las carpetas asignadas que no existan. Nunca borra, mueve ni
-        cambia carpetas que ya existan.
+        Con «base» (la carpeta raíz de la marca): Material es la propia raíz; Borradores, Generados, Aprobados,
+        Publicados, Informes y Encargos son subcarpetas suyas (borradores, generados, aprobados, publicados, informes,
+        encargos) y dentro de encargos se crean para-claude, para-claude-pc, de-claude y publico. Los 7 papeles pasan a
+        apuntar a esas rutas. Sin «base», crea las carpetas ya asignadas que no existan. Nunca borra, mueve ni cambia
+        carpetas que ya existan. Si la raíz no es accesible (unidad no disponible) devuelve 409 con el motivo.
       parameters:
         - $ref: "#/components/parameters/BrandId"
         - $ref: "#/components/parameters/RequestGuard"
@@ -1617,7 +1619,7 @@ components:
     FolderCreationInput:
       type: object
       properties:
-        base: { type: string, description: "Carpeta base de la marca (opcional), por ejemplo G:/Mi unidad/SocialHub/Litoques" }
+        base: { type: string, description: "Carpeta raíz de la marca (opcional), por ejemplo G:/Mi unidad/socialhub/eldelito" }
 
     Folder:
       type: object
