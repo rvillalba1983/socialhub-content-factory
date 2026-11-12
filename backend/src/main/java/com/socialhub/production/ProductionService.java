@@ -51,6 +51,12 @@ public class ProductionService {
         return saved;
     }
 
+    /** Cancela un encargo a Claude en cola que ya no tiene nada que hacer. */
+    @Transactional
+    public void cancelAi(String taskId) {
+        execute(taskId, TaskCommandType.CANCEL, null);
+    }
+
     @Transactional
     public Station execute(String stationId, StationCommandType command) {
         Station station = station(stationId);
@@ -201,20 +207,30 @@ public class ProductionService {
                 .toList();
     }
 
-    /**
-     * Un encargo a Claude que ocupa sus datos de entrada: sigue vivo ({@code open}: en cola, en curso, en espera,
-     * bloqueado o fallido con reintentos por delante) o ya se completó. Los fallidos sin reintentos y los cancelados no
-     * cuentan: liberan lo que tenían.
-     */
-    public record Covering(AiTask task, boolean open) {}
+    /** Cómo ocupa un encargo a Claude sus datos de entrada. */
+    public enum Cover {
+        /** Sigue vivo: en cola, en curso, en espera, bloqueado o fallido con reintentos por delante. */
+        OPEN,
+        /** Ya se completó. */
+        DONE,
+        /** Falló del todo (sin reintentos): no ocupa nada, pero se sabe cuándo falló. */
+        FAILED
+    }
 
+    /** Un encargo a Claude, cómo cubre sus datos y cuándo cambió de estado por última vez. */
+    public record Covering(AiTask task, Cover cover, java.time.Instant at) {}
+
+    /** Encargos a Claude de un tipo y promoción en cola, vivos, completados o fallidos del todo (no los cancelados). */
     @Transactional(readOnly = true)
-    public List<Covering> coveringAiTasks(String type) {
-        return tasks.findByStatusIn(List.of(TaskStatus.QUEUED, TaskStatus.RUNNING, TaskStatus.WAITING, TaskStatus.BLOCKED,
-                        TaskStatus.FAILED, TaskStatus.COMPLETED)).stream()
-                .filter(t -> t.isAiRequest() && t.getType().equals(type))
-                .filter(t -> t.getStatus() != TaskStatus.FAILED || t.canAutoRetry())
-                .map(t -> new Covering(toAiTask(t), t.getStatus() != TaskStatus.COMPLETED))
+    public List<Covering> coveringAiTasks(String type, String promotionId) {
+        return tasks.findByTypeAndPromotion(type, promotionId, List.of(TaskStatus.QUEUED, TaskStatus.RUNNING,
+                        TaskStatus.WAITING, TaskStatus.BLOCKED, TaskStatus.FAILED, TaskStatus.COMPLETED)).stream()
+                .filter(Task::isAiRequest)
+                .map(t -> new Covering(toAiTask(t), switch (t.getStatus()) {
+                    case COMPLETED -> Cover.DONE;
+                    case FAILED -> t.canAutoRetry() ? Cover.OPEN : Cover.FAILED;
+                    default -> Cover.OPEN;
+                }, t.lastChangeAt()))
                 .toList();
     }
 

@@ -24,6 +24,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 
 /**
  * spec.json por lotes: Claude devuelve el spec en {@code outputs.spec} (contrato promo-spec.v1). SocialHub lo
@@ -34,7 +36,9 @@ import tools.jackson.databind.ObjectMapper;
  * hora de publicación por delante y que no estén ya en un spec abierto o completado. Se pide en cuanto hay 3 o más, o
  * cuando la más próxima sale en menos de 3 días (aunque sean 1 o 2). El encargo lleva los identificadores de esas
  * publicaciones como datos de entrada, así que cada publicación está en un solo spec; si el spec falla del todo
- * (sin reintentos) o se cancela, sus publicaciones vuelven a contar como pendientes.
+ * (sin reintentos) o se cancela, sus publicaciones vuelven a contar como pendientes, pero ese mismo lote no se pide solo
+ * otra vez hasta pasadas 24 horas (a mano sí). Los specs antiguos, con una fecha como dato, cubren las publicaciones de
+ * esa semana (de lunes a domingo).
  */
 @Component
 @RequiredArgsConstructor
@@ -65,30 +69,72 @@ class WeeklySpecHandler implements AiTypeHandler {
         return pendingAt.size() >= MIN_BATCH || first.isBefore(now.plus(SOON));
     }
 
-    /** Publicaciones de la promoción en un spec abierto, y en uno abierto o ya completado. */
-    private record Covered(Set<String> open, Set<String> all) {}
+    /** Un lote que falló del todo, y cuándo. */
+    private record FailedLot(Set<String> ids, Instant at) {}
 
-    private Covered covered() {
-        Set<String> open = new HashSet<>(), all = new HashSet<>();
-        for (var cover : production.coveringAiTasks(AiRequestType.WEEKLY_SPEC.taskType())) {
-            all.addAll(cover.task().inputs());
-            if (cover.open()) open.addAll(cover.task().inputs());
+    /**
+     * Lo que ya ocupan los specs de la promoción: publicaciones en un spec abierto, en uno abierto o completado, semanas
+     * enteras de los specs antiguos (que llevaban una fecha como dato) y lotes que fallaron del todo.
+     */
+    private record Covered(Set<String> open, Set<String> all, Set<LocalDate> weeks, List<FailedLot> failed) {
+        boolean covers(PublishingQueries.AwaitingContent p) {
+            return all.contains(p.id()) || weeks.contains(mondayOf(p.scheduledAt()));
         }
-        return new Covered(open, all);
+    }
+
+    private static final java.time.ZoneId SPAIN = java.time.ZoneId.of("Europe/Madrid");
+    /** Un lote que falló del todo no se vuelve a pedir solo, igual, hasta pasado este tiempo (a mano sí se puede). */
+    static final java.time.Duration RETRY_LOT_AFTER = java.time.Duration.ofHours(24);
+
+    private static LocalDate mondayOf(Instant at) {
+        return mondayOf(at.atZone(SPAIN).toLocalDate());
+    }
+
+    private static LocalDate mondayOf(LocalDate day) {
+        return day.with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY));
+    }
+
+    /** @param except tarea que no cuenta (la que se está preparando) */
+    private Covered covered(String promotionId, @org.jspecify.annotations.Nullable String except) {
+        Set<String> open = new HashSet<>(), all = new HashSet<>();
+        Set<LocalDate> weeks = new HashSet<>();
+        List<FailedLot> failed = new java.util.ArrayList<>();
+        for (var cover : production.coveringAiTasks(AiRequestType.WEEKLY_SPEC.taskType(), promotionId)) {
+            if (cover.task().id().equals(except)) continue;
+            List<String> ids = cover.task().inputs().stream().filter(i -> !isDate(i)).toList();
+            if (cover.cover() == ProductionService.Cover.FAILED) {
+                if (!ids.isEmpty()) failed.add(new FailedLot(Set.copyOf(ids), cover.at()));
+                continue;
+            }
+            // Los specs antiguos llevaban una fecha: cubren las publicaciones de esa semana (de lunes a domingo)
+            cover.task().inputs().stream().filter(WeeklySpecHandler::isDate).forEach(d -> weeks.add(mondayOf(LocalDate.parse(d))));
+            all.addAll(ids);
+            if (cover.cover() == ProductionService.Cover.OPEN) open.addAll(ids);
+        }
+        return new Covered(open, all, weeks, failed);
+    }
+
+    private List<PublishingQueries.AwaitingContent> pending(String promotionId, Instant now, Covered covered) {
+        return publications.awaitingContent(promotionId).stream()
+                .filter(p -> p.scheduledAt().isAfter(now) && !covered.covers(p)).toList();
     }
 
     /** Pendientes de contenido: en producción, sin piezas, con la hora por delante y fuera de cualquier spec abierto o completado. */
     List<PublishingQueries.AwaitingContent> pending(String promotionId, Instant now) {
-        Set<String> covered = covered().all();
-        return publications.awaitingContent(promotionId).stream()
-                .filter(p -> p.scheduledAt().isAfter(now) && !covered.contains(p.id())).toList();
+        return pending(promotionId, now, covered(promotionId, null));
     }
 
     @Override
     public List<String> autoOrderBatch(String promotionId, Instant now) {
-        var pending = pending(promotionId, now);
-        return due(pending.stream().map(PublishingQueries.AwaitingContent::scheduledAt).toList(), now)
-                ? pending.stream().map(PublishingQueries.AwaitingContent::id).toList() : List.of();
+        Covered covered = covered(promotionId, null);
+        var pending = pending(promotionId, now, covered);
+        if (!due(pending.stream().map(PublishingQueries.AwaitingContent::scheduledAt).toList(), now)) return List.of();
+        List<String> ids = pending.stream().map(PublishingQueries.AwaitingContent::id).toList();
+        // El mismo lote que acaba de fallar del todo no se repite solo: sería un bucle de encargos que fallan
+        Set<String> lot = Set.copyOf(ids);
+        boolean failedRecently = covered.failed().stream()
+                .anyMatch(f -> f.ids().equals(lot) && f.at().isAfter(now.minus(RETRY_LOT_AFTER)));
+        return failedRecently ? List.of() : ids;
     }
 
     /** Un encargo a mano sin publicaciones indicadas (o solo con fechas, como antes) lleva las pendientes de ahora. */
@@ -112,7 +158,7 @@ class WeeklySpecHandler implements AiTypeHandler {
         if (inputs.isEmpty()) {
             throw new IllegalArgumentException("No hay publicaciones pendientes de contenido (en «En producción» y sin piezas) para el spec");
         }
-        Set<String> open = covered().open();
+        Set<String> open = covered(promotionId, null).open();
         for (String id : inputs) {
             if (!publications.belongsTo(promotionId, id)) {
                 throw new IllegalArgumentException("«" + id + "» no es una publicación de esta promoción");
@@ -123,13 +169,25 @@ class WeeklySpecHandler implements AiTypeHandler {
         }
     }
 
+    /** Ya no hay nada que preparar: todas las publicaciones del lote se cancelaron (o ya no hay pendientes, en los antiguos). */
+    @Override
+    public boolean obsolete(AiJob job) {
+        return lotPublications(job).isEmpty();
+    }
+
+    /** Las publicaciones del lote, como datos para Claude. Un encargo antiguo (con una fecha) toma las pendientes de ahora. */
+    private List<Map<String, Object>> lotPublications(AiJob job) {
+        if (job.inputs().stream().allMatch(WeeklySpecHandler::isDate)) {
+            Covered covered = covered(job.promotionId(), job.taskId());
+            return publications.forAi(pending(job.promotionId(), clock.instant(), covered).stream()
+                    .map(PublishingQueries.AwaitingContent::id).toList());
+        }
+        return publications.forAi(job.inputs());
+    }
+
     @Override
     public Map<String, Object> inputs(AiJob job) {
-        var list = publications.forAi(job.inputs());
-        if (list.isEmpty()) {
-            // Un encargo anterior a los lotes, con una fecha como dato: se piden las pendientes de ahora
-            list = publications.forAi(publications.awaitingContent(job.promotionId()).stream().map(PublishingQueries.AwaitingContent::id).toList());
-        }
+        var list = lotPublications(job);
         Map<String, Object> inputs = new LinkedHashMap<>();
         inputs.put("folders", promotions.folderMap(job.promotionId()));
         inputs.put("publications", list);
@@ -147,6 +205,24 @@ class WeeklySpecHandler implements AiTypeHandler {
         if (!spec.isObject()) throw new IllegalArgumentException("Falta el spec («outputs.spec»)");
         List<String> errors = contracts.validate(JsonContracts.PROMO_SPEC, spec);
         if (!errors.isEmpty()) throw new IllegalArgumentException("El spec no cumple promo-spec.v1: " + String.join("; ", errors));
+        int discarded = 0;
+        Set<String> lot = job.inputs().stream().filter(i -> !isDate(i)).collect(java.util.stream.Collectors.toSet());
+        if (!lot.isEmpty() && spec.path("piezas").isArray()) {
+            // Piezas de publicaciones que no son de este lote: se descartan para no duplicar las de otro spec
+            ObjectNode filtered = ((ObjectNode) spec).deepCopy();
+            ArrayNode keep = json.createArrayNode();
+            for (JsonNode piece : spec.path("piezas")) {
+                String id = piece.path("publicacion").isString() ? piece.path("publicacion").asString().strip() : "";
+                if (id.isEmpty() || lot.contains(id)) keep.add(piece); else discarded++;
+            }
+            if (discarded > 0) {
+                if (keep.isEmpty()) {
+                    throw new IllegalArgumentException("Ninguna pieza del spec es de las publicaciones de este encargo");
+                }
+                filtered.set("piezas", keep);
+                spec = filtered;
+            }
+        }
         String folder = promotions.ordersFolder(job.promotionId())
                 .orElseThrow(() -> new IllegalArgumentException("La promoción no tiene carpeta de «Encargos»"));
         Path file;
@@ -169,6 +245,8 @@ class WeeklySpecHandler implements AiTypeHandler {
         String taskId = orders.order(job.promotionId(), file.toString());
         String summary = outputs.path("summary").isString() ? outputs.path("summary").asString().strip() : "";
         return "spec guardado en " + file + " · piezas encargadas (tarea " + taskId + ")"
+                + (discarded == 0 ? "" : " · aviso: " + discarded + (discarded == 1 ? " pieza descartada" : " piezas descartadas")
+                        + " por no ser de las publicaciones de este encargo")
                 + (summary.isEmpty() ? "" : " · " + summary);
     }
 

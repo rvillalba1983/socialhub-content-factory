@@ -18,6 +18,9 @@ public interface TaskRepository {
 
     List<Task> findByStatusIn(Collection<TaskStatus> statuses);
 
+    /** Tareas de ese tipo y promoción en esos estados (consulta acotada). */
+    List<Task> findByTypeAndPromotion(String type, String promotionId, Collection<TaskStatus> statuses);
+
     /** Solo los identificadores de las tareas completadas (no carga las tareas). */
     Set<String> completedIds();
 

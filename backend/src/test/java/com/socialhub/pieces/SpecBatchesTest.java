@@ -159,8 +159,14 @@ class SpecBatchesTest {
                 command(task, "RETRY");
             }
         }
-        // Sin intentos: libera sus publicaciones
-        assertThat(batch("poemario")).containsExactlyElementsOf(ids);
+        // Sin intentos: libera sus publicaciones, pero ese mismo lote no se pide solo otra vez durante 24 h
+        assertThat(batch("poemario")).isEmpty();
+        // A mano sí se puede
+        String manual = orders.submit("poemario", AiRequestType.WEEKLY_SPEC, "A mano", "A mano", ids);
+        command(manual, "CANCEL");
+        // Un lote distinto (una publicación más) no está bloqueado
+        publication("poemario", 13, "IN_PRODUCTION");
+        assertThat(batch("poemario")).containsExactly(id(1), id(10), id(11), id(12), id(13));
     }
 
     // ---------------------------------------------------------------- utilidades

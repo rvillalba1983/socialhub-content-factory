@@ -12,6 +12,8 @@ interface TaskJpaRepository extends JpaRepository<TaskEntity, String>, JpaSpecif
 
     List<TaskEntity> findByStationIdOrderById(String stationId);
 
+    List<TaskEntity> findByTypeAndPromotionIdAndStatusInOrderById(String type, String promotionId, Collection<TaskStatus> statuses);
+
     List<TaskEntity> findByStatusInOrderById(Collection<TaskStatus> statuses);
 
     @Query(value = """

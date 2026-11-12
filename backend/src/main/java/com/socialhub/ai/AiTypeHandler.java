@@ -54,6 +54,12 @@ public interface AiTypeHandler {
      */
     default void onFailed(AiJob job, String reason) {}
 
+    /**
+     * Ya no hay nada que hacer en ese encargo (por ejemplo, todas sus publicaciones se cancelaron): SocialHub lo cancela en
+     * vez de enviarlo a Claude.
+     */
+    default boolean obsolete(AiJob job) { return false; }
+
     /** Datos que se añaden a «inputs» del encargo, además del título y los datos de entrada. */
     default Map<String, Object> inputs(AiJob job) { return Map.of(); }
 

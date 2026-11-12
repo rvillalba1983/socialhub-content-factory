@@ -41,6 +41,9 @@ public class AiOrders {
         promotions.promotion(promotionId);
         if (goal.isBlank()) throw new IllegalArgumentException("Falta el objetivo del encargo");
         String name = title.isBlank() ? type.label() : title.strip();
+        // Un alta a la vez por tipo y promoción: lo que se comprueba abajo (publicaciones ya en otro encargo) no puede
+        // cambiar entre comprobar y guardar, ni por un encargo a mano ni por el automático
+        if (handlers.of(type).isPresent()) requests.lockOrders(type.name() + ":" + promotionId);
         List<String> clean = inputs.stream().map(String::strip).filter(s -> !s.isEmpty()).toList();
         List<String> complete = handlers.of(type).map(h -> h.completeInputs(promotionId, clean)).orElse(clean);
         handlers.of(type).ifPresent(h -> h.validateOrder(promotionId, complete));

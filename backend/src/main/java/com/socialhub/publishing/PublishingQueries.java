@@ -177,18 +177,19 @@ public class PublishingQueries {
 
     /** Publicaciones «En producción» de la promoción que aún no tienen ningún archivo (piezas), por fecha y hora. */
     public List<AwaitingContent> awaitingContent(String promotionId) {
-        return publications.findAll().stream()
-                .filter(p -> p.getPromotionId().equals(promotionId)
-                        && p.getStatus() == com.socialhub.publishing.domain.PublicationStatus.IN_PRODUCTION
-                        && files.files(p.getId()).isEmpty())
+        var inProduction = publications.findByPromotionAndStatus(promotionId,
+                com.socialhub.publishing.domain.PublicationStatus.IN_PRODUCTION);
+        var withFiles = files.withFiles(inProduction.stream().map(Publication::getId).toList());
+        return inProduction.stream().filter(p -> !withFiles.contains(p.getId()))
                 .sorted(java.util.Comparator.comparing(Publication::scheduledAt))
                 .map(p -> new AwaitingContent(p.getId(), p.scheduledAt()))
                 .toList();
     }
 
-    /** Publicaciones de esas ids, como datos sencillos para un encargo a Claude (las que no existen se omiten). */
+    /** Publicaciones de esas ids, como datos sencillos para un encargo a Claude (se omiten las que no existen o están canceladas). */
     public List<java.util.Map<String, Object>> forAi(java.util.Collection<String> ids) {
         return ids.stream().map(publications::findById).flatMap(java.util.Optional::stream)
+                .filter(p -> p.getStatus() != com.socialhub.publishing.domain.PublicationStatus.CANCELLED)
                 .map(PublishingQueries::forAi).toList();
     }
 

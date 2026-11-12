@@ -114,6 +114,12 @@ class AiDispatcher {
             return false;
         }
         String brandId = promotions.brandOf(task.promotionId());
+        AiJob job = jobOf(task, type.get(), brandId);
+        if (handlers.of(type.get()).map(h -> h.obsolete(job)).orElse(false)) {
+            production.cancelAi(task.id());
+            log.info("Encargo {} ({}) cancelado: ya no tiene nada que preparar", task.id(), type.get());
+            return false;
+        }
         Optional<String> orders = promotions.brandOrdersFolder(brandId);
         if (orders.isEmpty()) {
             hold(task, "La marca no tiene carpeta de «Encargos». Indícala o créala en Marcas → Carpetas de Drive.");
@@ -197,8 +203,7 @@ class AiDispatcher {
             Map<String, Object> inputs = new LinkedHashMap<>();
             inputs.put("title", task.title());
             inputs.put("items", task.inputs());
-            AiJob job = new AiJob(task.id(), type, java.util.Objects.requireNonNull(task.promotionId()), brandId,
-                    task.title(), task.goal(), task.inputs(), task.createdAt(), lastRequestPath(task.id()));
+            AiJob job = jobOf(task, type, brandId);
             Map<String, Object> identity = promotions.identityOf(task.promotionId()).forAi();
             if (!identity.isEmpty()) inputs.put("brand_identity", identity);
             contexts.forEach(c -> inputs.putAll(c.context(task.promotionId(), brandId)));
@@ -219,6 +224,11 @@ class AiDispatcher {
         } catch (IOException e) {
             throw new IllegalStateException(e.getMessage(), e);
         }
+    }
+
+    private AiJob jobOf(AiTask task, AiRequestType type, String brandId) {
+        return new AiJob(task.id(), type, java.util.Objects.requireNonNull(task.promotionId()), brandId,
+                task.title(), task.goal(), task.inputs(), task.createdAt(), lastRequestPath(task.id()));
     }
 
     /** El archivo del último envío de ese encargo (si es un reintento), para los manejadores que lo necesitan. */
