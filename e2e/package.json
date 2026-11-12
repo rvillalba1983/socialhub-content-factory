@@ -1,0 +1,16 @@
+{
+  "name": "socialhub-e2e",
+  "private": true,
+  "description": "Pruebas de extremo a extremo con navegador real (Playwright). Arrancan SocialHub de verdad: el jar con la web dentro, PostgreSQL incluido y una carpeta de datos temporal.",
+  "type": "module",
+  "scripts": {
+    "build:app": "node scripts/build-app.mjs",
+    "e2e": "playwright test",
+    "e2e:full": "node scripts/build-app.mjs && playwright test",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@types/node": "22.20.5"
+  }
+}

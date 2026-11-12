@@ -28,5 +28,10 @@ credentials*.json
 token*.json
 frontend/dist/
 
+# Pruebas de extremo a extremo (e2e/): informes, trazas y registro de la app de la última pasada
+e2e/test-results/
+e2e/playwright-report/
+e2e/.run/
+
 # Fichas de equipo generadas por scripts/windows/ficha-equipo
 scripts/windows/ficha-equipo/ficha-*.txt
