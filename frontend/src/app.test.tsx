@@ -104,18 +104,26 @@ describe('World', () => {
       expect(card().querySelectorAll('.aitem')).toHaveLength(2);
     });
 
-    it('cada aviso lleva su texto completo en el title y se expande con su botón', () => {
-      draw(3);
-      const first = card().querySelector('.aitem')!;
-      expect(first).toHaveAttribute('title', 'Aviso número 0 con un título bastante largo. Detalle 0');
-      const toggle = screen.getByRole('button', { name: 'Ver completo: Aviso número 0 con un título bastante largo' });
-      expect(toggle).toHaveAttribute('aria-expanded', 'false');
-      fireEvent.click(toggle);
-      expect(card().querySelector('.attn-row.full')).not.toBeNull();
-      expect(screen.getByRole('button', { name: 'Recortar: Aviso número 0 con un título bastante largo' })).toHaveAttribute('aria-expanded', 'true');
-      // Solo uno a la vez
-      fireEvent.click(screen.getByRole('button', { name: 'Ver completo: Aviso número 1 con un título bastante largo' }));
+    it('el primer clic despliega el aviso (uno a la vez) y el segundo abre su destino', () => {
+      const onArmory = vi.fn();
+      render(<World data={{ ...snapshot, alerts: many(3) }} sel={{ type: null, id: null }}
+        onStation={() => {}} onTask={() => {}} onTaskAction={() => {}} onArmory={onArmory} onPromotion={() => {}} onRegister={() => {}} />);
+      const items = () => [...card().querySelectorAll<HTMLElement>('.aitem')];
+      expect(items()[0]).toHaveAttribute('title', 'Aviso número 0 con un título bastante largo. Detalle 0');
+      expect(items()[0]).toHaveAttribute('aria-expanded', 'false');
+      fireEvent.click(items()[0]);
+      expect(onArmory).not.toHaveBeenCalled();
+      expect(items()[0]).toHaveAttribute('aria-expanded', 'true');
       expect(card().querySelectorAll('.attn-row.full')).toHaveLength(1);
+      // Desplegar otro pliega el anterior
+      fireEvent.click(items()[1]);
+      expect(items()[0]).toHaveAttribute('aria-expanded', 'false');
+      expect(items()[1]).toHaveAttribute('aria-expanded', 'true');
+      expect(onArmory).not.toHaveBeenCalled();
+      // Segundo clic sobre el desplegado: navega
+      fireEvent.click(items()[1]);
+      expect(onArmory).toHaveBeenCalledWith('a1');
+      expect(items()[1]).toHaveAttribute('aria-expanded', 'false');
     });
   });
 });

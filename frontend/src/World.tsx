@@ -260,12 +260,14 @@ export function AttentionCard({ data, onStation, onTask, onArmory, onPublication
           const full = fullKey === key;
           return (
             <div key={key} className={`aitem-row attn-row${full ? ' full' : ''}`}>
-              <button className={`aitem s-${alertTone(a.kind)}`} title={a.detail ? `${a.title}. ${a.detail}` : a.title}
-                onClick={() => openAlert(a, { onTask, onStation, onArmory, onPublication })}>
+              <button className={`aitem s-${alertTone(a.kind)}`} aria-expanded={full} title={a.detail ? `${a.title}. ${a.detail}` : a.title}
+                onClick={() => {
+                  // Primer toque: despliega el texto completo; segundo toque sobre el desplegado: abre su destino
+                  if (!full) setFullKey(key);
+                  else { setFullKey(null); openAlert(a, { onTask, onStation, onArmory, onPublication }); }
+                }}>
                 <Dot s={a.kind} /><span><b>{a.title}</b>{a.detail}</span>
               </button>
-              <button type="button" className="aitem-toggle" aria-expanded={full} aria-label={`${full ? 'Recortar' : 'Ver completo'}: ${a.title}`}
-                title={full ? 'Recortar el aviso' : 'Ver el aviso completo'} onClick={() => setFullKey(full ? null : key)}>{full ? '▴' : '▾'}</button>
             </div>
           );
         })}
