@@ -137,6 +137,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/promotions/{promotion_id}/metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Métricas de la promoción (totales por red y comparación por formato)
+         * @description Solo cuenta las publicaciones con métrica leída (DONE). `measured` son las medidas y `pending` las publicadas que aún no tienen métrica. Totales por red: suma de cada cifra (null si ninguna publicación la tiene). Por formato y red: media por publicación (no suma, porque los grupos tienen distinto tamaño; solo cuentan las publicaciones que tienen esa cifra), con low_sample si el grupo tiene menos de 5 publicaciones.
+         */
+        get: operations["getPromotionMetrics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/app/shutdown": {
         parameters: {
             query?: never;
@@ -1177,6 +1197,62 @@ export interface components {
             shares?: number;
             note?: string;
         };
+        PromotionMetrics: {
+            /**
+             * Format: int32
+             * @description Publicaciones con métrica leída
+             */
+            measured: number;
+            /**
+             * Format: int32
+             * @description Publicadas que aún no tienen métrica leída
+             */
+            pending: number;
+            /** @description Una fila por red (INSTAGRAM, TIKTOK) y una última TOTAL, con la suma de cada cifra */
+            by_network: components["schemas"]["NetworkMetrics"][];
+            /** @description Un grupo por formato y red, con la media por publicación */
+            by_format: components["schemas"]["FormatMetrics"][];
+        };
+        NetworkMetrics: {
+            /** @enum {string} */
+            network: "INSTAGRAM" | "TIKTOK" | "TOTAL";
+            /** Format: int32 */
+            publications: number;
+            /** Format: int64 */
+            views?: number;
+            /** Format: int64 */
+            reach?: number;
+            /** Format: int64 */
+            likes?: number;
+            /** Format: int64 */
+            comments?: number;
+            /** Format: int64 */
+            saves?: number;
+            /** Format: int64 */
+            shares?: number;
+        };
+        FormatMetrics: {
+            /** @description Formato de la publicación */
+            type: string;
+            /** @enum {string} */
+            network: "INSTAGRAM" | "TIKTOK";
+            /** Format: int32 */
+            publications: number;
+            /** @description Menos de 5 publicaciones en el grupo */
+            low_sample: boolean;
+            /** Format: double */
+            views?: number;
+            /** Format: double */
+            reach?: number;
+            /** Format: double */
+            likes?: number;
+            /** Format: double */
+            comments?: number;
+            /** Format: double */
+            saves?: number;
+            /** Format: double */
+            shares?: number;
+        };
         ExternalCalendar: {
             items: components["schemas"]["ExternalPost"][];
             sources: components["schemas"]["ExternalSource"][];
@@ -1925,6 +2001,9 @@ export type AiRequestType = components['schemas']['AiRequestType'];
 export type AiTypeModel = components['schemas']['AiTypeModel'];
 export type PublishJob = components['schemas']['PublishJob'];
 export type PublicationMetrics = components['schemas']['PublicationMetrics'];
+export type PromotionMetrics = components['schemas']['PromotionMetrics'];
+export type NetworkMetrics = components['schemas']['NetworkMetrics'];
+export type FormatMetrics = components['schemas']['FormatMetrics'];
 export type ExternalCalendar = components['schemas']['ExternalCalendar'];
 export type ExternalSourceId = components['schemas']['ExternalSourceId'];
 export type ExternalPost = components['schemas']['ExternalPost'];
@@ -2285,6 +2364,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ExternalCalendar"];
+                };
+            };
+            404: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    getPromotionMetrics: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                promotion_id: components["parameters"]["PromotionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Métricas agregadas */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromotionMetrics"];
                 };
             };
             404: components["responses"]["Problem"];

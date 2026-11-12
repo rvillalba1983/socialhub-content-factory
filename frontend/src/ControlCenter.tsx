@@ -9,6 +9,7 @@ import { AgentChip, Dot, Pill } from './ui';
 import { FolderRoles } from './Folders';
 import { PublicationEditor, ReasonForm } from './PublicationEditor';
 import { api } from './api';
+import { PromotionMetricsTab } from './PromotionMetrics';
 
 const TABS: [string, string][] = [
   ['resumen', 'Resumen'], ['calendario', 'Calendario'], ['publicaciones', 'Publicaciones'], ['tareas', 'Tareas'],
@@ -268,19 +269,7 @@ export function ControlCenter({ p, brand, data, initialTab, initialFilter = 'all
           </>
         )}
 
-        {tab === 'metricas' && (
-          <div className="grid2">
-            <div className="card"><h3>Métricas de la promoción</h3><p className="src">{p.metrics_source}</p>
-              {['Alcance', 'Impresiones', 'Interacciones', 'Reproducciones', 'Guardados', 'Compartidos', 'Seguidores ganados', 'Clics en el enlace']
-                .map(m => <div key={m} className="metric"><span>{m}</span><span className="v">Sin dato</span></div>)}
-            </div>
-            <div className="card"><h3>Cómo se usarán</h3>
-              <ul><li>Comparar por formato, tema, día y hora dentro de la misma marca.</li><li>No sacar conclusiones con muestras pequeñas.</li>
-                <li>Las conclusiones vuelven a la estación de investigación y quedan registradas.</li></ul>
-              <p className="src">Las métricas son opcionales. SocialHub no inventa cifras: aparecerán cuando lleguen datos reales.</p>
-            </div>
-          </div>
-        )}
+        {tab === 'metricas' && <PromotionMetricsTab promotionId={p.id} source={p.metrics_source} />}
 
         {tab === 'config' && (
           <div className="tbl-wrap"><table>

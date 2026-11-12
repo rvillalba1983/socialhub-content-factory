@@ -480,3 +480,16 @@ Rama `fase-12-instagram`. Plan aprobado por Raúl; lo técnico lo decidió Claud
 - **Errores de Meta en español** (técnico, revisión): se pide `locale=es_ES` y se traducen los códigos más comunes (clave, permisos, límites, formato, enlaces); el texto original de Meta queda solo en el registro.
 - **Comprobado con Meta real** (12 nov): la cuota es `config.quota_total` = 100 con `quota_duration` = 86400, y Meta acepta los enlaces de Drive `https://drive.google.com/uc?export=download&id=…` (contenedor de imagen en `FINISHED`). Sigue sin probarse una publicación completa.
 - **Sin librerías nuevas** (técnico): `HttpClient` de Java, como Publora.
+
+## Fase 12 · Bloque 3: métricas reales de la promoción (12 nov 2026)
+
+Rama `fase-12-metricas`. Respuestas de Raúl a las dudas de métricas y decisión técnica.
+
+- **Las seis cifras** (decisión de Raúl): reproducciones, alcance, me gusta, comentarios, guardados y compartidos. Se quitan de la pestaña «Impresiones», «Interacciones», «Seguidores ganados» y «Clics en el enlace».
+- **Totales y comparación por formato y red** (decisión de Raúl): la pestaña «Métricas» de la promoción enseña los totales por red y, debajo, la comparación por formato y red.
+- **Mínimo 5 publicaciones** (decisión de Raúl): un grupo (formato y red) con menos de 5 publicaciones medidas se marca «pocos datos»; la cifra se ve igual.
+- **Solo a los 7 días** (decisión de Raúl): la métrica se lee una vez, a los 7 días de publicar, sin lecturas intermedias. Sin medir, la pestaña dice «Las métricas se leen a los 7 días de publicar» y cuántas esperan.
+- **Redes separadas con total** (decisión de Raúl): columnas Instagram y TikTok y una columna Total.
+- **Claude con Chrome** (decisión de Raúl): las cifras las lee Claude con Chrome (`PublicationMetrics`, sin cambios); SocialHub no llama a ninguna API de métricas.
+- **Comparación por medias por publicación** (técnica): en la comparación por formato y red se usa la media por publicación (no la suma), para que grupos de distinto tamaño sean comparables. La media y la suma solo cuentan las publicaciones que tienen esa cifra; si ninguna la tiene, queda «Sin dato» (nunca cero). Solo cuentan las publicaciones con métrica leída (DONE); las publicadas sin métrica DONE salen como pendientes.
+- **API** (técnica): `GET /api/promotions/{id}/metrics` devuelve `measured`, `pending`, `by_network` (INSTAGRAM, TIKTOK y una última fila TOTAL, con la suma) y `by_format` (formato, red, publicaciones, `low_sample` y la media). No hay migración nueva: usa la tabla `publication_metric` (V20).

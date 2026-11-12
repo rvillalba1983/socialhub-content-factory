@@ -170,6 +170,35 @@ class PublicationsController implements PublicationsApi {
     }
 
     @Override
+    public ResponseEntity<com.socialhub.api.model.PromotionMetricsDto> getPromotionMetrics(String promotionId) {
+        var report = queries.promotionMetrics(promotionId);
+        var networks = report.byNetwork().stream().map(n -> {
+            var dto = new com.socialhub.api.model.NetworkMetricsDto(
+                    com.socialhub.api.model.NetworkMetricsDto.NetworkEnum.valueOf(n.platform() == null ? "TOTAL" : n.platform().name()),
+                    n.publications());
+            dto.setViews(n.sums().views());
+            dto.setReach(n.sums().reach());
+            dto.setLikes(n.sums().likes());
+            dto.setComments(n.sums().comments());
+            dto.setSaves(n.sums().saves());
+            dto.setShares(n.sums().shares());
+            return dto;
+        }).toList();
+        var formats = report.byFormat().stream().map(f -> {
+            var dto = new com.socialhub.api.model.FormatMetricsDto(f.type(),
+                    com.socialhub.api.model.FormatMetricsDto.NetworkEnum.valueOf(f.platform().name()), f.publications(), f.lowSample());
+            dto.setViews(f.averages().views());
+            dto.setReach(f.averages().reach());
+            dto.setLikes(f.averages().likes());
+            dto.setComments(f.averages().comments());
+            dto.setSaves(f.averages().saves());
+            dto.setShares(f.averages().shares());
+            return dto;
+        }).toList();
+        return ResponseEntity.ok(new com.socialhub.api.model.PromotionMetricsDto(report.measured(), report.pending(), networks, formats));
+    }
+
+    @Override
     public ResponseEntity<Void> clearPublicationFlag(String publicationId, String requestGuard) {
         service.clearFlag(publicationId);
         return ResponseEntity.noContent().build();

@@ -1,5 +1,5 @@
 import type {
-  Backup, BackupList, Restoration, AiOrder, AiOrderInput, BrandIdentity, ExternalCalendar, PublicationMetrics, PublishJob, PubloraStatus, PubloraAccountList, PubloraAccountInput, PublerAccountList, PublerAccountInput, PublerMoveInput, PublerMoveResult, InstagramStatus, InstagramCheck, InstagramAccount, QualityReport, RejectionReason, EditorialDecision, EditorialMemory, AiRequestPage, AiSettings, AiSettingsInput, AppMode, AppModeState, Brand, FolderInput, FolderList, Publication, PublicationFile, PublicationFileList, PublicationInput, PublicationStatus, PieceOrder, PieceSpecList, BrandInput, ExternalOperationPage, Promotion, PromotionInput, OperationOutcome, Snapshot, Station, StationCommandType, Task, TaskCommand,
+  Backup, BackupList, Restoration, AiOrder, AiOrderInput, BrandIdentity, ExternalCalendar, PublicationMetrics, PromotionMetrics, PublishJob, PubloraStatus, PubloraAccountList, PubloraAccountInput, PublerAccountList, PublerAccountInput, PublerMoveInput, PublerMoveResult, InstagramStatus, InstagramCheck, InstagramAccount, QualityReport, RejectionReason, EditorialDecision, EditorialMemory, AiRequestPage, AiSettings, AiSettingsInput, AppMode, AppModeState, Brand, FolderInput, FolderList, Publication, PublicationFile, PublicationFileList, PublicationInput, PublicationStatus, PieceOrder, PieceSpecList, BrandInput, ExternalOperationPage, Promotion, PromotionInput, OperationOutcome, Snapshot, Station, StationCommandType, Task, TaskCommand,
 } from './model';
 
 export class ApiError extends Error {
@@ -89,6 +89,7 @@ export const api = {
   saveBrandInstagramAccount: (id: string, igUserId: string) =>
     putJson<InstagramAccount>(`/api/brands/${encodeURIComponent(id)}/instagram-account`, { ig_user_id: igUserId }),
   publicationMetrics: (id: string) => call<PublicationMetrics>(`/api/publications/${encodeURIComponent(id)}/metrics`),
+  promotionMetrics: (promotionId: string) => call<PromotionMetrics>(`/api/promotions/${encodeURIComponent(promotionId)}/metrics`),
   publishJob: (id: string) => call<PublishJob>(`/api/publications/${encodeURIComponent(id)}/publish-job`),
   clearPublicationFlag: (id: string) =>
     call<void>(`/api/publications/${encodeURIComponent(id)}/flag`, { method: 'DELETE' }),

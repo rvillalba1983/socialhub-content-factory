@@ -25,6 +25,7 @@ public class PublishingQueries {
     private final List<PublishRoute> routes;
     private final com.socialhub.publishing.domain.MetricsRepository metricsRepository;
     private final PubloraService publora;
+    private final com.socialhub.promotion.PromotionQueries promotionQueries;
 
     /** Vía de publicación y si está lista. */
     public record RouteState(PublishRoute.Id id, String label, boolean configured) {}
@@ -68,6 +69,15 @@ public class PublishingQueries {
     public java.util.Optional<com.socialhub.publishing.domain.MetricsRepository.Metrics> metrics(String publicationId) {
         if (!publications.exists(publicationId)) throw new NotFoundException("No existe la publicación " + publicationId);
         return metricsRepository.find(publicationId);
+    }
+
+    /** Métricas agregadas de la promoción (solo con las publicaciones medidas). */
+    public com.socialhub.publishing.domain.PromotionMetricsReport promotionMetrics(String promotionId) {
+        promotionQueries.brandOf(promotionId); // 404 si la promoción no existe
+        var metrics = new java.util.HashMap<String, com.socialhub.publishing.domain.MetricsRepository.Metrics>();
+        metricsRepository.all().forEach(m -> metrics.put(m.publicationId(), m));
+        var mine = publications.findAll().stream().filter(p -> p.getPromotionId().equals(promotionId)).toList();
+        return com.socialhub.publishing.domain.PromotionMetricsReport.of(mine, metrics);
     }
 
     /** Cómo va la publicación (solo si alguna vez se programó). */
