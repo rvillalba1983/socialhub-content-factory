@@ -40,6 +40,9 @@ public enum AiRequestType {
         this.automatic = automatic;
     }
 
+    /** Tiene «deadline»: es el único que puede volverse urgente con el tiempo. */
+    public boolean hasDeadline() { return this == PUBLER_SCHEDULE || this == PUBLIC_LINK; }
+
     /** Lo encarga SocialHub, no Raúl, y no cuenta en el límite diario: tiene hora fija y no puede esperar. */
     public boolean automatic() { return automatic; }
 

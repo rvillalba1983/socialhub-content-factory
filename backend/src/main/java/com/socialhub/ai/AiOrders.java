@@ -19,6 +19,14 @@ public class AiOrders {
     private final PromotionQueries promotions;
     private final AiSettings settings;
     private final AiHandlers handlers;
+    private final AiRequestRepository requests;
+
+    /** Si el último envío de ese encargo salió marcado como urgente (vacío si aún no ha salido). */
+    @Transactional(readOnly = true)
+    public java.util.Optional<Boolean> urgentOf(String taskId) {
+        var sent = requests.findByTaskIdOrderBySentAt(taskId);
+        return sent.isEmpty() ? java.util.Optional.empty() : java.util.Optional.of(sent.getLast().isUrgent());
+    }
 
     /** @return identificador de la tarea */
     @Transactional

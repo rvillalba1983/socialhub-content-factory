@@ -209,7 +209,7 @@ class AiDispatcher {
             @org.jspecify.annotations.Nullable Instant deadline = handlers.of(type).map(h -> h.deadline(job)).orElse(null);
             if (deadline != null) request.put("deadline", deadline.toString());
             // Las pasadas de las 8:00 a las 18:00 solo hacen los urgentes: los que no pueden esperar a la pasada de la noche
-            boolean urgent = ClaudePasses.urgent(type.onPc(), deadline, clock.instant());
+            boolean urgent = ClaudePasses.urgent(type.onPc(), deadline, ClaudePickups.visibleAt(clock.instant()));
             request.put("urgent", urgent);
             request.put("idempotencyKey", requestId);
             Path target = fresh(dir, task.id() + "-" + task.attempt());

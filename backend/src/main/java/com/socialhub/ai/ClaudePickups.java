@@ -20,6 +20,9 @@ public final class ClaudePickups {
 
     private ClaudePickups() {}
 
+    /** Cuándo puede ver Claude un encargo que se escribe ahora: lo que tarda en salir y en sincronizarse Drive. */
+    public static Instant visibleAt(Instant now) { return now.plus(DISPATCH_MAX).plus(SYNC_MARGIN); }
+
     /** La primera pasada estrictamente posterior a ese instante que recoge un encargo urgente (o no) de la nube. */
     public static ZonedDateTime nextAfter(Instant instant, boolean urgent) {
         return ClaudePasses.next(false, instant, urgent);

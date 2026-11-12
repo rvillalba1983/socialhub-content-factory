@@ -2,6 +2,7 @@ package com.socialhub.ai;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.nio.file.Files;
@@ -56,10 +57,16 @@ class AiUrgencyTest {
         when(requests.findByStatus(AiRequestEntity.Status.SENT)).thenReturn(List.of(waiting));
         assertThat(at(madrid(9, 11, 0)).refresh()).isZero();
         assertThat(urgentIn("a.json")).isFalse();
-        assertThat(at(madrid(9, 21, 0)).refresh()).isEqualTo(1);
+        // Recién pasada la de las 20:50 (y su margen de 90 minutos) no se toca el archivo
+        assertThat(at(madrid(9, 21, 0)).refresh()).isZero();
+        assertThat(urgentIn("a.json")).isFalse();
+        assertThat(at(madrid(9, 22, 30)).refresh()).isEqualTo(1);
         assertThat(urgentIn("a.json")).isTrue();
+        // También se actualiza la marca de la base de datos
+        assertThat(waiting.isUrgent()).isTrue();
+        verify(requests).save(waiting);
         // No se vuelve a tocar
-        assertThat(at(madrid(9, 21, 5)).refresh()).isZero();
+        assertThat(at(madrid(9, 22, 40)).refresh()).isZero();
     }
 
     @Test

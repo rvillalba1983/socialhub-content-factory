@@ -547,6 +547,9 @@ class InstagramRouteTest {
         assertThat(request.get("type").asString()).isEqualTo("socialhub.public-link");
         assertThat(request.get("inputs").get("files").get(0).asString()).isEqualTo(staged.getFirst().getFileName().toString());
         assertThat(Instant.parse(request.get("deadline").asString())).isEqualTo(PublerRoute.handoverBy(at));
+        // «urgent» sale calculado con el límite del encargo y el momento en que Claude puede verlo
+        assertThat(request.get("urgent").asBoolean()).isEqualTo(com.socialhub.ai.ClaudePasses.urgent(false,
+                PublerRoute.handoverBy(at), com.socialhub.ai.ClaudePickups.visibleAt(CLOCK.instant())));
 
         answer(request, "[{\"file\":\"" + staged.getFirst().getFileName() + "\",\"id\":\"drive-ok-0001\"}]");
         waitFor(() -> "SCHEDULED".equals(job(id).get("status").asString()), "enlaces recibidos");

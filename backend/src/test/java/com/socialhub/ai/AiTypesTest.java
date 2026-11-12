@@ -57,6 +57,7 @@ class AiTypesTest {
     static Path material;
 
     @Autowired MockMvc mvc;
+    @Autowired AiRequestRepository requests;
     @Autowired com.socialhub.publishing.PublishingQueries publishing;
     private final JsonMapper json = JsonMapper.builder().build();
 
@@ -151,6 +152,8 @@ class AiTypesTest {
         // Por lotes: el encargo no depende de ninguna semana y lleva solo las publicaciones indicadas, con su fecha
         assertThat(request.get("inputs").has("week")).isFalse();
         assertThat(request.get("urgent").asBoolean()).isFalse();
+        // Y la base de datos guarda la misma marca
+        assertThat(requests.findByTaskIdOrderBySentAt(task).getLast().isUrgent()).isFalse();
         assertThat(request.get("inputs").get("publications").size()).isEqualTo(1);
         assertThat(request.get("inputs").get("publications").get(0).get("scheduled_on").asString()).isEqualTo("2030-11-12");
         assertThat(request.get("inputs").get("publications").get(0).get("id").asString()).isEqualTo("2030-11-12-instagram");
