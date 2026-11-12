@@ -59,6 +59,7 @@ class SpecBatchesTest {
     @Autowired MockMvc mvc;
     @Autowired WeeklySpecHandler handler;
     @Autowired AiOrders orders;
+    @Autowired com.socialhub.production.ProductionService production;
     private final JsonMapper json = JsonMapper.builder().build();
 
     private static String id(int daysAhead) { return TODAY.plusDays(daysAhead) + "-instagram"; }
@@ -167,6 +168,84 @@ class SpecBatchesTest {
         // Un lote distinto (una publicación más) no está bloqueado
         publication("poemario", 13, "IN_PRODUCTION");
         assertThat(batch("poemario")).containsExactly(id(1), id(10), id(11), id(12), id(13));
+    }
+
+    private List<String> pendingIds(String promotion) {
+        return handler.pending(promotion, Instant.now()).stream().map(com.socialhub.publishing.PublishingQueries.AwaitingContent::id).toList();
+    }
+
+    @Test
+    @Order(7)
+    void anOldSpecWithADateCoversThePublicationsOfThatWeekAndACompletedOneKeepsCoveringThem() throws Exception {
+        assertThat(pendingIds("cuaderno")).containsExactly(id(2), id(30));
+        // Un spec antiguo llevaba una fecha como dato: cubre las publicaciones de su semana (de lunes a domingo)
+        String legacy = production.submitAi(new com.socialhub.production.TaskRequest(AiRequestType.WEEKLY_SPEC.stationId(),
+                "cuaderno", AiRequestType.WEEKLY_SPEC.taskType(), "Spec antiguo", "Spec antiguo",
+                List.of(TODAY.plusDays(2).toString()), List.of()), "SONNET");
+        assertThat(pendingIds("cuaderno")).containsExactly(id(30));
+        command(legacy, "CANCEL");
+        assertThat(pendingIds("cuaderno")).containsExactly(id(2), id(30));
+
+        // Un spec completado sigue cubriendo sus publicaciones (mientras se generan las piezas no se vuelve a pedir)
+        String task = orders.submit("cuaderno", AiRequestType.WEEKLY_SPEC, "Spec", "Spec", pendingIds("cuaderno"));
+        waitFor(() -> "WAITING".equals(task(task).get("status").asString()), "encargo enviado");
+        production.aiCompleted(task, "spec guardado");
+        assertThat(task(task).get("status").asString()).isEqualTo("COMPLETED");
+        assertThat(pendingIds("cuaderno")).isEmpty();
+        assertThat(batch("cuaderno")).isEmpty();
+
+        // Y una publicación con la hora ya pasada no entra
+        publication("cuaderno", -1, "IN_PRODUCTION");
+        assertThat(pendingIds("cuaderno")).isEmpty();
+    }
+
+    @Test
+    @Order(8)
+    void anOrderWhosePublicationsWereAllCancelledIsCancelledInsteadOfSent() throws Exception {
+        publication("vacia", 45, "IN_PRODUCTION");
+        assertThat(handler.obsolete(job("vacia", List.of(id(45))))).isFalse();
+        write(post("/api/publications/" + id(45) + "/status-changes"), "{\"status\":\"CANCELLED\",\"reason\":\"OTHER\"}")
+                .andExpect(status().isOk());
+        assertThat(handler.obsolete(job("vacia", List.of(id(45))))).isTrue();
+        // Una publicación cancelada no sale en lo que se manda a Claude
+        assertThat(handler.inputs(job("vacia", List.of(id(45)))).get("publications")).isEqualTo(List.of());
+        // Dado de alta saltándose la comprobación (como si se hubiera cancelado después), no sale: se cancela
+        String task = production.submitAi(new com.socialhub.production.TaskRequest(AiRequestType.WEEKLY_SPEC.stationId(),
+                "vacia", AiRequestType.WEEKLY_SPEC.taskType(), "Spec", "Spec", List.of(id(45)), List.of()), "SONNET");
+        waitFor(() -> "CANCELLED".equals(task(task).get("status").asString()), "encargo obsoleto cancelado");
+        assertThat(Files.exists(drive.resolve("encargos").resolve("para-claude").resolve(task + "-1.json"))).isFalse();
+    }
+
+    @Test
+    @Order(9)
+    void twoOrdersForTheSamePublicationAtTheSameTimeLeaveOnlyOne() throws Exception {
+        publication("vacia", 50, "IN_PRODUCTION");
+        var pool = java.util.concurrent.Executors.newFixedThreadPool(2);
+        try {
+            List<java.util.concurrent.Future<Boolean>> done = new java.util.ArrayList<>();
+            var start = new java.util.concurrent.CountDownLatch(1);
+            for (int i = 0; i < 2; i++) {
+                done.add(pool.submit(() -> {
+                    start.await();
+                    try {
+                        orders.submit("vacia", AiRequestType.WEEKLY_SPEC, "Spec", "Spec", List.of(id(50)));
+                        return true;
+                    } catch (IllegalArgumentException e) {
+                        return false;
+                    }
+                }));
+            }
+            start.countDown();
+            int created = 0;
+            for (var f : done) if (f.get()) created++;
+            assertThat(created).isEqualTo(1);
+        } finally {
+            pool.shutdown();
+        }
+    }
+
+    private com.socialhub.ai.AiJob job(String promotion, List<String> inputs) {
+        return new com.socialhub.ai.AiJob("t", AiRequestType.WEEKLY_SPEC, promotion, "el-delito", "Spec", "Spec", inputs, Instant.now());
     }
 
     // ---------------------------------------------------------------- utilidades

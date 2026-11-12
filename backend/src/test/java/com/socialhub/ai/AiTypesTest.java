@@ -161,8 +161,11 @@ class AiTypesTest {
 
         String spec = """
                 {"out":%s,"piezas":[{"tipo":"historia","nombre":"2_martes_historia","publicacion":"2030-11-12-instagram",
-                 "img":%s,"titulo":"Pregunta grande","texto":"frase"}]}"""
-                .formatted(q(drive.resolve("DeLito/generados")), q(material.resolve("pagina 58.png")));
+                 "img":%s,"titulo":"Pregunta grande","texto":"frase"},
+                {"tipo":"historia","nombre":"3_ajena_historia","publicacion":"2030-12-31-instagram",
+                 "img":%s,"titulo":"De otro lote","texto":"frase"}]}"""
+                .formatted(q(drive.resolve("DeLito/generados")), q(material.resolve("pagina 58.png")),
+                        q(material.resolve("pagina 58.png")));
         // «generados» aún no es una carpeta de la promoción: el spec no se puede encargar
         result(task, completed(task, "{\"spec\":" + spec + "}"));
         waitFor(() -> "FAILED".equals(task(task).get("status").asString()), "spec rechazado");
@@ -178,7 +181,11 @@ class AiTypesTest {
         result(task, completed(task, "{\"spec\":" + spec + ",\"summary\":\"1 historia\"}"));
         waitFor(() -> "COMPLETED".equals(task(task).get("status").asString()), "spec aplicado");
         String resultText = task(task).get("result").asString();
-        assertThat(resultText).contains("spec-" + today + ".json").contains("piezas encargadas");
+        assertThat(resultText).contains("spec-" + today + ".json").contains("piezas encargadas")
+                // La pieza de una publicación que no es del lote se descarta, con aviso
+                .contains("aviso: 1 pieza descartada");
+        assertThat(Files.readString(orders.resolve("specs-de-claude").resolve("spec-" + today + ".json")))
+                .contains("2_martes_historia").doesNotContain("3_ajena_historia");
         String pieces = resultText.replaceAll(".*\\(tarea ([0-9a-f-]+)\\).*", "$1");
         waitFor(() -> "COMPLETED".equals(task(pieces).get("status").asString()), "piezas generadas");
         assertThat(drive.resolve("DeLito/generados/2_martes_historia.jpg")).exists();
