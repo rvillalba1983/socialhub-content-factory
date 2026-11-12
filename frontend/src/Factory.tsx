@@ -5,7 +5,7 @@ import { ControlCenter } from './ControlCenter';
 import { ExternalOperations } from './ExternalOperations';
 import { Backups, Closed, Halted, ShutdownButton } from './Backups';
 import { Registration } from './Registration';
-import { NextSteps, savedMessage, toastDuration, type SavedRef } from './Recommendations';
+import { NextSteps, savedMessage, toastDuration, withoutBrandNotices, type SavedRef } from './Recommendations';
 import type { RecommendationTarget } from './api/schema';
 import { Icon } from './icons';
 import {
@@ -45,6 +45,7 @@ export function Factory({ data, live, onRefresh }: {
   const [halted, setHalted] = useState<string | null>(null);
   const [closed, setClosed] = useState(false);
   const [reg, setReg] = useState<{ kind: 'brand' | 'promotion'; id: string | null; brandId?: string; focus?: 'folders' | 'publora' | 'publer' } | false | null>(false);
+  const [openBrand, setOpenBrand] = useState<string | null>(null);
   const [demoAvailable, setDemoAvailable] = useState(true);
   useEffect(() => { api.appMode().then(m => { setDemoAvailable(m.demo_available); setHalted(m.halted_reason ?? null); }).catch(() => {}); }, []);
   // Abrir una promoción cierra el registro de operaciones
@@ -466,7 +467,7 @@ export function Factory({ data, live, onRefresh }: {
       </header>
 
       <div className="stage">
-      <NextSteps items={data.recommendations} onOpen={goRecommendation} onDismissPublora={dismissPublora} onRequestContent={requestContent} />
+      <NextSteps items={withoutBrandNotices(data.recommendations, reg === false ? null : openBrand)} onOpen={goRecommendation} onDismissPublora={dismissPublora} onRequestContent={requestContent} />
       <main className="vp" ref={vp} data-lod="1">
         <div className="world" ref={world}>
           <World data={data} sel={sel} onStation={goStation} onTask={goTask}
@@ -519,7 +520,7 @@ export function Factory({ data, live, onRefresh }: {
         {closed && <Closed />}
         {claude && <Claude data={data} onClose={() => setClaude(false)} onMessage={say} onTask={id => { setClaude(false); goTask(id); }} />}
         {reg !== false && (
-          <Registration data={data} initial={reg} onClose={() => setReg(false)}
+          <Registration data={data} initial={reg} onClose={() => setReg(false)} onBrandOpen={setOpenBrand}
             onSaved={saved} />
         )}
         {toast && <div className="toast" role="status">{toast}</div>}

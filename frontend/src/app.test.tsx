@@ -15,7 +15,7 @@ import { PublerCard } from './Publer';
 import { BrandForm, PromotionForm, Registration } from './Registration';
 import { Factory } from './Factory';
 import { useFactory } from './useFactory';
-import { NextSteps, savedMessage, toastDuration } from './Recommendations';
+import { NextSteps, savedMessage, toastDuration, withoutBrandNotices } from './Recommendations';
 import type { PromotionMetrics, Recommendation } from './api/schema';
 import { PieceOrders } from './PieceOrders';
 import type { ExternalOperationPage, Snapshot, Station, Task } from './model';
@@ -909,6 +909,50 @@ const world = (data: Snapshot, onRecommendation = vi.fn()) => render(
       onArmory={() => {}} onPromotion={() => {}} onRegister={() => {}} />
   </>);
 
+describe('Zoom semántico del mapa', () => {
+  it('cada estación lleva su resumen de alejado (tareas y avisos) y el detalle queda marcado para ocultarse', () => {
+    const { container } = render(<World data={snapshot} sel={{ type: null, id: null }} onStation={() => {}} onTask={() => {}}
+      onTaskAction={() => {}} onArmory={() => {}} onPromotion={() => {}} onRegister={() => {}} />);
+    const stations = container.querySelectorAll('article.st');
+    expect(stations.length).toBe(snapshot.stations.length);
+    for (const st of stations) {
+      expect(st.querySelector('.st-sum.only-1')?.textContent).toMatch(/^\d+ tareas?/);
+      expect(st.querySelector('.kpis')?.classList.contains('min-2')).toBe(true);
+      expect(st.querySelector('.st-what')?.classList.contains('min-2')).toBe(true);
+    }
+    const attn = container.querySelector('.attn-card')!;
+    expect(attn.querySelector('.today')?.classList.contains('min-2')).toBe(true);
+  });
+});
+
+describe('Qué hacer ahora dentro de la ficha de una marca', () => {
+  const publer = (brand: string, platform: string) => rec({ id: `publer-account:${brand}:${platform}`, kind: 'PUBLER_ACCOUNT_MISSING',
+    title: `Indica la cuenta de Publer de ${brand} para ${platform}`, target: { screen: 'PUBLER', brand_id: brand } });
+  const all: Recommendation[] = [
+    ...three, publer('b', 'INSTAGRAM'), publer('b', 'TIKTOK'), publer('b', 'YOUTUBE'), publer('otra', 'INSTAGRAM'),
+    rec({ id: 'publora:b', kind: 'PUBLORA_MISSING', title: 'Publora de b', target: { screen: 'PUBLORA', brand_id: 'b' } }),
+    rec({ id: 'brand-folders:otra', kind: 'BRAND_FOLDERS_MISSING', title: 'Crea las carpetas de otra', target: { screen: 'BRAND_FOLDERS', brand_id: 'otra' } }),
+  ];
+
+  it('fuera de la ficha salen todas', () => {
+    expect(withoutBrandNotices(all, null)).toHaveLength(all.length);
+  });
+
+  it('en la ficha de b quita sus carpetas y sus cuentas de Publer de Instagram y TikTok, y deja lo demás', () => {
+    const ids = withoutBrandNotices(all, 'b').map(r => r.id);
+    expect(ids).not.toContain('brand-folders:b');
+    expect(ids).not.toContain('publer-account:b:INSTAGRAM');
+    expect(ids).not.toContain('publer-account:b:TIKTOK');
+    expect(ids).toEqual(expect.arrayContaining(['proposals-review:p', 'orders-not-collected', 'publer-account:b:YOUTUBE',
+      'publer-account:otra:INSTAGRAM', 'publora:b', 'brand-folders:otra']));
+  });
+
+  it('si no queda ninguna, la franja no se pinta', () => {
+    render(<NextSteps items={withoutBrandNotices([three[1]], 'b')} onOpen={() => {}} />);
+    expect(screen.queryByRole('region', { name: 'Qué hacer ahora' })).toBeNull();
+  });
+});
+
 describe('Qué hacer ahora', () => {
   it('no se muestra con la lista vacía', () => {
     world(withRecs([]));
@@ -1072,6 +1116,33 @@ describe('Qué hacer ahora', () => {
     } finally {
       delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView;
     }
+  });
+
+  it('la ficha enseña el identificador de la marca bajo el nombre', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() => new Promise<Response>(() => {}));
+    render(<Registration data={snapshot} initial={{ kind: 'brand', id: 'b' }} onClose={() => {}} onSaved={() => {}} />);
+    await screen.findByRole('form', { name: 'Editar marca' });
+    expect(screen.getByText('Identificador: b')).toBeInTheDocument();
+  });
+
+  it('las listas llevan un punto de color, el nombre en grande y el detalle debajo', () => {
+    const { container } = render(<Registration data={snapshot} initial={null} onClose={() => {}} onSaved={() => {}} />);
+    expect(container.querySelector('.swatch')).toBeNull();
+    const dots = container.querySelectorAll('.qrow .color-dot');
+    expect(dots.length).toBe(snapshot.brands.length + snapshot.promotions.length);
+    const first = container.querySelector('.qrow') as HTMLElement;
+    expect(first.querySelector('b.qname')).not.toBeNull();
+    expect(first.querySelector('small')).not.toBeNull();
+  });
+
+  it('avisa de qué marca tiene la ficha abierta y lo retira al cerrarla', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() => new Promise<Response>(() => {}));
+    const onBrandOpen = vi.fn();
+    const { unmount } = render(<Registration data={snapshot} initial={{ kind: 'brand', id: 'b' }} onClose={() => {}} onSaved={() => {}} onBrandOpen={onBrandOpen} />);
+    await screen.findByRole('form', { name: 'Editar marca' });
+    expect(onBrandOpen).toHaveBeenLastCalledWith('b');
+    unmount();
+    expect(onBrandOpen).toHaveBeenLastCalledWith(null);
   });
 
   it('mientras la ficha crece al cargar, vuelve a colocar la tarjeta; deja de hacerlo si la persona se desplaza', async () => {

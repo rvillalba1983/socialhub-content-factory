@@ -54,8 +54,10 @@ export function useScrollToCard(card?: string) {
 const USER_SCROLL = ['wheel', 'touchstart', 'keydown', 'pointerdown'] as const;
 
 /** Alta y edición de marcas y promociones. */
-export function Registration({ data, initial, onClose, onSaved }: {
+export function Registration({ data, initial, onClose, onSaved, onBrandOpen }: {
   data: Snapshot; initial: Editing; onClose: () => void;
+  /** Marca cuya ficha está abierta (o null): «Qué hacer ahora» no repite lo que ya avisa la ficha. */
+  onBrandOpen?: (brandId: string | null) => void;
   /** `saved` indica qué se ha guardado, para añadir el paso siguiente según el siguiente estado de la fábrica. */
   onSaved: (message: string, saved?: SavedRef) => void;
 }) {
@@ -66,6 +68,11 @@ export function Registration({ data, initial, onClose, onSaved }: {
   const brands = new Map(data.brands.map(b => [b.id, b]));
   const focus = initial?.kind === 'brand' ? initial.focus : undefined;
   useScrollToCard(focus);
+  const openBrand = editing?.kind === 'brand' ? editing.id : null;
+  useEffect(() => {
+    onBrandOpen?.(openBrand);
+    return () => onBrandOpen?.(null);
+  }, [openBrand]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <section className="cc" aria-label="Marcas y promociones">
@@ -109,7 +116,7 @@ export function Registration({ data, initial, onClose, onSaved }: {
               {data.brands.length === 0 && <p>Todavía no hay marcas. Empieza por aquí.</p>}
               {data.brands.map(b => (
                 <button key={b.id} className="qrow" onClick={() => setEditing({ kind: 'brand', id: b.id })}>
-                  <span className="swatch" style={{ background: b.color }} /><span>{b.name}<small>{b.handle}</small></span>
+                  <span className="color-dot" aria-hidden="true" style={{ background: b.color }} /><span><b className="qname">{b.name}</b><small>{b.handle}</small></span>
                 </button>
               ))}
             </div>
@@ -120,8 +127,8 @@ export function Registration({ data, initial, onClose, onSaved }: {
               {data.promotions.length === 0 && <p>Todavía no hay promociones.</p>}
               {data.promotions.map(p => (
                 <button key={p.id} className="qrow" onClick={() => setEditing({ kind: 'promotion', id: p.id })}>
-                  <span className="swatch" style={{ background: brands.get(p.brand_id)?.color }} />
-                  <span>{p.name}<small>{brands.get(p.brand_id)?.name} · {shortDate(p.starts_on)} – {shortDate(p.ends_on)}</small></span>
+                  <span className="color-dot" aria-hidden="true" style={{ background: brands.get(p.brand_id)?.color }} />
+                  <span><b className="qname">{p.name}</b><small>{brands.get(p.brand_id)?.name} · {shortDate(p.starts_on)} – {shortDate(p.ends_on)}</small></span>
                   <Pill s={p.status === 'ACTIVE' ? 'OK' : p.status === 'PAUSED' ? 'WAITING' : 'IDLE'}
                     label={PROMOTION_STATUS.find(([k]) => k === p.status)?.[1]} />
                 </button>
@@ -164,6 +171,7 @@ export function BrandForm({ brand, onCancel, onSaved }: { brand?: Brand; onCance
   return (
     <form className="card form" onSubmit={submit} aria-label={brand ? 'Editar marca' : 'Nueva marca'}>
       <h3>{brand ? `Editar marca · ${brand.name}` : 'Nueva marca'}</h3>
+      {brand && <p className="src brand-id">Identificador: {brand.id}</p>}
       <Field label="Nombre"><input required maxLength={80} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></Field>
       <Field label="Cuenta"><input required maxLength={80} value={form.handle} onChange={e => setForm({ ...form, handle: e.target.value })} /></Field>
       <Field label="Color de la marca">
