@@ -6,6 +6,7 @@ import { Claude } from './Claude';
 import { ControlCenter } from './ControlCenter';
 import { ExternalOperations } from './ExternalOperations';
 import { FolderRoles } from './Folders';
+import { InstagramAccountCard, InstagramKeyCard } from './Instagram';
 import { MemoryCard } from './Memory';
 import { PublicationEditor } from './PublicationEditor';
 import { PubloraCard } from './Publora';
@@ -391,6 +392,68 @@ describe('Publora', () => {
     fireEvent.change(screen.getByLabelText('Cuenta de Publora para Instagram'), { target: { value: 'instagram-111' } });
     fireEvent.click(screen.getByRole('button', { name: 'Guardar cuentas' }));
     await waitFor(() => expect(saveAccounts).toHaveBeenCalledWith('el-delito', [{ platform: 'INSTAGRAM', connection_id: 'instagram-111' }]));
+  });
+});
+
+describe('Instagram · API oficial', () => {
+  it('guarda la clave sin mostrarla, la comprueba y enseña el límite de cada marca', async () => {
+    vi.spyOn(api, 'instagram').mockResolvedValueOnce({ configured: false })
+      .mockResolvedValue({ configured: true, key_hint: '…6789' });
+    const save = vi.spyOn(api, 'saveInstagramKey').mockResolvedValue({ configured: true, key_hint: '…6789' });
+    const check = vi.spyOn(api, 'checkInstagram').mockResolvedValue({
+      ok: false, name: 'Usuario del sistema',
+      brands: [{ brand_id: 'el-delito', brand_name: 'El DeLito', username: 'elde_lito', publishing_used: 3, publishing_total: 100 },
+        { brand_id: 'litoques', brand_name: 'Litoques', error: 'Meta respondió 400: cuenta no encontrada' }],
+    });
+    const onChanged = vi.fn();
+    render(<InstagramKeyCard onChanged={onChanged} />);
+    expect(await screen.findByText('Sin clave')).toBeInTheDocument();
+    const input = screen.getByLabelText('Clave de la API de Instagram');
+    expect(input).toHaveAttribute('type', 'password');
+    fireEvent.change(input, { target: { value: ' EAAB.clave.falsa.1234567 ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Comprobar y guardar' }));
+    await waitFor(() => expect(save).toHaveBeenCalledWith('EAAB.clave.falsa.1234567'));
+    expect(await screen.findByText('Clave …6789')).toBeInTheDocument();
+    expect(onChanged).toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Comprobar clave' }));
+    await waitFor(() => expect(check).toHaveBeenCalled());
+    const result = await screen.findByRole('status', { name: 'Resultado de la comprobación' });
+    expect(within(result).getByText('Hay algo que revisar')).toBeInTheDocument();
+    expect(within(result).getByText(/3 de 100 publicaciones en 24 h/)).toBeInTheDocument();
+    expect(within(result).getByText(/cuenta no encontrada/)).toBeInTheDocument();
+  });
+
+  it('enseña el error de Meta si la clave no vale', async () => {
+    vi.spyOn(api, 'instagram').mockResolvedValue({ configured: false });
+    vi.spyOn(api, 'saveInstagramKey').mockRejectedValue(new Error('No se ha guardado: Meta no acepta la clave'));
+    render(<InstagramKeyCard />);
+    await screen.findByText('Sin clave');
+    fireEvent.change(screen.getByLabelText('Clave de la API de Instagram'), { target: { value: 'clave-falsa-123456' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Comprobar y guardar' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Meta no acepta la clave');
+  });
+
+  it('el campo de la marca comprueba el identificador y enseña el @usuario', async () => {
+    vi.spyOn(api, 'brandInstagramAccount').mockResolvedValue({});
+    const save = vi.spyOn(api, 'saveBrandInstagramAccount')
+      .mockResolvedValue({ ig_user_id: '17841400000000000', username: 'elde_lito' });
+    const onSaved = vi.fn();
+    render(<InstagramAccountCard brandId="el-delito" onSaved={onSaved} />);
+    const field = await screen.findByLabelText('Cuenta de Instagram (API oficial)');
+    fireEvent.change(field, { target: { value: ' 17841400000000000 ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Comprobar y guardar' }));
+    await waitFor(() => expect(save).toHaveBeenCalledWith('el-delito', '17841400000000000'));
+    expect(await screen.findByText('@elde_lito')).toBeInTheDocument();
+    expect(onSaved).toHaveBeenCalledWith('Cuenta de Instagram guardada · @elde_lito');
+  });
+
+  it('el campo de la marca enseña el error de Meta', async () => {
+    vi.spyOn(api, 'brandInstagramAccount').mockResolvedValue({});
+    vi.spyOn(api, 'saveBrandInstagramAccount').mockRejectedValue(new Error('No se ha guardado: Meta respondió 400'));
+    render(<InstagramAccountCard brandId="el-delito" />);
+    fireEvent.change(await screen.findByLabelText('Cuenta de Instagram (API oficial)'), { target: { value: '123456789' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Comprobar y guardar' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Meta respondió 400');
   });
 });
 

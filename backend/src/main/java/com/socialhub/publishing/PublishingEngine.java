@@ -54,6 +54,12 @@ class PublishingEngine {
     static final String LATE_FLAG = "Posible duplicado: ";
     static final String STILL_SCHEDULED = "Estaba programada en ";
     static final String ERROR_FLAG = "Error de publicación: ";
+    /** La API oficial no pudo y se sigue por otra vía (el motivo queda visible). */
+    static final String OFFICIAL_FLAG = "API oficial: ";
+    /** No se sabe si Instagram llegó a publicarla: no se reintenta, se revisa. */
+    static final String DOUBT_FLAG = "Revisar antes de reintentar: ";
+    /** Pasado este tiempo desde la hora, la API oficial ya no publica (SocialHub estaba cerrado). */
+    static final Duration OFFICIAL_GRACE = Duration.ofMinutes(10);
     private static final DateTimeFormatter WHEN = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm").withZone(ZoneId.of("Europe/Madrid"));
     private static final EnumSet<PublishJob.Status> TIMED = EnumSet.of(PublishJob.Status.WORKING,
             PublishJob.Status.RETRY_WAIT, PublishJob.Status.SCHEDULED, PublishJob.Status.MANUAL, PublishJob.Status.CHECKING);
@@ -85,6 +91,11 @@ class PublishingEngine {
     List<PublishRoute> routes() { return routes; }
 
     Optional<PublishJob> job(String publicationId) { return jobs.find(publicationId); }
+
+    /** Llegaron enlaces públicos cuando ya no hacían falta: se borran las imágenes que se dejaron. */
+    void discardPublicMedia(String publicationId) {
+        publications.findById(publicationId).ifPresent(this::cleanup);
+    }
 
     // ------------------------------------------------------------------ Lo que pide Raúl
 
@@ -124,6 +135,7 @@ class PublishingEngine {
                     job.note(now, "Sigue programada en " + route + ": hay que borrarla allí a mano");
                 }
             }
+            cleanup(p);
             jobs.save(job);
         });
     }
@@ -131,7 +143,8 @@ class PublishingEngine {
     /** Incidencias que anota el motor: al volver a programarla se quitan. */
     static boolean ownFlag(@Nullable String flag) {
         return flag != null && (flag.startsWith(LATE_FLAG) || flag.startsWith(STILL_SCHEDULED)
-                || flag.startsWith(ERROR_FLAG) || flag.startsWith(PublishingService.MANUAL_FLAG));
+                || flag.startsWith(ERROR_FLAG) || flag.startsWith(OFFICIAL_FLAG) || flag.startsWith(DOUBT_FLAG)
+                || flag.startsWith(PublishingService.MANUAL_FLAG));
     }
 
     // ------------------------------------------------------------------ Resultados de las vías
@@ -165,6 +178,8 @@ class PublishingEngine {
             if (job.getStatus() == PublishJob.Status.CHECKING) {
                 fail(job, p, "No se pudo comprobar: " + reason, now);
             } else {
+                if (isOfficial(job.getRoute())) p.flag(OFFICIAL_FLAG + reason + ": se sigue por otra vía");
+                cleanup(p);
                 job.routeFailed(reason, now);
                 advance(job, p, now);
             }
@@ -187,6 +202,7 @@ class PublishingEngine {
         if (published) {
             p.confirmPublished(externalId, url, now);
             job.published(externalId, url, now);
+            cleanup(p);
             result = "Publicada" + (url == null ? "" : ": " + url);
         } else {
             fail(job, p, note.isBlank() ? "Claude no la encuentra publicada" : note, now);
@@ -217,6 +233,11 @@ class PublishingEngine {
         int changed = 0;
         for (PublishJob listed : jobs.withStatus(TIMED)) {
             try {
+                if (listed.getStatus() == PublishJob.Status.SCHEDULED && isOfficial(listed.getRoute())
+                        && publishOfficially(listed.getPublicationId())) {
+                    changed++;
+                    continue;
+                }
                 Boolean done = transactions.execute(s -> step(listed.getPublicationId()));
                 if (Boolean.TRUE.equals(done)) changed++;
             } catch (RuntimeException e) {
@@ -239,7 +260,11 @@ class PublishingEngine {
                     advance(job, p, now);
                     yield true;
                 }
-                if (route != null && !now.isBefore(route.lastMoment(at))) {
+                if (route != null && !now.isBefore(route.lastMoment(p))) {
+                    if (isOfficial(job.getRoute())) {
+                        p.flag(OFFICIAL_FLAG + "los enlaces públicos de las imágenes no llegaron a tiempo: se sigue por otra vía");
+                        cleanup(p);
+                    }
                     job.abandonTask("Claude no lo hizo a tiempo; se sigue por otra vía", now);
                     advance(job, p, now);
                     yield true;
@@ -290,12 +315,16 @@ class PublishingEngine {
         Instant at = p.scheduledAt();
         while (job.getRouteIndex() < routes.size()) {
             PublishRoute route = routes.get(job.getRouteIndex());
+            if (!route.applies(p)) {
+                job.skipRoute();
+                continue;
+            }
             job.trying(job.getRouteIndex(), route.id().label(), now);
             if (!route.configured()) {
                 job.routeFailed("no configurada", now);
                 continue;
             }
-            if (!now.isBefore(route.lastMoment(at))) {
+            if (!now.isBefore(route.lastMoment(p))) {
                 job.routeFailed("ya no da tiempo", now);
                 continue;
             }
@@ -315,9 +344,13 @@ class PublishingEngine {
                     job.note(now, route.id().label() + ": encargo a Claude " + pending.taskId());
                     return;
                 }
-                case PublishRoute.Outcome.Failed f -> job.routeFailed(f.reason(), now);
+                case PublishRoute.Outcome.Failed f -> {
+                    if (route.id() == PublishRoute.Id.OFFICIAL) p.flag(OFFICIAL_FLAG + f.reason() + ": se sigue por otra vía");
+                    job.routeFailed(f.reason(), now);
+                }
                 case PublishRoute.Outcome.Published pub -> job.routeFailed("respuesta inesperada al programar", now);
                 case PublishRoute.Outcome.NotYet n -> job.routeFailed("respuesta inesperada al programar", now);
+                case PublishRoute.Outcome.Doubt d -> job.routeFailed("respuesta inesperada al programar", now);
             }
         }
         Instant next = now.plus(RETRY);
@@ -327,7 +360,9 @@ class PublishingEngine {
         }
         String leeme = writeManual(p, job, now);
         job.manual(leeme, now);
-        p.flag(PublishingService.MANUAL_FLAG + ": " + leeme);
+        // Si la API oficial falló, su motivo sigue a la vista junto al LEEME
+        String official = p.getFlag() != null && p.getFlag().startsWith(OFFICIAL_FLAG) ? " · " + p.getFlag() : "";
+        p.flag(PublishingService.MANUAL_FLAG + ": " + leeme + official);
     }
 
     private @Nullable PublishRoute route(@Nullable String label) {
@@ -348,6 +383,7 @@ class PublishingEngine {
                     job.checking(null, now);
                     p.confirmPublished(pub.externalId(), pub.url(), now);
                     job.published(pub.externalId(), pub.url(), now);
+                    cleanup(p);
                 }
                 case PublishRoute.Outcome.Pending pending -> job.checking(pending.taskId(), now);
                 case PublishRoute.Outcome.Failed f -> {
@@ -362,6 +398,10 @@ class PublishingEngine {
                     if (job.getStatus() != PublishJob.Status.CHECKING) job.checking(null, now);
                     job.touch(now);
                 }
+                case PublishRoute.Outcome.Doubt d -> {
+                    if (job.getStatus() != PublishJob.Status.CHECKING) job.checking(null, now);
+                    job.touch(now);
+                }
             }
         } else {
             String task = orders.submitInternal(p.getPromotionId(), AiRequestType.PUBLISH_CHECK,
@@ -373,10 +413,121 @@ class PublishingEngine {
     }
 
     private void fail(PublishJob job, Publication p, String reason, Instant now) {
+        cleanup(p);
         job.failed(reason, now);
         if (p.getStatus() == PublicationStatus.SCHEDULED) p.moveTo(PublicationStatus.PUBLISHING);
         if (p.getStatus() == PublicationStatus.PUBLISHING) p.moveTo(PublicationStatus.PUBLISH_ERROR);
         p.flag(ERROR_FLAG + reason);
+    }
+
+    // ------------------------------------------------------------------ API oficial: publicar a la hora
+
+    private enum Begin { NOT_DUE, HANDLED, STARTED }
+
+    private static boolean isOfficial(@Nullable String routeLabel) { return PublishRoute.Id.OFFICIAL.label().equals(routeLabel); }
+
+    private void cleanup(Publication p) {
+        for (PublishRoute r : routes) {
+            try {
+                r.cleanup(p);
+            } catch (RuntimeException e) {
+                log.warn("Publicación {}: no se pudo limpiar lo que preparó {}: {}", p.getId(), r.id().label(), e.toString());
+            }
+        }
+    }
+
+    /**
+     * La API oficial no programa: llegada la hora, SocialHub publica él mismo. En tres tiempos: (1) en su transacción,
+     * deja la marca «publicando» (si después no hay resultado, hay duda y no se reintenta); (2) sin transacción, habla
+     * con Meta, que puede tardar minutos; (3) aplica el resultado.
+     *
+     * @return {@code true} si ha hecho algo con esta publicación en este turno
+     */
+    private boolean publishOfficially(String publicationId) {
+        PublishRoute[] route = new PublishRoute[1];
+        Begin begin = transactions.execute(s -> beginOfficial(publicationId, route));
+        if (begin == null || begin == Begin.NOT_DUE) return false;
+        if (begin == Begin.HANDLED) return true;
+
+        Publication p = publications.findById(publicationId).orElseThrow();
+        PublishJob job = jobs.find(publicationId).orElseThrow();
+        PublishRoute.Outcome outcome;
+        try {
+            outcome = route[0].publish(p, job, clock.instant());
+        } catch (RuntimeException e) {
+            outcome = new PublishRoute.Outcome.Doubt("error inesperado al publicar: " + (e.getMessage() == null ? e.toString() : e.getMessage()));
+        }
+        PublishRoute.Outcome result = outcome;
+        transactions.executeWithoutResult(s -> endOfficial(publicationId, result));
+        return true;
+    }
+
+    private Begin beginOfficial(String publicationId, PublishRoute[] routeOut) {
+        PublishJob job = jobs.find(publicationId).orElse(null);
+        Publication p = publications.findById(publicationId).orElse(null);
+        if (job == null || p == null || job.getStatus() != PublishJob.Status.SCHEDULED || !isOfficial(job.getRoute())) return Begin.NOT_DUE;
+        PublishRoute route = route(job.getRoute());
+        Instant now = clock.instant();
+        Instant at = p.scheduledAt();
+        if (route == null || now.isBefore(at)) return Begin.NOT_DUE;
+        if (job.getPublishStartedAt() != null) {
+            doubt(job, p, "SocialHub se cerró o se cortó mientras la publicaba por la API oficial: no se sabe si Instagram la publicó", now);
+        } else if (now.isAfter(at.plus(OFFICIAL_GRACE))) {
+            fallback(job, p, "SocialHub estaba cerrado a la hora y ya no se publica por la API oficial", now);
+        } else {
+            job.startPublishing(now);
+            if (p.getStatus() == PublicationStatus.SCHEDULED) p.moveTo(PublicationStatus.PUBLISHING);
+            publications.save(p);
+            jobs.save(job);
+            changed(publicationId);
+            routeOut[0] = route;
+            return Begin.STARTED;
+        }
+        publications.save(p);
+        jobs.save(job);
+        changed(publicationId);
+        return Begin.HANDLED;
+    }
+
+    private void endOfficial(String publicationId, PublishRoute.Outcome outcome) {
+        PublishJob job = jobs.find(publicationId).orElseThrow();
+        Publication p = publications.findById(publicationId).orElseThrow();
+        Instant now = clock.instant();
+        switch (outcome) {
+            case PublishRoute.Outcome.Published pub -> {
+                cleanup(p);
+                if (pub.url() == null) {
+                    // Meta dio el identificador pero no el enlace: «Publicada» solo con la confirmación
+                    job.awaitingConfirmation(pub.externalId() == null ? "" : pub.externalId(), now);
+                } else {
+                    p.confirmPublished(pub.externalId(), pub.url(), now);
+                    job.published(pub.externalId(), pub.url(), now);
+                }
+            }
+            case PublishRoute.Outcome.Failed f -> fallback(job, p, f.reason(), now);
+            case PublishRoute.Outcome.Doubt d -> doubt(job, p, d.reason(), now);
+            default -> doubt(job, p, "respuesta inesperada de la API oficial", now);
+        }
+        publications.save(p);
+        jobs.save(job);
+        changed(publicationId);
+    }
+
+    /** Seguro que no se publicó: se sigue por la vía siguiente (Publer), con el motivo a la vista. */
+    private void fallback(PublishJob job, Publication p, String reason, Instant now) {
+        cleanup(p);
+        p.flag(OFFICIAL_FLAG + reason + ": se sigue por otra vía");
+        job.routeFailed(reason, now);
+        advance(job, p, now);
+    }
+
+    /** No se sabe si se publicó: ni se reintenta ni se pasa a otra vía. */
+    private void doubt(PublishJob job, Publication p, String reason, Instant now) {
+        cleanup(p);
+        job.failed(reason, now);
+        if (p.getStatus() == PublicationStatus.SCHEDULED) p.moveTo(PublicationStatus.PUBLISHING);
+        if (p.getStatus() == PublicationStatus.PUBLISHING) p.moveTo(PublicationStatus.PUBLISH_ERROR);
+        p.flag(DOUBT_FLAG + reason + ". Mira en Instagram si ya está publicada antes de volver a programarla");
     }
 
     /** LEEME para publicarla a mano, en la carpeta de aprobados, de generados o la primera que haya. */

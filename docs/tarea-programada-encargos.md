@@ -67,7 +67,24 @@ REGLAS PARA CADA ENCARGO
   · socialhub.weekly-proposals → outputs.proposals: [{scheduled_on, scheduled_time, platform, type, title, idea, why}]
     (máximo 21, dentro de inputs.week, siguiendo la cadencia y la memoria editorial, sin repetir
     inputs.already_planned) y outputs.summary.
+  · socialhub.public-link → (solo lectura) por cada nombre de inputs.files, busca con el conector de Google Drive el
+    archivo con ese nombre exacto dentro de la carpeta «publico» (inputs.folder) y devuelve
+    outputs.links: [{file, id, url}] con url = https://drive.google.com/uc?export=download&id={id}.
+    Un elemento por archivo; si alguno no aparece, status "failed" diciendo cuál. No muevas, borres, compartas ni
+    cambies permisos de nada. outputs.summary: una línea.
 ```
+
+### Encargo nuevo «Enlaces públicos de imágenes» (`socialhub.public-link`, fase 12)
+
+Lo necesita la API oficial de Instagram, que solo publica imágenes desde una URL pública. **La instrucción de arriba todavía no está añadida a la tarea programada**: se añadirá con el OK de Raúl (esta documentación no toca la tarea).
+
+- **Cómo funciona:** SocialHub copia cada imagen (JPEG) de la publicación a `<carpeta «Encargos» de la marca>/publico/{id-aleatorio}.jpg` y deja el encargo en `para-claude`. Raúl comparte a mano la carpeta `publico` («cualquier persona con el enlace»); sus archivos heredan el permiso.
+- **Cuándo se pide:** en cuanto la publicación pasa a «Programada». Como la tarea corre a las 9:40, 14:40 y 20:40, el encargo lleva «deadline» = 9 h antes de la hora de publicación.
+- **Por qué 9 h:** si los enlaces no llegan a tiempo, la publicación pasa a Publer, que necesita 8 h (`PublerRoute.DEADLINE`) y 1 h para que Claude la programe con Chrome.
+- **Qué hace SocialHub con el resultado:** comprueba que cada enlace responde con una imagen (`content-type: image/*`); si no, la publicación sigue por Publer. Con los enlaces buenos queda «Programada» en la API oficial y la publica a su hora (vuelve a comprobar los enlaces justo antes).
+- **Limpieza:** SocialHub borra los archivos de `publico` al publicar, descartar o pasar a otra vía.
+- **No cuenta** en el límite diario de encargos (lo pide SocialHub, con hora fija).
+- **Modelo por defecto:** Haiku (es una búsqueda en Drive).
 
 ## Encargos de publicación: carpeta «para-claude-pc» (fase 7)
 

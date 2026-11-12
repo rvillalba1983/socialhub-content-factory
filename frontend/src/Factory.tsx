@@ -448,7 +448,7 @@ export function Factory({ data, live, onRefresh }: {
             tasks={data.tasks} demo={data.demo} onClose={() => setSel({ type: null, id: null })} onTask={goTask}
             onAction={(a, model) => runTask(selTask, a, model)} />
         )}
-        {selArmory && <ArmoryPanel item={selArmory} data={data} onClose={() => setSel({ type: null, id: null })} onStation={goStation} />}
+        {selArmory && <ArmoryPanel item={selArmory} data={data} onClose={() => setSel({ type: null, id: null })} onStation={goStation} onRefresh={onRefresh} />}
 
         {cc && ccPromotion && (
           <ControlCenter key={cc.promo + cc.tab + (cc.hl ?? '') + (cc.filter ?? '')} p={ccPromotion} brand={brands.get(ccPromotion.brand_id)} data={data}

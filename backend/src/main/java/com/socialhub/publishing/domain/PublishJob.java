@@ -60,6 +60,8 @@ public final class PublishJob {
     private int attempts;
     private @Nullable String lastError;
     private @Nullable String manualFile;
+    /** Desde cuándo SocialHub publica él mismo por la API oficial (sin resultado todavía): si queda así, hay duda. */
+    private @Nullable Instant publishStartedAt;
     private final List<String> log;
     private final Instant createdAt;
     private Instant updatedAt;
@@ -68,7 +70,7 @@ public final class PublishJob {
     public PublishJob(String publicationId, Status status, int routeIndex, @Nullable String route, @Nullable String taskId,
                       List<String> lateTaskIds, @Nullable String externalId, @Nullable String url,
                       @Nullable Instant nextTryAt, int attempts, @Nullable String lastError, @Nullable String manualFile,
-                      List<String> log, Instant createdAt, Instant updatedAt, long version) {
+                      @Nullable Instant publishStartedAt, List<String> log, Instant createdAt, Instant updatedAt, long version) {
         this.publicationId = publicationId;
         this.status = status;
         this.routeIndex = routeIndex;
@@ -81,6 +83,7 @@ public final class PublishJob {
         this.attempts = attempts;
         this.lastError = lastError;
         this.manualFile = manualFile;
+        this.publishStartedAt = publishStartedAt;
         this.log = new ArrayList<>(log);
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
@@ -90,7 +93,7 @@ public final class PublishJob {
     /** Una tarea nueva al pasar a «Programada». Sustituye a la anterior si la había. */
     public static PublishJob start(String publicationId, Instant now, long version) {
         PublishJob job = new PublishJob(publicationId, Status.WORKING, 0, null, null, List.of(), null, null, null, 1, null,
-                null, List.of(), now, now, version);
+                null, null, List.of(), now, now, version);
         job.note(now, "Programada por Raúl: empieza la publicación");
         return job;
     }
@@ -113,6 +116,31 @@ public final class PublishJob {
         taskId = null;
         nextTryAt = null;
         updatedAt = now;
+    }
+
+    /** La vía no se aplica a esta publicación (por ejemplo, la API oficial en TikTok): se pasa a la siguiente sin ruido. */
+    public void skipRoute() {
+        requireOpen();
+        routeIndex++;
+        route = null;
+        taskId = null;
+    }
+
+    /** SocialHub empieza a publicar él mismo por la API oficial: desde aquí, ante la duda no se reintenta. */
+    public void startPublishing(Instant now) {
+        requireOpen();
+        publishStartedAt = now;
+        note(now, "Publicando por " + route + ": SocialHub la publica a la hora");
+    }
+
+    /** Meta devolvió el identificador, pero falta el enlace que lo confirma: se vuelve a mirar cada pocos minutos. */
+    public void awaitingConfirmation(String mediaId, Instant now) {
+        requireOpen();
+        status = Status.CHECKING;
+        taskId = null;
+        externalId = blankToNull(mediaId);
+        lastError = null;
+        note(now, "Meta la ha publicado (" + mediaId + "): falta su enlace para confirmarla");
     }
 
     /** La vía ha dejado un encargo a Claude y espera su resultado. */

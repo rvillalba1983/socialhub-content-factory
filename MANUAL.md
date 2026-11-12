@@ -207,7 +207,12 @@ Una publicación **programada no se edita**: para cambiarla, vuelve a «Aprobada
 2. **Publora** es la segunda vía, con su API y tu clave (plan gratuito: pocas publicaciones al mes).
    - SocialHub sube los archivos y la programa, hasta 6 h antes.
    - Si la sacas de «Programada», SocialHub la borra él solo en Publora.
-3. **API oficial** de Instagram o TikTok: aparcada. Figura como «no configurada».
+3. **API oficial de Instagram** (la primera que se prueba en Instagram, cuando está configurada: clave de Meta en «Agentes y herramientas» y cuenta de Instagram en la ficha de la marca). Meta no programa: SocialHub la publica él mismo a su hora, así que tiene que estar abierto.
+   - **Vídeos, reels y carruseles de vídeo:** los sube desde tu PC.
+   - **Imágenes:** Meta las descarga de una URL pública. SocialHub deja una copia (JPEG) en la carpeta `publico` de Drive (la compartes tú a mano con «cualquier persona con el enlace») y Claude, en la nube, le da el enlace. Si el enlace no llega a tiempo (9 h antes), la publicación pasa a Publer. SocialHub borra la copia al terminar.
+   - **Si falla** (clave, Meta, límite de 100 al día…) o SocialHub está cerrado a la hora, pasa a Publer con el motivo a la vista en «Necesita atención».
+   - **Si no se sabe** si Meta llegó a publicarla, **no se reintenta**: queda en «Error de publicación» con «Revisar antes de reintentar». Mira Instagram antes de volver a programarla.
+   - **TikTok** no cambia.
 4. **Si fallan todas**, SocialHub reintenta cada hora mientras quede margen. Si no, deja un **LEEME** en la carpeta de aprobados para que la publiques tú, y te avisa.
 
 **A la hora:**
@@ -283,6 +288,7 @@ Tiene las decisiones editoriales de la marca, lo rechazado con su motivo y tus c
   - Al dar de alta la marca puedes indicar una **carpeta base** (por ejemplo, `G:\Mi unidad\SocialHub\Litoques`). SocialHub crea dentro las siete carpetas y las asigna.
   - Después, **Crear las que faltan** crea las carpetas asignadas que no existan. Con una carpeta base, también rellena los papeles vacíos.
   - SocialHub nunca borra ni mueve carpetas.
+- **Instagram · API oficial:** la clave de «usuario del sistema» de Meta (no caduca y vale para las dos marcas) se pega en «Agentes y herramientas › Instagram · API oficial», con un botón para comprobarla. Cada marca guarda en su ficha el identificador de su cuenta de Instagram («Cuenta de Instagram (API oficial)»): SocialHub lo comprueba y enseña el @usuario. La clave se guarda solo en tu ordenador, como la de Publora.
 - **Publora:** la clave de la API, que vale para todas las marcas, y la cuenta de Publora de la marca en cada red. La clave se comprueba antes de guardarla. Se guarda solo en tu ordenador, legible solo por tu usuario: nunca en la base de datos, en Drive ni en el repositorio.
 
 ## 9. Operaciones externas

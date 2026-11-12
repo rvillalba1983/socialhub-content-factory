@@ -6,6 +6,7 @@ import com.socialhub.armory.ArmoryService;
 import com.socialhub.platform.AppMode;
 import com.socialhub.platform.AppModeHolder;
 import com.socialhub.promotion.PromotionQueries;
+import com.socialhub.publishing.InstagramService;
 import com.socialhub.publishing.PubloraService;
 import java.time.Clock;
 import java.time.Instant;
@@ -36,6 +37,7 @@ class ServicesWatch {
     private final AiSentOrders sentOrders;
     private final ClaudeActivity activity;
     private final PubloraService publora;
+    private final InstagramService instagram;
     private final PromotionQueries promotions;
     private final Clock clock;
     private final java.util.Map<String, String> last = new java.util.concurrent.ConcurrentHashMap<>();
@@ -67,6 +69,9 @@ class ServicesWatch {
                 "Segunda vía de publicación (API de Publora). La clave vive en la carpeta de datos de SocialHub.",
                 publora(publora.hasKey(), !promotions.brandRefs().isEmpty()
                         && promotions.brandRefs().stream().allMatch(b -> publora.isDismissed(b.id()))), List.of("Publicar"));
+        var ig = instagram.health();
+        register(InstagramService.ARMORY_ID, InstagramService.ARMORY_NAME, InstagramService.ARMORY_DESCRIPTION,
+                new Result(ig.status(), ig.note()), List.of("Publicar", "Instagram"));
     }
 
     private void register(String id, String name, String description, Result result, List<String> capabilities) {
