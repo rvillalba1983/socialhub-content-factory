@@ -48,6 +48,8 @@ Desde la fase 10 (PR #32) la pantalla principal tiene la franja «Qué hacer aho
 
 ## Siguiente: fase 12 (una sola fase, decisión de Raúl del 11 nov)
 
+Plan propuesto en `docs/fase-12.md`, pendiente del OK de Raúl.
+
 Todo lo pendiente va en una fase, por bloques y con una PR por bloque:
 1. **Métricas:** pestaña de la promoción con métricas reales. Dudas para Raúl, de una en una:
    - qué cifras: hoy se leen 6 por publicación y la pestaña enseña 8; impresiones, seguidores ganados y clics son de la cuenta;
