@@ -6,6 +6,8 @@ import com.socialhub.api.model.BrandInputDto;
 import com.socialhub.api.model.BrandListDto;
 import com.socialhub.api.model.FolderCreationInputDto;
 import com.socialhub.api.model.FolderListDto;
+import com.socialhub.api.model.PublicShareDto;
+import com.socialhub.api.model.PublicShareInputDto;
 import com.socialhub.api.model.FolderListInputDto;
 import com.socialhub.api.model.BrandIdentityDto;
 import com.socialhub.api.model.EditorialDecisionDto;
@@ -57,6 +59,16 @@ class BrandsController implements BrandsApi {
     @Override
     public ResponseEntity<FolderListDto> replaceBrandFolders(String brandId, String requestGuard, FolderListInputDto input) {
         return ResponseEntity.ok(mapper.toFolderList(service.replaceBrandFolders(brandId, mapper.toFolderMap(input))));
+    }
+
+    @Override
+    public ResponseEntity<PublicShareDto> getBrandPublicShare(String brandId) {
+        return ResponseEntity.ok(new PublicShareDto(service.publicShared(brandId)));
+    }
+
+    @Override
+    public ResponseEntity<PublicShareDto> setBrandPublicShare(String brandId, String requestGuard, PublicShareInputDto input) {
+        return ResponseEntity.ok(new PublicShareDto(service.setPublicShared(brandId, input.getShared())));
     }
 
     @Override

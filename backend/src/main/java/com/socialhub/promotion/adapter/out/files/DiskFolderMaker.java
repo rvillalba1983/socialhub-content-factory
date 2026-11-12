@@ -21,4 +21,16 @@ class DiskFolderMaker implements FolderMaker {
             throw new UncheckedIOException("No se pudo crear la carpeta " + location + ": " + e.getMessage(), e);
         }
     }
+
+    @Override
+    public boolean reachable(String location) {
+        try {
+            Path path = Path.of(location);
+            Path root = path.getRoot();
+            if (root != null && !Files.isDirectory(root)) return false;
+            return !Files.exists(path) || Files.isDirectory(path);
+        } catch (RuntimeException e) {
+            return false;
+        }
+    }
 }

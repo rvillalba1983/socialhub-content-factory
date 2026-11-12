@@ -86,9 +86,9 @@ class StartUpTest {
         write(post("/api/brands/litoques/folders/creation"), "{\"base\":\"" + base.toString().replace("\\", "\\\\") + "\"}")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items.length()").value(7))
-                .andExpect(jsonPath("$.items[?(@.role == 'ORDERS')].location").value(base.resolve("Encargos").toString()))
+                .andExpect(jsonPath("$.items[?(@.role == 'ORDERS')].location").value(base.resolve("encargos").toString()))
                 .andExpect(jsonPath("$.items[?(@.available == false)]").isEmpty());
-        for (String name : new String[] {"Material", "Borradores", "Generados", "Aprobados", "Publicados", "Informes", "Encargos"}) {
+        for (String name : new String[] {"borradores", "generados", "aprobados", "publicados", "informes", "encargos"}) {
             assertThat(base.resolve(name)).isDirectory();
         }
 
@@ -118,9 +118,9 @@ class StartUpTest {
         assertThat(publishing.proposalCounts()).isEmpty();
 
         // Si luego falta una carpeta asignada, el botón la vuelve a crear sin tocar las demás
-        Files.delete(base.resolve("Informes"));
+        Files.delete(base.resolve("informes"));
         write(post("/api/brands/litoques/folders/creation"), "{}").andExpect(status().isOk());
-        assertThat(base.resolve("Informes")).isDirectory();
+        assertThat(base.resolve("informes")).isDirectory();
     }
 
     private long aiChanges() {

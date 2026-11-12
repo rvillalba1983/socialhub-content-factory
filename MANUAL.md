@@ -78,7 +78,7 @@ Cada estación muestra su estado y sus contadores: en curso, en espera, bloquead
 En la barra de arriba están:
 - El cambio entre **Real** y **Demo**.
 - El buscador de estaciones y tareas.
-- El zoom. Con la rueda del ratón te acercas a cualquier zona.
+- El zoom. Con la rueda del ratón te acercas a cualquier zona. El mapa no te deja arrastrarlo ni alejarlo hasta quedarte sin nada a la vista: el contenido siempre se ve (como mínimo, sus bordes llegan al centro de la pantalla) y no se aleja más de lo que se ve con **Encuadrar todo**.
 - Los botones **Claude**, **Marcas** y **Operaciones**.
 
 A la derecha, **Agentes y herramientas** lista lo que usa la fábrica (Claude, promo.py, FFmpeg, Drive, Publer…) y si está disponible.
@@ -265,6 +265,8 @@ El **registro de envíos** dice cuándo salió cada encargo, con qué modelo, en
 
 En **Marcas** se dan de alta las marcas y sus promociones. Dentro de cada marca hay cuatro partes.
 
+**Avisos de la marca:** arriba de la ficha sale «Te falta por completar» con lo que aún no has hecho: la identidad (tono y público), las carpetas (sin configurar o no disponibles), la cuenta de Publer de Instagram y de TikTok, la cuenta de Instagram para la API oficial (solo si la clave de Meta está puesta) y compartir la carpeta «publico». Cada aviso tiene un botón que baja a su tarjeta. Si no falta nada, el bloque no sale. SocialHub no puede comprobar el permiso de «publico» en Drive: cuando ya la hayas compartido con «cualquier persona con el enlace», pulsa **Ya está compartida** y el aviso se oculta; vuelve si cambias la carpeta de Encargos de la marca.
+
 **Identidad de la marca**
 
 ![Identidad de la marca](docs/manual/img/17-identidad.jpg)
@@ -275,6 +277,15 @@ Recoge:
 - Llamada a la acción y hashtags fijos.
 
 Va en cada encargo a Claude y la usa el control de calidad.
+
+*Importar desde un .txt.* Con **Importar desde .txt** subes un archivo o pegas el texto. Antes de guardar, SocialHub enseña qué campos cambian (antes y después): los que vienen en el archivo sustituyen a los de la ficha y los que no vienen se quedan como estaban. Si algo está mal (campo desconocido, un límite superado), te lo dice y no guarda nada. **Copiar plantilla** copia al portapapeles una instrucción y la plantilla del formato (con los valores actuales si la marca ya tiene identidad) para pegarla en cualquier IA y pedirle que la rellene; lo que te devuelva lo importas aquí.
+
+*Formato del .txt (versión 1).* Hay un ejemplo en `docs/ejemplos/identidad-marca.txt`.
+- Cada campo empieza con una línea `## Nombre del campo`. Nombres (sin distinguir mayúsculas ni tildes): Tono, Público, Temas que no se tocan, Expresiones preferidas, Expresiones prohibidas, Colores, Tipografía, Logotipo, Estilo visual, Estilo fotográfico, Llamada a la acción, Hashtags fijos.
+- Campos de texto (Tono, Público, Tipografía, Logotipo, Estilo visual, Estilo fotográfico, Llamada a la acción, Hashtags fijos): el texto que siga hasta el siguiente `##`.
+- Campos de lista (Temas que no se tocan, Expresiones preferidas, Expresiones prohibidas, Colores): un elemento por línea, empezando por `- `.
+- Las líneas que empiezan por `###` son comentarios y se ignoran. Un campo con `##` pero vacío se queda vacío; un campo que no aparece no se toca.
+- Máximos: Tono, Público, Estilo visual y Estilo fotográfico 2000 caracteres; Tipografía 200; Logotipo 500; Llamada a la acción 500; Hashtags fijos 1000. Listas: Temas 50 elementos de 200 caracteres; Expresiones preferidas y prohibidas 100 de 200; Colores 20 de 40.
 
 **Memoria editorial**
 
@@ -287,9 +298,10 @@ Tiene las decisiones editoriales de la marca, lo rechazado con su motivo y tus c
 ![Carpetas de Drive y Publora](docs/manual/img/19-carpetas-y-publora.jpg)
 
 - **Carpetas:** qué carpeta de Drive hace cada papel (material, borradores, generados, aprobados, publicados, informes y encargos). Las promociones las heredan y solo cambian las que necesiten.
-  - Al dar de alta la marca puedes indicar una **carpeta base** (por ejemplo, `G:\Mi unidad\SocialHub\Litoques`). SocialHub crea dentro las siete carpetas y las asigna.
-  - Después, **Crear las que faltan** crea las carpetas asignadas que no existan. Con una carpeta base, también rellena los papeles vacíos.
-  - SocialHub nunca borra ni mueve carpetas.
+  - Escribe la **carpeta raíz** de la marca (por ejemplo, `G:\Mi unidad\socialhub\eldelito`, en el disco sincronizado con Drive) y pulsa **Crear carpetas** (también puedes hacerlo al dar de alta la marca). SocialHub crea en ese disco la estructura y rellena los siete papeles: Material es la propia raíz; dentro van `borradores`, `generados`, `aprobados`, `publicados`, `informes` y `encargos`, y dentro de `encargos`: `para-claude`, `para-claude-pc`, `de-claude` y `publico`.
+  - Las carpetas que ya existen se respetan: SocialHub nunca borra ni mueve nada. Repetir la acción no cambia nada. Si cambias la raíz, los siete papeles pasan a apuntar a la nueva (lo de la anterior se queda donde está).
+  - Si la raíz no es accesible (por ejemplo, la unidad G: no está disponible o Google Drive para ordenador no está abierto), sale un error claro y no se crea nada.
+  - Las rutas de cada papel siguen visibles y editables (avanzado) por si quieres una ruta distinta.
 - **Instagram · API oficial:** la clave de «usuario del sistema» de Meta (no caduca y vale para las dos marcas) se pega en «Agentes y herramientas › Instagram · API oficial», con un botón para comprobarla. Cada marca guarda en su ficha el identificador de su cuenta de Instagram («Cuenta de Instagram (API oficial)»): SocialHub lo comprueba y enseña el @usuario. La clave se guarda solo en tu ordenador, como la de Publora.
 - **Publora:** la clave de la API, que vale para todas las marcas, y la cuenta de Publora de la marca en cada red. La clave se comprueba antes de guardarla. Se guarda solo en tu ordenador, legible solo por tu usuario: nunca en la base de datos, en Drive ni en el repositorio.
 
