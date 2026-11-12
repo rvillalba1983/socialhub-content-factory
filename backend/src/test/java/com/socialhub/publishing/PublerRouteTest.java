@@ -166,6 +166,31 @@ class PublerRouteTest {
     }
 
     @Test
+    void aCancelledOneThatIsStillInPublerKeepsItsSlotUntilRaulDeletesIt() {
+        IntStream.range(0, 9).forEach(n -> inPubler(publication("d" + n, "promo-delito", Platform.TIKTOK, n), PublishJob.Status.SCHEDULED, null));
+        var next = publication("next", "promo-litoques", Platform.TIKTOK, 20);
+        assertThat(route().schedule(next, job(next), NOW)).isEqualTo(new PublishRoute.Outcome.Pending("task-1"));
+
+        // Raúl la sacó de «Programada» y sigue en Publer (aviso «Estaba programada en Publer»): ocupa el décimo hueco
+        var stays = Publication.builder().id("stays").promotionId("promo-delito").platform(Platform.TIKTOK).type("Reel").title("Sigue")
+                .scheduledOn(DAY.plusDays(30)).scheduledTime(LocalTime.of(19, 0)).status(PublicationStatus.APPROVED)
+                .flag("Estaba programada en Publer: bórrala allí a mano").build();
+        when(publications.findById("stays")).thenReturn(Optional.of(stays));
+        open.add(new PublishJob("stays", PublishJob.Status.CANCELLED, 0, "Publer", null, List.of(), null, null, null, 1, null, null,
+                List.of(), NOW, NOW, 0));
+        assertThat(route().schedule(next, job(next), NOW)).isInstanceOf(PublishRoute.Outcome.Held.class);
+
+        // Una cancelada sin ese aviso (Raúl ya la borró en Publer, o nunca llegó) no cuenta, ni una de otra vía ni una ya pasada
+        var gone = Publication.builder().id("gone").promotionId("promo-delito").platform(Platform.TIKTOK).type("Reel").title("Borrada")
+                .scheduledOn(DAY.plusDays(31)).scheduledTime(LocalTime.of(19, 0)).status(PublicationStatus.APPROVED).build();
+        when(publications.findById("gone")).thenReturn(Optional.of(gone));
+        open.removeIf(j -> j.getPublicationId().equals("stays"));
+        open.add(new PublishJob("gone", PublishJob.Status.CANCELLED, 0, "Publer", null, List.of(), null, null, null, 1, null, null,
+                List.of(), NOW, NOW, 0));
+        assertThat(route().schedule(next, job(next), NOW)).isEqualTo(new PublishRoute.Outcome.Pending("task-1"));
+    }
+
+    @Test
     void theLimitIsTenByDefaultAndConfigurable() throws Exception {
         var parameter = PublerCapacity.class.getDeclaredConstructors()[0].getParameters()[4];
         assertThat(parameter.getAnnotation(Value.class).value()).isEqualTo("${socialhub.publer.scheduled-limit:10}");

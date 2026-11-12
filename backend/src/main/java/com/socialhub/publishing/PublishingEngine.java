@@ -111,6 +111,7 @@ class PublishingEngine {
             boolean scheduledSomewhere = job.getStatus() == PublishJob.Status.SCHEDULED;
             String route = job.getRoute();
             job.cancel(reason, now);
+            if (p.getFlag() != null && p.getFlag().startsWith(HELD_FLAG)) p.flag(null);
             if (scheduledSomewhere) {
                 PublishRoute owner = route(route);
                 boolean removed;
@@ -252,9 +253,11 @@ class PublishingEngine {
             }
             case HELD -> {
                 if (job.getNextTryAt() == null || now.isBefore(job.getNextTryAt())) yield false;
+                String before = job.getLastError();
                 job.resume(now);
                 advance(job, p, now);
-                yield true;
+                // Sigue retenida por lo mismo: no se guarda ni se avisa a la interfaz (se vuelve a mirar en el siguiente turno)
+                yield !(job.getStatus() == PublishJob.Status.HELD && java.util.Objects.equals(before, job.getLastError()));
             }
             case RETRY_WAIT -> {
                 if (job.getNextTryAt() == null || now.isBefore(job.getNextTryAt())) yield false;
@@ -328,7 +331,8 @@ class PublishingEngine {
                 }
                 case PublishRoute.Outcome.Held h -> {
                     job.hold(h.reason(), now.plus(HELD_RETRY), now);
-                    p.flag(HELD_FLAG + h.reason());
+                    // No pisa otra incidencia de la publicación: entonces el motivo queda solo en la tarea
+                    if (p.getFlag() == null) p.flag(HELD_FLAG + h.reason());
                     return;
                 }
                 case PublishRoute.Outcome.Failed f -> job.routeFailed(f.reason(), now);

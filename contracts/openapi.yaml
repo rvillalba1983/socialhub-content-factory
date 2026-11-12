@@ -1688,7 +1688,7 @@ components:
       required: [platform, account_name]
       properties:
         platform: { $ref: "#/components/schemas/Platform" }
-        account_name: { type: string, minLength: 1, maxLength: 120 }
+        account_name: { type: string, maxLength: 120 }
 
     PublerAccountListInput:
       type: object
@@ -1902,7 +1902,7 @@ components:
       required: [brand_id, name, starts_on, ends_on, status]
       properties:
         brand_id: { type: string }
-        name: { type: string, minLength: 1, maxLength: 120 }
+        name: { type: string, maxLength: 120 }
         description: { type: string, maxLength: 2000 }
         scope: { type: string, maxLength: 2000 }
         cadence: { type: string, maxLength: 500 }

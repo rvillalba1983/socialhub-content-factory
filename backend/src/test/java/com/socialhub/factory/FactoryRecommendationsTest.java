@@ -121,6 +121,29 @@ class FactoryRecommendationsTest {
     }
 
     @Test
+    void anActiveBrandWithoutPublerAccountGetsTheRowEvenIfNothingIsHeldAndItMergesWithHeldOnes() {
+        when(publer.unset("litoques")).thenReturn(List.of(new PublerAccountService.Missing("litoques", "INSTAGRAM", "Instagram", 0),
+                new PublerAccountService.Missing("litoques", "TIKTOK", "TikTok", 0)));
+        var rows = subject().compute();
+        assertThat(rows).extracting(RecommendationDto::getTitle).containsExactly(
+                "Indica la cuenta de Publer de Litoques para Instagram", "Indica la cuenta de Publer de Litoques para TikTok");
+        assertThat(rows.getFirst().getDetail()).startsWith("Sin la cuenta");
+        assertThat(rows.getFirst().getTarget().getScreen()).isEqualTo(ScreenEnum.PUBLER);
+        // Con publicaciones retenidas de TikTok, la fila de TikTok lo dice y no se duplica
+        when(publer.missing()).thenReturn(List.of(new PublerAccountService.Missing("litoques", "TIKTOK", "TikTok", 2)));
+        rows = subject().compute();
+        assertThat(rows).hasSize(2);
+        assertThat(rows.stream().filter(r -> r.getTitle().endsWith("TikTok")).findFirst().orElseThrow().getDetail()).startsWith("2 publicaciones retenidas");
+        // Sin promoción activa y sin retenidas no hay fila; al guardar las cuentas desaparece
+        when(publer.missing()).thenReturn(List.of());
+        when(promotions.promotionRefs()).thenReturn(List.of(ref("PAUSED", LocalDate.of(2026, 11, 1), LocalDate.of(2026, 12, 31))));
+        assertThat(subject().compute().stream().filter(r -> r.getKind() == KindEnum.PUBLER_ACCOUNT_MISSING)).isEmpty();
+        when(promotions.promotionRefs()).thenReturn(List.of(ref("ACTIVE", LocalDate.of(2026, 11, 1), LocalDate.of(2026, 12, 31))));
+        when(publer.unset("litoques")).thenReturn(List.of());
+        assertThat(subject().compute()).isEmpty();
+    }
+
+    @Test
     void nothingToRecommendGivesAnEmptyList() {
         assertThat(subject().compute()).isEmpty();
     }

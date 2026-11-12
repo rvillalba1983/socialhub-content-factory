@@ -201,12 +201,61 @@ class PublerAccountTest {
         }, "la tercera se programa al quedar un hueco");
     }
 
+    @Test
+    @Order(5)
+    void takingAHeldOneOutOfScheduledCancelsItAndLeavesNoFlag() throws Exception {
+        CLOCK.reset();
+        write(put("/api/brands/el-delito/publer-accounts"), "{\"items\":[]}").andExpect(status().isOk());
+        String id = approvedTikTok("poemario", DAY.plusDays(3), "18:00");
+        schedule(id);
+        assertThat(job(id).get("status").asString()).isEqualTo("HELD");
+        assertThat(publication(id).get("flag").asString()).startsWith("Retenida: ");
+
+        write(post("/api/publications/" + id + "/status-changes"), "{\"status\":\"APPROVED\"}").andExpect(status().isOk());
+        assertThat(job(id).get("status").asString()).isEqualTo("CANCELLED");
+        JsonNode p = publication(id);
+        assertThat(!p.has("flag") || p.get("flag").isNull()).isTrue();
+    }
+
+    @Test
+    @Order(6)
+    void heldUntilTheLimitOfPublerThenItFallsToTheOtherRoutesBothForAMissingAccountAndAFullPlan() throws Exception {
+        CLOCK.reset();
+        // Sin cuenta (El DeLito no tiene ninguna)
+        String missing = approvedTikTok("poemario", DAY.plusDays(4), "22:00");
+        schedule(missing);
+        assertThat(job(missing).get("status").asString()).isEqualTo("HELD");
+        // Con la cuenta, pero con el plan lleno (las programadas de antes siguen contando con el reloj al día de hoy)
+        String full = approvedTikTok("versos", DAY.plusDays(5), "22:30");
+        schedule(full);
+        assertThat(job(full).get("status").asString()).isEqualTo("HELD");
+        assertThat(job(full).get("last_error").asString()).contains("límite del plan gratuito");
+
+        // 7 h antes de la primera Publer ya no llega: sin Publora ni API oficial no hay vía y, sin margen para reintentar, a mano
+        CLOCK.set(DAY.plusDays(4).atTime(22, 0).atZone(MADRID).toInstant().minus(Duration.ofHours(7)).plusSeconds(60));
+        engine.tick();
+        JsonNode job = job(missing);
+        assertThat(job.get("status").asString()).isEqualTo("MANUAL");
+        assertThat(job.get("log").toString()).contains("Publer: ya no da tiempo");
+        assertThat(publication(missing).get("flag").asString()).startsWith("Publicación manual con LEEME");
+
+        CLOCK.set(DAY.plusDays(5).atTime(22, 30).atZone(MADRID).toInstant().minus(Duration.ofHours(7)).plusSeconds(60));
+        engine.tick();
+        assertThat(job(full).get("status").asString()).isEqualTo("MANUAL");
+        assertThat(job(full).get("log").toString()).contains("Publer: ya no da tiempo");
+        CLOCK.reset();
+    }
+
     // ---------------------------------------------------------------- utilidades
 
     private String approvedTikTok(String promotion, String time) throws Exception {
+        return approvedTikTok(promotion, DAY, time);
+    }
+
+    private String approvedTikTok(String promotion, LocalDate day, String time) throws Exception {
         String body = write(post("/api/promotions/" + promotion + "/publications"), """
                 {"platform":"TIKTOK","type":"Vídeo","title":"TikTok %s","scheduled_on":"%s",
-                 "scheduled_time":"%s","initial_status":"IN_PRODUCTION","caption":"Un verso nuevo de las %s","hashtags":"#poesia"}""".formatted(time, DAY, time, time))
+                 "scheduled_time":"%s","initial_status":"IN_PRODUCTION","caption":"Un verso nuevo de las %s del %s","hashtags":"#poesia"}""".formatted(time, day, time, time, day))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
         String id = json.readTree(body).get("id").asString();
         PROMOTION_OF.put(id, promotion);

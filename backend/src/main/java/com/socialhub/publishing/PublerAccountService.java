@@ -71,6 +71,14 @@ public class PublerAccountService {
         }).toList();
     }
 
+    /** Redes en las que la marca aún no tiene cuenta de Publer (con {@code held} a 0). */
+    @Transactional(readOnly = true)
+    public List<Missing> unset(String brandId) {
+        var have = accounts.accounts(brandId);
+        return java.util.Arrays.stream(Platform.values()).filter(p -> !have.containsKey(p))
+                .map(p -> new Missing(brandId, p.name(), PubloraRoute.label(p), 0)).toList();
+    }
+
     /** Sustituye las cuentas de la marca: una por red, con el nombre tal como sale en Publer. Un nombre vacío quita la red. */
     @Transactional
     public Map<Platform, String> save(String brandId, List<Choice> choices) {
