@@ -26,7 +26,7 @@ Desde la fase 10 (PR #32) la pantalla principal tiene la franja «Qué hacer aho
 ## En el PC de Raúl
 
 - SocialHub 0.9.1 instalado y funcionando (`http://localhost:8686`). Datos y registros en `%LOCALAPPDATA%\SocialHub`.
-- Instalador 0.9.2 pendiente de generar e instalar (Actions › Instaladores).
+- SocialHub pasa a la versión 1.0.0 (decisión de Raúl, 12 nov): el próximo instalador, `.msi` 1.0.0, se instala encima de la 0.9.1.
 - Ha dado de alta la marca Litoques y la promoción «Test inicial» (empieza el 9 nov).
 - Pendiente de Raúl:
   - Carpeta base de Litoques en «Carpetas de Drive» (botón «Crear las que faltan»).
@@ -47,6 +47,8 @@ Desde la fase 10 (PR #32) la pantalla principal tiene la franja «Qué hacer aho
   - TikTok: se usa la cuenta personal de Raúl, renombrada a `@litoques.eldelito`, pública, con nombre «Lito · Litoques · El DeLito».
 
 ## Siguiente: fase 12 (una sola fase, decisión de Raúl del 11 nov)
+
+Plan propuesto en `docs/fase-12.md`, pendiente del OK de Raúl.
 
 Todo lo pendiente va en una fase, por bloques y con una PR por bloque:
 1. **Métricas:** pestaña de la promoción con métricas reales. Dudas para Raúl, de una en una:

@@ -41,6 +41,10 @@ tags:
     description: Seguimiento de las operaciones con sistemas externos
   - name: Publora
     description: Vía de publicación por la API de Publora (con la clave de Raúl)
+  - name: Publer
+    description: Cuenta de Publer que usa cada marca en cada red (Publer programa con Claude y Chrome, sin API)
+  - name: Instagram
+    description: Vía de publicación por la API oficial de Instagram (Meta Graph API, con la clave de usuario del sistema)
   - name: Backups
     description: Copias de seguridad de la base de datos real, en la carpeta de copias (ajuste general)
   - name: App
@@ -391,6 +395,114 @@ paths:
         "204": { description: Clave borrada }
         default: { $ref: "#/components/responses/Problem" }
 
+  /api/instagram:
+    get:
+      tags: [Instagram]
+      operationId: getInstagram
+      summary: Si la API oficial de Instagram tiene clave
+      description: >
+        La clave nunca sale de SocialHub: solo se indican sus últimos caracteres. No llama a Meta (para comprobarla,
+        «POST /api/instagram/check»).
+      responses:
+        "200":
+          description: Estado de la API oficial
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InstagramStatus" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/instagram/key:
+    put:
+      tags: [Instagram]
+      operationId: saveInstagramKey
+      summary: Guarda la clave de usuario del sistema de Meta
+      description: >
+        Antes de guardarla la comprueba con Meta (GET /me). Es una clave de «usuario del sistema» del porfolio de Meta,
+        sin caducidad, con los permisos instagram_basic e instagram_content_publish. Se guarda en un archivo de la carpeta
+        de datos de SocialHub, legible solo por el usuario; nunca en la base de datos.
+      parameters:
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/InstagramKeyInput" }
+      responses:
+        "200":
+          description: Clave guardada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InstagramStatus" }
+        "400": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+    delete:
+      tags: [Instagram]
+      operationId: deleteInstagramKey
+      summary: Borra la clave (la API oficial queda sin configurar)
+      parameters:
+        - $ref: "#/components/parameters/RequestGuard"
+      responses:
+        "204": { description: Clave borrada }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/instagram/check:
+    post:
+      tags: [Instagram]
+      operationId: checkInstagram
+      summary: Comprueba la clave con Meta y el límite de publicación de cada marca configurada
+      description: >
+        Llama a GET /me y, por cada marca con cuenta de Instagram, a GET /{ig-id} y a content_publishing_limit. Un fallo
+        de Meta no es un error de la API: va en «error» de lo que falló.
+      parameters:
+        - $ref: "#/components/parameters/RequestGuard"
+      responses:
+        "200":
+          description: Resultado de la comprobación
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InstagramCheck" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/brands/{brand_id}/instagram-account:
+    get:
+      tags: [Instagram]
+      operationId: getBrandInstagramAccount
+      summary: Cuenta de Instagram (API oficial) de la marca
+      parameters:
+        - $ref: "#/components/parameters/BrandId"
+      responses:
+        "200":
+          description: Cuenta de la marca (vacía si no tiene)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InstagramAccount" }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+    put:
+      tags: [Instagram]
+      operationId: saveBrandInstagramAccount
+      summary: Guarda la cuenta de Instagram (API oficial) de la marca
+      description: >
+        Recibe el identificador de la cuenta (número largo). Lo comprueba con Meta (GET /{ig-id}?fields=id,username) y
+        guarda el @usuario. Vacío: la quita. Hace falta la clave.
+      parameters:
+        - $ref: "#/components/parameters/BrandId"
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/InstagramAccountInput" }
+      responses:
+        "200":
+          description: Cuenta guardada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InstagramAccount" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
   /api/brands/{brand_id}/publora-accounts:
     get:
       tags: [Publora]
@@ -452,6 +564,71 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/PubloraAccountList" }
         "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/brands/{brand_id}/publer-accounts:
+    get:
+      tags: [Publer]
+      operationId: getBrandPublerAccounts
+      summary: Qué cuenta de Publer usa la marca en cada red
+      parameters:
+        - $ref: "#/components/parameters/BrandId"
+      responses:
+        "200":
+          description: Cuentas indicadas
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublerAccountList" }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+    put:
+      tags: [Publer]
+      operationId: saveBrandPublerAccounts
+      summary: Indica la cuenta de Publer de la marca en cada red
+      description: >
+        Es el nombre de la cuenta tal como sale en Publer. Dos marcas pueden indicar la misma (por ejemplo, la de TikTok,
+        que usan las dos). Una lista vacía las quita; una red con el nombre vacío se quita.
+      parameters:
+        - $ref: "#/components/parameters/BrandId"
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PublerAccountListInput" }
+      responses:
+        "200":
+          description: Cuentas guardadas
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublerAccountList" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/publer-accounts/move-to-publora:
+    post:
+      tags: [Publer]
+      operationId: moveHeldToPublora
+      summary: Pasa a Publora las publicaciones retenidas por el límite de una cuenta de Publer
+      description: >
+        Solo pasan las retenidas de esa cuenta y red (de todas las marcas que la comparten) cuya marca tiene Publora
+        configurada para esa red. Cada una sigue el flujo normal de Publora (su margen de 6 h; si ya no llega, lo de
+        siempre). 400 si ninguna tiene Publora.
+      parameters:
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PublerMoveInput" }
+      responses:
+        "200":
+          description: Cuántas han pasado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublerMoveResult" }
+        "400": { $ref: "#/components/responses/Problem" }
         default: { $ref: "#/components/responses/Problem" }
 
   /api/brands/{brand_id}/identity:
@@ -1357,11 +1534,13 @@ components:
             - SPEC_WAITING
             - PC_TASK_SILENT
             - NO_PUBLISHING_ROUTE
+            - PUBLER_ACCOUNT_MISSING
             - PROMOTION_AUTO_STARTED
           description: >
             Por orden de prioridad: marca sin forma de publicar (NO_PUBLISHING_ROUTE) y tarea del PC «Publicar con
             Chrome» sin contestar (PC_TASK_SILENT), que van primero porque bloquean publicaciones reales (también salen
-            como aviso en «Necesita atención»); propuestas retenidas (por la carpeta de Encargos, Drive cerrado o el límite
+            como aviso en «Necesita atención»); marca sin cuenta de Publer para una red con publicaciones retenidas
+            (PUBLER_ACCOUNT_MISSING, con botón a la tarjeta «Cuenta en Publer»); propuestas retenidas (por la carpeta de Encargos, Drive cerrado o el límite
             diario), propuestas por revisar, marca sin todas sus carpetas, encargos
             sin recoger, marca sin cuenta de Publora, sin carpeta de copias, marca sin promoción activa, propuestas
             pedidas en camino, especificación semanal esperando publicaciones aprobadas y, la última, promoción activada
@@ -1388,10 +1567,10 @@ components:
       properties:
         screen:
           type: string
-          enum: [BRAND_FOLDERS, PROPOSALS, PUBLORA, BACKUPS, NEW_PROMOTION, CLAUDE]
+          enum: [BRAND_FOLDERS, PROPOSALS, PUBLORA, PUBLER, BACKUPS, NEW_PROMOTION, CLAUDE]
           description: >
             BRAND_FOLDERS: Marcas → Carpetas de Drive de la marca (brand_id). PROPOSALS: publicaciones en estado
-            Propuesta de la promoción (promotion_id). PUBLORA: tarjeta de Publora de la marca (brand_id). BACKUPS:
+            Propuesta de la promoción (promotion_id). PUBLORA: tarjeta de Publora de la marca (brand_id). PUBLER: tarjeta «Cuenta en Publer» de la marca (brand_id). BACKUPS:
             ajuste de la carpeta de copias. NEW_PROMOTION: alta de promoción de la marca (brand_id); con promotion_id, abre esa promoción (planificada o en
             pausa) para activarla. CLAUDE: pantalla «Claude», donde se cambia el límite diario de encargos (sin brand_id)
         brand_id: { type: string }
@@ -1412,6 +1591,23 @@ components:
         station_id: { type: string }
         title: { type: string }
         detail: { type: string }
+        action:
+          $ref: "#/components/schemas/AlertAction"
+
+    AlertAction:
+      type: object
+      description: Botón del aviso, si lo tiene
+      required: [type, label, account_name, platform]
+      properties:
+        type:
+          type: string
+          enum: [PUBLER_TO_PUBLORA]
+          description: >
+            PUBLER_TO_PUBLORA: pasa ya a Publora las publicaciones retenidas por el límite de esa cuenta de Publer
+            (POST /api/publer-accounts/move-to-publora con account_name y platform)
+        label: { type: string, description: Texto del botón }
+        account_name: { type: string }
+        platform: { $ref: "#/components/schemas/Platform" }
 
     FolderRole:
       description: Papel de una carpeta de Drive
@@ -1458,7 +1654,7 @@ components:
       description: Tipo de encargo a Claude
       type: string
       enum: [WEEKLY_SPEC, CAPTIONS, WEEKLY_BALANCE, RESEARCH, QUALITY_REVIEW, WEEKLY_PROPOSALS, PUBLER_SCHEDULE,
-             PUBLISH_CHECK, CALENDAR_READ, METRICS_READ]
+             PUBLISH_CHECK, CALENDAR_READ, METRICS_READ, PUBLIC_LINK]
 
     AiTypeModel:
       type: object
@@ -1472,6 +1668,11 @@ components:
           description: >
             Lo hace Claude con Chrome en el PC de Raúl (carpeta «para-claude-pc»). Lo encarga SocialHub al publicar, no
             cuenta en el límite diario y no se puede pedir a mano
+        automatic:
+          type: boolean
+          description: >
+            Lo encarga SocialHub (no Raúl), no cuenta en el límite diario y no se puede pedir a mano. Incluye los de
+            on_pc y otros que hace Claude en la nube, como «Enlaces públicos de imágenes»
 
     PublishJob:
       type: object
@@ -1480,7 +1681,7 @@ components:
         publication_id: { type: string }
         status:
           type: string
-          enum: [WORKING, RETRY_WAIT, SCHEDULED, CHECKING, MANUAL, PUBLISHED, FAILED, CANCELLED]
+          enum: [WORKING, HELD, RETRY_WAIT, SCHEDULED, CHECKING, MANUAL, PUBLISHED, FAILED, CANCELLED]
         status_label: { type: string }
         route: { type: string, description: Vía en uso o con la que quedó programada }
         routes:
@@ -1590,6 +1791,51 @@ components:
         synced_at: { type: string, format: date-time, description: Última lectura buena }
         error: { type: string, description: Por qué falló la última lectura }
 
+    InstagramStatus:
+      type: object
+      required: [configured]
+      properties:
+        configured: { type: boolean }
+        key_hint: { type: string, description: "Últimos 4 caracteres de la clave" }
+
+    InstagramKeyInput:
+      type: object
+      required: [key]
+      properties:
+        key: { type: string, minLength: 10, maxLength: 1000 }
+
+    InstagramAccount:
+      type: object
+      properties:
+        ig_user_id: { type: string, description: Identificador de la cuenta de Instagram (número largo) }
+        username: { type: string, description: "@usuario que devolvió Meta al comprobarla" }
+
+    InstagramAccountInput:
+      type: object
+      required: [ig_user_id]
+      properties:
+        ig_user_id: { type: string, maxLength: 40, description: Vacío para quitarla }
+
+    InstagramBrandCheck:
+      type: object
+      required: [brand_id, brand_name]
+      properties:
+        brand_id: { type: string }
+        brand_name: { type: string }
+        username: { type: string }
+        publishing_used: { type: integer, description: Publicaciones por la API en las últimas 24 h }
+        publishing_total: { type: integer, description: Límite en 24 h }
+        error: { type: string }
+
+    InstagramCheck:
+      type: object
+      required: [ok, brands]
+      properties:
+        ok: { type: boolean, description: La clave vale y todas las marcas configuradas responden }
+        name: { type: string, description: Nombre que devolvió GET /me }
+        error: { type: string, description: Por qué falló la clave }
+        brands: { type: array, items: { $ref: "#/components/schemas/InstagramBrandCheck" } }
+
     PubloraStatus:
       type: object
       required: [configured, connections]
@@ -1689,6 +1935,45 @@ components:
       required: [items]
       properties:
         items: { type: array, maxItems: 2, items: { $ref: "#/components/schemas/PubloraAccountInput" } }
+
+    PublerAccount:
+      type: object
+      required: [platform, account_name]
+      properties:
+        platform: { $ref: "#/components/schemas/Platform" }
+        account_name: { type: string, description: "Nombre de la cuenta en Publer («Litoques», «Lito · Litoques · El DeLito»)" }
+
+    PublerAccountList:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/PublerAccount" } }
+
+    PublerAccountInput:
+      type: object
+      required: [platform, account_name]
+      properties:
+        platform: { $ref: "#/components/schemas/Platform" }
+        account_name: { type: string, maxLength: 120 }
+
+    PublerAccountListInput:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, maxItems: 2, items: { $ref: "#/components/schemas/PublerAccountInput" } }
+
+    PublerMoveInput:
+      type: object
+      required: [account_name, platform]
+      properties:
+        account_name: { type: string, minLength: 1, maxLength: 120 }
+        platform: { $ref: "#/components/schemas/Platform" }
+
+    PublerMoveResult:
+      type: object
+      required: [moved]
+      properties:
+        moved: { type: integer, format: int32 }
 
     PublishRouteState:
       type: object
@@ -1896,7 +2181,7 @@ components:
       required: [brand_id, name, starts_on, ends_on, status]
       properties:
         brand_id: { type: string }
-        name: { type: string, minLength: 1, maxLength: 120 }
+        name: { type: string, maxLength: 120 }
         description: { type: string, maxLength: 2000 }
         scope: { type: string, maxLength: 2000 }
         cadence: { type: string, maxLength: 500 }

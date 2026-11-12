@@ -11,6 +11,7 @@ import com.socialhub.api.model.RecommendationDto;
 import com.socialhub.api.model.RecommendationTargetDto;
 import com.socialhub.backup.BackupService;
 import com.socialhub.promotion.PromotionQueries;
+import com.socialhub.publishing.PublerAccountService;
 import com.socialhub.publishing.PublishingQueries;
 import com.socialhub.publishing.PubloraService;
 import java.util.Set;
@@ -39,6 +40,8 @@ import org.springframework.stereotype.Component;
  *   para su red (sin clave, sin cuenta de esa red o «No uso Publora»). Va la primera, con la siguiente, porque
  *   bloquea publicaciones reales. Botón a la tarjeta de Publora de la marca si falta algo que Raúl puede conectar; sin
  *   botón si ha elegido no usarla.</li>
+ *   <li>Marca con promoción activa sin cuenta de Publer en alguna red, o con publicaciones retenidas por eso: una fila por
+ *   marca y red, con botón a la tarjeta «Cuenta en Publer» de la ficha. Va tras las de publicación: bloquea publicaciones reales.</li>
  *   <li>La tarea «Publicar con Chrome» no contesta: encargos de {@code para-claude-pc} sin resultado desde hace 90
  *   minutos dentro de su horario (8:40-22:40). Sin botón.</li>
  *   <li>Propuestas de una promoción retenidas, con el motivo (la marca sin carpeta de «Encargos», la carpeta no
@@ -70,6 +73,7 @@ class FactoryRecommendations {
     private final PromotionQueries promotions;
     private final PublishingQueries publishing;
     private final PubloraService publora;
+    private final PublerAccountService publer;
     private final BackupService backups;
     private final AiAutoStarted autoStarted;
     private final Clock clock;
@@ -90,6 +94,26 @@ class FactoryRecommendations {
             var unroutable = publishing.withoutPubloraRoute(today, today.plusDays(7), promotions::brandOf);
             for (var brand : brands) noPublishingRoute(brand, promotionById, unroutable).ifPresent(all::add);
             all.add(pcTaskSilent(pcSilence.get(), now));
+        }
+
+        // 0b. Publer: publicaciones retenidas porque la marca no tiene su cuenta de Publer en esa red
+        var brandNames = brands.stream().collect(Collectors.toMap(PromotionQueries.BrandRef::id, PromotionQueries.BrandRef::name, (a, b) -> a));
+        // Con promoción activa, falta la cuenta de alguna red aunque aún no haya nada retenido (decisión de Raúl, 12 nov)
+        Map<String, PublerAccountService.Missing> missingPubler = new LinkedHashMap<>();
+        for (var m : publer.missing()) missingPubler.put(m.brandId() + "|" + m.platform(), m);
+        for (var brand : brands) {
+            if (allPromotions.stream().noneMatch(p -> p.brandId().equals(brand.id()) && p.active())) continue;
+            for (var m : publer.unset(brand.id())) missingPubler.putIfAbsent(m.brandId() + "|" + m.platform(), m);
+        }
+        for (var m : missingPubler.values()) {
+            String name = brandNames.getOrDefault(m.brandId(), m.brandId());
+            all.add(recommendation("publer-account:" + m.brandId() + ":" + m.platform(),
+                    RecommendationDto.KindEnum.PUBLER_ACCOUNT_MISSING,
+                    "Indica la cuenta de Publer de " + name + " para " + m.networkLabel(),
+                    m.held() == 0 ? "Sin la cuenta no se pueden programar en Publer las publicaciones de esa red"
+                            : m.held() + (m.held() == 1 ? " publicación retenida" : " publicaciones retenidas")
+                            + ": sin la cuenta no se puede programar en Publer",
+                    RecommendationTargetDto.ScreenEnum.PUBLER, m.brandId(), null));
         }
 
         // 1. Propuestas retenidas, o paradas por Drive o por el límite diario

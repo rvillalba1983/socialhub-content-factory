@@ -4,10 +4,14 @@ import com.socialhub.ai.AiJob;
 import com.socialhub.ai.AiRequestType;
 import com.socialhub.ai.AiTypeHandler;
 import com.socialhub.publishing.domain.Publication;
+import com.socialhub.publishing.domain.Platform;
 import com.socialhub.publishing.domain.PublicationFileRepository;
+import com.socialhub.publishing.domain.PublerAccountRepository;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.jspecify.annotations.Nullable;
@@ -28,11 +32,14 @@ class PublerScheduleHandler implements AiTypeHandler {
     private final PublishingQueries queries;
     private final PublicationFileRepository files;
     private final PublishingEngine engine;
+    private final PublerAccountRepository accounts;
 
-    PublerScheduleHandler(PublishingQueries queries, PublicationFileRepository files, @Lazy PublishingEngine engine) {
+    PublerScheduleHandler(PublishingQueries queries, PublicationFileRepository files, @Lazy PublishingEngine engine,
+                          PublerAccountRepository accounts) {
         this.queries = queries;
         this.files = files;
         this.engine = engine;
+        this.accounts = accounts;
     }
 
     @Override public AiRequestType type() { return AiRequestType.PUBLER_SCHEDULE; }
@@ -55,15 +62,35 @@ class PublerScheduleHandler implements AiTypeHandler {
     @Override
     public Map<String, Object> inputs(AiJob job) {
         Publication p = queries.find(job.inputs().getFirst()).orElseThrow();
-        return Map.of(
-                "publication", publication(p, files),
-                "how", List.of(
-                        "Abre Publer (publer.com) en Chrome con la sesión de Raúl; no inicies sesión por él ni crees cuentas.",
-                        "Crea una publicación para la cuenta de " + p.getPlatform() + " con el texto («caption»), los hashtags y los archivos de «files», en ese orden.",
-                        "Prográmala para «scheduled_at» (hora de " + p.getTimezone() + "). No la publiques al momento.",
-                        "Antes de terminar, comprueba en el calendario de Publer que aparece a esa hora y no está duplicada.",
-                        "Si pasó la hora límite («deadline») o falta algo, no programes nada: devuelve status failed con el motivo."),
-                "expected_outputs", "scheduled (true), scheduled_for (ISO 8601 con zona), publer_id si se ve, url si la hay, summary");
+        String account = accounts.account(job.brandId(), p.getPlatform()).orElse(null);
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("publication", publication(p, files));
+        m.put("publer_account", account);
+        List<String> how = new ArrayList<>();
+        if (account == null) {
+            how.add("La marca no tiene indicada su cuenta de Publer para " + p.getPlatform() + ": no programes nada y devuelve status failed con ese motivo.");
+        } else {
+            how.add("Abre Publer (publer.com) en Chrome con la sesión de Raúl; no inicies sesión por él ni crees cuentas.");
+            how.add("Crea una publicación " + inAccount(account) + " (" + p.getPlatform() + ") con el texto («caption»), los hashtags y los archivos de «files», en ese orden.");
+            how.add("Prográmala para «scheduled_at» (hora de " + p.getTimezone() + "). No la publiques al momento.");
+            if (p.getPlatform() == Platform.TIKTOK) how.addAll(tiktokOptions());
+            how.add("Antes de terminar, comprueba en el calendario de Publer, en esa cuenta, que aparece a esa hora y no está duplicada.");
+            how.add("Si pasó la hora límite («deadline») o falta algo, no programes nada: devuelve status failed con el motivo.");
+        }
+        m.put("how", how);
+        m.put("expected_outputs", "scheduled (true), scheduled_for (ISO 8601 con zona), publer_id si se ve, url si la hay, summary");
+        return m;
+    }
+
+    /** «en la cuenta «X» de Publer». */
+    static String inAccount(String account) { return "en la cuenta «" + account + "» de Publer"; }
+
+    /** Opciones de TikTok al programar en Publer (cuenta personal, públicas desde la primera). */
+    static List<String> tiktokOptions() {
+        return List.of(
+                "TikTok, privacidad: «Todo el mundo» (pública desde la primera publicación; no «Solo yo» ni «Amigos»).",
+                "TikTok, interacción: deja activados Comentarios, Dúo y Stitch.",
+                "TikTok, sonido: los sonidos ya van en el vídeo; no añadas música ni sonidos de la biblioteca de TikTok.");
     }
 
     @Override

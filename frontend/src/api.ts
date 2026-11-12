@@ -1,5 +1,5 @@
 import type {
-  Backup, BackupList, Restoration, AiOrder, AiOrderInput, BrandIdentity, ExternalCalendar, PublicationMetrics, PromotionMetrics, PublishJob, PubloraStatus, PubloraAccountList, PubloraAccountInput, QualityReport, RejectionReason, EditorialDecision, EditorialMemory, AiRequestPage, AiSettings, AiSettingsInput, AppMode, AppModeState, Brand, FolderInput, FolderList, Publication, PublicationFile, PublicationFileList, PublicationInput, PublicationStatus, PieceOrder, PieceSpecList, BrandInput, ExternalOperationPage, Promotion, PromotionInput, OperationOutcome, Snapshot, Station, StationCommandType, Task, TaskCommand,
+  Backup, BackupList, Restoration, AiOrder, AiOrderInput, BrandIdentity, ExternalCalendar, PublicationMetrics, PromotionMetrics, PublishJob, PubloraStatus, PubloraAccountList, PubloraAccountInput, PublerAccountList, PublerAccountInput, PublerMoveInput, PublerMoveResult, InstagramStatus, InstagramCheck, InstagramAccount, QualityReport, RejectionReason, EditorialDecision, EditorialMemory, AiRequestPage, AiSettings, AiSettingsInput, AppMode, AppModeState, Brand, FolderInput, FolderList, Publication, PublicationFile, PublicationFileList, PublicationInput, PublicationStatus, PieceOrder, PieceSpecList, BrandInput, ExternalOperationPage, Promotion, PromotionInput, OperationOutcome, Snapshot, Station, StationCommandType, Task, TaskCommand,
 } from './model';
 
 export class ApiError extends Error {
@@ -77,6 +77,17 @@ export const api = {
     putJson<PubloraAccountList>(`/api/brands/${encodeURIComponent(id)}/publora-dismissed`, { dismissed }),
   saveBrandPubloraAccounts: (id: string, items: PubloraAccountInput[]) =>
     putJson<PubloraAccountList>(`/api/brands/${encodeURIComponent(id)}/publora-accounts`, { items }),
+  brandPublerAccounts: (id: string) => call<PublerAccountList>(`/api/brands/${encodeURIComponent(id)}/publer-accounts`),
+  moveHeldToPublora: (input: PublerMoveInput) => post<PublerMoveResult>('/api/publer-accounts/move-to-publora', input),
+  saveBrandPublerAccounts: (id: string, items: PublerAccountInput[]) =>
+    putJson<PublerAccountList>(`/api/brands/${encodeURIComponent(id)}/publer-accounts`, { items }),
+  instagram: () => call<InstagramStatus>('/api/instagram'),
+  saveInstagramKey: (key: string) => putJson<InstagramStatus>('/api/instagram/key', { key }),
+  deleteInstagramKey: () => call<void>('/api/instagram/key', { method: 'DELETE' }),
+  checkInstagram: () => post<InstagramCheck>('/api/instagram/check', {}),
+  brandInstagramAccount: (id: string) => call<InstagramAccount>(`/api/brands/${encodeURIComponent(id)}/instagram-account`),
+  saveBrandInstagramAccount: (id: string, igUserId: string) =>
+    putJson<InstagramAccount>(`/api/brands/${encodeURIComponent(id)}/instagram-account`, { ig_user_id: igUserId }),
   publicationMetrics: (id: string) => call<PublicationMetrics>(`/api/publications/${encodeURIComponent(id)}/metrics`),
   promotionMetrics: (promotionId: string) => call<PromotionMetrics>(`/api/promotions/${encodeURIComponent(promotionId)}/metrics`),
   publishJob: (id: string) => call<PublishJob>(`/api/publications/${encodeURIComponent(id)}/publish-job`),

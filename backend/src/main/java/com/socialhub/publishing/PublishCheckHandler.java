@@ -5,6 +5,7 @@ import com.socialhub.ai.AiRequestType;
 import com.socialhub.ai.AiTypeHandler;
 import com.socialhub.publishing.domain.Publication;
 import com.socialhub.publishing.domain.PublicationFileRepository;
+import com.socialhub.publishing.domain.PublerAccountRepository;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,11 +23,14 @@ class PublishCheckHandler implements AiTypeHandler {
     private final PublishingQueries queries;
     private final PublicationFileRepository files;
     private final PublishingEngine engine;
+    private final PublerAccountRepository accounts;
 
-    PublishCheckHandler(PublishingQueries queries, PublicationFileRepository files, @Lazy PublishingEngine engine) {
+    PublishCheckHandler(PublishingQueries queries, PublicationFileRepository files, @Lazy PublishingEngine engine,
+                        PublerAccountRepository accounts) {
         this.queries = queries;
         this.files = files;
         this.engine = engine;
+        this.accounts = accounts;
     }
 
     @Override public AiRequestType type() { return AiRequestType.PUBLISH_CHECK; }
@@ -47,8 +51,11 @@ class PublishCheckHandler implements AiTypeHandler {
             if (j.getRoute() != null) m.put("route", j.getRoute());
             if (j.getExternalId() != null) m.put("external_id", j.getExternalId());
         });
+        String account = accounts.account(job.brandId(), p.getPlatform()).orElse(null);
+        m.put("publer_account", account);
         m.put("how", List.of(
-                "Mira en Publer (publicadas) y en el perfil de " + p.getPlatform() + " de la marca si la publicación ya está publicada.",
+                "Mira en Publer (publicadas)" + (account == null ? "" : ", " + PublerScheduleHandler.inAccount(account) + ",")
+                        + " y en el perfil de " + p.getPlatform() + " de la marca si la publicación ya está publicada.",
                 "Solo cuenta como publicada si la ves: deja su enlace («url») y, si se ve, su identificador. No supongas nada.",
                 "Si no la encuentras, devuelve published false y explica en «note» qué has mirado."));
         m.put("expected_outputs", "published (true/false), url, external_id, note, summary");

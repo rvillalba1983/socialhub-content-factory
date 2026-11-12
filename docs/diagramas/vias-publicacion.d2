@@ -3,9 +3,10 @@ direction: down
 
 programada: "Pasas la publicación a «Programada»\n(aprobada, sin avisos y con 6 h de margen)" {class: ink}
 
-publer: "1 · Publer\nClaude la programa con Chrome en tu PC\nhasta 8 h antes (espera hasta 7 h antes)" {class: run}
-publora: "2 · Publora\nSocialHub la sube y la programa por su API\nhasta 6 h antes" {class: run}
-oficial: "3 · API oficial\naparcada: figura como «no configurada»" {class: cancel}
+oficial: "1 · API oficial (solo Instagram)\nSocialHub la publica él mismo a la hora\ncomprueba todo en el corte previo (≈ 9 h antes)" {class: run}
+publer: "2 · Publer\nClaude la programa con Chrome en tu PC\nhasta 8 h antes (espera hasta 7 h antes)" {class: run}
+publora: "3 · Publora\nSocialHub la sube y la programa por su API\nhasta 6 h antes" {class: run}
+fallo_hora: "Falla a la hora\n«Necesita atención» + LEEME: la hora ya pasó" {class: err}
 reintento: "¿Queda margen?\nreintento cada hora por todas las vías" {class: wait; shape: diamond}
 manual: "A mano\nLEEME en la carpeta de aprobados + aviso" {class: block}
 
@@ -14,12 +15,15 @@ comprobar: "Comprobación\nPublora por API cada 5 min · Publer o a mano: Claude
 publicada: "Publicada\ncon enlace o identificador" {class: ok}
 error: "Error de publicación + aviso" {class: err}
 
-programada -> publer {class: flecha}
+programada -> oficial: "Instagram" {class: flecha}
+programada -> publer: "TikTok" {class: flecha}
+oficial -> publer: "falla en el corte previo\n(con el motivo a la vista)" {class: flecha}
 publer -> publora: "falla o no llega a tiempo" {class: flecha}
-publora -> oficial: "falla" {class: flecha}
-oficial -> reintento {class: flecha}
-reintento -> publer: "sí" {class: manual}
+publora -> reintento {class: flecha}
+reintento -> oficial: "sí" {class: manual}
 reintento -> manual: "no" {class: flecha}
+oficial -> hora: "todo comprobado\n(si SocialHub estaba cerrado, publica al abrirse y avisa del retraso)" {class: flecha}
+oficial -> fallo_hora: "falla" {class: flecha}
 publer -> hora: "programada" {class: flecha}
 publora -> hora: "programada" {class: flecha}
 manual -> hora: "la publicas tú" {class: manual}

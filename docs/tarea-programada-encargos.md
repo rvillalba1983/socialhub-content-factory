@@ -67,7 +67,24 @@ REGLAS PARA CADA ENCARGO
   · socialhub.weekly-proposals → outputs.proposals: [{scheduled_on, scheduled_time, platform, type, title, idea, why}]
     (máximo 21, dentro de inputs.week, siguiendo la cadencia y la memoria editorial, sin repetir
     inputs.already_planned) y outputs.summary.
+  · socialhub.public-link → (solo lectura) por cada nombre de inputs.files, busca con el conector de Google Drive el
+    archivo con ese nombre exacto dentro de la carpeta «publico» (inputs.folder) y devuelve
+    outputs.links: [{file, id}] con el id de Drive (solo el id: SocialHub construye el enlace de descarga).
+    Un elemento por archivo; si alguno no aparece, status "failed" diciendo cuál. No muevas, borres, compartas ni
+    cambies permisos de nada. outputs.summary: una línea.
 ```
+
+### Encargo nuevo «Enlaces públicos de imágenes» (`socialhub.public-link`, fase 12)
+
+Lo necesita la API oficial de Instagram, que solo publica imágenes desde una URL pública. **La instrucción de arriba todavía no está añadida a la tarea programada**: se añadirá con el OK de Raúl (esta documentación no toca la tarea).
+
+- **Cómo funciona:** SocialHub copia cada imagen (JPEG) de la publicación a `<carpeta «Encargos» de la marca>/publico/{id-aleatorio}.jpg` y deja el encargo en `para-claude`. Raúl comparte a mano la carpeta `publico` («cualquier persona con el enlace»); sus archivos heredan el permiso.
+- **Cuándo se pide:** en cuanto la publicación pasa a «Programada». Como la tarea corre a las 9:40, 14:40 y 20:40, el encargo lleva «deadline» = el corte previo (normalmente 9 h antes de la hora de publicación; antes si el límite de Publer cae de noche).
+- **Por qué ese corte:** si los enlaces no llegan a tiempo, la publicación pasa a Publer, que necesita 8 h (`PublerRoute.DEADLINE`) y una pasada de Claude con Chrome antes de ese límite. Si el encargo va con retraso o Claude no puede, pasa a Publer en el acto.
+- **Qué hace SocialHub con el resultado:** comprueba que cada enlace responde con una imagen (`content-type: image/*`); si no, la publicación sigue por Publer. Con los enlaces buenos queda «Programada» en la API oficial y la publica a su hora (vuelve a comprobar los enlaces justo antes).
+- **Limpieza:** SocialHub borra los archivos de `publico` al publicar, descartar o pasar a otra vía.
+- **No cuenta** en el límite diario de encargos (lo pide SocialHub, con hora fija).
+- **Modelo por defecto:** Haiku (es una búsqueda en Drive).
 
 ## Encargos de publicación: carpeta «para-claude-pc» (fase 7)
 
@@ -92,12 +109,16 @@ Eres el agente «Publicar con Chrome» de SocialHub, la app de Raúl Villalba (L
    «de-claude» no hay ningún archivo cuyo nombre empiece por «<tarea>-<intento>». Si no hay pendientes, termina con
    «Sin encargos» sin abrir Chrome.
 3. Hazlos por orden de nombre, tú mismo, con Claude in Chrome y siguiendo inputs.how:
-   · socialhub.publer-schedule → programa en Publer la publicación de inputs.publication (texto, hashtags y archivos
-     de «files», en ese orden) para «scheduled_at». Comprueba en el calendario de Publer que aparece una sola vez a esa
-     hora. outputs: {scheduled: true, scheduled_for: "<ISO 8601 con zona>", publer_id (si se ve), url (si la hay),
-     summary}.
-   · socialhub.publish-check → mira en Publer y en el perfil de la red si ya está publicada. outputs: {published:
-     true|false, url: "https://…" (si la ves), external_id (si se ve), note, summary}.
+   · socialhub.publer-schedule → programa en Publer, en la cuenta inputs.publer_account (el nombre de la cuenta tal
+     como sale en Publer; no uses otra), la publicación de inputs.publication (texto, hashtags y archivos de «files»,
+     en ese orden) para «scheduled_at». Comprueba en el calendario de Publer, en esa cuenta, que aparece una sola vez a
+     esa hora. Si inputs.publer_account viene vacío, no programes nada: status "failed". Si la red es TIKTOK, en las
+     opciones de publicación de Publer: privacidad «Todo el mundo» (pública desde la primera), Comentarios, Dúo y
+     Stitch activados, y no añadas música ni sonidos (los sonidos ya van en el vídeo). outputs: {scheduled: true,
+     scheduled_for: "<ISO 8601 con zona>", publer_id (si se ve), url (si la hay), summary}.
+   · socialhub.publish-check → mira en Publer (en la cuenta inputs.publer_account) y en el perfil de la red si ya está
+     publicada. outputs: {published: true|false, url: "https://…" (si la ves), external_id (si se ve), note, summary}.
+   · socialhub.calendar-read → mira lo programado en las cuentas de Publer de inputs.publer_accounts (por red).
 4. Con cada resultado, crea en la «de-claude» de esa marca «<tarea>-<intento>.json» (application/json) según el contrato
    socialhub.task-result v1, con agent.runtime "tarea programada en el PC".
 5. Termina con un mensaje breve a Raúl: qué has hecho y cómo ha quedado.
@@ -113,3 +134,13 @@ REGLAS
 - No supongas nada: «published» solo es true si la ves, con su enlace.
 - Si no puedes, status "failed" con el motivo en «error».
 ```
+
+### Cuenta de Publer y TikTok (Fase 12, bloque 2)
+
+Publer tiene el Instagram de «El DeLito», el de «Litoques» y una sola cuenta de TikTok, «Lito · Litoques · El DeLito» (`@litoques.eldelito`), que usan las dos marcas. Por eso cada encargo de Publer indica la cuenta:
+
+- **`inputs.publer_account`:** la cuenta de Publer de la marca en la red de la publicación (la escribe Raúl en la tarjeta «Cuenta en Publer» de la ficha de la marca). Los encargos «Programar en Publer» y «Comprobar publicación» la llevan, y `inputs.how` dice «en la cuenta «X» de Publer». «Leer calendario» lleva `inputs.publer_accounts` (red → cuenta).
+- **Sin cuenta no hay encargo:** si la marca no tiene cuenta de Publer en esa red, SocialHub no crea el encargo; la publicación queda «Retenida» con el motivo y sale la recomendación «Indica la cuenta de Publer de {marca} para {red}».
+- **Opciones de TikTok** (van en `inputs.how` de las publicaciones de TikTok): privacidad «Todo el mundo» (pública desde la primera publicación), Comentarios, Dúo y Stitch activados, y los sonidos ya van en el vídeo (no se añade música ni sonido de la biblioteca).
+- **Límite del plan gratuito de Publer:** 10 publicaciones programadas a la vez por cuenta (`socialhub.publer.scheduled-limit`, 10 por defecto). Se cuenta por cuenta y red, sumando marcas: las dos marcas comparten el tope de TikTok. Con la cuenta llena no se crea el encargo: la publicación queda en espera, con el motivo visible, hasta que salga alguna. SocialHub solo cuenta lo que él mismo ha programado en Publer.
+- **Para aplicarlo:** el texto de la tarea programada «Publicar con Chrome» tiene que llevar estas instrucciones. Se actualiza con el OK de Raúl; no se toca sola.

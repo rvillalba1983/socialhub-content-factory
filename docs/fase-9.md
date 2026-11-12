@@ -1,6 +1,6 @@
 # SocialHub · Fase 9: distribución
 
-Estado: **copias e instalador de Windows hechos** · 8 nov 2026. Falta el `.dmg` de macOS.
+Estado: **copias, instalador de Windows y `.dmg` de macOS hechos** · 12 nov 2026. Versión 1.0.0 en todos los sistemas (el `.dmg` se sigue puliendo en la fase 12, PR #37).
 
 Decisiones generales en `docs/fases-7-9.md`.
 
@@ -88,4 +88,11 @@ Decisiones generales en `docs/fases-7-9.md`.
 
 ## Pendiente
 
-- `.dmg` de macOS: cuando haya minutos de macOS y se pase a probar en macOS (ver `docs/decisiones.md`).
+- `.dmg` de macOS: hecho en la fase 12 (PR #37), ver `docs/decisiones.md`.
+
+## Bloque 3 · `.dmg` de macOS y versión 1.0.0 (12 nov)
+
+- jpackage en macOS no admite versiones que empiezan por 0, así que SocialHub pasa a la **1.0.0** en Windows y macOS (decisión de Raúl).
+- `instaladores.yml` (`windows-y-macos`) crea el `.dmg` con PostgreSQL y FFmpeg de macOS dentro, y en la máquina macOS de GitHub lo monta, copia la app, la abre, espera a `http://127.0.0.1:8686`, comprueba PostgreSQL (proceso y `postmaster.pid`), el segundo arranque y el cierre desde la web. Falla si no arranca.
+- El `.msi` 1.0.0 se prueba instalado encima de la última release anterior (0.9.0): queda solo SocialHub 1.0.0.
+- Datos y registro en macOS: `~/Library/Application Support/SocialHub`.

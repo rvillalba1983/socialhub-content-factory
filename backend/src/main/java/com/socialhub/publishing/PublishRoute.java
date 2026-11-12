@@ -13,7 +13,7 @@ import org.jspecify.annotations.Nullable;
 public interface PublishRoute {
 
     enum Id {
-        PUBLER("Publer"), PUBLORA("Publora"), OFFICIAL("API oficial");
+        OFFICIAL("API oficial"), PUBLER("Publer"), PUBLORA("Publora");
 
         private final String label;
 
@@ -31,8 +31,15 @@ public interface PublishRoute {
         /** Ya está publicada (solo al comprobar). */
         record Published(@Nullable String externalId, @Nullable String url) implements Outcome {}
         record Failed(String reason) implements Outcome {}
+        /**
+         * La vía no puede programarla todavía y no hay que seguir con otra (falta un dato de la marca o el plan de la vía
+         * está al límite): la publicación queda retenida con este motivo y se vuelve a probar sola.
+         */
+        record Held(String reason) implements Outcome {}
         /** Al comprobar: aún no se sabe (la vía sigue publicando). Se vuelve a mirar más tarde. */
         record NotYet(String reason) implements Outcome {}
+        /** Al publicar la propia vía: no se sabe si llegó a publicarse (tiempo agotado). No se reintenta ni se cambia de vía. */
+        record Doubt(String reason) implements Outcome {}
     }
 
     Id id();
@@ -42,6 +49,36 @@ public interface PublishRoute {
 
     /** Último momento en que tiene sentido seguir con esta vía para una publicación a esa hora. */
     Instant lastMoment(Instant scheduledAt);
+
+    /** La vía sirve para esta publicación (por ejemplo, la API oficial solo es de Instagram). Si no, se salta sin ruido. */
+    default boolean applies(Publication publication) { return true; }
+
+    /** Último momento para esta publicación (por defecto, el de su hora). */
+    default Instant lastMoment(Publication publication) { return lastMoment(publication.scheduledAt()); }
+
+    /**
+     * El corte previo: el último momento en que, si algo falla, la publicación aún puede seguir por Publer (que necesita
+     * 8 h y una pasada de Claude con Chrome). Pasado ese momento se comprueba todo y, si algo falla, ya solo queda el aviso.
+     */
+    default Instant cutoff(Publication publication) { return lastMoment(publication); }
+
+    /**
+     * Comprueba, en el corte previo, que todo está listo para publicar a la hora (clave, cuenta, archivos y, si hacen
+     * falta, enlaces ya llegados y verificados). {@code Scheduled} si todo está bien; {@code Failed} con el motivo si no.
+     */
+    default Outcome preflight(Publication publication, PublishJob job, Instant now) { return new Outcome.Scheduled(null, null); }
+
+    /**
+     * La vía no programa: SocialHub la publica él mismo a la hora. El motor llama a {@link #publish} cuando llega y deja
+     * antes una marca en la tarea para no repetirla si hay duda.
+     */
+    default boolean publishesAtTime() { return false; }
+
+    /** Publica ya. Devuelve {@code Published} (con el identificador de la vía; el enlace, si ya se tiene), {@code Failed} (seguro que no se publicó) o {@code Doubt}. */
+    default Outcome publish(Publication publication, PublishJob job, Instant now) { return new Outcome.Failed("la vía no publica por sí misma"); }
+
+    /** La publicación deja la vía (publicada, descartada o fallida): se borra lo que la vía preparó. */
+    default void cleanup(Publication publication) {}
 
     /** Intenta programarla. Solo se llama si está configurada y antes de {@link #lastMoment}. */
     Outcome schedule(Publication publication, PublishJob job, Instant now);

@@ -33,6 +33,8 @@ class PublishJobEntity {
     private int attempts;
     private @Nullable String lastError;
     private @Nullable String manualFile;
+    private @Nullable Instant publishStartedAt;
+    private @Nullable Instant preflightAt;
     private String log;
     private Instant createdAt;
     private Instant updatedAt;

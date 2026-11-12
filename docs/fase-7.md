@@ -1,6 +1,6 @@
 # SocialHub · Fase 7: publicación
 
-Estado: **bloques 1, 2 y 4 en `main`**; bloque 3 (API oficial) aparcado por decisión de Raúl · 3 nov 2026
+Estado: **bloques 1, 2 y 4 en `main`**; el bloque 3 (API oficial de Instagram) ya no está aparcado: se hace en la fase 12 (`docs/decisiones.md`, «Fase 12 · Bloque 4») · 3 nov 2026
 
 Decisiones generales en `docs/fases-7-9.md`. Respuestas de Raúl al empezar esta fase:
 
@@ -72,14 +72,14 @@ Cómo funciona:
 
 Sin comprobar todavía con la cuenta real de Raúl: las historias de imagen por la API personal de Publora (la documentación solo habla de vídeo en `videoType`).
 
-## Bloque 3: API oficial (aparcado)
+## Bloque 3: API oficial (pasa a la fase 12)
 
-Raúl decidió hacer antes el bloque 4. Pegas encontradas ([Meta · Content Publishing](https://developers.facebook.com/docs/instagram-platform/content-publishing)):
-- Instagram solo publica imágenes desde una URL pública, y SocialHub corre en el PC de Raúl.
-- La API no programa: SocialHub tendría que estar abierto justo a la hora.
-- TikTok, hasta que revise la app, solo publica en privado.
+Raúl decidió hacer antes el bloque 4. **Ya no está aparcado:** la API oficial de Instagram se hace en la fase 12, bloque 4 (rama `fase-12-instagram`). Las decisiones están en `docs/decisiones.md`, sección «Fase 12 · Bloque 4: API oficial de Instagram».
 
-Hasta entonces la API oficial figura como «no configurada».
+Las pegas que se encontraron ([Meta · Content Publishing](https://developers.facebook.com/docs/instagram-platform/content-publishing)) y cómo se resuelven:
+- Instagram solo publica imágenes desde una URL pública, y SocialHub corre en el PC de Raúl → carpeta pública de Drive y enlace obtenido por Claude en la nube. Los vídeos y reels se suben desde el PC con subida resumible.
+- La API no programa → SocialHub publica él mismo a la hora; si estaba cerrado, la publica en cuanto se abre (sin límite de tiempo) y avisa del retraso.
+- TikTok, hasta que revise la app, solo publica en privado → TikTok no cambia (sigue Publer y Publora).
 
 ## Bloque 4: calendario con las tres vías
 

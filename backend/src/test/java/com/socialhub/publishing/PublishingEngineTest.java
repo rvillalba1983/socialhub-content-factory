@@ -104,6 +104,9 @@ class PublishingEngineTest {
         write(put("/api/brands/el-delito/folders"), """
                 {"items":[{"role":"ORDERS","location":%s},{"role":"APPROVED","location":%s}]}"""
                 .formatted(q(orders), q(approved))).andExpect(status().isOk());
+        // Publer: sin la cuenta de la marca en esa red no se crea el encargo (lo prueba PublerAccountTest)
+        write(put("/api/brands/el-delito/publer-accounts"), "{\"items\":[{\"platform\":\"INSTAGRAM\",\"account_name\":\"El DeLito\"}]}")
+                .andExpect(status().isOk());
         // El límite diario no frena los encargos de publicación
         write(put("/api/ai/settings"), "{\"daily_limit\":1,\"models\":[]}").andExpect(status().isOk());
         // Al guardar la promoción se pidió ya la primera semana de propuestas (un encargo normal, que sí cuenta para el
@@ -138,6 +141,8 @@ class PublishingEngineTest {
         assertThat(request.get("type").asString()).isEqualTo("socialhub.publer-schedule");
         assertThat(Instant.parse(request.get("deadline").asString())).isEqualTo(at.minus(Duration.ofHours(8)));
         assertThat(request.get("inputs").get("publication").get("scheduled_at").asString()).isEqualTo(at.toString());
+        assertThat(request.get("inputs").get("publer_account").asString()).isEqualTo("El DeLito");
+        assertThat(request.get("inputs").get("how").toString()).contains("en la cuenta «El DeLito» de Publer");
         assertThat(request.get("inputs").get("publication").get("files").get(0).asString()).isEqualTo(story.toRealPath().toString());
         assertThat(Files.exists(orders.resolve("para-claude"))
                 ? list(orders.resolve("para-claude")).stream().noneMatch(p -> p.getFileName().toString().startsWith(task)) : true)

@@ -97,23 +97,39 @@ public class PublishingQueries {
      */
     public List<PublishAlert> publishAlerts() {
         List<PublishAlert> alerts = new java.util.ArrayList<>();
+        java.util.Set<String> listed = new java.util.HashSet<>();
         var statuses = java.util.EnumSet.of(com.socialhub.publishing.domain.PublishJob.Status.MANUAL,
                 com.socialhub.publishing.domain.PublishJob.Status.FAILED);
         for (var job : jobs.withStatus(statuses)) {
             publications.findById(job.getPublicationId()).ifPresent(p -> {
+                String flag = p.getFlag();
                 if (job.getStatus() == com.socialhub.publishing.domain.PublishJob.Status.MANUAL) {
+                    String official = flag != null && flag.startsWith(PublishingEngine.OFFICIAL_FLAG) ? " · " + flag : "";
                     alerts.add(new PublishAlert(p.getId(), false, "Publicar a mano: " + p.getTitle(),
-                            "Ninguna vía pudo programarla a tiempo. LEEME: " + job.getManualFile()));
+                            "Ninguna vía pudo programarla a tiempo. LEEME: " + job.getManualFile() + official));
+                    listed.add(p.getId());
                 } else if (p.getStatus() == com.socialhub.publishing.domain.PublicationStatus.PUBLISH_ERROR) {
-                    alerts.add(new PublishAlert(p.getId(), true, "Error de publicación: " + p.getTitle(),
-                            job.getLastError() == null ? "Revisa la publicación" : job.getLastError()));
+                    // Con duda o con motivo de la API oficial, se enseña el aviso entero («mira en Instagram…»)
+                    boolean doubt = flag != null && flag.startsWith(PublishingEngine.DOUBT_FLAG);
+                    boolean official = flag != null && flag.startsWith(PublishingEngine.OFFICIAL_FLAG);
+                    alerts.add(new PublishAlert(p.getId(), true, (doubt ? "Revisar antes de reintentar: " : "Error de publicación: ")
+                            + p.getTitle(), doubt || official ? flag : job.getLastError() == null ? "Revisa la publicación" : job.getLastError()));
+                    listed.add(p.getId());
                 }
             });
         }
         for (Publication p : publications.findAll()) {
             String flag = p.getFlag();
-            if (flag != null && (flag.startsWith(PublishingEngine.LATE_FLAG) || flag.startsWith(PublishingEngine.STILL_SCHEDULED))) {
+            if (flag == null || listed.contains(p.getId())) continue;
+            if (flag.startsWith(PublishingEngine.LATE_FLAG) || flag.startsWith(PublishingEngine.STILL_SCHEDULED)) {
                 alerts.add(new PublishAlert(p.getId(), false, "Revisa la programación: " + p.getTitle(), flag));
+            } else if (flag.startsWith(PublishingEngine.DOUBT_FLAG)) {
+                alerts.add(new PublishAlert(p.getId(), true, "Revisar antes de reintentar: " + p.getTitle(), flag));
+            } else if (flag.startsWith(PublishingEngine.OFFICIAL_FLAG)
+                    && p.getStatus() != com.socialhub.publishing.domain.PublicationStatus.CANCELLED) {
+                alerts.add(new PublishAlert(p.getId(), false, "La API oficial de Instagram no pudo: " + p.getTitle(), flag));
+            } else if (flag.startsWith(PublishingEngine.DELAY_FLAG)) {
+                alerts.add(new PublishAlert(p.getId(), false, "Publicada con retraso: " + p.getTitle(), flag));
             }
         }
         return alerts;

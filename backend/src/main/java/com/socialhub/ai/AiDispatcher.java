@@ -126,7 +126,7 @@ class AiDispatcher {
             return false;
         }
         int limit = settings.dailyLimit();
-        if (!type.get().onPc() && settings.usedToday() >= limit) {
+        if (!type.get().automatic() && settings.usedToday() >= limit) {
             production.keepQueued(task.id(), "Límite diario de encargos a Claude alcanzado (" + limit
                     + "). Sale mañana, o sube el límite en «Claude».");
             stall(task, type.get(), AiHeldOrders.Cause.DAILY_LIMIT, limit);

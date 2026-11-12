@@ -71,6 +71,7 @@ class AiController implements ClaudeApi {
                 .map(e -> new AiTypeModelDto(AiRequestTypeDto.valueOf(e.getKey().name()), e.getKey().label(),
                         AiModelDto.valueOf(e.getValue().name()), e.getKey().onPc()))
                 .toList();
+        models.forEach(m -> m.setAutomatic(AiRequestType.valueOf(m.getType().name()).automatic()));
         return new AiSettingsDto(view.dailyLimit(), view.usedToday(), models);
     }
 

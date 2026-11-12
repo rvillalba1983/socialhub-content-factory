@@ -6,9 +6,11 @@ import { Claude } from './Claude';
 import { ControlCenter } from './ControlCenter';
 import { ExternalOperations } from './ExternalOperations';
 import { FolderRoles } from './Folders';
+import { InstagramAccountCard, InstagramKeyCard } from './Instagram';
 import { MemoryCard } from './Memory';
 import { PublicationEditor } from './PublicationEditor';
 import { PubloraCard } from './Publora';
+import { PublerCard } from './Publer';
 import { BrandForm, PromotionForm, Registration } from './Registration';
 import { Factory } from './Factory';
 import { useFactory } from './useFactory';
@@ -79,6 +81,77 @@ describe('World', () => {
     expect(screen.getByText('No hay forma de publicar El DeLito')).toBeInTheDocument();
     expect(screen.getByText('No hay forma de publicar Litoques')).toBeInTheDocument();
     expect(error.mock.calls.filter(c => String(c[0]).includes('same key'))).toHaveLength(0);
+  });
+
+  describe('cuenta de Publer llena', () => {
+    const full = (action: boolean) => ({ kind: 'BLOCKED', target_type: 'STATION', target_id: 'pub', station_id: 'pub',
+      title: 'La cuenta «Lito» de Publer está llena: 3 publicaciones en espera',
+      detail: action ? '2 pueden pasar ya a Publora' : 'Publora no está configurada para Litoques/TikTok',
+      ...(action ? { action: { type: 'PUBLER_TO_PUBLORA', label: 'Pasar a Publora', account_name: 'Lito', platform: 'TIKTOK' } } : {}) }) as unknown as Snapshot['alerts'][number];
+    const draw = (a: Snapshot['alerts'][number], onAlertAction = vi.fn()) => {
+      render(<World data={{ ...snapshot, alerts: [a] }} sel={{ type: null, id: null }} onStation={() => {}} onTask={() => {}}
+        onTaskAction={() => {}} onArmory={() => {}} onAlertAction={onAlertAction} onPromotion={() => {}} onRegister={() => {}} />);
+      return onAlertAction;
+    };
+
+    it('muestra la fila con el botón «Pasar a Publora» y lo pulsa con la cuenta y la red', () => {
+      const onAction = draw(full(true));
+      expect(screen.getByText('La cuenta «Lito» de Publer está llena: 3 publicaciones en espera')).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Pasar a Publora' }));
+      expect(onAction).toHaveBeenCalledWith({ type: 'PUBLER_TO_PUBLORA', label: 'Pasar a Publora', account_name: 'Lito', platform: 'TIKTOK' });
+    });
+
+    it('sin Publora para ninguna, la fila lo dice y no hay botón', () => {
+      draw(full(false));
+      expect(screen.getByText(/Publora no está configurada para Litoques\/TikTok/)).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Pasar a Publora' })).toBeNull();
+    });
+  });
+
+  describe('tarjeta «Necesita atención» con muchos avisos', () => {
+    const many = (n: number) => Array.from({ length: n }, (_, i) => ({ kind: 'BLOCKED', target_type: 'ARMORY', target_id: `a${i}`, station_id: 'pub',
+      title: `Aviso número ${i} con un título bastante largo`, detail: `Detalle ${i}` }) as unknown as Snapshot['alerts'][number]);
+    const draw = (n: number) => render(<World data={{ ...snapshot, alerts: many(n) }} sel={{ type: null, id: null }}
+      onStation={() => {}} onTask={() => {}} onTaskAction={() => {}} onArmory={() => {}} onPromotion={() => {}} onRegister={() => {}} />);
+    const card = () => screen.getByRole('region', { name: 'Necesita tu atención' });
+
+    it('con 2 avisos o menos no hay «Ver N más»', () => {
+      draw(2);
+      expect(card().querySelectorAll('.aitem')).toHaveLength(2);
+      expect(screen.queryByRole('button', { name: /Ver .* más/ })).not.toBeInTheDocument();
+    });
+
+    it('con 6 enseña 2; «Ver 4 más» abre la lista entera y «Ver menos» la pliega', () => {
+      draw(6);
+      expect(card().querySelectorAll('.aitem')).toHaveLength(2);
+      fireEvent.click(screen.getByRole('button', { name: 'Ver 4 más' }));
+      expect(card().querySelectorAll('.aitem')).toHaveLength(6);
+      expect(card().className).toContain('open');
+      fireEvent.click(screen.getByRole('button', { name: 'Ver menos' }));
+      expect(card().querySelectorAll('.aitem')).toHaveLength(2);
+    });
+
+    it('el primer clic despliega el aviso (uno a la vez) y el segundo abre su destino', () => {
+      const onArmory = vi.fn();
+      render(<World data={{ ...snapshot, alerts: many(3) }} sel={{ type: null, id: null }}
+        onStation={() => {}} onTask={() => {}} onTaskAction={() => {}} onArmory={onArmory} onPromotion={() => {}} onRegister={() => {}} />);
+      const items = () => [...card().querySelectorAll<HTMLElement>('.aitem')];
+      expect(items()[0]).toHaveAttribute('title', 'Aviso número 0 con un título bastante largo. Detalle 0');
+      expect(items()[0]).toHaveAttribute('aria-expanded', 'false');
+      fireEvent.click(items()[0]);
+      expect(onArmory).not.toHaveBeenCalled();
+      expect(items()[0]).toHaveAttribute('aria-expanded', 'true');
+      expect(card().querySelectorAll('.attn-row.full')).toHaveLength(1);
+      // Desplegar otro pliega el anterior
+      fireEvent.click(items()[1]);
+      expect(items()[0]).toHaveAttribute('aria-expanded', 'false');
+      expect(items()[1]).toHaveAttribute('aria-expanded', 'true');
+      expect(onArmory).not.toHaveBeenCalled();
+      // Segundo clic sobre el desplegado: navega
+      fireEvent.click(items()[1]);
+      expect(onArmory).toHaveBeenCalledWith('a1');
+      expect(items()[1]).toHaveAttribute('aria-expanded', 'false');
+    });
   });
 });
 
@@ -391,6 +464,99 @@ describe('Publora', () => {
     fireEvent.change(screen.getByLabelText('Cuenta de Publora para Instagram'), { target: { value: 'instagram-111' } });
     fireEvent.click(screen.getByRole('button', { name: 'Guardar cuentas' }));
     await waitFor(() => expect(saveAccounts).toHaveBeenCalledWith('el-delito', [{ platform: 'INSTAGRAM', connection_id: 'instagram-111' }]));
+  });
+});
+
+describe('Cuenta en Publer', () => {
+  it('muestra las cuentas guardadas, con ejemplos de ayuda, y guarda solo las que tienen nombre', async () => {
+    vi.spyOn(api, 'brandPublerAccounts').mockResolvedValue({ items: [{ platform: 'TIKTOK', account_name: 'Lito · Litoques · El DeLito' }] });
+    const save = vi.spyOn(api, 'saveBrandPublerAccounts').mockResolvedValue({
+      items: [{ platform: 'INSTAGRAM', account_name: 'Litoques' }, { platform: 'TIKTOK', account_name: 'Lito · Litoques · El DeLito' }],
+    });
+    const onSaved = vi.fn();
+    render(<PublerCard brandId="litoques" onSaved={onSaved} />);
+    const tiktok = await screen.findByLabelText('Cuenta de Publer para TikTok');
+    expect(tiktok).toHaveValue('Lito · Litoques · El DeLito');
+    const instagram = screen.getByLabelText('Cuenta de Publer para Instagram');
+    expect(instagram).toHaveValue('');
+    expect(instagram).toHaveAttribute('placeholder', 'Por ejemplo: «Litoques»');
+    expect(tiktok).toHaveAttribute('placeholder', 'Por ejemplo: «Lito · Litoques · El DeLito»');
+    fireEvent.change(instagram, { target: { value: ' Litoques ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cuentas' }));
+    await waitFor(() => expect(save).toHaveBeenCalledWith('litoques', [
+      { platform: 'INSTAGRAM', account_name: 'Litoques' }, { platform: 'TIKTOK', account_name: 'Lito · Litoques · El DeLito' }]));
+    expect(onSaved).toHaveBeenCalledWith('Cuentas de Publer guardadas');
+  });
+
+  it('vaciar un campo quita la cuenta de esa red', async () => {
+    vi.spyOn(api, 'brandPublerAccounts').mockResolvedValue({ items: [{ platform: 'INSTAGRAM', account_name: 'Litoques' }] });
+    const save = vi.spyOn(api, 'saveBrandPublerAccounts').mockResolvedValue({ items: [] });
+    render(<PublerCard brandId="litoques" />);
+    fireEvent.change(await screen.findByLabelText('Cuenta de Publer para Instagram'), { target: { value: '  ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cuentas' }));
+    await waitFor(() => expect(save).toHaveBeenCalledWith('litoques', []));
+  });
+});
+
+describe('Instagram · API oficial', () => {
+  it('guarda la clave sin mostrarla, la comprueba y enseña el límite de cada marca', async () => {
+    vi.spyOn(api, 'instagram').mockResolvedValueOnce({ configured: false })
+      .mockResolvedValue({ configured: true, key_hint: '…6789' });
+    const save = vi.spyOn(api, 'saveInstagramKey').mockResolvedValue({ configured: true, key_hint: '…6789' });
+    const check = vi.spyOn(api, 'checkInstagram').mockResolvedValue({
+      ok: false, name: 'Usuario del sistema',
+      brands: [{ brand_id: 'el-delito', brand_name: 'El DeLito', username: 'elde_lito', publishing_used: 3, publishing_total: 100 },
+        { brand_id: 'litoques', brand_name: 'Litoques', error: 'Meta respondió 400: cuenta no encontrada' }],
+    });
+    const onChanged = vi.fn();
+    render(<InstagramKeyCard onChanged={onChanged} />);
+    expect(await screen.findByText('Sin clave')).toBeInTheDocument();
+    const input = screen.getByLabelText('Clave de la API de Instagram');
+    expect(input).toHaveAttribute('type', 'password');
+    fireEvent.change(input, { target: { value: ' EAAB.clave.falsa.1234567 ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Comprobar y guardar' }));
+    await waitFor(() => expect(save).toHaveBeenCalledWith('EAAB.clave.falsa.1234567'));
+    expect(await screen.findByText('Clave …6789')).toBeInTheDocument();
+    expect(onChanged).toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Comprobar clave' }));
+    await waitFor(() => expect(check).toHaveBeenCalled());
+    const result = await screen.findByRole('status', { name: 'Resultado de la comprobación' });
+    expect(within(result).getByText('Hay algo que revisar')).toBeInTheDocument();
+    expect(within(result).getByText(/3 de 100 publicaciones en 24 h/)).toBeInTheDocument();
+    expect(within(result).getByText(/cuenta no encontrada/)).toBeInTheDocument();
+  });
+
+  it('enseña el error de Meta si la clave no vale', async () => {
+    vi.spyOn(api, 'instagram').mockResolvedValue({ configured: false });
+    vi.spyOn(api, 'saveInstagramKey').mockRejectedValue(new Error('No se ha guardado: Meta no acepta la clave'));
+    render(<InstagramKeyCard />);
+    await screen.findByText('Sin clave');
+    fireEvent.change(screen.getByLabelText('Clave de la API de Instagram'), { target: { value: 'clave-falsa-123456' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Comprobar y guardar' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Meta no acepta la clave');
+  });
+
+  it('el campo de la marca comprueba el identificador y enseña el @usuario', async () => {
+    vi.spyOn(api, 'brandInstagramAccount').mockResolvedValue({});
+    const save = vi.spyOn(api, 'saveBrandInstagramAccount')
+      .mockResolvedValue({ ig_user_id: '17841400000000000', username: 'elde_lito' });
+    const onSaved = vi.fn();
+    render(<InstagramAccountCard brandId="el-delito" onSaved={onSaved} />);
+    const field = await screen.findByLabelText('Cuenta de Instagram (API oficial)');
+    fireEvent.change(field, { target: { value: ' 17841400000000000 ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Comprobar y guardar' }));
+    await waitFor(() => expect(save).toHaveBeenCalledWith('el-delito', '17841400000000000'));
+    expect(await screen.findByText('@elde_lito')).toBeInTheDocument();
+    expect(onSaved).toHaveBeenCalledWith('Cuenta de Instagram guardada · @elde_lito');
+  });
+
+  it('el campo de la marca enseña el error de Meta', async () => {
+    vi.spyOn(api, 'brandInstagramAccount').mockResolvedValue({});
+    vi.spyOn(api, 'saveBrandInstagramAccount').mockRejectedValue(new Error('No se ha guardado: Meta respondió 400'));
+    render(<InstagramAccountCard brandId="el-delito" />);
+    fireEvent.change(await screen.findByLabelText('Cuenta de Instagram (API oficial)'), { target: { value: '123456789' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Comprobar y guardar' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Meta respondió 400');
   });
 });
 
@@ -717,6 +883,16 @@ describe('Qué hacer ahora', () => {
     expect(block.querySelectorAll('.aitem')).toHaveLength(3);
   });
 
+  it('«Ver N más» va dentro de la franja, justo después de la lista', () => {
+    const many = [...three, rec({ id: 'x4', kind: 'BACKUP_FOLDER_MISSING', title: 'Cuarta' })];
+    render(<NextSteps items={many} onOpen={() => {}} />);
+    const block = screen.getByRole('region', { name: 'Qué hacer ahora' });
+    const more = screen.getByRole('button', { name: 'Ver 1 más' });
+    expect(more.parentElement).toBe(block);
+    expect(more.previousElementSibling).toBe(block.querySelector('.next-list'));
+    expect(more).toBe(block.lastElementChild);
+  });
+
   it('con 3 o menos no hay botón «Ver más»', () => {
     render(<NextSteps items={three} onOpen={() => {}} />);
     expect(screen.queryByRole('button', { name: /Ver .* más/ })).not.toBeInTheDocument();
@@ -798,6 +974,15 @@ describe('Qué hacer ahora', () => {
       await waitFor(() => expect(scroll).toHaveBeenCalledTimes(1));
       expect((scroll.mock.contexts[0] as HTMLElement).getAttribute('data-card')).toBe('publora');
       unmount();
+      scroll.mockClear();
+      const publer = rec({ id: 'publer-account:b:TIKTOK', kind: 'PUBLER_ACCOUNT_MISSING', title: 'Indica la cuenta de Publer de El DeLito para TikTok',
+        detail: '2 publicaciones retenidas', target: { screen: 'PUBLER', brand_id: 'b' } });
+      const second = render(<Factory data={withRecs([publer])} live={false} onRefresh={() => {}} />);
+      fireEvent.click(screen.getByRole('button', { name: /Indica la cuenta de Publer de El DeLito para TikTok\. Indicar la cuenta de Publer/ }));
+      await screen.findByLabelText('Cuenta en Publer');
+      await waitFor(() => expect(scroll).toHaveBeenCalledTimes(1));
+      expect((scroll.mock.contexts[0] as HTMLElement).getAttribute('data-card')).toBe('publer');
+      second.unmount();
       scroll.mockClear();
       render(<Factory data={withRecs(three)} live={false} onRefresh={() => {}} />);
       fireEvent.click(screen.getByRole('button', { name: /Crea las carpetas/ }));

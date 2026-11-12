@@ -154,7 +154,7 @@ class AiResultReader {
                 }
                 default -> {
                     String reason = text(result.path("error"), String.join(" · ", warnings(result)));
-                    if (type.onPc()) failed(sent, "Claude pide ayuda: " + reason);
+                    if (type.automatic()) failed(sent, "Claude pide ayuda: " + reason);
                     finish(sent, AiRequestEntity.Status.NEEDS_HUMAN, file, result, reason);
                     production.aiNeedsHuman(taskId, reason.isBlank() ? "Claude necesita que lo revises." : reason);
                 }

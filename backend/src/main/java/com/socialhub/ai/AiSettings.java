@@ -60,7 +60,7 @@ public class AiSettings {
     @Transactional(readOnly = true)
     public long usedToday() {
         Instant startOfDay = LocalDate.now(clock).atStartOfDay(clock.getZone()).toInstant();
-        var pc = java.util.Arrays.stream(AiRequestType.values()).filter(AiRequestType::onPc).map(Enum::name).toList();
+        var pc = java.util.Arrays.stream(AiRequestType.values()).filter(AiRequestType::automatic).map(Enum::name).toList();
         return requests.countBySentAtGreaterThanEqualAndTypeNotIn(startOfDay, pc);
     }
 

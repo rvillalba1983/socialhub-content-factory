@@ -4,13 +4,13 @@ import type { Recommendation, RecommendationTarget } from './api/schema';
 /** Un destino de navegación solo es válido si trae los datos que necesita su pantalla. */
 export function canOpen(t?: RecommendationTarget): t is RecommendationTarget {
   if (!t) return false;
-  if (t.screen === 'BRAND_FOLDERS' || t.screen === 'PUBLORA' || t.screen === 'NEW_PROMOTION') return !!t.brand_id;
+  if (t.screen === 'BRAND_FOLDERS' || t.screen === 'PUBLORA' || t.screen === 'PUBLER' || t.screen === 'NEW_PROMOTION') return !!t.brand_id;
   if (t.screen === 'PROPOSALS') return !!t.promotion_id;
   return true;
 }
 
 const BUTTON_LABEL: Record<RecommendationTarget['screen'], string> = {
-  BRAND_FOLDERS: 'Ir a las carpetas de la marca', PROPOSALS: 'Ir a las propuestas', PUBLORA: 'Ir a Publora',
+  BRAND_FOLDERS: 'Ir a las carpetas de la marca', PROPOSALS: 'Ir a las propuestas', PUBLORA: 'Ir a Publora', PUBLER: 'Indicar la cuenta de Publer',
   BACKUPS: 'Ir a Copias', NEW_PROMOTION: 'Dar de alta la promoción', CLAUDE: 'Ir a Claude',
 };
 

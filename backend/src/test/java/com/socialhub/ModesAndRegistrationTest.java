@@ -30,6 +30,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
         "socialhub.demo.simulate=false"
 })
 @AutoConfigureMockMvc
+@org.springframework.context.annotation.Import(com.socialhub.PinnedClock.class)
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class ModesAndRegistrationTest {
 
