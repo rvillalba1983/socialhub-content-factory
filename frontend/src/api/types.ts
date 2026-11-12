@@ -10,6 +10,7 @@ export type {
   AiRequestPage, AiOrderInput, AiOrder, BrandIdentity, QualityIssue, QualityReport,
   RejectionReason, EditorialDecision, EditorialMemory, PublishJob, PublishRouteState,
   PublicationMetrics, ExternalCalendar, ExternalPost, ExternalSource, PubloraStatus, PubloraConnection, PubloraAccount, PubloraAccountList, PubloraAccountInput, PublerAccount, PublerAccountList, PublerAccountInput,
+  InstagramStatus, InstagramCheck, InstagramBrandCheck, InstagramAccount,
   Backup, BackupList, BackupFolderInput, Restoration, RestorationInput,
 } from './schema';
 

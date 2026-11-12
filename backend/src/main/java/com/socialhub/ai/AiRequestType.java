@@ -14,23 +14,34 @@ public enum AiRequestType {
     PUBLER_SCHEDULE("Programar en Publer", "prog", "socialhub.publer-schedule", true),
     PUBLISH_CHECK("Comprobar publicación", "pub", "socialhub.publish-check", true),
     CALENDAR_READ("Leer calendario de Publer y la red", "prog", "socialhub.calendar-read", true),
-    METRICS_READ("Leer métricas", "ana", "socialhub.metrics-read", true);
+    METRICS_READ("Leer métricas", "ana", "socialhub.metrics-read", true),
+    /** Lo hace Claude en la nube (conector de Drive), pero lo encarga SocialHub y no cuenta en el límite diario. */
+    PUBLIC_LINK("Enlaces públicos de imágenes", "prog", "socialhub.public-link", false, true);
 
     private final String label;
     private final String stationId;
     private final String contractType;
     private final boolean onPc;
+    private final boolean automatic;
 
     AiRequestType(String label, String stationId, String contractType) {
         this(label, stationId, contractType, false);
     }
 
     AiRequestType(String label, String stationId, String contractType, boolean onPc) {
+        this(label, stationId, contractType, onPc, onPc);
+    }
+
+    AiRequestType(String label, String stationId, String contractType, boolean onPc, boolean automatic) {
         this.label = label;
         this.stationId = stationId;
         this.contractType = contractType;
         this.onPc = onPc;
+        this.automatic = automatic;
     }
+
+    /** Lo encarga SocialHub, no Raúl, y no cuenta en el límite diario: tiene hora fija y no puede esperar. */
+    public boolean automatic() { return automatic; }
 
     /**
      * Lo hace Claude con Chrome en el PC de Raúl (va a «para-claude-pc»). Lo crea SocialHub al publicar, no Raúl, y no

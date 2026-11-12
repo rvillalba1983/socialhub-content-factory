@@ -41,7 +41,7 @@ export function PublerCard({ brandId, onSaved }: { brandId: string; onSaved?: (m
   return (
     <div className="card form" data-card="publer" aria-label="Cuenta en Publer">
       <h3>Cuenta en Publer</h3>
-      <p className="src">Primera vía de publicación. Escribe el nombre de la cuenta tal como sale en Publer: Claude programa ahí con Chrome.
+      <p className="src">Primera vía en TikTok y respaldo en Instagram. Escribe el nombre de la cuenta tal como sale en Publer: Claude programa ahí con Chrome.
         Dos marcas pueden usar la misma (la de TikTok la comparten). Sin la cuenta, las publicaciones de esa red quedan retenidas.</p>
       {!loaded && !error && <p className="src">Cargando…</p>}
       {loaded && (

@@ -4,6 +4,7 @@ import {
   AI_MODELS, agentLabel, clockTime, type AiModel, type ArmoryItem, type Brand, type Snapshot, type Station, type Task,
   type TaskCommandType,
 } from './model';
+import { InstagramKeyCard } from './Instagram';
 import { PieceOrders } from './PieceOrders';
 import { AgentChip, BrandTag, Dot, Pill, StepState, stepClass } from './ui';
 
@@ -163,7 +164,7 @@ export function TaskPanel({ t, station, brand, tasks, onClose, onAction, onTask,
   );
 }
 
-export function ArmoryPanel({ item, data, onClose, onStation }: { item: ArmoryItem; data: Snapshot; onClose: () => void; onStation: (id: string) => void }) {
+export function ArmoryPanel({ item, data, onClose, onStation, onRefresh }: { item: ArmoryItem; data: Snapshot; onClose: () => void; onStation: (id: string) => void; onRefresh?: () => void }) {
   const key = item.name.toLowerCase().split(' ')[0];
   const uses = data.stations.filter(s => s.tools.some(x => x.toLowerCase().includes(key)));
   const kind = ({ AGENT: 'Agente de IA', TOOL: 'Herramienta local', SERVICE: 'Servicio', DEVICE: 'Equipo' } as const)[item.kind];
@@ -177,6 +178,7 @@ export function ArmoryPanel({ item, data, onClose, onStation }: { item: ArmoryIt
             {item.capabilities.length > 0 && <><dt>Sabe hacer</dt><dd>{item.capabilities.join(', ')}</dd></>}
           </dl>
         </section>
+        {item.id === 'instagram-api' && <InstagramKeyCard onChanged={onRefresh} />}
         {uses.length > 0 && <section><h4>La usan</h4>{uses.map(s => (
           <button key={s.id} className="qrow" onClick={() => onStation(s.id)}><Dot s={s.status} /><span>{s.name}</span></button>
         ))}</section>}

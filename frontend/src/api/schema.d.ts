@@ -259,6 +259,88 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/instagram": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Si la API oficial de Instagram tiene clave
+         * @description La clave nunca sale de SocialHub: solo se indican sus últimos caracteres. No llama a Meta (para comprobarla, «POST /api/instagram/check»).
+         */
+        get: operations["getInstagram"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/instagram/key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Guarda la clave de usuario del sistema de Meta
+         * @description Antes de guardarla la comprueba con Meta (GET /me). Es una clave de «usuario del sistema» del porfolio de Meta, sin caducidad, con los permisos instagram_basic e instagram_content_publish. Se guarda en un archivo de la carpeta de datos de SocialHub, legible solo por el usuario; nunca en la base de datos.
+         */
+        put: operations["saveInstagramKey"];
+        post?: never;
+        /** Borra la clave (la API oficial queda sin configurar) */
+        delete: operations["deleteInstagramKey"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/instagram/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Comprueba la clave con Meta y el límite de publicación de cada marca configurada
+         * @description Llama a GET /me y, por cada marca con cuenta de Instagram, a GET /{ig-id} y a content_publishing_limit. Un fallo de Meta no es un error de la API: va en «error» de lo que falló.
+         */
+        post: operations["checkInstagram"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/brands/{brand_id}/instagram-account": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Cuenta de Instagram (API oficial) de la marca */
+        get: operations["getBrandInstagramAccount"];
+        /**
+         * Guarda la cuenta de Instagram (API oficial) de la marca
+         * @description Recibe el identificador de la cuenta (número largo). Lo comprueba con Meta (GET /{ig-id}?fields=id,username) y guarda el @usuario. Vacío: la quita. Hace falta la clave.
+         */
+        put: operations["saveBrandInstagramAccount"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/brands/{brand_id}/publora-accounts": {
         parameters: {
             query?: never;
@@ -1003,13 +1085,15 @@ export interface components {
          * @description Tipo de encargo a Claude
          * @enum {string}
          */
-        AiRequestType: "WEEKLY_SPEC" | "CAPTIONS" | "WEEKLY_BALANCE" | "RESEARCH" | "QUALITY_REVIEW" | "WEEKLY_PROPOSALS" | "PUBLER_SCHEDULE" | "PUBLISH_CHECK" | "CALENDAR_READ" | "METRICS_READ";
+        AiRequestType: "WEEKLY_SPEC" | "CAPTIONS" | "WEEKLY_BALANCE" | "RESEARCH" | "QUALITY_REVIEW" | "WEEKLY_PROPOSALS" | "PUBLER_SCHEDULE" | "PUBLISH_CHECK" | "CALENDAR_READ" | "METRICS_READ" | "PUBLIC_LINK";
         AiTypeModel: {
             type: components["schemas"]["AiRequestType"];
             label: string;
             model: components["schemas"]["AiModel"];
             /** @description Lo hace Claude con Chrome en el PC de Raúl (carpeta «para-claude-pc»). Lo encarga SocialHub al publicar, no cuenta en el límite diario y no se puede pedir a mano */
             on_pc: boolean;
+            /** @description Lo encarga SocialHub (no Raúl), no cuenta en el límite diario y no se puede pedir a mano. Incluye los de on_pc y otros que hace Claude en la nube, como «Enlaces públicos de imágenes» */
+            automatic?: boolean;
         };
         PublishJob: {
             publication_id: string;
@@ -1090,6 +1174,43 @@ export interface components {
             synced_at?: string;
             /** @description Por qué falló la última lectura */
             error?: string;
+        };
+        InstagramStatus: {
+            configured: boolean;
+            /** @description Últimos 4 caracteres de la clave */
+            key_hint?: string;
+        };
+        InstagramKeyInput: {
+            key: string;
+        };
+        InstagramAccount: {
+            /** @description Identificador de la cuenta de Instagram (número largo) */
+            ig_user_id?: string;
+            /** @description @usuario que devolvió Meta al comprobarla */
+            username?: string;
+        };
+        InstagramAccountInput: {
+            /** @description Vacío para quitarla */
+            ig_user_id: string;
+        };
+        InstagramBrandCheck: {
+            brand_id: string;
+            brand_name: string;
+            username?: string;
+            /** @description Publicaciones por la API en las últimas 24 h */
+            publishing_used?: number;
+            /** @description Límite en 24 h */
+            publishing_total?: number;
+            error?: string;
+        };
+        InstagramCheck: {
+            /** @description La clave vale y todas las marcas configuradas responden */
+            ok: boolean;
+            /** @description Nombre que devolvió GET /me */
+            name?: string;
+            /** @description Por qué falló la clave */
+            error?: string;
+            brands: components["schemas"]["InstagramBrandCheck"][];
         };
         PubloraStatus: {
             configured: boolean;
@@ -1766,6 +1887,12 @@ export type ExternalCalendar = components['schemas']['ExternalCalendar'];
 export type ExternalSourceId = components['schemas']['ExternalSourceId'];
 export type ExternalPost = components['schemas']['ExternalPost'];
 export type ExternalSource = components['schemas']['ExternalSource'];
+export type InstagramStatus = components['schemas']['InstagramStatus'];
+export type InstagramKeyInput = components['schemas']['InstagramKeyInput'];
+export type InstagramAccount = components['schemas']['InstagramAccount'];
+export type InstagramAccountInput = components['schemas']['InstagramAccountInput'];
+export type InstagramBrandCheck = components['schemas']['InstagramBrandCheck'];
+export type InstagramCheck = components['schemas']['InstagramCheck'];
 export type PubloraStatus = components['schemas']['PubloraStatus'];
 export type BackupList = components['schemas']['BackupList'];
 export type Backup = components['schemas']['Backup'];
@@ -2315,6 +2442,158 @@ export interface operations {
                 };
                 content?: never;
             };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getInstagram: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Estado de la API oficial */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstagramStatus"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    saveInstagramKey: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InstagramKeyInput"];
+            };
+        };
+        responses: {
+            /** @description Clave guardada */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstagramStatus"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    deleteInstagramKey: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Clave borrada */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    checkInstagram: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Resultado de la comprobación */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstagramCheck"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getBrandInstagramAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                brand_id: components["parameters"]["BrandId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cuenta de la marca (vacía si no tiene) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstagramAccount"];
+                };
+            };
+            404: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    saveBrandInstagramAccount: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path: {
+                brand_id: components["parameters"]["BrandId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InstagramAccountInput"];
+            };
+        };
+        responses: {
+            /** @description Cuenta guardada */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstagramAccount"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
             default: components["responses"]["Problem"];
         };
     };

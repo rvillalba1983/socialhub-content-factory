@@ -224,7 +224,7 @@ function PublishPanel({ publication }: { publication: Publication }) {
             {job.attempts > 1 && <small className="src">Ronda {job.attempts}</small>}
             {job.next_try_at && <small className="src">Próximo intento: {dateTime(job.next_try_at)}</small>}
           </div>
-          <p className="src">Vías por orden: {job.routes.map(r => `${r.label}${r.configured ? '' : ' (no configurada)'}`).join(' → ')}</p>
+          <p className="src">Vías por orden: {job.routes.filter(r => r.label !== 'API oficial' || publication.platform === 'INSTAGRAM').map(r => `${r.label}${r.configured ? '' : ' (no configurada)'}`).join(' → ')}</p>
           {job.url && <p>Enlace: <a href={job.url} target="_blank" rel="noreferrer">{job.url}</a></p>}
           {job.external_id && <p className="src">Identificador: <span className="mono">{job.external_id}</span></p>}
           {job.manual_file && <p>LEEME para publicarla a mano: <span className="mono">{job.manual_file}</span></p>}

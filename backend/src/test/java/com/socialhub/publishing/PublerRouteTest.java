@@ -89,7 +89,7 @@ class PublerRouteTest {
 
     /** Una publicación ya programada en Publer (o con el encargo en curso). */
     private void inPubler(Publication p, PublishJob.Status status, String task) {
-        open.add(new PublishJob(p.getId(), status, 0, "Publer", task, List.of(), null, null, null, 1, null, null, List.of(), NOW, NOW, 0));
+        open.add(new PublishJob(p.getId(), status, 0, "Publer", task, List.of(), null, null, null, 1, null, null, null, null, List.of(), NOW, NOW, 0));
     }
 
     private PublishJob job(Publication p) {
@@ -152,7 +152,7 @@ class PublerRouteTest {
         inPubler(publication("ig", "promo-litoques", Platform.INSTAGRAM, 1), PublishJob.Status.SCHEDULED, null);
         var other = publication("publora", "promo-delito", Platform.TIKTOK, 11);
         open.add(new PublishJob(other.getId(), PublishJob.Status.SCHEDULED, 1, "Publora", null, List.of(), null, null, null, 1, null, null,
-                List.of(), NOW, NOW, 0));
+                null, null, List.of(), NOW, NOW, 0));
         inPubler(publication("sin-encargo", "promo-delito", Platform.TIKTOK, 12), PublishJob.Status.WORKING, null);
         var mine = publication("mine", "promo-litoques", Platform.TIKTOK, 13);
         inPubler(mine, PublishJob.Status.SCHEDULED, null);
@@ -177,7 +177,7 @@ class PublerRouteTest {
                 .flag("Estaba programada en Publer: bórrala allí a mano").build();
         when(publications.findById("stays")).thenReturn(Optional.of(stays));
         open.add(new PublishJob("stays", PublishJob.Status.CANCELLED, 0, "Publer", null, List.of(), null, null, null, 1, null, null,
-                List.of(), NOW, NOW, 0));
+                null, null, List.of(), NOW, NOW, 0));
         assertThat(route().schedule(next, job(next), NOW)).isInstanceOf(PublishRoute.Outcome.Held.class);
 
         // Una cancelada sin ese aviso (Raúl ya la borró en Publer, o nunca llegó) no cuenta, ni una de otra vía ni una ya pasada
@@ -186,7 +186,7 @@ class PublerRouteTest {
         when(publications.findById("gone")).thenReturn(Optional.of(gone));
         open.removeIf(j -> j.getPublicationId().equals("stays"));
         open.add(new PublishJob("gone", PublishJob.Status.CANCELLED, 0, "Publer", null, List.of(), null, null, null, 1, null, null,
-                List.of(), NOW, NOW, 0));
+                null, null, List.of(), NOW, NOW, 0));
         assertThat(route().schedule(next, job(next), NOW)).isEqualTo(new PublishRoute.Outcome.Pending("task-1"));
     }
 

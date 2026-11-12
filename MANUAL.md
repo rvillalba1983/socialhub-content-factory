@@ -201,13 +201,20 @@ Una publicación **programada no se edita**: para cambiarla, vuelve a «Aprobada
 
 ![Vías de publicación](docs/diagramas/vias-publicacion.svg)
 
-1. **Publer** es la vía principal. Su API es de pago, así que la programa Claude con Chrome en tu PC: la tarea «Publicar con Chrome» pasa cada hora.
+1. **API oficial de Instagram** es la vía principal de Instagram, cuando está configurada (clave de Meta en «Agentes y herramientas» y cuenta de Instagram en la ficha de la marca). Meta no programa: SocialHub la publica él mismo a su hora.
+   - **Vídeos, reels y carruseles de vídeo:** los sube desde tu PC.
+   - **Imágenes:** Meta las descarga de una URL pública. SocialHub deja una copia (JPEG) en la carpeta `publico` de Drive (la compartes tú a mano con «cualquier persona con el enlace») y Claude, en la nube, le da el id de Drive; SocialHub construye el enlace y comprueba que devuelve una imagen. Borra la copia al terminar.
+   - **El corte previo** (normalmente 9 h antes, antes si Publer necesita una pasada de Claude con Chrome en horario): SocialHub comprueba todo (clave, cuenta, archivos y, en imágenes, los enlaces ya llegados). Si algo falla o el enlace no llega (o el encargo de enlaces va con retraso), la publicación pasa **a Publer** con el motivo a la vista en «Necesita atención».
+   - **A la hora, si algo falla** (límite de 100 al día, contenedor con error, enlace que ya no es imagen, clave rechazada…): ya no hay otra vía que llegue. Sale en «Necesita atención» con el motivo y deja un LEEME: la hora ya pasó, publícala tú cuanto antes o cámbiale la fecha.
+   - **Si SocialHub está cerrado a la hora,** la publica en cuanto se abre, aunque sea al día siguiente, y avisa en «Necesita atención» de cuánto retraso tuvo («Publicada con 3 h 20 min de retraso»).
+   - **Si no se sabe** si Meta llegó a publicarla (corte, error al publicar, SocialHub cerrado a mitad), **no se reintenta**: queda en «Error de publicación» con «Revisar antes de reintentar… mira en Instagram». Lo mismo si Meta ya dio el identificador pero no llega el enlace en 24 h (se cuentan desde que se publicó de verdad).
+   - **TikTok** no la usa.
+2. **Publer** es la vía de respaldo de Instagram y la principal de TikTok. Su API es de pago, así que la programa Claude con Chrome en tu PC: la tarea «Publicar con Chrome» pasa cada hora.
    - Tiene que quedar programada **8 h antes**. SocialHub espera su resultado hasta 7 h antes.
    - Si programas algo con menos de 8 h de margen, Publer se salta.
-2. **Publora** es la segunda vía, con su API y tu clave (plan gratuito: pocas publicaciones al mes).
+3. **Publora** es la siguiente vía, con su API y tu clave (plan gratuito: pocas publicaciones al mes).
    - SocialHub sube los archivos y la programa, hasta 6 h antes.
    - Si la sacas de «Programada», SocialHub la borra él solo en Publora.
-3. **API oficial** de Instagram o TikTok: aparcada. Figura como «no configurada».
 4. **Si fallan todas**, SocialHub reintenta cada hora mientras quede margen. Si no, deja un **LEEME** en la carpeta de aprobados para que la publiques tú, y te avisa.
 
 **A la hora:**
@@ -283,6 +290,7 @@ Tiene las decisiones editoriales de la marca, lo rechazado con su motivo y tus c
   - Al dar de alta la marca puedes indicar una **carpeta base** (por ejemplo, `G:\Mi unidad\SocialHub\Litoques`). SocialHub crea dentro las siete carpetas y las asigna.
   - Después, **Crear las que faltan** crea las carpetas asignadas que no existan. Con una carpeta base, también rellena los papeles vacíos.
   - SocialHub nunca borra ni mueve carpetas.
+- **Instagram · API oficial:** la clave de «usuario del sistema» de Meta (no caduca y vale para las dos marcas) se pega en «Agentes y herramientas › Instagram · API oficial», con un botón para comprobarla. Cada marca guarda en su ficha el identificador de su cuenta de Instagram («Cuenta de Instagram (API oficial)»): SocialHub lo comprueba y enseña el @usuario. La clave se guarda solo en tu ordenador, como la de Publora.
 - **Publora:** la clave de la API, que vale para todas las marcas, y la cuenta de Publora de la marca en cada red. La clave se comprueba antes de guardarla. Se guarda solo en tu ordenador, legible solo por tu usuario: nunca en la base de datos, en Drive ni en el repositorio.
 
 ## 9. Operaciones externas
@@ -332,5 +340,5 @@ El modo Demo no tiene copias: sus datos son de ejemplo.
 
 - **Fase 9:**
   - Instalador de macOS (`.dmg`): preparado, pendiente de probar en macOS ([`docs/fase-9.md`](docs/fase-9.md)).
-- **API oficial** de Instagram y TikTok: aparcada ([`docs/fase-7.md`](docs/fase-7.md)).
+- **API oficial de TikTok:** aparcada ([`docs/fase-7.md`](docs/fase-7.md)). La de Instagram ya funciona; está comprobada la cuota (100 en 24 h) y que Meta acepta los enlaces de Drive, pero falta probar una publicación real.
 - **Sin probar con tus cuentas reales:** Publer y Publora, incluidas las historias de imagen en Publora.

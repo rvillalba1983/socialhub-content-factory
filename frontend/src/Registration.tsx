@@ -8,6 +8,7 @@ import {
 import { Pill } from './ui';
 import { PubloraCard } from './Publora';
 import { PublerCard } from './Publer';
+import { InstagramAccountCard } from './Instagram';
 import { FolderRoles } from './Folders';
 import { IdentityForm } from './Identity';
 import { MemoryCard } from './Memory';
@@ -83,6 +84,7 @@ export function Registration({ data, initial, onClose, onSaved }: {
         {editing?.kind === 'brand' && editing.id && <FolderRoles owner="brand" id={editing.id} onSaved={onSaved} />}
         {editing?.kind === 'brand' && editing.id && <PublerCard brandId={editing.id} onSaved={onSaved} />}
         {editing?.kind === 'brand' && editing.id && <PubloraCard brandId={editing.id} onSaved={onSaved} />}
+        {editing?.kind === 'brand' && editing.id && <InstagramAccountCard brandId={editing.id} onSaved={onSaved} />}
         {editing?.kind === 'promotion' && (
           <PromotionForm data={data} brandId={editing.brandId} promotion={editing.id ? data.promotions.find(p => p.id === editing.id) : undefined}
             onCancel={() => setEditing(null)} onSaved={p => {

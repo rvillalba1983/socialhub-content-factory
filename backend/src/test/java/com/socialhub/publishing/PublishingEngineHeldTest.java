@@ -91,7 +91,7 @@ class PublishingEngineHeldTest {
         engine.start(p);
         assertThat(p.getFlag()).startsWith("Retenida: ");
         var held = new PublishJob("p1", PublishJob.Status.HELD, 0, "Publer", null, List.of(), null, null, NOW, 1, reason, null,
-                List.of(), NOW, NOW, 0);
+                null, null, List.of(), NOW, NOW, 0);
         when(jobs.find("p1")).thenReturn(Optional.of(held));
 
         engine.stop(p, "Raúl la ha sacado de «Programada»");
@@ -104,7 +104,7 @@ class PublishingEngineHeldTest {
     void stillHeldForTheSameReasonSavesNothingAndDoesNotNotify() {
         var p = publication(null);
         var held = new PublishJob("p1", PublishJob.Status.HELD, 0, "Publer", null, List.of(), null, null, NOW.minusSeconds(60), 1,
-                reason, null, List.of(), NOW.minusSeconds(600), NOW.minusSeconds(300), 0);
+                reason, null, null, null, List.of(), NOW.minusSeconds(600), NOW.minusSeconds(300), 0);
         when(jobs.find("p1")).thenReturn(Optional.of(held));
         when(publications.findById("p1")).thenReturn(Optional.of(p));
         when(jobs.withStatus(any())).thenReturn(List.of(held));
@@ -118,7 +118,7 @@ class PublishingEngineHeldTest {
         // Si el motivo cambia (por ejemplo, ya hay cuenta pero el plan está lleno), sí se guarda y se avisa
         reason = "La cuenta «X» de Publer ya tiene 10 publicaciones programadas";
         var again = new PublishJob("p1", PublishJob.Status.HELD, 0, "Publer", null, List.of(), null, null, NOW.minusSeconds(60), 1,
-                "Falta la cuenta de Publer de Litoques para TikTok", null, List.of(), NOW.minusSeconds(600), NOW.minusSeconds(300), 0);
+                "Falta la cuenta de Publer de Litoques para TikTok", null, null, null, List.of(), NOW.minusSeconds(600), NOW.minusSeconds(300), 0);
         when(jobs.find("p1")).thenReturn(Optional.of(again));
         when(jobs.withStatus(any())).thenReturn(List.of(again));
         assertThat(engine.tick()).isEqualTo(1);
