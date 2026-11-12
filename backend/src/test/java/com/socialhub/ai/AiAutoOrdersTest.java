@@ -28,21 +28,6 @@ class AiAutoOrdersTest {
     /** 8 nov 2026 es domingo. */
     private static ZonedDateTime at(int day, int hour) { return ZonedDateTime.of(2026, 11, day, hour, 0, 0, 0, MADRID); }
 
-    @Test
-    void theSpecIsAskedOnSundayFromNineForTheComingWeek() {
-        assertThat(AiAutoOrders.specWeek(at(8, 8))).isEmpty();
-        assertThat(AiAutoOrders.specWeek(at(8, 9))).contains(LocalDate.of(2026, 11, 9));
-        // Si SocialHub estaba cerrado el domingo, el lunes o el martes se pide el de la semana en curso
-        assertThat(AiAutoOrders.specWeek(at(9, 7))).contains(LocalDate.of(2026, 11, 9));
-        assertThat(AiAutoOrders.specWeek(at(10, 20))).contains(LocalDate.of(2026, 11, 9));
-        // Si la semana no tenía publicaciones aprobadas, se sigue mirando el resto de la semana en curso
-        assertThat(AiAutoOrders.specWeek(at(11, 12))).contains(LocalDate.of(2026, 11, 9));
-        assertThat(AiAutoOrders.specWeek(at(14, 23))).contains(LocalDate.of(2026, 11, 9));
-        // El domingo antes de las 9:00 no toca nada; desde las 9:00, la semana siguiente
-        assertThat(AiAutoOrders.specWeek(at(15, 8))).isEqualTo(Optional.empty());
-        assertThat(AiAutoOrders.specWeek(at(15, 9))).contains(LocalDate.of(2026, 11, 16));
-    }
-
     private final PromotionQueries promotions = mock(PromotionQueries.class);
     private final PromotionService promotionService = mock(PromotionService.class);
     private final AiOrders orders = mock(AiOrders.class);
@@ -58,22 +43,36 @@ class AiAutoOrdersTest {
     }
 
     @Test
-    void theSpecIsNotOrderedWhileTheWeekHasNoApprovedPublicationsAndIsOrderedAsSoonAsThereAreSome() {
-        when(promotions.activeBetween(LocalDate.of(2026, 11, 9), LocalDate.of(2026, 11, 15))).thenReturn(List.of("lit-1"));
+    void theSpecIsOrderedPerBatchOnlyWhenTheHandlerSaysThereIsOneAndNeverWithoutPublications() {
+        when(promotions.activeBetween(any(), any())).thenReturn(List.of("lit-1"));
         when(promotions.proposableDates()).thenReturn(List.of());
         when(handlers.of(AiRequestType.WEEKLY_SPEC)).thenReturn(Optional.of(specHandler));
         when(orders.submit(any(), eq(AiRequestType.WEEKLY_SPEC), any(), any(), any())).thenReturn("t1");
-        // Domingo 8 a las 9:00 y a las 9:10: nada aprobado
-        when(specHandler.readyForAutoOrder("lit-1", LocalDate.of(2026, 11, 9))).thenReturn(false);
-        assertThat(at(at(8, 9)).createDue()).isZero();
-        assertThat(at(at(9, 12)).createDue()).isZero();
+        var now = at(10, 11);
+        // Sin lote (nada pendiente, o menos de 3 y lejos): no se pide nada, ni siquiera el domingo
+        when(specHandler.autoOrderBatch(eq("lit-1"), any())).thenReturn(List.of());
+        assertThat(at(now).createSpecBatches(now)).isZero();
+        assertThat(at(at(8, 12)).createSpecBatches(at(8, 12))).isZero();
         verify(orders, never()).submit(any(), eq(AiRequestType.WEEKLY_SPEC), any(), any(), any());
+        // Con lote: se pide con las publicaciones del lote como datos de entrada, a cualquier día y hora
+        when(specHandler.autoOrderBatch(eq("lit-1"), any())).thenReturn(List.of("p1", "p2", "p3"));
+        assertThat(at(now).createSpecBatches(now)).isEqualTo(1);
+        verify(orders).submit(eq("lit-1"), eq(AiRequestType.WEEKLY_SPEC), any(), any(), eq(List.of("p1", "p2", "p3")));
+        // El registro semanal ya no interviene
         verify(done, never()).save(any());
-        // El martes se aprueba una: se pide en la ronda siguiente y se marca como hecho
-        when(specHandler.readyForAutoOrder("lit-1", LocalDate.of(2026, 11, 9))).thenReturn(true);
-        assertThat(at(at(10, 10)).createDue()).isGreaterThanOrEqualTo(1);
-        verify(orders).submit(eq("lit-1"), eq(AiRequestType.WEEKLY_SPEC), any(), any(), eq(List.of("2026-11-09")));
-        verify(done).save(any());
+    }
+
+    @Test
+    void aFailingPromotionDoesNotStopTheOthers() {
+        when(promotions.activeBetween(any(), any())).thenReturn(List.of("a", "b"));
+        when(handlers.of(AiRequestType.WEEKLY_SPEC)).thenReturn(Optional.of(specHandler));
+        when(specHandler.autoOrderBatch(eq("a"), any())).thenReturn(List.of("x"));
+        when(specHandler.autoOrderBatch(eq("b"), any())).thenReturn(List.of("y"));
+        when(orders.submit(eq("a"), eq(AiRequestType.WEEKLY_SPEC), any(), any(), any())).thenThrow(new IllegalArgumentException("no"));
+        when(orders.submit(eq("b"), eq(AiRequestType.WEEKLY_SPEC), any(), any(), any())).thenReturn("t2");
+        var now = at(10, 11);
+        assertThat(at(now).createSpecBatches(now)).isEqualTo(1);
+        verify(orders).submit(eq("b"), eq(AiRequestType.WEEKLY_SPEC), any(), any(), eq(List.of("y")));
     }
 
     @Test

@@ -24,9 +24,9 @@ import org.springframework.transaction.support.TransactionTemplate;
 /**
  * Encargos que salen solos cada semana, para cada promoción activa (hora de España):
  * <ul>
- *   <li>Domingo desde las 9:00: spec.json de la semana que empieza el lunes. Si SocialHub estaba cerrado, o la semana
- *       no tenía aún publicaciones aprobadas, se pide el de la semana en curso en cuanto las haya (hasta el sábado).
- *       Sin publicaciones aprobadas no se pide nada ni se marca como hecho.</li>
+ *   <li>spec.json por lotes (no por semana): por promoción, en cuanto hay 3 o más publicaciones pendientes de contenido, o
+ *       la más próxima de ellas sale en menos de 3 días (aunque sean 1 o 2). Cada publicación entra en un solo spec
+ *       abierto. Sin publicaciones pendientes no se pide nada. Lo decide el manejador del tipo ({@link AiTypeHandler#autoOrderBatch}).</li>
  *   <li>Lunes desde las 9:00: balance de la semana pasada. Si estaba cerrado, se pide el martes o el miércoles.</li>
  *   <li>Propuestas de la semana siguiente (W+1): desde el lunes de la semana en curso (W) a las 18:00 hasta el domingo de
  *       W a las 23:59. Si SocialHub estaba cerrado el lunes, se piden cualquier día después, hasta el domingo. Así, una
@@ -34,12 +34,12 @@ import org.springframework.transaction.support.TransactionTemplate;
  *       se piden una sola vez por promoción (registro de lo ya pedido), pidan lo que las pida (ronda o guardado).</li>
  * </ul>
  * Las propuestas se piden también para las promociones planificadas (se activan solas el día que empiezan); el spec y
- * el balance, solo para las activas, que son las que tienen publicaciones aprobadas.
+ * el balance, solo para las activas.
  * Antes de nada, las promociones planificadas que ya han empezado pasan a activas.
  * Además, una promoción nueva pide enseguida las propuestas de su primera semana si ya pasó el lunes en que se habrían
  * pedido (si empieza a mitad de semana, para los días que quedan).
  * Esa primera semana no se pide si ya no queda hueco válido (su último día acaba antes de la recogida más 6 h).
- * Cada encargo se crea una sola vez por promoción y semana. Los demás tipos se piden a mano.
+ * Cada encargo semanal se crea una sola vez por promoción y semana. Los demás tipos se piden a mano.
  */
 @Slf4j
 @Component
@@ -80,8 +80,7 @@ class AiAutoOrders {
                 done.save(new AiAutoOrderEntity(id, AiAutoStarted.TYPE, day, null, clock.instant()));
             }
         }
-        Optional<LocalDate> spec = specWeek(now);
-        if (spec.isPresent()) n += create(AiRequestType.WEEKLY_SPEC, spec.get());
+        n += createSpecBatches(now);
         Optional<LocalDate> balance = balanceWeek(now);
         if (balance.isPresent()) n += create(AiRequestType.WEEKLY_BALANCE, balance.get());
         Optional<LocalDate> proposals = proposalsWeek(now);
@@ -138,7 +137,7 @@ class AiAutoOrders {
      * día por delante), el encargo fallaría siempre y se reintentaría gastando encargos.
      */
     static boolean hasRoom(ZonedDateTime now, LocalDate lastDay) {
-        ZonedDateTime pickup = ClaudePickups.pickupFor(now.toInstant().plus(ClaudePickups.DISPATCH_MAX));
+        ZonedDateTime pickup = ClaudePickups.pickupFor(now.toInstant().plus(ClaudePickups.DISPATCH_MAX), false);
         ZonedDateTime endOfLastDay = lastDay.plusDays(1).atStartOfDay(now.getZone());
         return !endOfLastDay.toInstant().isBefore(pickup.toInstant().plus(MIN_LEAD));
     }
@@ -160,8 +159,32 @@ class AiAutoOrders {
         return Optional.of(new FirstWeek(week, from, sunday.isAfter(endsOn) ? endsOn : sunday));
     }
 
-    /** Lunes de la semana cuyo spec toca pedir ahora, si toca alguno. */
-    static Optional<LocalDate> specWeek(ZonedDateTime now) { return AiWeeklySchedule.specWeek(now); }
+    /**
+     * Pide el spec de cada promoción activa que tenga un lote pendiente ({@link AiTypeHandler#autoOrderBatch}). Los
+     * encargos abiertos ya cuentan para no repetir publicaciones, así que no hace falta registro de lo ya pedido.
+     */
+    synchronized int createSpecBatches(ZonedDateTime now) {
+        var handler = handlers.of(AiRequestType.WEEKLY_SPEC);
+        if (handler.isEmpty()) return 0;
+        int n = 0;
+        LocalDate today = now.toLocalDate();
+        for (String promotionId : promotions.activeBetween(today, today.plusYears(50))) {
+            try {
+                List<String> batch = handler.get().autoOrderBatch(promotionId, now.toInstant());
+                if (batch.isEmpty()) continue;
+                String title = AiRequestType.WEEKLY_SPEC.label() + " · " + batch.size()
+                        + (batch.size() == 1 ? " publicación" : " publicaciones");
+                String goal = "Prepara el spec.json de piezas de estas " + batch.size() + " publicaciones de la promoción "
+                        + "(las de «inputs.publications», con sus fechas), con el material de sus carpetas y sus normas.";
+                transactions.executeWithoutResult(s -> orders.submit(promotionId, AiRequestType.WEEKLY_SPEC, title, goal, batch));
+                log.info("Encargo de spec por lotes creado: {} ({} publicaciones)", promotionId, batch.size());
+                n++;
+            } catch (RuntimeException e) {
+                log.warn("Spec por lotes omitido para {}: {}", promotionId, e.toString());
+            }
+        }
+        return n;
+    }
 
     /** Lunes de la semana cuyo balance toca pedir ahora, si toca alguno. */
     static Optional<LocalDate> balanceWeek(ZonedDateTime now) {
@@ -220,8 +243,6 @@ class AiAutoOrders {
             String title = type.label() + " · semana del " + week.getDayOfMonth() + " "
                     + week.getMonth().getDisplayName(TextStyle.SHORT, Locale.of("es", "ES"));
             String goal = switch (type) {
-                case WEEKLY_SPEC -> "Prepara el spec.json de piezas de la semana del " + week + " para esta promoción: "
-                        + "las piezas de sus publicaciones aprobadas, con el material de sus carpetas y sus normas.";
                 case WEEKLY_PROPOSALS -> "Propón las publicaciones de la semana del " + week + " para esta promoción, "
                         + "según su cadencia, sus objetivos, sus hitos y su memoria editorial.";
                 default -> "Haz el balance de la semana del " + week + " de esta promoción: qué se publicó, qué falló y "

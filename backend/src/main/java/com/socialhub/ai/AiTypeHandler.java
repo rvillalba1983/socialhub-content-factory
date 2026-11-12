@@ -32,6 +32,19 @@ public interface AiTypeHandler {
      */
     default boolean readyForAutoOrder(String promotionId, java.time.LocalDate week) { return true; }
 
+    /**
+     * Las publicaciones (u otros datos de entrada) de las que toca pedir ya un encargo automático para esa promoción, si
+     * toca alguno (por ejemplo, un spec por lotes). Vacío si no toca nada. Lo usa SocialHub en cada ronda: el manejador
+     * evita repetir lo que ya está en un encargo abierto.
+     */
+    default java.util.List<String> autoOrderBatch(String promotionId, java.time.Instant now) { return java.util.List.of(); }
+
+    /**
+     * Como {@link #completeInputs(java.util.List)}, sabiendo la promoción: para completar los datos de entrada con lo que
+     * hay pendiente en ella.
+     */
+    default java.util.List<String> completeInputs(String promotionId, java.util.List<String> inputs) { return completeInputs(inputs); }
+
     /** Hora límite del encargo («deadline» del contrato): pasada esa hora, Claude no debe hacerlo. */
     default java.time.@org.jspecify.annotations.Nullable Instant deadline(AiJob job) { return null; }
 

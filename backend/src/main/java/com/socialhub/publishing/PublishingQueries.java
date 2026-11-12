@@ -172,6 +172,26 @@ public class PublishingQueries {
                 .map(PublishingQueries::forAi).toList();
     }
 
+    /** Una publicación a la espera de contenido: su identificador y la hora a la que se publica. */
+    public record AwaitingContent(String id, java.time.Instant scheduledAt) {}
+
+    /** Publicaciones «En producción» de la promoción que aún no tienen ningún archivo (piezas), por fecha y hora. */
+    public List<AwaitingContent> awaitingContent(String promotionId) {
+        return publications.findAll().stream()
+                .filter(p -> p.getPromotionId().equals(promotionId)
+                        && p.getStatus() == com.socialhub.publishing.domain.PublicationStatus.IN_PRODUCTION
+                        && files.files(p.getId()).isEmpty())
+                .sorted(java.util.Comparator.comparing(Publication::scheduledAt))
+                .map(p -> new AwaitingContent(p.getId(), p.scheduledAt()))
+                .toList();
+    }
+
+    /** Publicaciones de esas ids, como datos sencillos para un encargo a Claude (las que no existen se omiten). */
+    public List<java.util.Map<String, Object>> forAi(java.util.Collection<String> ids) {
+        return ids.stream().map(publications::findById).flatMap(java.util.Optional::stream)
+                .map(PublishingQueries::forAi).toList();
+    }
+
     /** Publicaciones entre dos fechas, como datos sencillos para un encargo a Claude. */
     public List<java.util.Map<String, Object>> forAi(String promotionId, java.time.LocalDate from, java.time.LocalDate to) {
         return between(promotionId, from, to).stream().map(PublishingQueries::forAi).toList();

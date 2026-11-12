@@ -52,14 +52,14 @@ class PublerRoute implements PublishRoute {
     static Instant deadline(Instant scheduledAt) { return scheduledAt.minus(DEADLINE); }
 
     /** Cuánto antes de su límite tiene que ser la última pasada de Claude con Chrome que cuente: le deja tiempo de programarla. */
-    static final Duration PASS_MARGIN = Duration.ofMinutes(10);
+    static final Duration PASS_MARGIN = com.socialhub.ai.ClaudePasses.PASS_MARGIN;
     /** Cuánto antes de esa pasada hay que haber cedido el encargo, para que lo vea (lo que tarda en sincronizar Drive y algo más). */
     static final Duration HANDOVER_LEAD = Duration.ofMinutes(30);
 
     /**
      * El último momento en que una vía anterior puede ceder la publicación a Publer sin que se quede sin una pasada de
-     * Claude con Chrome antes del límite de Publer. Normalmente es una hora más que el límite; si el límite cae de
-     * noche (la tarea corre de 8:40 a 22:40), es antes de la última pasada anterior.
+     * Claude con Chrome antes del límite de Publer. Normalmente es una hora antes del límite; si la última pasada
+     * anterior cae antes (las pasadas son cada 5 h), es 30 minutos antes de esa pasada.
      */
     static Instant handoverBy(Instant scheduledAt) {
         Instant limit = deadline(scheduledAt);
@@ -73,6 +73,11 @@ class PublerRoute implements PublishRoute {
     public Outcome schedule(Publication p, PublishJob job, Instant now) {
         if (!now.isBefore(deadline(p.scheduledAt()))) {
             return new Outcome.Failed("quedan menos de " + DEADLINE.toHours() + " h: no da tiempo a que Claude la programe con Chrome");
+        }
+        // Las pasadas de Claude con Chrome son cada 5 h: si ninguna que haga este encargo llega antes del límite, ni se pide
+        if (!PcSchedule.canMeet(deadline(p.scheduledAt()), now)) {
+            return new Outcome.Failed("ninguna pasada de Claude con Chrome llega antes del límite de Publer (" + DEADLINE.toHours()
+                    + " h antes de la hora): no da tiempo a que la programe");
         }
         // Sin la cuenta de Publer de la marca en esa red no se crea el encargo: Claude no sabría dónde programarla
         String brandId = promotions.brandOf(p.getPromotionId());

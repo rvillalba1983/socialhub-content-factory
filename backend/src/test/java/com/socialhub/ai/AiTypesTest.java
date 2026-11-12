@@ -145,9 +145,13 @@ class AiTypesTest {
     @Test
     @Order(4)
     void theWeeklySpecOrdersThePiecesAndAttachesThemToThePublication() throws Exception {
-        String task = order("WEEKLY_SPEC", "spec de la semana", "2030-11-12");
+        String task = order("WEEKLY_SPEC", "spec por lotes", "2030-11-12-instagram");
         JsonNode request = request(task);
-        assertThat(request.get("inputs").get("week").get("from").asString()).isEqualTo("2030-11-11");
+        // Por lotes: el encargo no depende de ninguna semana y lleva solo las publicaciones indicadas, con su fecha
+        assertThat(request.get("inputs").has("week")).isFalse();
+        assertThat(request.get("urgent").asBoolean()).isFalse();
+        assertThat(request.get("inputs").get("publications").size()).isEqualTo(1);
+        assertThat(request.get("inputs").get("publications").get(0).get("scheduled_on").asString()).isEqualTo("2030-11-12");
         assertThat(request.get("inputs").get("publications").get(0).get("id").asString()).isEqualTo("2030-11-12-instagram");
         assertThat(request.get("inputs").get("folders").get("MATERIAL").asString()).isEqualTo(material.toString());
 
@@ -287,7 +291,7 @@ class AiTypesTest {
 
         // Se aprueba una y la otra no: el spec solo ve la aprobada
         write(post("/api/publications/2030-11-18-instagram/status-changes"), "{\"status\":\"IN_PRODUCTION\"}").andExpect(status().isOk());
-        String spec = order("WEEKLY_SPEC", "spec", "2030-11-18");
+        String spec = order("WEEKLY_SPEC", "spec", "2030-11-18-instagram");
         JsonNode planned = request(spec).get("inputs").get("publications");
         assertThat(planned.size()).isEqualTo(1);
         assertThat(planned.get(0).get("id").asString()).isEqualTo("2030-11-18-instagram");

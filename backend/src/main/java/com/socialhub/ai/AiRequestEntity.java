@@ -37,4 +37,6 @@ class AiRequestEntity {
     private @Nullable String runtime;
     private @Nullable String resultModel;
     private @Nullable String error;
+    /** Se marcó urgente al enviarlo: lo recoge cualquier pasada de Claude, no solo las completas. */
+    private boolean urgent;
 }

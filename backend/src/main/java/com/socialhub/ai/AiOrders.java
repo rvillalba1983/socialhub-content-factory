@@ -34,7 +34,7 @@ public class AiOrders {
         if (goal.isBlank()) throw new IllegalArgumentException("Falta el objetivo del encargo");
         String name = title.isBlank() ? type.label() : title.strip();
         List<String> clean = inputs.stream().map(String::strip).filter(s -> !s.isEmpty()).toList();
-        List<String> complete = handlers.of(type).map(h -> h.completeInputs(clean)).orElse(clean);
+        List<String> complete = handlers.of(type).map(h -> h.completeInputs(promotionId, clean)).orElse(clean);
         handlers.of(type).ifPresent(h -> h.validateOrder(promotionId, complete));
         return production.submitAi(new TaskRequest(type.stationId(), promotionId, type.taskType(), name, goal.strip(),
                 complete, List.of()),

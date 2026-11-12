@@ -79,7 +79,7 @@ class AiProposalsOnSave implements PromotionSavedHook {
         String why = blocker(promotion);
         String what = lead + "Propuestas " + String.join(" y ", asked) + " pedidas";
         if (why != null) return Optional.of(what + ", pero no pueden salir: " + why);
-        return Optional.of(what + ": llegarán " + ClaudePickups.etaText(now.toInstant()));
+        return Optional.of(what + ": llegarán " + ClaudePickups.etaText(now.toInstant(), false));
     }
 
     /** «16 de nov». */

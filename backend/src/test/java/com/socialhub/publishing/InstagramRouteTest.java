@@ -821,8 +821,8 @@ class InstagramRouteTest {
         String id = publication("INSTAGRAM", DAY2.plusDays(1), "Post", 22, "Foto con encargo tardío", List.of(photo));
         schedule(id);
         assertThat(job(id).get("status").asString()).isEqualTo("WORKING");
-        // Su recogida (9:40) ya pasó hace más de media hora y nadie contesta, pero aún falta para el corte
-        CLOCK.set(at.minus(Duration.ofHours(11)));
+        // Su pasada (la completa de las 5:30; el corte es a las 10:20) ya pasó hace más de media hora y nadie contesta, pero aún falta para el corte
+        CLOCK.set(at.minus(Duration.ofHours(16)));
         assertThat(CLOCK.instant()).isBefore(PublerRoute.handoverBy(at));
         engine.tick();
         assertThat(job(id).get("route").asString()).isEqualTo("Publer");

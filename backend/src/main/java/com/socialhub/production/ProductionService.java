@@ -201,6 +201,23 @@ public class ProductionService {
                 .toList();
     }
 
+    /**
+     * Un encargo a Claude que ocupa sus datos de entrada: sigue vivo ({@code open}: en cola, en curso, en espera,
+     * bloqueado o fallido con reintentos por delante) o ya se completó. Los fallidos sin reintentos y los cancelados no
+     * cuentan: liberan lo que tenían.
+     */
+    public record Covering(AiTask task, boolean open) {}
+
+    @Transactional(readOnly = true)
+    public List<Covering> coveringAiTasks(String type) {
+        return tasks.findByStatusIn(List.of(TaskStatus.QUEUED, TaskStatus.RUNNING, TaskStatus.WAITING, TaskStatus.BLOCKED,
+                        TaskStatus.FAILED, TaskStatus.COMPLETED)).stream()
+                .filter(t -> t.isAiRequest() && t.getType().equals(type))
+                .filter(t -> t.getStatus() != TaskStatus.FAILED || t.canAutoRetry())
+                .map(t -> new Covering(toAiTask(t), t.getStatus() != TaskStatus.COMPLETED))
+                .toList();
+    }
+
     /** Encargo a Claude fallido que aún tiene intentos, con cuándo falló. */
     public record RetryableAi(String id, String type, java.time.Instant failedAt) {}
 

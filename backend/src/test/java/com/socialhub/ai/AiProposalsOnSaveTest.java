@@ -85,7 +85,7 @@ class AiProposalsOnSaveTest {
     void savingAPromotionThatStartsTodayAsksNowAndSaysWhenTheyWillArrive() {
         var p = promotion("PLANNED", LocalDate.of(2026, 11, 9), END);
         assertThat(onSave(at(11, 9, 11, 0)).afterSave(p))
-                .contains("Propuestas de la primera semana pedidas: llegarán sobre las 14:40");
+                .contains("Propuestas de la primera semana pedidas: llegarán sobre las 20:30");
         verify(orders, times(1)).submit(eq("lit-1"), eq(AiRequestType.WEEKLY_PROPOSALS), any(), any(), eq(List.of("2026-11-09")));
     }
 
@@ -104,21 +104,22 @@ class AiProposalsOnSaveTest {
 
     @Test
     void theArrivalCountsTheSendAndTheSyncMarginAtTheEdge() {
-        // 14:34: sale como mucho a las 14:34:30 y a las 14:39:30 ya está sincronizado: llega a la de las 14:40
+        // Las propuestas pueden esperar, así que solo las recogen las pasadas completas (no las de 10:30 y 15:30).
+        // 20:24: sale como mucho a las 20:24:30 y a las 20:29:30 ya está sincronizado: llega a la de las 20:30
         var p = promotion("ACTIVE", LocalDate.of(2026, 11, 9), END);
-        assertThat(onSave(at(11, 9, 14, 34)).afterSave(p).orElseThrow()).endsWith("llegarán sobre las 14:40");
+        assertThat(onSave(at(11, 9, 20, 24)).afterSave(p).orElseThrow()).endsWith("llegarán sobre las 20:30");
         saved.clear();
-        // 14:37: con el margen ya no llega a la de las 14:40, le toca la de las 20:40
-        assertThat(onSave(at(11, 9, 14, 37)).afterSave(p).orElseThrow()).endsWith("llegarán sobre las 20:40");
+        // 20:27: con el margen ya no llega a la de las 20:30, le toca la de las 0:30
+        assertThat(onSave(at(11, 9, 20, 27)).afterSave(p).orElseThrow()).endsWith("llegarán mañana sobre las 0:30");
     }
 
     @Test
     void ifNoValidSlotIsLeftThisWeekTheNextWeekIsAskedNowAndTheNoteSaysSo() {
-        // Domingo 15 de nov, 20:00: recogida a las 20:40; +6 h pasa de la medianoche del domingo
+        // Domingo 15 de nov, 20:00: recogida a las 20:30; +6 h pasa de la medianoche del domingo
         var p = promotion("ACTIVE", LocalDate.of(2026, 11, 15), END);
         assertThat(onSave(at(11, 15, 20, 0)).afterSave(p).orElseThrow())
                 .isEqualTo("No queda margen para lo que resta de esta semana. "
-                        + "Propuestas de la semana del 16 de nov pedidas: llegarán sobre las 20:40");
+                        + "Propuestas de la semana del 16 de nov pedidas: llegarán sobre las 20:30");
         // Solo se pide la semana del 16 (nada de la primera semana, que no tenía margen)
         verify(orders, times(1)).submit(eq("lit-1"), eq(AiRequestType.WEEKLY_PROPOSALS), any(), any(), eq(List.of("2026-11-16")));
         assertThat(saved).containsExactly(new AiAutoOrderEntity.Key("lit-1", "WEEKLY_PROPOSALS", LocalDate.of(2026, 11, 16)));
@@ -131,10 +132,10 @@ class AiProposalsOnSaveTest {
         when(promotions.proposableBetween(any(), any())).thenReturn(List.of("lit-1"));
         assertThat(autoOrders.createDue()).isZero();
         verify(orders, times(1)).submit(any(), any(), any(), any(), any());
-        // Domingo a las 14:34 aún cabe la primera semana (recogida 14:40 + 6 h = 20:40) y, como es domingo, también W+1
+        // Domingo a las 4:00 aún cabe la primera semana (recogida 5:30 + 6 h = 11:30) y, como es domingo, también W+1
         saved.clear();
-        assertThat(onSave(at(11, 15, 14, 34)).afterSave(p).orElseThrow())
-                .isEqualTo("Propuestas de la primera semana y de la semana del 16 de nov pedidas: llegarán sobre las 14:40");
+        assertThat(onSave(at(11, 15, 4, 0)).afterSave(p).orElseThrow())
+                .isEqualTo("Propuestas de la primera semana y de la semana del 16 de nov pedidas: llegarán sobre las 5:30");
     }
 
     @Test
@@ -149,7 +150,7 @@ class AiProposalsOnSaveTest {
         var p = promotion("ACTIVE", LocalDate.of(2026, 10, 1), END);
         // Jueves 12 a las 10:00: su primera semana ya pasó; le toca W+1 (semana del 16)
         assertThat(onSave(at(11, 12, 10, 0)).afterSave(p))
-                .contains("Propuestas de la semana del 16 de nov pedidas: llegarán sobre las 14:40");
+                .contains("Propuestas de la semana del 16 de nov pedidas: llegarán sobre las 20:30");
         verify(orders).submit(eq("lit-1"), eq(AiRequestType.WEEKLY_PROPOSALS), any(), any(), eq(List.of("2026-11-16")));
         assertThat(onSave(at(11, 12, 10, 5)).afterSave(p)).isEmpty();
         // Domingo 23:00 de otra promoción sin pedir
@@ -191,7 +192,7 @@ class AiProposalsOnSaveTest {
     void afterTheLastPickupOfTheDayItSaysTomorrow() {
         var p = promotion("ACTIVE", LocalDate.of(2026, 11, 9), END);
         assertThat(onSave(at(11, 9, 21, 0)).afterSave(p))
-                .contains("Propuestas de la primera semana pedidas: llegarán mañana sobre las 9:40");
+                .contains("Propuestas de la primera semana pedidas: llegarán mañana sobre las 0:30");
     }
 
     @Test

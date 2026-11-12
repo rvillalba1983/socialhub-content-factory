@@ -3,7 +3,6 @@ package com.socialhub.ai;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.socialhub.ai.AiSentOrders.Sent;
-import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -16,50 +15,51 @@ class PcScheduleTest {
     }
 
     @Test
-    void duringTheScheduleItCountsAllTheTime() {
-        assertThat(PcSchedule.activeTime(madrid(9, 10, 0), madrid(9, 11, 30))).isEqualTo(Duration.ofMinutes(90));
-        assertThat(PcSchedule.late(madrid(9, 10, 0), madrid(9, 11, 29))).isFalse();
-        assertThat(PcSchedule.late(madrid(9, 10, 0), madrid(9, 11, 30))).isTrue();
+    void anUrgentOrderIsLateNinetyMinutesAfterThePassItShouldHaveHad() {
+        // Enviado a las 10:00: le toca la de las 10:50
+        Instant sent = madrid(9, 10, 0);
+        assertThat(PcSchedule.passFor(sent, true).toInstant()).isEqualTo(madrid(9, 10, 50));
+        assertThat(PcSchedule.late(sent, madrid(9, 12, 19), true)).isFalse();
+        assertThat(PcSchedule.late(sent, madrid(9, 12, 20), true)).isTrue();
     }
 
     @Test
-    void anOrderSentAtNightIsNotLateUntilTenTenTheNextDay() {
-        Instant sent = madrid(9, 23, 0);
-        assertThat(PcSchedule.activeTime(sent, madrid(10, 8, 40))).isEqualTo(Duration.ZERO);
-        assertThat(PcSchedule.late(sent, madrid(10, 10, 9))).isFalse();
-        assertThat(PcSchedule.late(sent, madrid(10, 10, 10))).isTrue();
+    void anOrderThatCanWaitIsNotLateUntilTheNightPassIsOver() {
+        Instant sent = madrid(9, 10, 0);
+        assertThat(PcSchedule.passFor(sent, false).toInstant()).isEqualTo(madrid(9, 20, 50));
+        assertThat(PcSchedule.late(sent, madrid(9, 15, 0), false)).isFalse();
+        assertThat(PcSchedule.late(sent, madrid(9, 22, 19), false)).isFalse();
+        assertThat(PcSchedule.late(sent, madrid(9, 22, 20), false)).isTrue();
     }
 
     @Test
-    void anOrderSentLateInTheDayAddsTheTwoPartsAcrossTheNight() {
-        // 22:00 a 22:40 son 40 minutos; el resto, desde las 8:40 del día siguiente: faltan 50
-        Instant sent = madrid(9, 22, 0);
-        assertThat(PcSchedule.late(sent, madrid(10, 9, 29))).isFalse();
-        assertThat(PcSchedule.late(sent, madrid(10, 9, 30))).isTrue();
-        // Antes de abrir por la mañana
-        assertThat(PcSchedule.late(madrid(9, 5, 0), madrid(9, 10, 9))).isFalse();
-        assertThat(PcSchedule.late(madrid(9, 5, 0), madrid(9, 10, 10))).isTrue();
+    void anOrderSentAtNightWaitsForTheNextNightPass() {
+        // Enviado a las 21:30: la de las 0:50 del día siguiente; la tarea no se apaga, así que la noche cuenta
+        Instant sent = madrid(9, 21, 30);
+        assertThat(PcSchedule.passFor(sent, false).toInstant()).isEqualTo(madrid(10, 0, 50));
+        assertThat(PcSchedule.late(sent, madrid(10, 2, 19), false)).isFalse();
+        assertThat(PcSchedule.late(sent, madrid(10, 2, 20), false)).isTrue();
     }
 
     @Test
     void severalDaysOfSilenceAreLate() {
-        assertThat(PcSchedule.late(madrid(6, 12, 0), madrid(9, 11, 0))).isTrue();
-        assertThat(PcSchedule.activeTime(madrid(6, 12, 0), madrid(8, 12, 0)))
-                .isEqualTo(Duration.ofHours(10).plusMinutes(40).plus(Duration.ofHours(14)).plus(Duration.ofHours(3)).plusMinutes(20));
+        assertThat(PcSchedule.late(madrid(6, 12, 0), madrid(9, 11, 0), false)).isTrue();
     }
 
     @Test
     void silenceCountsOnlyLateOrdersOfThePcWhoseOrdersFolderIsAvailable() {
-        Instant now = madrid(9, 12, 0);
-        var late = new Sent("p", AiRequestType.PUBLER_SCHEDULE, madrid(9, 9, 0), true, true);
-        var recent = new Sent("p", AiRequestType.PUBLISH_CHECK, madrid(9, 11, 0), true, true);
-        var noDrive = new Sent("p", AiRequestType.PUBLER_SCHEDULE, madrid(9, 8, 45), true, false);
-        var cloud = new Sent("p", AiRequestType.CAPTIONS, madrid(9, 8, 45), false, true);
-        var older = new Sent("p", AiRequestType.METRICS_READ, madrid(9, 8, 50), true, true);
-        var silence = ClaudeActivity.pcSilence(List.of(late, recent, noDrive, cloud, older), now).orElseThrow();
+        Instant now = madrid(9, 12, 30);
+        // Con los encargos urgentes (cualquier pasada los recoge): enviado a las 9:00 toca la de las 10:50
+        var late = new Sent("p", AiRequestType.PUBLER_SCHEDULE, madrid(9, 9, 0), true, true, true);
+        var recent = new Sent("p", AiRequestType.PUBLER_SCHEDULE, madrid(9, 11, 0), true, true, true);
+        var waitsForTheNight = new Sent("p", AiRequestType.PUBLISH_CHECK, madrid(9, 9, 0), true, true, false);
+        var noDrive = new Sent("p", AiRequestType.PUBLER_SCHEDULE, madrid(9, 8, 45), true, false, true);
+        var cloud = new Sent("p", AiRequestType.CAPTIONS, madrid(9, 8, 45), false, true, true);
+        var older = new Sent("p", AiRequestType.PUBLER_SCHEDULE, madrid(9, 8, 50), true, true, true);
+        var silence = ClaudeActivity.pcSilence(List.of(late, recent, waitsForTheNight, noDrive, cloud, older), now).orElseThrow();
         assertThat(silence.count()).isEqualTo(2);
         assertThat(silence.since()).isEqualTo(madrid(9, 8, 50));
-        assertThat(ClaudeActivity.pcSilence(List.of(recent, cloud), now)).isEmpty();
+        assertThat(ClaudeActivity.pcSilence(List.of(recent, waitsForTheNight, cloud), now)).isEmpty();
         assertThat(ClaudeActivity.pcSilence(List.of(), now)).isEmpty();
     }
 
