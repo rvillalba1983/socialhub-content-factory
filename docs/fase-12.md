@@ -1,6 +1,6 @@
 # Fase 12 · Todo lo pendiente (una sola fase)
 
-Estado: **dudas contestadas el 11 nov 2026; plan pendiente del OK final de Raúl.** No se programa nada hasta entonces.
+Estado: **hecha** (unida a `main` el 12 nov 2026). Falta la revisión de Raúl con pruebas funcionales completas y una publicación real por la API oficial.
 
 Raúl pidió seguir sin él y revisar todo al final con pruebas funcionales completas. Sobre SocialHub 0.9.3 no contestó qué había visto: se toma «nada».
 
@@ -111,5 +111,29 @@ Hecho el 11-12 nov 2026. Conclusión: **la API oficial pasa a ser la vía princi
 - Porfolio empresarial nuevo «El DeLito y Litoques», con @elde_lito y @litoques, vinculado a la app. El porfolio personal «Raulito lto» no se usa.
 - Usuario del sistema «lito» (administrador) con la app y las dos cuentas; clave sin caducidad con `instagram_basic` e `instagram_content_publish`. La clave no está en el repositorio: Raúl la pegará en SocialHub (se recomienda regenerarla antes, porque pasó por el chat).
 - Comprobado con Meta real, sin publicar nada: la clave llega a las dos cuentas; la cuota es de 100 publicaciones cada 24 h (`config.quota_total`); y **Meta acepta enlaces de Drive** `uc?export=download&id=…` de la carpeta `publico` (contenedor de imagen en `FINISHED`, no publicado).
-- Carpeta `socialhub/publico` creada en el Drive de Raúl y compartida «cualquier persona con el enlace», solo lectura.
+- Carpeta `socialhub/litoques/encargos/publico` en el Drive de Raúl, compartida «cualquier persona con el enlace», solo lectura.
 - TikTok `@litoques.eldelito` conectado en Publer con el nombre «Lito · Litoques · El DeLito».
+
+## Resultado por bloque (unido a `main` el 12 nov 2026)
+
+| PR | Bloque | Qué quedó |
+|---|---|---|
+| #36 | Plan | Este documento con las respuestas de Raúl |
+| #40 | Visual | «Necesita atención»: 2 avisos, «Ver N más», crece hacia arriba; el primer toque despliega y el segundo abre el destino. «Qué hacer ahora»: botón pegado a la lista |
+| #41 | TikTok | Cuenta de Publer por marca y red (publicación retenida si falta, con recomendación). Límite de 10 del plan Free sumando marcas, aviso «Publer lleno» y botón «Pasar a Publora» |
+| #42 | Métricas | 6 cifras reales; redes separadas con total; comparación por formato con medias; «pocos datos» con menos de 5 |
+| #38 | Instagram | API oficial como vía principal; Publer de respaldo; imágenes por la carpeta «publico» de Drive con el encargo `socialhub.public-link` |
+| #37 | macOS | Instalador `.dmg` y versión 1.0.0 en todos los sistemas |
+| #39 | Arreglo | Pruebas que fallaban según la fecha: reloj fijo `PinnedClock` |
+
+### Fuera del código (con Raúl o con su OK)
+
+- Repositorio **público** desde el 12 nov (ver `decisiones.md`).
+- Meta: app «SocialHub», porfolio «El DeLito y Litoques» con @elde_lito (`17841412838874790`) y @litoques (`17841442464914472`), usuario del sistema «lito» con clave sin caducidad. Comprobado con Meta real sin publicar: clave válida para las dos cuentas, cuota 100/24 h y Meta acepta enlaces de Drive. **Falta una publicación real completa.**
+- Drive: `socialhub/litoques/encargos/publico` compartida («cualquier persona con el enlace», lectura). El DeLito aún no tiene carpetas en Drive: al crearlas, hay que crear y compartir su `publico`.
+- Publer (plan Free, 3 cuentas): Instagram «El DeLito» y «Litoques», y TikTok «Lito · Litoques · El DeLito» (`@litoques.eldelito`, personal y pública).
+- Tareas programadas actualizadas con el OK de Raúl el 12 nov: «Encargos de SocialHub» (añadido `socialhub.public-link`) y «Publicar con Chrome» (cuenta de Publer del encargo, opciones de TikTok, no programar si falta la cuenta).
+
+### Sin comprobar
+
+- FFmpeg en macOS: en la prueba de GitHub el binario extraído dio «Permission denied» al ejecutarlo a mano. No se ha probado a generar una pieza en un Mac.

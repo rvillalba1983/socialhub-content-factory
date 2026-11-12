@@ -493,3 +493,12 @@ Rama `fase-12-metricas`. Respuestas de Raúl a las dudas de métricas y decisió
 - **Claude con Chrome** (decisión de Raúl): las cifras las lee Claude con Chrome (`PublicationMetrics`, sin cambios); SocialHub no llama a ninguna API de métricas.
 - **Comparación por medias por publicación** (técnica): en la comparación por formato y red se usa la media por publicación (no la suma), para que grupos de distinto tamaño sean comparables. La media y la suma solo cuentan las publicaciones que tienen esa cifra; si ninguna la tiene, queda «Sin dato» (nunca cero). Solo cuentan las publicaciones con métrica leída (DONE); las publicadas sin métrica DONE salen como pendientes.
 - **API** (técnica): `GET /api/promotions/{id}/metrics` devuelve `measured`, `pending`, `by_network` (INSTAGRAM, TIKTOK y una última fila TOTAL, con la suma) y `by_format` (formato, red, publicaciones, `low_sample` y la media). No hay migración nueva: usa la tabla `publication_metric` (V20).
+
+## Fase 12 · Cierre (12 nov 2026)
+
+- **Repositorio público** (respuesta de Raúl): el 12 nov el repositorio pasó a ser público porque GitHub Actions se había quedado sin minutos. Raúl acepta que se vean su correo en los commits y el nombre del PC. Los secretos siguen fuera del repositorio.
+- **Versión 1.0.0 en todos los sistemas** (respuesta de Raúl): el instalador de macOS (#37) sale ya con la 1.0.0, como el de Windows.
+- **Pruebas con reloj fijo** (técnico, #39): las pruebas que fallaban según la fecha usan un reloj fijo (`PinnedClock`).
+- **Tareas programadas** (respuesta de Raúl, 12 nov): con su OK se actualizaron «Encargos de SocialHub» (encargo `socialhub.public-link`) y «Publicar con Chrome» (cuenta de Publer del encargo, opciones de TikTok, no programar si falta la cuenta).
+- **Carpeta `publico` de El DeLito** (pendiente): El DeLito aún no tiene carpetas en Drive; al crearlas habrá que crear y compartir su `publico`.
+
