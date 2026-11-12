@@ -556,3 +556,11 @@ Más decisiones de Raúl (12 nov, mismas peticiones):
 - **Mapa, zoom semántico:** al alejar (nivel 1, por debajo del 72 %) las estaciones muestran solo nombre, estado y número de tareas y avisos (bloqueadas + con error); la promoción, solo marca, estado, nombre, día y el botón; «Necesita atención», solo el número y el primer aviso (sin botones); «Agentes y herramientas», solo los nombres. El detalle completo sale al acercarse. En ese nivel todo el texto mide 42-44 px del lienzo, de modo que al encuadrar mide al menos 12 px en pantalla (comprobado: 1366x768 encuadra al 30 % y 1600x900 al 45 %, sin ningún texto por debajo de 12 px). Las reglas del nivel 1 se limitan al lienzo (`.world`) para que no cambien las fichas que se abren sobre el mapa.
 
 Decisión técnica: el encuadre de 1366x768 queda en el 30 % y no en el 41 %, porque la franja «Qué hacer ahora» le quita altura al mapa; el tamaño de letra se calcula para ese caso, que es el peor.
+
+## Fase 12 · Arquitectura (12 nov 2026)
+
+Decisión de Raúl:
+- **Aplicar la auditoría de arquitectura completa (opción c).** Esta PR protege las fronteras con pruebas (reglas de ArchUnit y de Spring Modulith). El paso de `ai`, `pieces`, `tools` y `operations` a hexagonal, los identificadores con tipo y los puertos primarios como interfaces van en la PR siguiente.
+
+Decisiones técnicas (se irán completando con cada paso):
+- Las reglas nuevas que fallen solo por `ai`, `pieces`, `tools` u `operations` se limitan de momento a los módulos hexagonales, con un comentario que lo dice; no se congelan con `FreezingArchRule`.
