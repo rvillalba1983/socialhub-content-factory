@@ -449,7 +449,7 @@ describe('Pestaña Métricas de la promoción', () => {
     expect(within(totals).getByText('Instagram')).toBeInTheDocument();
     expect(within(totals).getByText('TikTok')).toBeInTheDocument();
     expect(within(totals).getByText('Total')).toBeInTheDocument();
-    expect(within(totals).getByText('2400')).toBeInTheDocument();
+    expect(within(totals).getByText('2.400')).toBeInTheDocument();
     for (const label of ['Reproducciones', 'Alcance', 'Me gusta', 'Comentarios', 'Guardados', 'Compartidos'])
       expect(within(totals).getByText(label)).toBeInTheDocument();
     for (const gone of ['Impresiones', 'Interacciones', 'Seguidores ganados', 'Clics en el enlace'])

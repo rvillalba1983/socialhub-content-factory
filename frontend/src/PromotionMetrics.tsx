@@ -10,8 +10,8 @@ const FIGURES = [
 
 const NETWORK_LABEL: Record<NetworkMetrics['network'], string> = { INSTAGRAM: 'Instagram', TIKTOK: 'TikTok', TOTAL: 'Total' };
 
-const WHOLE = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 0 });
-const MEAN = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 1 });
+const WHOLE = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 0, useGrouping: 'always' });
+const MEAN = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 1, useGrouping: 'always' });
 
 const figure = (value: number | undefined | null, format: Intl.NumberFormat) =>
   value == null ? <span className="nodata">Sin dato</span> : format.format(value);
@@ -37,20 +37,20 @@ export function PromotionMetricsTab({ promotionId, source }: { promotionId: stri
 
   const networks = data.by_network;
   return (
-    <div className="stack">
+    <div className="metrics-tab">
       <div className="card">
         <h3>Métricas de la promoción</h3>
         {source ? <p className="src">{source}</p> : null}
         {data.measured === 0 ? (
           <p className="src" role="status">
             Todavía no hay métricas leídas. Las métricas se leen a los 7 días de publicar.
-            {data.pending > 0 ? ` Ahora esperan su lectura ${publications(data.pending)}.` : ' No hay publicaciones esperando su lectura.'}
+            {data.pending > 0 ? ` Pendientes de lectura: ${publications(data.pending)}.` : ' No hay publicaciones esperando su lectura.'}
           </p>
         ) : (
           <>
             <p className="src">
-              {publications(data.measured)} medidas
-              {data.pending > 0 ? ` · ${publications(data.pending)} esperan su lectura (se leen a los 7 días de publicar)` : ''}.
+              {publications(data.measured)} {data.measured === 1 ? 'medida' : 'medidas'}
+              {data.pending > 0 ? ` · ${publications(data.pending)} ${data.pending === 1 ? 'espera' : 'esperan'} su lectura (se leen a los 7 días de publicar)` : ''}.
               Cada cifra suma solo las publicaciones donde se pudo ver.
             </p>
             <div className="tbl-wrap"><table aria-label="Totales por red">
