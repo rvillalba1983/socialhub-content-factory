@@ -125,4 +125,38 @@ class PublishingEngineHeldTest {
         verify(jobs).save(again);
         verify(events).publishEvent(any(Object.class));
     }
+
+    @Test
+    void heldOneMovesNowToPubloraAndFollowsItsNormalFlow() {
+        PublishRoute publer = new PublishRoute() {
+            @Override public Id id() { return Id.PUBLER; }
+            @Override public boolean configured() { return true; }
+            @Override public Instant lastMoment(Instant scheduledAt) { return scheduledAt.minus(Duration.ofHours(7)); }
+            @Override public Outcome schedule(Publication p, PublishJob job, Instant now) { return new Outcome.Held(reason); }
+        };
+        PublishRoute publora = new PublishRoute() {
+            @Override public Id id() { return Id.PUBLORA; }
+            @Override public boolean configured() { return true; }
+            @Override public Instant lastMoment(Instant scheduledAt) { return scheduledAt.minus(Duration.ofHours(6)); }
+            @Override public Outcome schedule(Publication p, PublishJob job, Instant now) { return new Outcome.Scheduled("ext-1", null); }
+        };
+        var engine = new PublishingEngine(jobs, publications, mock(PublicationFileRepository.class), mock(PromotionQueries.class),
+                List.of(publer, publora), events, transactions, mock(AiOrders.class), Clock.fixed(NOW, ZoneId.of("UTC")));
+        var p = publication("Retenida: " + reason);
+        var held = new PublishJob("p1", PublishJob.Status.HELD, 0, "Publer", null, List.of(), null, null, NOW.plusSeconds(300), 1,
+                reason, null, null, null, List.of(), NOW.minusSeconds(600), NOW.minusSeconds(300), 0);
+        when(jobs.find("p1")).thenReturn(Optional.of(held));
+        when(publications.findById("p1")).thenReturn(Optional.of(p));
+
+        assertThat(engine.moveHeld("p1", PublishRoute.Id.PUBLORA)).isTrue();
+
+        assertThat(held.getRoute()).isEqualTo("Publora");
+        assertThat(held.getStatus()).isEqualTo(PublishJob.Status.SCHEDULED);
+        verify(jobs).save(held);
+        // Una que no está retenida no se toca
+        var working = new PublishJob("p1", PublishJob.Status.WORKING, 0, "Publer", null, List.of(), null, null, null, 1,
+                null, null, null, null, List.of(), NOW, NOW, 0);
+        when(jobs.find("p1")).thenReturn(Optional.of(working));
+        assertThat(engine.moveHeld("p1", PublishRoute.Id.PUBLORA)).isFalse();
+    }
 }

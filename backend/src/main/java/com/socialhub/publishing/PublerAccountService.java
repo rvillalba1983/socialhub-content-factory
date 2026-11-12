@@ -32,7 +32,16 @@ public class PublerAccountService {
     /** Publicaciones retenidas porque la marca no tiene cuenta de Publer en esa red. */
     public record Missing(String brandId, String platform, String networkLabel, int held) {}
 
+    /**
+     * Cuenta de Publer con publicaciones retenidas por el límite del plan. {@code movable}: las que se pueden pasar ya a
+     * Publora (su marca tiene Publora configurada para esa red). {@code withoutPublora}: «marca/red» de las que no.
+     */
+    public record Full(String accountName, String platform, String networkLabel, int waiting, int movable,
+                       List<String> withoutPublora) {}
+
     private final PublerAccountRepository accounts;
+    private final PubloraService publora;
+    private final PublishingEngine engine;
     private final PublishJobRepository jobs;
     private final PublicationRepository publications;
     private final PromotionQueries promotions;
@@ -69,6 +78,65 @@ public class PublerAccountService {
             Platform platform = Platform.valueOf(key[1]);
             return new Missing(key[0], platform.name(), PubloraRoute.label(platform), e.getValue());
         }).toList();
+    }
+
+    private static String key(String accountName, Platform platform) {
+        return accountName.strip().toLowerCase(java.util.Locale.ROOT) + "|" + platform.name();
+    }
+
+    /** Cuentas de Publer llenas: con publicaciones retenidas por el límite (la marca sí tiene cuenta, así que no es por falta de ella). */
+    @Transactional(readOnly = true)
+    public List<Full> full() {
+        var names = promotions.brandRefs().stream().collect(java.util.stream.Collectors.toMap(
+                PromotionQueries.BrandRef::id, PromotionQueries.BrandRef::name, (a, b) -> a));
+        Map<String, String> display = new LinkedHashMap<>();
+        Map<String, int[]> counts = new LinkedHashMap<>();
+        Map<String, java.util.Set<String>> without = new LinkedHashMap<>();
+        for (PublishJob job : jobs.withStatus(java.util.EnumSet.of(PublishJob.Status.HELD))) {
+            var p = publications.findById(job.getPublicationId()).orElse(null);
+            if (p == null) continue;
+            String brandId = promotions.brandOf(p.getPromotionId());
+            var account = accounts.account(brandId, p.getPlatform());
+            if (account.isEmpty()) continue;
+            String k = key(account.get(), p.getPlatform());
+            display.putIfAbsent(k, account.get());
+            int[] c = counts.computeIfAbsent(k, x -> new int[2]);
+            c[0]++;
+            if (publora.gap(brandId, p.getPlatform()) == PubloraService.Gap.NONE) c[1]++;
+            else without.computeIfAbsent(k, x -> new java.util.LinkedHashSet<>())
+                    .add(names.getOrDefault(brandId, brandId) + "/" + PubloraRoute.label(p.getPlatform()));
+        }
+        List<Full> list = new java.util.ArrayList<>();
+        counts.forEach((k, c) -> {
+            Platform platform = Platform.valueOf(k.substring(k.indexOf('|') + 1));
+            list.add(new Full(display.get(k), platform.name(), PubloraRoute.label(platform), c[0], c[1],
+                    List.copyOf(without.getOrDefault(k, java.util.Set.of()))));
+        });
+        return list;
+    }
+
+    /**
+     * Manda ya a Publora las publicaciones retenidas por el límite de esa cuenta y red (de todas las marcas que la
+     * comparten) cuya marca tiene Publora configurada. Cada una sigue el flujo normal de Publora.
+     *
+     * @return cuántas han pasado
+     */
+    @Transactional
+    public int moveToPublora(String accountName, Platform platform) {
+        String wanted = key(accountName, platform);
+        int moved = 0;
+        for (PublishJob job : jobs.withStatus(java.util.EnumSet.of(PublishJob.Status.HELD))) {
+            var p = publications.findById(job.getPublicationId()).orElse(null);
+            if (p == null || p.getPlatform() != platform) continue;
+            String brandId = promotions.brandOf(p.getPromotionId());
+            var account = accounts.account(brandId, platform);
+            if (account.isEmpty() || !key(account.get(), platform).equals(wanted)) continue;
+            if (publora.gap(brandId, platform) != PubloraService.Gap.NONE) continue;
+            if (engine.moveHeld(p.getId(), PublishRoute.Id.PUBLORA)) moved++;
+        }
+        if (moved == 0) throw new IllegalArgumentException("Ninguna publicación en espera de esa cuenta tiene Publora configurada");
+        events.publishEvent(new com.socialhub.platform.live.FactoryChanged("publer", accountName));
+        return moved;
     }
 
     /** Redes en las que la marca aún no tiene cuenta de Publer (con {@code held} a 0). */

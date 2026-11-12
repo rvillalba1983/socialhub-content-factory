@@ -585,6 +585,31 @@ paths:
         "404": { $ref: "#/components/responses/Problem" }
         default: { $ref: "#/components/responses/Problem" }
 
+  /api/publer-accounts/move-to-publora:
+    post:
+      tags: [Publer]
+      operationId: moveHeldToPublora
+      summary: Pasa a Publora las publicaciones retenidas por el límite de una cuenta de Publer
+      description: >
+        Solo pasan las retenidas de esa cuenta y red (de todas las marcas que la comparten) cuya marca tiene Publora
+        configurada para esa red. Cada una sigue el flujo normal de Publora (su margen de 6 h; si ya no llega, lo de
+        siempre). 400 si ninguna tiene Publora.
+      parameters:
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PublerMoveInput" }
+      responses:
+        "200":
+          description: Cuántas han pasado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublerMoveResult" }
+        "400": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
   /api/brands/{brand_id}/identity:
     get:
       tags: [Brands]
@@ -1545,6 +1570,23 @@ components:
         station_id: { type: string }
         title: { type: string }
         detail: { type: string }
+        action:
+          $ref: "#/components/schemas/AlertAction"
+
+    AlertAction:
+      type: object
+      description: Botón del aviso, si lo tiene
+      required: [type, label, account_name, platform]
+      properties:
+        type:
+          type: string
+          enum: [PUBLER_TO_PUBLORA]
+          description: >
+            PUBLER_TO_PUBLORA: pasa ya a Publora las publicaciones retenidas por el límite de esa cuenta de Publer
+            (POST /api/publer-accounts/move-to-publora con account_name y platform)
+        label: { type: string, description: Texto del botón }
+        account_name: { type: string }
+        platform: { $ref: "#/components/schemas/Platform" }
 
     FolderRole:
       description: Papel de una carpeta de Drive
@@ -1855,6 +1897,19 @@ components:
       required: [items]
       properties:
         items: { type: array, maxItems: 2, items: { $ref: "#/components/schemas/PublerAccountInput" } }
+
+    PublerMoveInput:
+      type: object
+      required: [account_name, platform]
+      properties:
+        account_name: { type: string, minLength: 1, maxLength: 120 }
+        platform: { $ref: "#/components/schemas/Platform" }
+
+    PublerMoveResult:
+      type: object
+      required: [moved]
+      properties:
+        moved: { type: integer, format: int32 }
 
     PublishRouteState:
       type: object

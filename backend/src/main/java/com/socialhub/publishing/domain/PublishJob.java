@@ -178,6 +178,18 @@ public final class PublishJob {
         else note(now, (route == null ? "Vía" : route) + ": retenida. " + reason);
     }
 
+    /** Raúl la manda ya a otra vía (por ejemplo, de Publer, con el plan lleno, a Publora). */
+    public void skipTo(int index, String routeLabel, Instant now) {
+        requireOpen();
+        status = Status.WORKING;
+        routeIndex = index;
+        route = routeLabel;
+        taskId = null;
+        nextTryAt = null;
+        lastError = null;
+        note(now, "Pasada a " + routeLabel + " a petición de Raúl");
+    }
+
     /** Se vuelve a probar la vía en la que estaba retenida. */
     public void resume(Instant now) {
         requireOpen();

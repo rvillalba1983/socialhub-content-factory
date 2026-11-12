@@ -38,6 +38,7 @@ class FactoryController implements FactoryApi {
     private final Clock clock;
     private final com.socialhub.ai.AiHeldOrders heldOrders;
     private final FactoryRecommendations recommendations;
+    private final com.socialhub.publishing.PublerAccountService publer;
 
     @Override
     @Transactional(readOnly = true)
@@ -57,7 +58,7 @@ class FactoryController implements FactoryApi {
                 armoryItems,
                 promotions.commonRules(),
                 alerts(snapshot.alerts(), armoryItems, publishing.publishAlerts(),
-                        real ? heldOrders.current() : List.of(), recs),
+                        real ? heldOrders.current() : List.of(), recs, real ? publer.full() : List.of()),
                 recs));
     }
 
@@ -68,7 +69,8 @@ class FactoryController implements FactoryApi {
     private static List<AlertDto> alerts(List<AlertDto> production, List<ArmoryItemDto> items,
                                          List<PublishingQueries.PublishAlert> publishing,
                                          List<com.socialhub.ai.AiHeldOrders.Held> held,
-                                         List<RecommendationDto> recommendations) {
+                                         List<RecommendationDto> recommendations,
+                                         List<com.socialhub.publishing.PublerAccountService.Full> fullPubler) {
         List<AlertDto> alerts = new ArrayList<>(production);
         // Encargos a Claude que no pueden salir hasta que Raúl arregle algo (por ejemplo, una carpeta)
         for (var h : held) {
@@ -84,6 +86,23 @@ class FactoryController implements FactoryApi {
             alerts.add(new AlertDto(silent ? AlertDto.KindEnum.FAILED : AlertDto.KindEnum.BLOCKED,
                     AlertDto.TargetTypeEnum.ARMORY, silent ? ServicesWatch.PC_ID : ServicesWatch.PUBLORA_ID, "prog",
                     r.getTitle(), r.getDetail() == null ? "" : r.getDetail()));
+        }
+        // Cuenta de Publer llena (plan gratuito): publicaciones en espera, con el botón de pasarlas a Publora si se puede
+        for (var f : fullPubler) {
+            var alert = new AlertDto(AlertDto.KindEnum.BLOCKED, AlertDto.TargetTypeEnum.STATION, "pub", "pub",
+                    "La cuenta «" + f.accountName() + "» de Publer está llena: " + f.waiting()
+                            + (f.waiting() == 1 ? " publicación en espera" : " publicaciones en espera"),
+                    f.movable() > 0
+                            ? f.movable() + (f.movable() == 1 ? " puede" : " pueden") + " pasar ya a Publora"
+                                    + (f.withoutPublora().isEmpty() ? ""
+                                            : "; Publora no está configurada para " + String.join(", ", f.withoutPublora()))
+                            :"Publora no está configurada para " + String.join(", ", f.withoutPublora()));
+            if (f.movable() > 0) {
+                alert.setAction(new com.socialhub.api.model.AlertActionDto(
+                        com.socialhub.api.model.AlertActionDto.TypeEnum.PUBLER_TO_PUBLORA, "Pasar a Publora", f.accountName(),
+                        com.socialhub.api.model.PlatformDto.valueOf(f.platform())));
+            }
+            alerts.add(alert);
         }
         for (var a : publishing) {
             alerts.add(new AlertDto(a.failed() ? AlertDto.KindEnum.FAILED : AlertDto.KindEnum.BLOCKED,

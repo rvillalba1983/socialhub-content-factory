@@ -5,6 +5,8 @@ import com.socialhub.api.model.PlatformDto;
 import com.socialhub.api.model.PublerAccountDto;
 import com.socialhub.api.model.PublerAccountListDto;
 import com.socialhub.api.model.PublerAccountListInputDto;
+import com.socialhub.api.model.PublerMoveInputDto;
+import com.socialhub.api.model.PublerMoveResultDto;
 import com.socialhub.publishing.PublerAccountService;
 import com.socialhub.publishing.domain.Platform;
 import java.util.Map;
@@ -30,6 +32,12 @@ class PublerController implements PublerApi {
                 .map(i -> new PublerAccountService.Choice(Platform.valueOf(i.getPlatform().name()), i.getAccountName()))
                 .toList();
         return ResponseEntity.ok(toDto(publer.save(brandId, choices)));
+    }
+
+    @Override
+    public ResponseEntity<PublerMoveResultDto> moveHeldToPublora(String requestGuard, PublerMoveInputDto input) {
+        int moved = publer.moveToPublora(input.getAccountName(), Platform.valueOf(input.getPlatform().name()));
+        return ResponseEntity.ok(new PublerMoveResultDto(moved));
     }
 
     private static PublerAccountListDto toDto(Map<Platform, String> accounts) {

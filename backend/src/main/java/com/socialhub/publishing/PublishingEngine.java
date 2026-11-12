@@ -152,6 +152,27 @@ class PublishingEngine {
         });
     }
 
+    /**
+     * Raúl manda ya a otra vía una publicación retenida (sin esperar a que Publer deje de llegar). Sigue el flujo normal
+     * de esa vía.
+     *
+     * @return {@code false} si no estaba retenida o la vía no existe
+     */
+    boolean moveHeld(String publicationId, PublishRoute.Id target) {
+        PublishJob job = jobs.find(publicationId).orElse(null);
+        Publication p = publications.findById(publicationId).orElse(null);
+        if (job == null || p == null || job.getStatus() != PublishJob.Status.HELD) return false;
+        int index = -1;
+        for (int i = 0; i < routes.size(); i++) if (routes.get(i).id() == target) index = i;
+        if (index < 0) return false;
+        job.skipTo(index, target.label(), clock.instant());
+        advance(job, p, clock.instant());
+        publications.save(p);
+        jobs.save(job);
+        changed(publicationId);
+        return true;
+    }
+
     /** Incidencias que anota el motor: al volver a programarla se quitan. */
     static boolean ownFlag(@Nullable String flag) {
         return flag != null && (flag.startsWith(LATE_FLAG) || flag.startsWith(STILL_SCHEDULED)
