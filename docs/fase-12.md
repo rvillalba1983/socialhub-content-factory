@@ -93,3 +93,23 @@ Una rama y una PR por bloque.
 ## Cómo sabremos que está bien
 
 Se concreta por bloque al aprobar el plan. Como mínimo: cada PR pasa en GitHub (backend en Windows; frontal en Linux; el `.dmg` en macOS solo en el bloque 5), y lo visual se comprueba con Playwright en modo real sin errores en la consola. Al final, Raúl hace las pruebas funcionales completas.
+
+## Estudio: ¿puede algo gratis sustituir a Publer? (bloque 4)
+
+Hecho el 11-12 nov 2026. Conclusión: **la API oficial pasa a ser la vía principal de Instagram y Publer se queda de respaldo** (decisión de Raúl). TikTok sigue en Publer.
+
+| Opción | Gratis | Programa | Lo que exige | Encaje en SocialHub |
+|---|---|---|---|---|
+| API oficial de Instagram | Sí | No: publica al llamar | App de Meta, porfolio empresarial, clave de usuario del sistema; imágenes en URL pública | **Vía principal.** SocialHub publica a la hora; si estaba cerrado, en cuanto se abra |
+| Meta Business Suite con Chrome | Sí | Sí, hasta 90 días | Cuenta de Instagram vinculada a una página de Facebook; Claude con Chrome en el PC | Posible respaldo futuro. Hoy no hace falta: Publer cubre el respaldo |
+| Web de Instagram con Chrome | Sí | Sí, hasta 1 mes | Función en pruebas desde agosto de 2026, solo en algunas cuentas; historias no | No disponible aún de forma general; revisar más adelante |
+| Publer (plan Free) | Sí | Sí | 3 cuentas y 10 programadas por cuenta | **Respaldo de Instagram y vía de TikTok** |
+
+## Configuración de Meta hecha con Raúl (12 nov 2026)
+
+- App de Meta «SocialHub» (modo desarrollo), caso de uso «API de Instagram» con inicio de sesión unificado. El inicio de sesión solo con Instagram ya no existe para apps nuevas.
+- Porfolio empresarial nuevo «El DeLito y Litoques», con @elde_lito y @litoques, vinculado a la app. El porfolio personal «Raulito lto» no se usa.
+- Usuario del sistema «lito» (administrador) con la app y las dos cuentas; clave sin caducidad con `instagram_basic` e `instagram_content_publish`. La clave no está en el repositorio: Raúl la pegará en SocialHub (se recomienda regenerarla antes, porque pasó por el chat).
+- Comprobado con Meta real, sin publicar nada: la clave llega a las dos cuentas; la cuota es de 100 publicaciones cada 24 h (`config.quota_total`); y **Meta acepta enlaces de Drive** `uc?export=download&id=…` de la carpeta `publico` (contenedor de imagen en `FINISHED`, no publicado).
+- Carpeta `socialhub/publico` creada en el Drive de Raúl y compartida «cualquier persona con el enlace», solo lectura.
+- TikTok `@litoques.eldelito` conectado en Publer con el nombre «Lito · Litoques · El DeLito».
