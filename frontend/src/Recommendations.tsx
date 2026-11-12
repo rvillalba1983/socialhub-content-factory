@@ -23,8 +23,10 @@ export const VISIBLE = 3;
 
 /** «Qué hacer ahora»: 3 a la vista y «Ver N más» para el resto. Sin recomendaciones no se pinta nada. */
 
-export function NextSteps({ items, onOpen, onDismissPublora }: {
+export function NextSteps({ items, onOpen, onDismissPublora, onRequestContent }: {
   items: Recommendation[]; onOpen: (target: RecommendationTarget) => void;
+  /** «Pedir contenido ya» en CONTENT_MISSING: pide un spec urgente de esas publicaciones. */
+  onRequestContent?: (promotionId: string, publicationIds: string[]) => void;
   /** «No uso Publora» para la marca de la recomendación PUBLORA_MISSING. */
   onDismissPublora?: (brandId: string) => void;
 }) {
@@ -47,6 +49,16 @@ export function NextSteps({ items, onOpen, onDismissPublora }: {
             </button>
           )
           : <div className="aitem static">{body}</div>;
+        const promotionId = r.kind === 'CONTENT_MISSING' && r.publication_ids?.length ? r.promotion_id : undefined;
+        if (promotionId && onRequestContent) {
+          return (
+            <div key={r.id} className="aitem-row">
+              {main}
+              <button type="button" className="btn aitem-side" onClick={() => onRequestContent(promotionId, r.publication_ids ?? [])}
+                aria-label={`Pedir contenido ya (${r.title})`}>Pedir contenido ya</button>
+            </div>
+          );
+        }
         const brandId = r.kind === 'PUBLORA_MISSING' ? target?.brand_id : undefined;
         // El botón secundario va al lado, nunca dentro del principal (no se anidan botones).
         return brandId && onDismissPublora
