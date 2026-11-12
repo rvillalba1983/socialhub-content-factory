@@ -33,12 +33,14 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
         "socialhub.ai.initial-delay-millis=3600000"
 })
 @AutoConfigureMockMvc
+@org.springframework.context.annotation.Import(com.socialhub.PinnedClock.class)
 @org.springframework.test.context.event.RecordApplicationEvents
 class StartUpTest {
 
     @TempDir Path drive;
     @Autowired MockMvc mvc;
     @Autowired AiAutoOrders auto;
+    @Autowired java.time.Clock clock;
     @Autowired AiDispatcher dispatcher;
     @Autowired AiSentOrders sentOrders;
     @Autowired AiRequestRepository requests;
@@ -49,7 +51,7 @@ class StartUpTest {
     void foldersFirstProposalsAndHeldOrders() throws Exception {
         write(post("/api/brands"), "{\"name\":\"Litoques\",\"handle\":\"@litoques\",\"color\":\"#C98A1B\"}")
                 .andExpect(status().isCreated());
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(clock);
         // El domingo por la tarde ya no queda hueco válido esa semana: empieza el lunes, que sí lo tiene
         LocalDate start = today.getDayOfWeek() == java.time.DayOfWeek.SUNDAY ? today.plusDays(1) : today;
         // Al guardar, la promoción pide enseguida las propuestas de su primera semana y el guardado lo avisa
@@ -60,8 +62,8 @@ class StartUpTest {
         assertThat(saved).contains("proposals_note").contains("Propuestas de la primera semana pedidas");
 
         // Solo se pide una vez: la ronda posterior no crea otro
-        assertThat(auto.createFirstWeeks(java.time.ZonedDateTime.now())).isZero();
-        assertThat(auto.createFirstWeeks(java.time.ZonedDateTime.now())).isZero();
+        assertThat(auto.createFirstWeeks(java.time.ZonedDateTime.now(clock))).isZero();
+        assertThat(auto.createFirstWeeks(java.time.ZonedDateTime.now(clock))).isZero();
 
         // Sin carpeta de «Encargos» el encargo no sale y Raúl lo ve en «Qué hacer ahora» (no en «Necesita atención»)
         events.clear();
