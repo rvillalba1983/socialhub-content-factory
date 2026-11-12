@@ -78,7 +78,7 @@ Raúl decidió hacer antes el bloque 4. **Ya no está aparcado:** la API oficial
 
 Las pegas que se encontraron ([Meta · Content Publishing](https://developers.facebook.com/docs/instagram-platform/content-publishing)) y cómo se resuelven:
 - Instagram solo publica imágenes desde una URL pública, y SocialHub corre en el PC de Raúl → carpeta pública de Drive y enlace obtenido por Claude en la nube. Los vídeos y reels se suben desde el PC con subida resumible.
-- La API no programa → SocialHub publica él mismo a la hora; si estaba cerrado, la publicación sigue por Publer.
+- La API no programa → SocialHub publica él mismo a la hora; si estaba cerrado, la publica en cuanto se abre (sin límite de tiempo) y avisa del retraso.
 - TikTok, hasta que revise la app, solo publica en privado → TikTok no cambia (sigue Publer y Publora).
 
 ## Bloque 4: calendario con las tres vías

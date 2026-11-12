@@ -22,8 +22,8 @@ import tools.jackson.databind.JsonNode;
 /**
  * «Enlaces públicos»: SocialHub deja las imágenes de una publicación de Instagram en la carpeta pública de Drive y
  * Claude, en la nube y con su conector de Drive, busca cada archivo por su nombre y devuelve su enlace de descarga
- * ({@code outputs.links: [{file, id, url}]}). Con los enlaces, la publicación queda programada en la API oficial (que la
- * publica a la hora). Si algo no sirve, la publicación sigue por Publer, que aún tiene tiempo.
+ * ({@code outputs.links: [{file, id}]}, y SocialHub construye el enlace). Con los enlaces, la publicación queda programada en la API oficial (que la
+ * publica a la hora). Si algo no sirve antes del corte previo, la publicación sigue por Publer, que aún tiene tiempo.
  */
 @Component
 class PublicLinkHandler implements AiTypeHandler {

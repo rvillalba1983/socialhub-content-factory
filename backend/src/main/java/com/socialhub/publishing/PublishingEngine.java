@@ -35,10 +35,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * Motor de publicación (fase 7). Al pasar una publicación a «Programada» prueba las vías por orden: Publer, Publora
- * y API oficial. Si fallan todas, reintenta cada hora mientras quede el margen de 6 h; después deja un LEEME para
- * publicarla a mano y avisa. Pasada la hora, la pasa a «Publicando» y pide la comprobación: «Publicada» solo llega
- * con el enlace o el identificador; si no aparece, «Error de publicación».
+ * Motor de publicación (fase 7). Al pasar una publicación a «Programada» prueba las vías por orden: API oficial (solo
+ * Instagram, cuando está configurada), Publer y Publora. Si fallan todas, reintenta cada hora mientras quede el margen
+ * de 6 h; después deja un LEEME para publicarla a mano y avisa. Pasada la hora, la pasa a «Publicando» y pide la
+ * comprobación: «Publicada» solo llega con el enlace o el identificador; si no aparece, «Error de publicación».
+ * <p>
+ * La API oficial no programa: SocialHub publica él mismo. En el corte previo (cuando Publer aún llega) comprueba todo y,
+ * si algo falla, cede a Publer con el motivo. Pasado el corte, un fallo a la hora ya no tiene otra vía: aviso con LEEME.
+ * Si SocialHub estaba cerrado a la hora, publica al abrirse sin límite de tiempo y avisa del retraso. Ante la duda de si
+ * Meta publicó (o con identificador sin enlace), no reintenta ni cambia de vía: queda para revisar.
  */
 @Slf4j
 @Service
