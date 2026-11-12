@@ -81,6 +81,52 @@ describe('World', () => {
     expect(screen.getByText('No hay forma de publicar Litoques')).toBeInTheDocument();
     expect(error.mock.calls.filter(c => String(c[0]).includes('same key'))).toHaveLength(0);
   });
+
+  describe('tarjeta «Necesita atención» con muchos avisos', () => {
+    const many = (n: number) => Array.from({ length: n }, (_, i) => ({ kind: 'BLOCKED', target_type: 'ARMORY', target_id: `a${i}`, station_id: 'pub',
+      title: `Aviso número ${i} con un título bastante largo`, detail: `Detalle ${i}` }) as unknown as Snapshot['alerts'][number]);
+    const draw = (n: number) => render(<World data={{ ...snapshot, alerts: many(n) }} sel={{ type: null, id: null }}
+      onStation={() => {}} onTask={() => {}} onTaskAction={() => {}} onArmory={() => {}} onPromotion={() => {}} onRegister={() => {}} />);
+    const card = () => screen.getByRole('region', { name: 'Necesita tu atención' });
+
+    it('con 2 avisos o menos no hay «Ver N más»', () => {
+      draw(2);
+      expect(card().querySelectorAll('.aitem')).toHaveLength(2);
+      expect(screen.queryByRole('button', { name: /Ver .* más/ })).not.toBeInTheDocument();
+    });
+
+    it('con 6 enseña 2; «Ver 4 más» abre la lista entera y «Ver menos» la pliega', () => {
+      draw(6);
+      expect(card().querySelectorAll('.aitem')).toHaveLength(2);
+      fireEvent.click(screen.getByRole('button', { name: 'Ver 4 más' }));
+      expect(card().querySelectorAll('.aitem')).toHaveLength(6);
+      expect(card().className).toContain('open');
+      fireEvent.click(screen.getByRole('button', { name: 'Ver menos' }));
+      expect(card().querySelectorAll('.aitem')).toHaveLength(2);
+    });
+
+    it('el primer clic despliega el aviso (uno a la vez) y el segundo abre su destino', () => {
+      const onArmory = vi.fn();
+      render(<World data={{ ...snapshot, alerts: many(3) }} sel={{ type: null, id: null }}
+        onStation={() => {}} onTask={() => {}} onTaskAction={() => {}} onArmory={onArmory} onPromotion={() => {}} onRegister={() => {}} />);
+      const items = () => [...card().querySelectorAll<HTMLElement>('.aitem')];
+      expect(items()[0]).toHaveAttribute('title', 'Aviso número 0 con un título bastante largo. Detalle 0');
+      expect(items()[0]).toHaveAttribute('aria-expanded', 'false');
+      fireEvent.click(items()[0]);
+      expect(onArmory).not.toHaveBeenCalled();
+      expect(items()[0]).toHaveAttribute('aria-expanded', 'true');
+      expect(card().querySelectorAll('.attn-row.full')).toHaveLength(1);
+      // Desplegar otro pliega el anterior
+      fireEvent.click(items()[1]);
+      expect(items()[0]).toHaveAttribute('aria-expanded', 'false');
+      expect(items()[1]).toHaveAttribute('aria-expanded', 'true');
+      expect(onArmory).not.toHaveBeenCalled();
+      // Segundo clic sobre el desplegado: navega
+      fireEvent.click(items()[1]);
+      expect(onArmory).toHaveBeenCalledWith('a1');
+      expect(items()[1]).toHaveAttribute('aria-expanded', 'false');
+    });
+  });
 });
 
 describe('TaskPanel', () => {
@@ -778,6 +824,16 @@ describe('Qué hacer ahora', () => {
     expect(block.querySelectorAll('.aitem')).toHaveLength(5);
     fireEvent.click(screen.getByRole('button', { name: 'Ver menos' }));
     expect(block.querySelectorAll('.aitem')).toHaveLength(3);
+  });
+
+  it('«Ver N más» va dentro de la franja, justo después de la lista', () => {
+    const many = [...three, rec({ id: 'x4', kind: 'BACKUP_FOLDER_MISSING', title: 'Cuarta' })];
+    render(<NextSteps items={many} onOpen={() => {}} />);
+    const block = screen.getByRole('region', { name: 'Qué hacer ahora' });
+    const more = screen.getByRole('button', { name: 'Ver 1 más' });
+    expect(more.parentElement).toBe(block);
+    expect(more.previousElementSibling).toBe(block.querySelector('.next-list'));
+    expect(more).toBe(block.lastElementChild);
   });
 
   it('con 3 o menos no hay botón «Ver más»', () => {

@@ -450,3 +450,25 @@ tr.op-detail td{background:var(--surface-2)}
 .next-strip .aitem>span.go{flex:none;font-size:16px;line-height:1.4}
 .next-strip .aitem{justify-content:space-between}
 @media (max-width:900px){.next-strip{padding-block:8px 10px}.next-list{gap:8px}.next-strip .aitem{padding:8px 12px}}
+
+/* «Necesita atención»: la tarjeta crece hacia arriba (anclada por abajo) para no tapar la estación 07 */
+.hub{grid-template-rows:minmax(0,1fr)}
+.attn-card{align-self:end;display:flex;flex-direction:column;max-height:calc(100% + 35px)}
+.attn-card>*{flex:none}
+.attn-card>.attn-list{flex:0 1 auto;min-height:0;display:grid;gap:10px;align-content:start;overflow:auto}
+.attn-card.open>.attn-list{padding-right:4px}
+.attn-more{justify-self:start;font-size:12.5px;padding:5px 12px;margin-top:-4px}
+.attn-card .aitem b{-webkit-line-clamp:2}
+.attn-row.full .aitem b,.attn-row.full .aitem>span:not(.dot){display:block;overflow:visible;-webkit-line-clamp:unset}
+.vp[data-lod="1"] .attn-more{font-size:18px;padding:8px 16px}
+.vp[data-lod="1"] 
+/* «Qué hacer ahora»: el botón «Ver N más» queda pegado justo debajo de la última fila visible, dentro de la franja */
+.next-strip{display:flex;flex-direction:column;align-items:stretch;gap:8px}
+.next-strip>*{flex:none}
+.next-strip .next-more{align-self:flex-start;margin:0}
+.attn-card{gap:10px;padding:18px 22px}
+.attn-card .promo-facts div{padding:6px 12px}
+.vp[data-lod="1"] .attn-card{padding:22px 26px;gap:12px}
+.vp[data-lod="1"] .attn-card .promo-facts div{padding:6px 12px}
+.vp[data-lod="1"] .attn-card .aitem{padding:8px 12px}
+.vp[data-lod="1"] .attn-list{gap:8px}
