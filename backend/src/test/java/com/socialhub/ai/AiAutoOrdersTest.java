@@ -57,7 +57,8 @@ class AiAutoOrdersTest {
         // Con lote: se pide con las publicaciones del lote como datos de entrada, a cualquier día y hora
         when(specHandler.autoOrderBatch(eq("lit-1"), any())).thenReturn(List.of("p1", "p2", "p3"));
         assertThat(at(now).createSpecBatches(now)).isEqualTo(1);
-        verify(orders).submit(eq("lit-1"), eq(AiRequestType.WEEKLY_SPEC), any(), any(), eq(List.of("p1", "p2", "p3")));
+        verify(orders).submit(eq("lit-1"), eq(AiRequestType.WEEKLY_SPEC), eq(AiRequestType.WEEKLY_SPEC.label() + " · 3 publicaciones"),
+                org.mockito.ArgumentMatchers.contains("3 publicaciones"), eq(List.of("p1", "p2", "p3")));
         // El registro semanal ya no interviene
         verify(done, never()).save(any());
     }

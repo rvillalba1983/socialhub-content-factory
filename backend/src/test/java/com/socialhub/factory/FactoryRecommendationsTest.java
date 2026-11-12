@@ -340,6 +340,17 @@ class FactoryRecommendationsTest {
     }
 
     @Test
+    void row8AnUrgentOrderArrivesAtTheNextPassAndOneWithoutRushAtTheNightOne() {
+        now = madrid(11, 9, 9, 40);
+        when(sent.waiting()).thenReturn(List.of(
+                new AiSentOrders.Sent("lit-1", AiRequestType.WEEKLY_PROPOSALS, madrid(11, 9, 9, 30), false, true, true)));
+        assertThat(subject().compute().getFirst().getEtaText()).isEqualTo("sobre las 10:30");
+        when(sent.waiting()).thenReturn(List.of(
+                new AiSentOrders.Sent("lit-1", AiRequestType.WEEKLY_PROPOSALS, madrid(11, 9, 9, 30), false, true, false)));
+        assertThat(subject().compute().getFirst().getEtaText()).isEqualTo("sobre las 20:30");
+    }
+
+    @Test
     void row8ProposalsOnTheWayGiveTheNextPickup() {
         when(sent.waiting()).thenReturn(List.of(sentOrder(AiRequestType.WEEKLY_PROPOSALS, madrid(11, 9, 10, 50))));
         var r = subject().compute().getFirst();

@@ -116,6 +116,7 @@ class InstagramRouteTest {
 
     @Autowired MockMvc mvc;
     @Autowired PublishingEngine engine;
+    @Autowired com.socialhub.ai.AiOrders aiOrders;
     @Autowired PublishingQueries alerts;
     @Autowired com.socialhub.platform.postgres.ModeDataSources databases;
     private final JsonMapper json = JsonMapper.builder().build();
@@ -551,6 +552,9 @@ class InstagramRouteTest {
         assertThat(request.get("urgent").asBoolean()).isEqualTo(com.socialhub.ai.ClaudePasses.urgent(false,
                 PublerRoute.handoverBy(at), com.socialhub.ai.ClaudePickups.visibleAt(CLOCK.instant())));
 
+        // y la base de datos guarda la misma marca que el archivo
+        assertThat(aiOrders.urgentOf(request.get("taskId").asString())).contains(request.get("urgent").asBoolean());
+
         answer(request, "[{\"file\":\"" + staged.getFirst().getFileName() + "\",\"id\":\"drive-ok-0001\"}]");
         waitFor(() -> "SCHEDULED".equals(job(id).get("status").asString()), "enlaces recibidos");
         assertThat(job(id).get("route").asString()).isEqualTo("API oficial");
@@ -581,6 +585,21 @@ class InstagramRouteTest {
         assertThat(job.get("log").toString()).contains("API oficial: Claude no lo hizo a tiempo");
         assertThat(publication(id).get("flag").asString()).startsWith("API oficial: los enlaces públicos");
         assertThat(list(publicFolder)).isEmpty();
+        write(post("/api/publications/" + id + "/status-changes"), "{\"status\":\"APPROVED\"}").andExpect(status().isOk());
+    }
+
+    @Test
+    @Order(27)
+    void whenNoCloudPassReachesTheCutoffTheLinksAreNotEvenAskedAndItGoesToPubler() throws Exception {
+        // Publicación a las 22:00: el corte es a las 10:20; a las 6:00 la siguiente pasada de la nube (10:30) llega tarde
+        Instant at = at(22);
+        CLOCK.set(at.minus(Duration.ofHours(16)));
+        String id = publication("Post", 22, "Foto sin pasada", List.of(photo));
+        schedule(id);
+        JsonNode job = job(id);
+        assertThat(job.get("route").asString()).isEqualTo("Publer");
+        assertThat(job.get("log").toString()).contains("API oficial: ninguna pasada de Claude llega a dar los enlaces públicos");
+        assertThat(publication(id).get("flag").asString()).startsWith("API oficial:");
         write(post("/api/publications/" + id + "/status-changes"), "{\"status\":\"APPROVED\"}").andExpect(status().isOk());
     }
 
@@ -917,7 +936,7 @@ class InstagramRouteTest {
     }
 
     @Test
-    @Order(27)
+    @Order(28)
     void deletingTheKeyLeavesTheRouteUnconfigured() throws Exception {
         write(delete("/api/instagram/key"), "").andExpect(status().isNoContent());
         assertThat(get("/api/instagram").get("configured").asBoolean()).isFalse();

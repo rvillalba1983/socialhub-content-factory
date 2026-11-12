@@ -58,6 +58,8 @@ class AiTypesTest {
 
     @Autowired MockMvc mvc;
     @Autowired AiRequestRepository requests;
+    @Autowired AiAutoOrders autoOrders;
+    @Autowired com.socialhub.production.ProductionService production;
     @Autowired com.socialhub.publishing.PublishingQueries publishing;
     private final JsonMapper json = JsonMapper.builder().build();
 
@@ -306,6 +308,26 @@ class AiTypesTest {
         JsonNode planned = request(spec).get("inputs").get("publications");
         assertThat(planned.size()).isEqualTo(1);
         assertThat(planned.get(0).get("id").asString()).isEqualTo("2030-11-18-instagram");
+    }
+
+    @Test
+    @Order(20)
+    void theRoundOrdersTheSpecOfABatchOfThreeAndDoesNotRepeatIt() throws Exception {
+        for (int day : new int[] {10, 11, 12}) {
+            write(post("/api/promotions/poemario/publications"), """
+                    {"platform":"INSTAGRAM","type":"Historia","title":"Lote %d","scheduled_on":"2030-12-%d",
+                     "scheduled_time":"13:00","initial_status":"IN_PRODUCTION"}""".formatted(day, day)).andExpect(status().isCreated());
+        }
+        var now = java.time.ZonedDateTime.now(java.time.ZoneId.of("Europe/Madrid"));
+        assertThat(autoOrders.createSpecBatches(now)).isEqualTo(1);
+        var batch = production.coveringAiTasks(AiRequestType.WEEKLY_SPEC.taskType(), "poemario").stream()
+                .map(c -> c.task()).filter(t -> t.inputs().contains("2030-12-10-instagram")).toList();
+        assertThat(batch).hasSize(1);
+        assertThat(batch.getFirst().title()).isEqualTo(AiRequestType.WEEKLY_SPEC.label() + " · 3 publicaciones");
+        assertThat(batch.getFirst().goal()).contains("3 publicaciones");
+        assertThat(batch.getFirst().inputs()).containsExactly("2030-12-10-instagram", "2030-12-11-instagram", "2030-12-12-instagram");
+        // Ya está en un spec abierto: la ronda siguiente no lo repite
+        assertThat(autoOrders.createSpecBatches(now)).isZero();
     }
 
     // ---------------------------------------------------------------- utilidades
