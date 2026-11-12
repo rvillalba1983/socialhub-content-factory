@@ -33,7 +33,7 @@ class AiDispatcherStallTest {
     private AiDispatcher dispatcher() {
         return new AiDispatcher(production, promotions, settings, mock(AiRequestRepository.class), JsonMapper.builder().build(),
                 Clock.systemUTC(), mock(TransactionTemplate.class), mock(AiHandlers.class), List.of(), held,
-                mock(ApplicationEventPublisher.class));
+                new AiUrgentRule(48), mock(ApplicationEventPublisher.class));
     }
 
     @Test

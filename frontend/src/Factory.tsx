@@ -306,6 +306,22 @@ export function Factory({ data, live, onRefresh }: {
       say(e instanceof Error ? e.message : 'No se pudo guardar.');
     }
   }, [onRefresh, say]);
+  /** «Pedir contenido ya»: un spec urgente (a mano) de las publicaciones sin contenido de la promoción. */
+  const requestContent = useCallback(async (promotionId: string, publicationIds: string[]) => {
+    try {
+      await api.orderFromClaude(promotionId, {
+        type: 'WEEKLY_SPEC',
+        title: `spec.json por lotes · ${publicationIds.length} ${publicationIds.length === 1 ? 'publicación' : 'publicaciones'}`,
+        goal: 'Prepara el spec.json de piezas de estas publicaciones sin contenido (las de «inputs.publications», con sus fechas), '
+          + 'con el material de sus carpetas y sus normas.',
+        inputs: publicationIds,
+      });
+      say('Spec pedido a Claude como urgente: se hace en la siguiente pasada');
+      onRefresh();
+    } catch (e) {
+      say(e instanceof Error ? e.message : 'No se pudo pedir el contenido.');
+    }
+  }, [onRefresh, say]);
   /** «Pasar a Publora» en una cuenta de Publer llena: manda ya las retenidas y refresca. */
   const alertAction = useCallback(async (action: NonNullable<Snapshot['alerts'][number]['action']>) => {
     try {
@@ -450,7 +466,7 @@ export function Factory({ data, live, onRefresh }: {
       </header>
 
       <div className="stage">
-      <NextSteps items={data.recommendations} onOpen={goRecommendation} onDismissPublora={dismissPublora} />
+      <NextSteps items={data.recommendations} onOpen={goRecommendation} onDismissPublora={dismissPublora} onRequestContent={requestContent} />
       <main className="vp" ref={vp} data-lod="1">
         <div className="world" ref={world}>
           <World data={data} sel={sel} onStation={goStation} onTask={goTask}

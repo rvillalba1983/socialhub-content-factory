@@ -172,6 +172,34 @@ public class PublishingQueries {
                 .map(PublishingQueries::forAi).toList();
     }
 
+    /** Una publicación a la espera de contenido: su identificador y la hora a la que se publica. */
+    public record AwaitingContent(String id, String title, java.time.Instant scheduledAt) {}
+
+    /** Publicaciones «En producción» de la promoción que aún no tienen ningún archivo (piezas), por fecha y hora. */
+    public List<AwaitingContent> awaitingContent(String promotionId) {
+        var inProduction = publications.findByPromotionAndStatus(promotionId,
+                com.socialhub.publishing.domain.PublicationStatus.IN_PRODUCTION);
+        var withFiles = files.withFiles(inProduction.stream().map(Publication::getId).toList());
+        return inProduction.stream().filter(p -> !withFiles.contains(p.getId()))
+                .sorted(java.util.Comparator.comparing(Publication::scheduledAt))
+                .map(p -> new AwaitingContent(p.getId(), p.getTitle(), p.scheduledAt()))
+                .toList();
+    }
+
+    /** La hora de publicación más próxima de esas publicaciones (se omiten las que no existen o están canceladas). */
+    public java.util.Optional<java.time.Instant> earliestScheduled(java.util.Collection<String> ids) {
+        return ids.stream().map(publications::findById).flatMap(java.util.Optional::stream)
+                .filter(p -> p.getStatus() != com.socialhub.publishing.domain.PublicationStatus.CANCELLED)
+                .map(Publication::scheduledAt).min(java.util.Comparator.naturalOrder());
+    }
+
+    /** Publicaciones de esas ids, como datos sencillos para un encargo a Claude (se omiten las que no existen o están canceladas). */
+    public List<java.util.Map<String, Object>> forAi(java.util.Collection<String> ids) {
+        return ids.stream().map(publications::findById).flatMap(java.util.Optional::stream)
+                .filter(p -> p.getStatus() != com.socialhub.publishing.domain.PublicationStatus.CANCELLED)
+                .map(PublishingQueries::forAi).toList();
+    }
+
     /** Publicaciones entre dos fechas, como datos sencillos para un encargo a Claude. */
     public List<java.util.Map<String, Object>> forAi(String promotionId, java.time.LocalDate from, java.time.LocalDate to) {
         return between(promotionId, from, to).stream().map(PublishingQueries::forAi).toList();

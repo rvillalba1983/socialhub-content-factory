@@ -73,6 +73,7 @@ class TaskEntity {
     private @Nullable String error;
     private @Nullable String result;
     private boolean human;
+    @NotAudited private boolean manual;
     private int attempts;
 
     @NotAudited private int maxAttempts;

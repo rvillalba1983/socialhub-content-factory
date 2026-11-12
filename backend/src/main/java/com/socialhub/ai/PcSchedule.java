@@ -2,59 +2,45 @@ package com.socialhub.ai;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 
 /**
- * Horario de la tarea programada «Publicar con Chrome» del PC de Raúl, que hace los encargos de {@code para-claude-pc}:
- * corre cada hora a y 40, de 8:40 a 22:40, hora de España. Es una constante de SocialHub, como las recogidas de
- * {@link ClaudePickups}: las tareas programadas de Claude no se tocan desde aquí. Fuera de ese horario la tarea no
- * puede contestar, así que ese tiempo no cuenta como retraso.
+ * Las pasadas de la tarea programada «Publicar con Chrome» del PC de Raúl, que hace los encargos de
+ * {@code para-claude-pc}: cada 5 horas, 20 minutos después de las de la nube (0:50, 5:50, 10:50, 15:50 y 20:50, hora de
+ * España; el PC no se apaga nunca). Las horas están en {@link ClaudePasses}. Una pasada de las 8:00 a las 18:00 solo
+ * hace los encargos urgentes.
  */
 public final class PcSchedule {
 
-    public static final ZoneId ZONE = ClaudePickups.ZONE;
-    static final LocalTime OPENS = LocalTime.of(8, 40);
-    static final LocalTime CLOSES = LocalTime.of(22, 40);
-    /** Tiempo de horario sin respuesta a partir del cual se da por parada la tarea. */
+    public static final ZoneId ZONE = ClaudePasses.ZONE;
+    /** Lo que se espera tras la pasada que le tocaba antes de dar por parada la tarea (hacer el encargo con Chrome lleva rato). */
     public static final Duration LATE_AFTER = Duration.ofMinutes(90);
+    /** Lo que tarda un encargo recién escrito en llegar a Drive y al PC. */
+    static final Duration SYNC_MARGIN = ClaudePickups.SYNC_MARGIN;
 
     private PcSchedule() {}
 
-    /** Cuánto tiempo de horario (8:40-22:40 de cada día) hay entre dos instantes. */
-    public static Duration activeTime(Instant from, Instant to) {
-        if (!to.isAfter(from)) return Duration.ZERO;
-        LocalDate last = to.atZone(ZONE).toLocalDate();
-        Duration total = Duration.ZERO;
-        for (LocalDate day = from.atZone(ZONE).toLocalDate(); !day.isAfter(last); day = day.plusDays(1)) {
-            Instant start = max(ZonedDateTime.of(day, OPENS, ZONE).toInstant(), from);
-            Instant end = min(ZonedDateTime.of(day, CLOSES, ZONE).toInstant(), to);
-            if (end.isAfter(start)) total = total.plus(Duration.between(start, end));
-        }
-        return total;
+    /** La pasada que le toca a un encargo del PC enviado en ese instante, contando el margen de sincronización. */
+    public static ZonedDateTime passFor(Instant sentAt, boolean urgent) {
+        return ClaudePasses.next(true, sentAt.plus(SYNC_MARGIN), urgent);
     }
 
-    /** Un encargo enviado en ese instante lleva sin contestar 90 minutos o más dentro del horario de la tarea. */
-    public static boolean late(Instant sentAt, Instant now) {
-        return activeTime(sentAt, now).compareTo(LATE_AFTER) >= 0;
+    /** Un encargo enviado en ese instante lleva sin contestar 90 minutos o más desde la pasada que le tocaba. */
+    public static boolean late(Instant sentAt, Instant now, boolean urgent) {
+        return !passFor(sentAt, urgent).toInstant().plus(LATE_AFTER).isAfter(now);
     }
 
-    /** La última pasada de la tarea (a y 40, de 8:40 a 22:40) que cae en ese instante o antes. */
+    /**
+     * Si un encargo del PC que se envía ahora llega a una pasada que lo haga (contando la sincronización) con tiempo de
+     * sobra antes de su límite.
+     */
+    public static boolean canMeet(Instant deadline, Instant now) {
+        return ClaudePasses.canMeet(true, deadline, now.plus(ClaudePickups.DISPATCH_MAX).plus(SYNC_MARGIN));
+    }
+
+    /** La última pasada de la tarea (de cualquier tipo) que cae en ese instante o antes. */
     public static Instant lastPassAtOrBefore(Instant instant) {
-        ZonedDateTime at = instant.atZone(ZONE);
-        for (int day = 0; day <= 2; day++) {
-            LocalDate date = at.toLocalDate().minusDays(day);
-            for (int hour = CLOSES.getHour(); hour >= OPENS.getHour(); hour--) {
-                ZonedDateTime pass = ZonedDateTime.of(date, LocalTime.of(hour, OPENS.getMinute()), ZONE);
-                if (!pass.toInstant().isAfter(instant)) return pass.toInstant();
-            }
-        }
-        throw new IllegalStateException("Sin pasada anterior");
+        return ClaudePasses.lastAtOrBefore(true, instant);
     }
-
-    private static Instant max(Instant a, Instant b) { return a.isAfter(b) ? a : b; }
-
-    private static Instant min(Instant a, Instant b) { return a.isBefore(b) ? a : b; }
 }

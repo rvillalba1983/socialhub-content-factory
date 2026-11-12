@@ -17,7 +17,7 @@ class ServicesWatchTest {
         return LocalDateTime.of(2026, 11, day, hour, minute).atZone(PcSchedule.ZONE).toInstant();
     }
 
-    private final Instant now = madrid(9, 12, 0);
+    private final Instant now = madrid(9, 12, 30);
 
     @Test
     void pcIsOkWithItsLastResult() {
@@ -27,25 +27,27 @@ class ServicesWatchTest {
     }
 
     @Test
-    void pcFailsWhenOrdersAreUnansweredForNinetyMinutesOfSchedule() {
-        var waiting = List.of(new Sent("p", AiRequestType.PUBLER_SCHEDULE, madrid(9, 10, 0), true, true),
-                new Sent("p", AiRequestType.PUBLISH_CHECK, madrid(9, 10, 30), true, true));
+    void pcFailsWhenUrgentOrdersAreUnansweredNinetyMinutesAfterTheirPass() {
+        // Urgentes enviados a las 9:00 y a las 9:30: les tocaba la pasada de las 10:50, y a las 12:20 ya van tarde
+        var waiting = List.of(new Sent("p", AiRequestType.PUBLER_SCHEDULE, madrid(9, 9, 0), true, true, true),
+                new Sent("p", AiRequestType.PUBLER_SCHEDULE, madrid(9, 9, 30), true, true, true));
         var r = ServicesWatch.pc(Optional.of(madrid(8, 20, 0)), true, waiting, now);
         assertThat(r.status()).isEqualTo("FAILED");
-        assertThat(r.note()).isEqualTo("2 encargos sin contestar desde las 10:00. ¿Está activa la tarea «Publicar con Chrome» y abierto Chrome?");
+        assertThat(r.note()).isEqualTo("2 encargos sin contestar desde las 9:00. ¿Está activa la tarea «Publicar con Chrome» y abierto Chrome?");
         // Con uno solo, en singular; y uno enviado hace menos de 90 minutos no cuenta
-        var one = List.of(new Sent("p", AiRequestType.PUBLER_SCHEDULE, madrid(9, 10, 30), true, true),
-                new Sent("p", AiRequestType.PUBLISH_CHECK, madrid(9, 11, 0), true, true));
-        assertThat(ServicesWatch.pc(Optional.empty(), true, one, now).note()).startsWith("1 encargo sin contestar desde las 10:30");
-        var fresh = List.of(new Sent("p", AiRequestType.PUBLISH_CHECK, madrid(9, 11, 0), true, true));
+        var one = List.of(new Sent("p", AiRequestType.PUBLER_SCHEDULE, madrid(9, 9, 30), true, true, true),
+                new Sent("p", AiRequestType.PUBLER_SCHEDULE, madrid(9, 11, 0), true, true, true));
+        assertThat(ServicesWatch.pc(Optional.empty(), true, one, now).note()).startsWith("1 encargo sin contestar desde las 9:30");
+        var fresh = List.of(new Sent("p", AiRequestType.PUBLER_SCHEDULE, madrid(9, 11, 0), true, true, true));
         assertThat(ServicesWatch.pc(Optional.of(madrid(8, 20, 0)), true, fresh, now).status()).isEqualTo("OK");
     }
 
     @Test
-    void pcOrderSentAtNightIsNotLateUntilTheNextMorning() {
+    void pcOrderThatCanWaitIsNotLateUntilTheNightPassIsOver() {
+        // Enviado a las 23:00 sin prisa: le toca la pasada de las 0:50 y va tarde pasadas las 2:20
         var night = List.of(new Sent("p", AiRequestType.PUBLER_SCHEDULE, madrid(8, 23, 0), true, true));
-        assertThat(ServicesWatch.pc(Optional.empty(), true, night, madrid(9, 10, 9)).status()).isEqualTo("WAITING");
-        assertThat(ServicesWatch.pc(Optional.empty(), true, night, madrid(9, 10, 10)).status()).isEqualTo("FAILED");
+        assertThat(ServicesWatch.pc(Optional.empty(), true, night, madrid(9, 2, 19)).status()).isEqualTo("WAITING");
+        assertThat(ServicesWatch.pc(Optional.empty(), true, night, madrid(9, 2, 20)).status()).isEqualTo("FAILED");
     }
 
     @Test
@@ -60,9 +62,9 @@ class ServicesWatchTest {
     void cloudIsOkWithItsLastResultAndWaitingWhenAPickupWasMissed() {
         assertThat(ServicesWatch.cloud(Optional.of(madrid(9, 9, 45)), true, List.of(), now))
                 .isEqualTo(new ServicesWatch.Result("OK", "Último resultado: 9/11/2026 09:45"));
-        // Enviado a las 9:30 (recogida de las 9:40) y ya son más de las 10:10; los del PC no cuentan
-        var waiting = List.of(new Sent("p", AiRequestType.CAPTIONS, madrid(9, 9, 30), false, true),
-                new Sent("p", AiRequestType.PUBLER_SCHEDULE, madrid(9, 9, 30), true, true));
+        // Urgente enviado a las 9:30 (pasada de las 10:30) y ya son más de las 11:00; los del PC no cuentan
+        var waiting = List.of(new Sent("p", AiRequestType.CAPTIONS, madrid(9, 9, 30), false, true, true),
+                new Sent("p", AiRequestType.PUBLER_SCHEDULE, madrid(9, 9, 30), true, true, true));
         var r = ServicesWatch.cloud(Optional.of(madrid(8, 21, 0)), true, waiting, now);
         assertThat(r.status()).isEqualTo("WAITING");
         assertThat(r.note()).startsWith("1 encargo sin resultado desde las 9:30");

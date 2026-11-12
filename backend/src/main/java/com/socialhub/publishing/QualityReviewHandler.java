@@ -37,6 +37,11 @@ class QualityReviewHandler implements AiTypeHandler {
     @Override public AiRequestType type() { return AiRequestType.QUALITY_REVIEW; }
 
     @Override
+    public java.time.@org.jspecify.annotations.Nullable Instant contentDueAt(AiJob job) {
+        return queries.earliestScheduled(job.inputs()).orElse(null);
+    }
+
+    @Override
     public void validateOrder(String promotionId, List<String> inputs) {
         if (inputs.size() != 1) throw new IllegalArgumentException("Indica una publicación (su identificador)");
         queries.find(inputs.getFirst()).filter(p -> p.getPromotionId().equals(promotionId))

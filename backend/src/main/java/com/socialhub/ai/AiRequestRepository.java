@@ -23,6 +23,11 @@ interface AiRequestRepository extends JpaRepository<AiRequestEntity, String> {
             + "and r.status <> com.socialhub.ai.AiRequestEntity.Status.SENT")
     @org.jspecify.annotations.Nullable Instant lastFinished(@org.springframework.data.repository.query.Param("types") java.util.Collection<String> types);
 
+    /** Cerrojo de la transacción actual (se suelta al terminar): dos altas del mismo tipo y promoción no se cruzan. */
+    @org.springframework.data.jpa.repository.Query(value = "select 1 from (select pg_advisory_xact_lock(hashtext(:key))) l",
+            nativeQuery = true)
+    int lockOrders(@org.springframework.data.repository.query.Param("key") String key);
+
     boolean existsByTypeIn(java.util.Collection<String> types);
 
     Page<AiRequestEntity> findAllByOrderBySentAtDesc(Pageable page);

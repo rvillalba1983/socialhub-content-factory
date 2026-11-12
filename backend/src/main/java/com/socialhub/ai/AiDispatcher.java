@@ -45,6 +45,7 @@ class AiDispatcher {
     private final AiHandlers handlers;
     private final java.util.List<AiContextProvider> contexts;
     private final AiHeldOrders held;
+    private final AiUrgentRule urgency;
     private final ApplicationEventPublisher events;
     /** Encargos de esta ronda que esperan a Raúl. */
     private java.util.Map<String, AiHeldOrders.Held> holding = AiHeldOrders.collector();
@@ -114,6 +115,12 @@ class AiDispatcher {
             return false;
         }
         String brandId = promotions.brandOf(task.promotionId());
+        AiJob job = jobOf(task, type.get(), brandId);
+        if (handlers.of(type.get()).map(h -> h.obsolete(job)).orElse(false)) {
+            production.cancelAi(task.id());
+            log.info("Encargo {} ({}) cancelado: ya no tiene nada que preparar", task.id(), type.get());
+            return false;
+        }
         Optional<String> orders = promotions.brandOrdersFolder(brandId);
         if (orders.isEmpty()) {
             hold(task, "La marca no tiene carpeta de «Encargos». Indícala o créala en Marcas → Carpetas de Drive.");
@@ -136,7 +143,8 @@ class AiDispatcher {
         ClaudeModel current = ClaudeModel.valueOf(task.model());
         ClaudeModel model = task.attempt() >= 3 ? ClaudeModel.max(current, settings.model(type.get()).up()) : current;
         String requestId = UUID.randomUUID().toString();
-        Path file = write(orders.get(), task, type.get(), brandId, model, requestId);
+        Written written = write(orders.get(), task, type.get(), brandId, model, requestId);
+        Path file = written.file();
         Instant now = clock.instant();
         transactions.executeWithoutResult(status -> {
             AiRequestEntity request = new AiRequestEntity();
@@ -150,11 +158,13 @@ class AiDispatcher {
             request.setStatus(AiRequestEntity.Status.SENT);
             request.setRequestPath(file.toString());
             request.setSentAt(now);
+            request.setUrgent(written.urgent());
             requests.save(request);
             production.delegateToAi(task.id(), model.name(), "Encargada a Claude " + model.label()
                     + " (intento " + task.attempt() + "): espera su resultado en «" + AiFolders.FROM_CLAUDE + "».");
         });
-        log.info("Encargo {} ({}) enviado a Claude {}: {}", task.id(), type.get(), model.label(), file);
+        log.info("Encargo {} ({}) enviado a Claude {}{}: {}", task.id(), type.get(), model.label(),
+                written.urgent() ? " (urgente)" : "", file);
         return true;
     }
 
@@ -175,7 +185,10 @@ class AiDispatcher {
     }
 
     /** Escribe el encargo con otro nombre y lo renombra al final, para que nadie lea un archivo a medias. */
-    private Path write(String ordersFolder, AiTask task, AiRequestType type, String brandId, ClaudeModel model,
+    /** El archivo del encargo y si salió marcado como urgente. */
+    private record Written(Path file, boolean urgent) {}
+
+    private Written write(String ordersFolder, AiTask task, AiRequestType type, String brandId, ClaudeModel model,
                        String requestId) {
         try {
             Path dir = Files.createDirectories(Path.of(ordersFolder).resolve(type.onPc() ? AiFolders.TO_CLAUDE_PC : AiFolders.TO_CLAUDE));
@@ -191,8 +204,7 @@ class AiDispatcher {
             Map<String, Object> inputs = new LinkedHashMap<>();
             inputs.put("title", task.title());
             inputs.put("items", task.inputs());
-            AiJob job = new AiJob(task.id(), type, java.util.Objects.requireNonNull(task.promotionId()), brandId,
-                    task.title(), task.goal(), task.inputs(), task.createdAt(), lastRequestPath(task.id()));
+            AiJob job = jobOf(task, type, brandId);
             Map<String, Object> identity = promotions.identityOf(task.promotionId()).forAi();
             if (!identity.isEmpty()) inputs.put("brand_identity", identity);
             contexts.forEach(c -> inputs.putAll(c.context(task.promotionId(), brandId)));
@@ -200,15 +212,25 @@ class AiDispatcher {
             request.put("inputs", inputs);
             request.put("rules", promotions.rulesFor(task.promotionId()));
             request.put("model", model.name().toLowerCase(java.util.Locale.ROOT));
-            handlers.of(type).map(h -> h.deadline(job)).ifPresent(d -> request.put("deadline", d.toString()));
+            @org.jspecify.annotations.Nullable Instant deadline = handlers.of(type).map(h -> h.deadline(job)).orElse(null);
+            if (deadline != null) request.put("deadline", deadline.toString());
+            // Las pasadas de las 8:00 a las 18:00 solo hacen los urgentes: lo pedido a mano, lo que vence antes de la pasada de la noche y el contenido de publicaciones cercanas
+            @org.jspecify.annotations.Nullable Instant contentDue = handlers.of(type).map(h -> h.contentDueAt(job)).orElse(null);
+            boolean urgent = urgency.urgent(type.onPc(), task.manual(), deadline, contentDue, clock.instant());
+            request.put("urgent", urgent);
             request.put("idempotencyKey", requestId);
             Path target = fresh(dir, task.id() + "-" + task.attempt());
             Path partial = dir.resolve("." + target.getFileName() + ".part");
             Files.writeString(partial, json.writerWithDefaultPrettyPrinter().writeValueAsString(request));
-            return Files.move(partial, target, StandardCopyOption.ATOMIC_MOVE);
+            return new Written(Files.move(partial, target, StandardCopyOption.ATOMIC_MOVE), urgent);
         } catch (IOException e) {
             throw new IllegalStateException(e.getMessage(), e);
         }
+    }
+
+    private AiJob jobOf(AiTask task, AiRequestType type, String brandId) {
+        return new AiJob(task.id(), type, java.util.Objects.requireNonNull(task.promotionId()), brandId,
+                task.title(), task.goal(), task.inputs(), task.createdAt(), lastRequestPath(task.id()));
     }
 
     /** El archivo del último envío de ese encargo (si es un reintento), para los manejadores que lo necesitan. */

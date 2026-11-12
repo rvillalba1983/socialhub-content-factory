@@ -32,6 +32,11 @@ class CaptionsHandler implements AiTypeHandler {
     @Override public AiRequestType type() { return AiRequestType.CAPTIONS; }
 
     @Override
+    public java.time.@org.jspecify.annotations.Nullable Instant contentDueAt(AiJob job) {
+        return queries.earliestScheduled(job.inputs()).orElse(null);
+    }
+
+    @Override
     public void validateOrder(String promotionId, List<String> inputs) {
         if (inputs.isEmpty()) throw new IllegalArgumentException("Indica las publicaciones (sus identificadores, uno por línea)");
         for (String id : inputs) {

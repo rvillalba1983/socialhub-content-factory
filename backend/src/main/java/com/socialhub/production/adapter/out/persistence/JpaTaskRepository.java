@@ -54,6 +54,11 @@ class JpaTaskRepository implements TaskRepository {
     }
 
     @Override
+    public List<Task> findByTypeAndPromotion(String type, String promotionId, Collection<TaskStatus> statuses) {
+        return jpa.findByTypeAndPromotionIdAndStatusInOrderById(type, promotionId, statuses).stream().map(mapper::toDomain).toList();
+    }
+
+    @Override
     public Set<String> completedIds() {
         return jpa.findCompletedIds();
     }
