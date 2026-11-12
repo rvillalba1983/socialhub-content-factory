@@ -6,9 +6,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Versión (tres números, por ejemplo 0.9.0)"
+        description: "Versión (tres números, por ejemplo 1.0.0)"
         required: true
-        default: "0.9.0"
+        default: "1.0.0"
       sistemas:
         description: "Instaladores (macOS gasta x10 minutos)"
         type: choice
@@ -31,7 +31,7 @@ env:
   # Sin tildes: WiX usa la página de códigos 1252 del instalador en inglés y rechaza otros caracteres
   DESCRIPCION: "Fabrica de contenido de El DeLito y Litoques"
   FABRICANTE: "Raul Villalba"
-  VERSION: ${{ inputs.version || '0.9.0' }}
+  VERSION: ${{ inputs.version || '1.0.0' }}
 
 jobs:
   windows:
@@ -42,7 +42,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Comprobar la versión
         shell: bash
-        run: '[[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::La versión tiene que ser de tres números, como 0.9.0"; exit 1; }'
+        run: '[[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::La versión tiene que ser de tres números, como 1.0.0"; exit 1; }'
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -80,6 +80,30 @@ jobs:
             --win-menu --win-menu-group SocialHub --win-shortcut \
             --win-upgrade-uuid "$UPGRADE_UUID" --verbose
           ls -la salida
+      # El .msi nuevo se instala encima de la versión ya publicada (mismo UPGRADE_UUID) sin desinstalar antes
+      - name: Actualizar encima de una versión anterior
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $nuevo = Get-ChildItem salida\*.msi | Select-Object -First 1
+          $tag = gh release list --limit 20 --json tagName --jq '.[].tagName' | Where-Object { $_ -ne "v$env:VERSION" } | Select-Object -First 1
+          if (-not $tag) { Write-Host "No hay ninguna release anterior: se omite la prueba"; exit 0 }
+          New-Item -ItemType Directory -Force anterior | Out-Null
+          gh release download $tag --pattern "*.msi" --dir anterior
+          $viejo = Get-ChildItem anterior\*.msi | Select-Object -First 1
+          if (-not $viejo) { Write-Host "La release $tag no tiene .msi: se omite la prueba"; exit 0 }
+          function Instalados { Get-ItemProperty "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*" | Where-Object { $_.DisplayName -eq "SocialHub" } }
+          $p = Start-Process msiexec.exe -ArgumentList "/i `"$($viejo.FullName)`" /qn" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "No se instaló $($viejo.Name): $($p.ExitCode)" }
+          Write-Host "Instalado: $((Instalados).DisplayVersion)"
+          $p = Start-Process msiexec.exe -ArgumentList "/i `"$($nuevo.FullName)`" /qn /l*v `"$env:RUNNER_TEMP\actualizar.log`"" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { Get-Content "$env:RUNNER_TEMP\actualizar.log" -Tail 40; throw "No se actualizó encima de $($viejo.Name): $($p.ExitCode)" }
+          $ins = @(Instalados)
+          if ($ins.Count -ne 1 -or $ins[0].DisplayVersion -ne $env:VERSION) { $ins | Format-List DisplayName, DisplayVersion; throw "Tras actualizar tiene que quedar solo SocialHub $env:VERSION" }
+          Write-Host "Actualizado encima de $($viejo.Name): queda SocialHub $env:VERSION"
+          $u = Start-Process msiexec.exe -ArgumentList "/x `"$($nuevo.FullName)`" /qn" -Wait -PassThru
+          if ($u.ExitCode -ne 0) { throw "No se desinstaló tras actualizar: $($u.ExitCode)" }
       # Prueba real: se instala (en Archivos de programa), se abre, responde, no arranca dos veces y se cierra desde la web
       - name: Instalar y probar el .msi
         shell: pwsh
