@@ -300,6 +300,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/brands/{brand_id}/publer-accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Qué cuenta de Publer usa la marca en cada red */
+        get: operations["getBrandPublerAccounts"];
+        /**
+         * Indica la cuenta de Publer de la marca en cada red
+         * @description Es el nombre de la cuenta tal como sale en Publer. Dos marcas pueden indicar la misma (por ejemplo, la de TikTok, que usan las dos). Una lista vacía las quita; una red con el nombre vacío se quita.
+         */
+        put: operations["saveBrandPublerAccounts"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/brands/{brand_id}/identity": {
         parameters: {
             query?: never;
@@ -910,10 +931,10 @@ export interface components {
             /** @description Estable mientras la recomendación siga haciendo falta (por ejemplo, brand-folders:litoques) */
             id: string;
             /**
-             * @description Por orden de prioridad: marca sin forma de publicar (NO_PUBLISHING_ROUTE) y tarea del PC «Publicar con Chrome» sin contestar (PC_TASK_SILENT), que van primero porque bloquean publicaciones reales (también salen como aviso en «Necesita atención»); propuestas retenidas (por la carpeta de Encargos, Drive cerrado o el límite diario), propuestas por revisar, marca sin todas sus carpetas, encargos sin recoger, marca sin cuenta de Publora, sin carpeta de copias, marca sin promoción activa, propuestas pedidas en camino, especificación semanal esperando publicaciones aprobadas y, la última, promoción activada sola hoy (PROMOTION_AUTO_STARTED, informativa: solo el día en que se activa)
+             * @description Por orden de prioridad: marca sin forma de publicar (NO_PUBLISHING_ROUTE) y tarea del PC «Publicar con Chrome» sin contestar (PC_TASK_SILENT), que van primero porque bloquean publicaciones reales (también salen como aviso en «Necesita atención»); marca sin cuenta de Publer para una red con publicaciones retenidas (PUBLER_ACCOUNT_MISSING, con botón a la tarjeta «Cuenta en Publer»); propuestas retenidas (por la carpeta de Encargos, Drive cerrado o el límite diario), propuestas por revisar, marca sin todas sus carpetas, encargos sin recoger, marca sin cuenta de Publora, sin carpeta de copias, marca sin promoción activa, propuestas pedidas en camino, especificación semanal esperando publicaciones aprobadas y, la última, promoción activada sola hoy (PROMOTION_AUTO_STARTED, informativa: solo el día en que se activa)
              * @enum {string}
              */
-            kind: "HELD_PROPOSALS" | "PROPOSALS_TO_REVIEW" | "BRAND_FOLDERS_MISSING" | "ORDERS_NOT_COLLECTED" | "PUBLORA_MISSING" | "BACKUP_FOLDER_MISSING" | "NO_ACTIVE_PROMOTION" | "PROPOSALS_PENDING" | "SPEC_WAITING" | "PC_TASK_SILENT" | "NO_PUBLISHING_ROUTE" | "PROMOTION_AUTO_STARTED";
+            kind: "HELD_PROPOSALS" | "PROPOSALS_TO_REVIEW" | "BRAND_FOLDERS_MISSING" | "ORDERS_NOT_COLLECTED" | "PUBLORA_MISSING" | "BACKUP_FOLDER_MISSING" | "NO_ACTIVE_PROMOTION" | "PROPOSALS_PENDING" | "SPEC_WAITING" | "PC_TASK_SILENT" | "NO_PUBLISHING_ROUTE" | "PUBLER_ACCOUNT_MISSING" | "PROMOTION_AUTO_STARTED";
             /** @description Texto en español */
             title: string;
             /** @description Más información (por ejemplo, el motivo de un encargo retenido) */
@@ -927,10 +948,10 @@ export interface components {
         /** @description A qué pantalla lleva el botón. Sin target, la recomendación es solo un texto. */
         RecommendationTarget: {
             /**
-             * @description BRAND_FOLDERS: Marcas → Carpetas de Drive de la marca (brand_id). PROPOSALS: publicaciones en estado Propuesta de la promoción (promotion_id). PUBLORA: tarjeta de Publora de la marca (brand_id). BACKUPS: ajuste de la carpeta de copias. NEW_PROMOTION: alta de promoción de la marca (brand_id); con promotion_id, abre esa promoción (planificada o en pausa) para activarla. CLAUDE: pantalla «Claude», donde se cambia el límite diario de encargos (sin brand_id)
+             * @description BRAND_FOLDERS: Marcas → Carpetas de Drive de la marca (brand_id). PROPOSALS: publicaciones en estado Propuesta de la promoción (promotion_id). PUBLORA: tarjeta de Publora de la marca (brand_id). PUBLER: tarjeta «Cuenta en Publer» de la marca (brand_id). BACKUPS: ajuste de la carpeta de copias. NEW_PROMOTION: alta de promoción de la marca (brand_id); con promotion_id, abre esa promoción (planificada o en pausa) para activarla. CLAUDE: pantalla «Claude», donde se cambia el límite diario de encargos (sin brand_id)
              * @enum {string}
              */
-            screen: "BRAND_FOLDERS" | "PROPOSALS" | "PUBLORA" | "BACKUPS" | "NEW_PROMOTION" | "CLAUDE";
+            screen: "BRAND_FOLDERS" | "PROPOSALS" | "PUBLORA" | "PUBLER" | "BACKUPS" | "NEW_PROMOTION" | "CLAUDE";
             brand_id?: string;
             promotion_id?: string;
         };
@@ -993,7 +1014,7 @@ export interface components {
         PublishJob: {
             publication_id: string;
             /** @enum {string} */
-            status: "WORKING" | "RETRY_WAIT" | "SCHEDULED" | "CHECKING" | "MANUAL" | "PUBLISHED" | "FAILED" | "CANCELLED";
+            status: "WORKING" | "HELD" | "RETRY_WAIT" | "SCHEDULED" | "CHECKING" | "MANUAL" | "PUBLISHED" | "FAILED" | "CANCELLED";
             status_label: string;
             /** @description Vía en uso o con la que quedó programada */
             route?: string;
@@ -1147,6 +1168,21 @@ export interface components {
         };
         PubloraAccountListInput: {
             items: components["schemas"]["PubloraAccountInput"][];
+        };
+        PublerAccount: {
+            platform: components["schemas"]["Platform"];
+            /** @description Nombre de la cuenta en Publer («Litoques», «Lito · Litoques · El DeLito») */
+            account_name: string;
+        };
+        PublerAccountList: {
+            items: components["schemas"]["PublerAccount"][];
+        };
+        PublerAccountInput: {
+            platform: components["schemas"]["Platform"];
+            account_name: string;
+        };
+        PublerAccountListInput: {
+            items: components["schemas"]["PublerAccountInput"][];
         };
         PublishRouteState: {
             /** @enum {string} */
@@ -1743,6 +1779,10 @@ export type PubloraAccountList = components['schemas']['PubloraAccountList'];
 export type PubloraDismissedInput = components['schemas']['PubloraDismissedInput'];
 export type PubloraAccountInput = components['schemas']['PubloraAccountInput'];
 export type PubloraAccountListInput = components['schemas']['PubloraAccountListInput'];
+export type PublerAccount = components['schemas']['PublerAccount'];
+export type PublerAccountList = components['schemas']['PublerAccountList'];
+export type PublerAccountInput = components['schemas']['PublerAccountInput'];
+export type PublerAccountListInput = components['schemas']['PublerAccountListInput'];
 export type PublishRouteState = components['schemas']['PublishRouteState'];
 export type AiSettings = components['schemas']['AiSettings'];
 export type AiSettingsInput = components['schemas']['AiSettingsInput'];
@@ -2361,6 +2401,62 @@ export interface operations {
                     "application/json": components["schemas"]["PubloraAccountList"];
                 };
             };
+            404: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    getBrandPublerAccounts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                brand_id: components["parameters"]["BrandId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cuentas indicadas */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublerAccountList"];
+                };
+            };
+            404: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    saveBrandPublerAccounts: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path: {
+                brand_id: components["parameters"]["BrandId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PublerAccountListInput"];
+            };
+        };
+        responses: {
+            /** @description Cuentas guardadas */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublerAccountList"];
+                };
+            };
+            400: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
             default: components["responses"]["Problem"];
         };

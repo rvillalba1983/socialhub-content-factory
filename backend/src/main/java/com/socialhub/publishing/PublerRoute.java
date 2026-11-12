@@ -2,7 +2,9 @@ package com.socialhub.publishing;
 
 import com.socialhub.ai.AiOrders;
 import com.socialhub.ai.AiRequestType;
+import com.socialhub.promotion.PromotionQueries;
 import com.socialhub.publishing.domain.Publication;
+import com.socialhub.publishing.domain.PublerAccountRepository;
 import com.socialhub.publishing.domain.PublishJob;
 import java.time.Duration;
 import java.time.Instant;
@@ -26,8 +28,19 @@ class PublerRoute implements PublishRoute {
     static final Duration GIVE_UP = Duration.ofHours(7);
 
     private final AiOrders orders;
+    private final PublerAccountRepository accounts;
+    private final PublerCapacity capacity;
+    private final PromotionQueries promotions;
+    private final java.time.Clock clock;
 
-    PublerRoute(@Lazy AiOrders orders) { this.orders = orders; }
+    PublerRoute(@Lazy AiOrders orders, PublerAccountRepository accounts, PublerCapacity capacity,
+                PromotionQueries promotions, java.time.Clock clock) {
+        this.orders = orders;
+        this.accounts = accounts;
+        this.capacity = capacity;
+        this.promotions = promotions;
+        this.clock = clock;
+    }
 
     @Override public Id id() { return Id.PUBLER; }
 
@@ -42,10 +55,31 @@ class PublerRoute implements PublishRoute {
         if (!now.isBefore(deadline(p.scheduledAt()))) {
             return new Outcome.Failed("quedan menos de " + DEADLINE.toHours() + " h: no da tiempo a que Claude la programe con Chrome");
         }
+        // Sin la cuenta de Publer de la marca en esa red no se crea el encargo: Claude no sabría dónde programarla
+        String brandId = promotions.brandOf(p.getPromotionId());
+        String account = accounts.account(brandId, p.getPlatform()).orElse(null);
+        if (account == null) {
+            return new Outcome.Held(missingAccount(brandName(brandId), p.getPlatform()));
+        }
+        // Plan gratuito de Publer: tope de publicaciones programadas a la vez por cuenta
+        if (capacity.full(account, p.getPlatform(), p.getId(), clock.instant())) {
+            return new Outcome.Held("La cuenta «" + account + "» de Publer ya tiene " + capacity.limit()
+                    + " publicaciones programadas (límite del plan gratuito). Queda en espera hasta que salga alguna");
+        }
         String task = orders.submitInternal(p.getPromotionId(), AiRequestType.PUBLER_SCHEDULE,
                 "Programar en Publer: " + p.getTitle(),
                 "Programa en Publer la publicación «" + p.getTitle() + "» con su texto, hashtags y archivos, a la hora indicada.",
                 List.of(p.getId()));
         return new Outcome.Pending(task);
+    }
+
+    /** Motivo de la retención cuando la marca no tiene cuenta de Publer en esa red. */
+    static String missingAccount(String brandName, com.socialhub.publishing.domain.Platform platform) {
+        return "Falta la cuenta de Publer de " + brandName + " para " + (platform == com.socialhub.publishing.domain.Platform.INSTAGRAM ? "Instagram" : "TikTok");
+    }
+
+    private String brandName(String brandId) {
+        return promotions.brandRefs().stream().filter(b -> b.id().equals(brandId)).map(PromotionQueries.BrandRef::name)
+                .findFirst().orElse(brandId);
     }
 }

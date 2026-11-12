@@ -9,7 +9,7 @@ export type {
   PublicationInput, PublicationFile, PublicationFileList, AiRequestType, AiSettings, AiSettingsInput, AiRequest,
   AiRequestPage, AiOrderInput, AiOrder, BrandIdentity, QualityIssue, QualityReport,
   RejectionReason, EditorialDecision, EditorialMemory, PublishJob, PublishRouteState,
-  PublicationMetrics, ExternalCalendar, ExternalPost, ExternalSource, PubloraStatus, PubloraConnection, PubloraAccount, PubloraAccountList, PubloraAccountInput,
+  PublicationMetrics, ExternalCalendar, ExternalPost, ExternalSource, PubloraStatus, PubloraConnection, PubloraAccount, PubloraAccountList, PubloraAccountInput, PublerAccountList, PublerAccountInput,
   Backup, BackupList, BackupFolderInput, Restoration, RestorationInput,
 } from './schema';
 

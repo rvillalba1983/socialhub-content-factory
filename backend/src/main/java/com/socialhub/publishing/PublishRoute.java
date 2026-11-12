@@ -31,6 +31,11 @@ public interface PublishRoute {
         /** Ya está publicada (solo al comprobar). */
         record Published(@Nullable String externalId, @Nullable String url) implements Outcome {}
         record Failed(String reason) implements Outcome {}
+        /**
+         * La vía no puede programarla todavía y no hay que seguir con otra (falta un dato de la marca o el plan de la vía
+         * está al límite): la publicación queda retenida con este motivo y se vuelve a probar sola.
+         */
+        record Held(String reason) implements Outcome {}
         /** Al comprobar: aún no se sabe (la vía sigue publicando). Se vuelve a mirar más tarde. */
         record NotYet(String reason) implements Outcome {}
     }

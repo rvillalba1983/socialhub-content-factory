@@ -41,6 +41,8 @@ tags:
     description: Seguimiento de las operaciones con sistemas externos
   - name: Publora
     description: Vía de publicación por la API de Publora (con la clave de Raúl)
+  - name: Publer
+    description: Cuenta de Publer que usa cada marca en cada red (Publer programa con Claude y Chrome, sin API)
   - name: Backups
     description: Copias de seguridad de la base de datos real, en la carpeta de copias (ajuste general)
   - name: App
@@ -430,6 +432,46 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/PubloraAccountList" }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/brands/{brand_id}/publer-accounts:
+    get:
+      tags: [Publer]
+      operationId: getBrandPublerAccounts
+      summary: Qué cuenta de Publer usa la marca en cada red
+      parameters:
+        - $ref: "#/components/parameters/BrandId"
+      responses:
+        "200":
+          description: Cuentas indicadas
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublerAccountList" }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+    put:
+      tags: [Publer]
+      operationId: saveBrandPublerAccounts
+      summary: Indica la cuenta de Publer de la marca en cada red
+      description: >
+        Es el nombre de la cuenta tal como sale en Publer. Dos marcas pueden indicar la misma (por ejemplo, la de TikTok,
+        que usan las dos). Una lista vacía las quita; una red con el nombre vacío se quita.
+      parameters:
+        - $ref: "#/components/parameters/BrandId"
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PublerAccountListInput" }
+      responses:
+        "200":
+          description: Cuentas guardadas
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublerAccountList" }
+        "400": { $ref: "#/components/responses/Problem" }
         "404": { $ref: "#/components/responses/Problem" }
         default: { $ref: "#/components/responses/Problem" }
 
@@ -1336,11 +1378,13 @@ components:
             - SPEC_WAITING
             - PC_TASK_SILENT
             - NO_PUBLISHING_ROUTE
+            - PUBLER_ACCOUNT_MISSING
             - PROMOTION_AUTO_STARTED
           description: >
             Por orden de prioridad: marca sin forma de publicar (NO_PUBLISHING_ROUTE) y tarea del PC «Publicar con
             Chrome» sin contestar (PC_TASK_SILENT), que van primero porque bloquean publicaciones reales (también salen
-            como aviso en «Necesita atención»); propuestas retenidas (por la carpeta de Encargos, Drive cerrado o el límite
+            como aviso en «Necesita atención»); marca sin cuenta de Publer para una red con publicaciones retenidas
+            (PUBLER_ACCOUNT_MISSING, con botón a la tarjeta «Cuenta en Publer»); propuestas retenidas (por la carpeta de Encargos, Drive cerrado o el límite
             diario), propuestas por revisar, marca sin todas sus carpetas, encargos
             sin recoger, marca sin cuenta de Publora, sin carpeta de copias, marca sin promoción activa, propuestas
             pedidas en camino, especificación semanal esperando publicaciones aprobadas y, la última, promoción activada
@@ -1367,10 +1411,10 @@ components:
       properties:
         screen:
           type: string
-          enum: [BRAND_FOLDERS, PROPOSALS, PUBLORA, BACKUPS, NEW_PROMOTION, CLAUDE]
+          enum: [BRAND_FOLDERS, PROPOSALS, PUBLORA, PUBLER, BACKUPS, NEW_PROMOTION, CLAUDE]
           description: >
             BRAND_FOLDERS: Marcas → Carpetas de Drive de la marca (brand_id). PROPOSALS: publicaciones en estado
-            Propuesta de la promoción (promotion_id). PUBLORA: tarjeta de Publora de la marca (brand_id). BACKUPS:
+            Propuesta de la promoción (promotion_id). PUBLORA: tarjeta de Publora de la marca (brand_id). PUBLER: tarjeta «Cuenta en Publer» de la marca (brand_id). BACKUPS:
             ajuste de la carpeta de copias. NEW_PROMOTION: alta de promoción de la marca (brand_id); con promotion_id, abre esa promoción (planificada o en
             pausa) para activarla. CLAUDE: pantalla «Claude», donde se cambia el límite diario de encargos (sin brand_id)
         brand_id: { type: string }
@@ -1459,7 +1503,7 @@ components:
         publication_id: { type: string }
         status:
           type: string
-          enum: [WORKING, RETRY_WAIT, SCHEDULED, CHECKING, MANUAL, PUBLISHED, FAILED, CANCELLED]
+          enum: [WORKING, HELD, RETRY_WAIT, SCHEDULED, CHECKING, MANUAL, PUBLISHED, FAILED, CANCELLED]
         status_label: { type: string }
         route: { type: string, description: Vía en uso o con la que quedó programada }
         routes:
@@ -1625,6 +1669,32 @@ components:
       required: [items]
       properties:
         items: { type: array, maxItems: 2, items: { $ref: "#/components/schemas/PubloraAccountInput" } }
+
+    PublerAccount:
+      type: object
+      required: [platform, account_name]
+      properties:
+        platform: { $ref: "#/components/schemas/Platform" }
+        account_name: { type: string, description: "Nombre de la cuenta en Publer («Litoques», «Lito · Litoques · El DeLito»)" }
+
+    PublerAccountList:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/PublerAccount" } }
+
+    PublerAccountInput:
+      type: object
+      required: [platform, account_name]
+      properties:
+        platform: { $ref: "#/components/schemas/Platform" }
+        account_name: { type: string, minLength: 1, maxLength: 120 }
+
+    PublerAccountListInput:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, maxItems: 2, items: { $ref: "#/components/schemas/PublerAccountInput" } }
 
     PublishRouteState:
       type: object

@@ -1,5 +1,5 @@
 import type {
-  Backup, BackupList, Restoration, AiOrder, AiOrderInput, BrandIdentity, ExternalCalendar, PublicationMetrics, PublishJob, PubloraStatus, PubloraAccountList, PubloraAccountInput, QualityReport, RejectionReason, EditorialDecision, EditorialMemory, AiRequestPage, AiSettings, AiSettingsInput, AppMode, AppModeState, Brand, FolderInput, FolderList, Publication, PublicationFile, PublicationFileList, PublicationInput, PublicationStatus, PieceOrder, PieceSpecList, BrandInput, ExternalOperationPage, Promotion, PromotionInput, OperationOutcome, Snapshot, Station, StationCommandType, Task, TaskCommand,
+  Backup, BackupList, Restoration, AiOrder, AiOrderInput, BrandIdentity, ExternalCalendar, PublicationMetrics, PublishJob, PubloraStatus, PubloraAccountList, PubloraAccountInput, PublerAccountList, PublerAccountInput, QualityReport, RejectionReason, EditorialDecision, EditorialMemory, AiRequestPage, AiSettings, AiSettingsInput, AppMode, AppModeState, Brand, FolderInput, FolderList, Publication, PublicationFile, PublicationFileList, PublicationInput, PublicationStatus, PieceOrder, PieceSpecList, BrandInput, ExternalOperationPage, Promotion, PromotionInput, OperationOutcome, Snapshot, Station, StationCommandType, Task, TaskCommand,
 } from './model';
 
 export class ApiError extends Error {
@@ -77,6 +77,9 @@ export const api = {
     putJson<PubloraAccountList>(`/api/brands/${encodeURIComponent(id)}/publora-dismissed`, { dismissed }),
   saveBrandPubloraAccounts: (id: string, items: PubloraAccountInput[]) =>
     putJson<PubloraAccountList>(`/api/brands/${encodeURIComponent(id)}/publora-accounts`, { items }),
+  brandPublerAccounts: (id: string) => call<PublerAccountList>(`/api/brands/${encodeURIComponent(id)}/publer-accounts`),
+  saveBrandPublerAccounts: (id: string, items: PublerAccountInput[]) =>
+    putJson<PublerAccountList>(`/api/brands/${encodeURIComponent(id)}/publer-accounts`, { items }),
   publicationMetrics: (id: string) => call<PublicationMetrics>(`/api/publications/${encodeURIComponent(id)}/metrics`),
   publishJob: (id: string) => call<PublishJob>(`/api/publications/${encodeURIComponent(id)}/publish-job`),
   clearPublicationFlag: (id: string) =>
