@@ -100,8 +100,8 @@ class FactoryRecommendations {
         var brandNames = brands.stream().collect(Collectors.toMap(PromotionQueries.BrandRef::id, PromotionQueries.BrandRef::name, (a, b) -> a));
         for (var m : publer.missing()) {
             String name = brandNames.getOrDefault(m.brandId(), m.brandId());
-            String network = m.platform().name().equals("INSTAGRAM") ? "Instagram" : "TikTok";
-            all.add(recommendation("publer-account:" + m.brandId() + ":" + m.platform().name(),
+            String network = m.networkLabel();
+            all.add(recommendation("publer-account:" + m.brandId() + ":" + m.platform(),
                     RecommendationDto.KindEnum.PUBLER_ACCOUNT_MISSING,
                     "Indica la cuenta de Publer de " + name + " para " + network,
                     m.held() + (m.held() == 1 ? " publicación retenida" : " publicaciones retenidas")

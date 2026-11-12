@@ -17,6 +17,7 @@ import com.socialhub.backup.BackupService;
 import com.socialhub.promotion.PromotionQueries;
 import com.socialhub.promotion.PromotionQueries.BrandRef;
 import com.socialhub.promotion.PromotionQueries.PromotionRef;
+import com.socialhub.publishing.PublerAccountService;
 import com.socialhub.publishing.PublishingQueries;
 import com.socialhub.publishing.PubloraService;
 import java.time.Clock;
@@ -35,6 +36,7 @@ class FactoryRecommendationsTest {
     private final PromotionQueries promotions = mock(PromotionQueries.class);
     private final PublishingQueries publishing = mock(PublishingQueries.class);
     private final PubloraService publora = mock(PubloraService.class);
+    private final PublerAccountService publer = mock(PublerAccountService.class);
     private final com.socialhub.ai.AiAutoStarted autoStarted = mock(com.socialhub.ai.AiAutoStarted.class);
     private final BackupService backups = mock(BackupService.class);
 
@@ -50,7 +52,7 @@ class FactoryRecommendationsTest {
     }
 
     private FactoryRecommendations subject() {
-        return new FactoryRecommendations(held, sent, promotions, publishing, publora, backups, autoStarted,
+        return new FactoryRecommendations(held, sent, promotions, publishing, publora, publer, backups, autoStarted,
                 Clock.fixed(now, ClaudePickups.ZONE));
     }
 
@@ -97,6 +99,25 @@ class FactoryRecommendationsTest {
         now = madrid(11, 9, 11, 0);
         when(autoStarted.on(any())).thenReturn(java.util.Set.of());
         assertThat(kinds()).containsExactly(KindEnum.BACKUP_FOLDER_MISSING);
+    }
+
+    @Test
+    void heldPublicationsWithoutPublerAccountGiveOneRowPerBrandAndNetworkWithAButtonToTheCard() {
+        when(publer.missing()).thenReturn(List.of(new PublerAccountService.Missing("litoques", "TIKTOK", "TikTok", 2),
+                new PublerAccountService.Missing("litoques", "INSTAGRAM", "Instagram", 1)));
+        var rows = subject().compute();
+        assertThat(rows).hasSize(2);
+        var tiktok = rows.getFirst();
+        assertThat(tiktok.getKind()).isEqualTo(KindEnum.PUBLER_ACCOUNT_MISSING);
+        assertThat(tiktok.getTitle()).isEqualTo("Indica la cuenta de Publer de Litoques para TikTok");
+        assertThat(tiktok.getDetail()).startsWith("2 publicaciones retenidas");
+        assertThat(tiktok.getTarget().getScreen()).isEqualTo(ScreenEnum.PUBLER);
+        assertThat(tiktok.getTarget().getBrandId()).isEqualTo("litoques");
+        assertThat(rows.get(1).getTitle()).isEqualTo("Indica la cuenta de Publer de Litoques para Instagram");
+        assertThat(rows.get(1).getDetail()).startsWith("1 publicación retenida");
+        // Al indicar la cuenta ya no hay publicaciones retenidas por eso y la fila desaparece
+        when(publer.missing()).thenReturn(List.of());
+        assertThat(subject().compute()).isEmpty();
     }
 
     @Test

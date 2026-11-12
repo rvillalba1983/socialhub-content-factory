@@ -30,7 +30,7 @@ public class PublerAccountService {
     static final int MAX_NAME = 120;
 
     /** Publicaciones retenidas porque la marca no tiene cuenta de Publer en esa red. */
-    public record Missing(String brandId, Platform platform, int held) {}
+    public record Missing(String brandId, String platform, String networkLabel, int held) {}
 
     private final PublerAccountRepository accounts;
     private final PublishJobRepository jobs;
@@ -66,7 +66,8 @@ public class PublerAccountService {
         }
         return counts.entrySet().stream().map(e -> {
             String[] key = e.getKey().split("\\|");
-            return new Missing(key[0], Platform.valueOf(key[1]), e.getValue());
+            Platform platform = Platform.valueOf(key[1]);
+            return new Missing(key[0], platform.name(), PubloraRoute.label(platform), e.getValue());
         }).toList();
     }
 
