@@ -54,8 +54,10 @@ export function useScrollToCard(card?: string) {
 const USER_SCROLL = ['wheel', 'touchstart', 'keydown', 'pointerdown'] as const;
 
 /** Alta y edición de marcas y promociones. */
-export function Registration({ data, initial, onClose, onSaved }: {
+export function Registration({ data, initial, onClose, onSaved, onBrandOpen }: {
   data: Snapshot; initial: Editing; onClose: () => void;
+  /** Marca cuya ficha está abierta (o null): «Qué hacer ahora» no repite lo que ya avisa la ficha. */
+  onBrandOpen?: (brandId: string | null) => void;
   /** `saved` indica qué se ha guardado, para añadir el paso siguiente según el siguiente estado de la fábrica. */
   onSaved: (message: string, saved?: SavedRef) => void;
 }) {
@@ -66,6 +68,11 @@ export function Registration({ data, initial, onClose, onSaved }: {
   const brands = new Map(data.brands.map(b => [b.id, b]));
   const focus = initial?.kind === 'brand' ? initial.focus : undefined;
   useScrollToCard(focus);
+  const openBrand = editing?.kind === 'brand' ? editing.id : null;
+  useEffect(() => {
+    onBrandOpen?.(openBrand);
+    return () => onBrandOpen?.(null);
+  }, [openBrand]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <section className="cc" aria-label="Marcas y promociones">

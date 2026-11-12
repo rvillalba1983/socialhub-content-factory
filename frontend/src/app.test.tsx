@@ -1076,6 +1076,16 @@ describe('Qué hacer ahora', () => {
     }
   });
 
+  it('avisa de qué marca tiene la ficha abierta y lo retira al cerrarla', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() => new Promise<Response>(() => {}));
+    const onBrandOpen = vi.fn();
+    const { unmount } = render(<Registration data={snapshot} initial={{ kind: 'brand', id: 'b' }} onClose={() => {}} onSaved={() => {}} onBrandOpen={onBrandOpen} />);
+    await screen.findByRole('form', { name: 'Editar marca' });
+    expect(onBrandOpen).toHaveBeenLastCalledWith('b');
+    unmount();
+    expect(onBrandOpen).toHaveBeenLastCalledWith(null);
+  });
+
   it('mientras la ficha crece al cargar, vuelve a colocar la tarjeta; deja de hacerlo si la persona se desplaza', async () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation(() => new Promise<Response>(() => {}));
     const scroll = vi.fn();

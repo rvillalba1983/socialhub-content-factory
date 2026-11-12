@@ -8,6 +8,7 @@
 .file-pick{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .diff-table{width:100%;border-collapse:collapse;font:inherit;font-size:14px}
 .diff-table th,.diff-table td{text-align:left;vertical-align:top;padding:6px 10px;border-bottom:1px solid var(--line);overflow-wrap:anywhere}
-.diff-table thead th{font-weight:600;color:var(--muted,inherit)}
-.diff-table tbody th{font-weight:600;width:22%}
+.diff-table thead th{font-weight:600;background:var(--soft,#f1f3f7)}
+.diff-table th,.diff-table td{background:none;text-transform:none;letter-spacing:normal;font-size:14px}
+.diff-table tbody th{font-weight:600;width:22%;color:inherit}
 .diff-table td{width:39%}
