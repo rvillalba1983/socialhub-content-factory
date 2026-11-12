@@ -474,3 +474,4 @@ tr.op-detail td{background:var(--surface-2)}
 .vp[data-lod="1"] .attn-list{gap:8px}
 /* Tarjeta «Cuenta en Publer»: separa los campos */
 [data-card="publer"] .field{margin-bottom:12px}
+.attn-row .attn-action{display:block;margin:4px 0 0 18px}

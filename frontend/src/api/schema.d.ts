@@ -403,6 +403,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/publer-accounts/move-to-publora": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pasa a Publora las publicaciones retenidas por el límite de una cuenta de Publer
+         * @description Solo pasan las retenidas de esa cuenta y red (de todas las marcas que la comparten) cuya marca tiene Publora configurada para esa red. Cada una sigue el flujo normal de Publora (su margen de 6 h; si ya no llega, lo de siempre). 400 si ninguna tiene Publora.
+         */
+        post: operations["moveHeldToPublora"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/brands/{brand_id}/identity": {
         parameters: {
             query?: never;
@@ -1049,6 +1069,19 @@ export interface components {
             station_id: string;
             title: string;
             detail: string;
+            action?: components["schemas"]["AlertAction"];
+        };
+        /** @description Botón del aviso, si lo tiene */
+        AlertAction: {
+            /**
+             * @description PUBLER_TO_PUBLORA: pasa ya a Publora las publicaciones retenidas por el límite de esa cuenta de Publer (POST /api/publer-accounts/move-to-publora con account_name y platform)
+             * @enum {string}
+             */
+            type: "PUBLER_TO_PUBLORA";
+            /** @description Texto del botón */
+            label: string;
+            account_name: string;
+            platform: components["schemas"]["Platform"];
         };
         /**
          * @description Papel de una carpeta de Drive
@@ -1304,6 +1337,14 @@ export interface components {
         };
         PublerAccountListInput: {
             items: components["schemas"]["PublerAccountInput"][];
+        };
+        PublerMoveInput: {
+            account_name: string;
+            platform: components["schemas"]["Platform"];
+        };
+        PublerMoveResult: {
+            /** Format: int32 */
+            moved: number;
         };
         PublishRouteState: {
             /** @enum {string} */
@@ -1873,6 +1914,7 @@ export type Factory = components['schemas']['Factory'];
 export type Recommendation = components['schemas']['Recommendation'];
 export type RecommendationTarget = components['schemas']['RecommendationTarget'];
 export type Alert = components['schemas']['Alert'];
+export type AlertAction = components['schemas']['AlertAction'];
 export type FolderRole = components['schemas']['FolderRole'];
 export type FolderCreationInput = components['schemas']['FolderCreationInput'];
 export type Folder = components['schemas']['Folder'];
@@ -1910,6 +1952,8 @@ export type PublerAccount = components['schemas']['PublerAccount'];
 export type PublerAccountList = components['schemas']['PublerAccountList'];
 export type PublerAccountInput = components['schemas']['PublerAccountInput'];
 export type PublerAccountListInput = components['schemas']['PublerAccountListInput'];
+export type PublerMoveInput = components['schemas']['PublerMoveInput'];
+export type PublerMoveResult = components['schemas']['PublerMoveResult'];
 export type PublishRouteState = components['schemas']['PublishRouteState'];
 export type AiSettings = components['schemas']['AiSettings'];
 export type AiSettingsInput = components['schemas']['AiSettingsInput'];
@@ -2737,6 +2781,35 @@ export interface operations {
             };
             400: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    moveHeldToPublora: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PublerMoveInput"];
+            };
+        };
+        responses: {
+            /** @description Cuántas han pasado */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublerMoveResult"];
+                };
+            };
+            400: components["responses"]["Problem"];
             default: components["responses"]["Problem"];
         };
     };

@@ -275,6 +275,16 @@ export function Factory({ data, live, onRefresh }: {
       say(e instanceof Error ? e.message : 'No se pudo guardar.');
     }
   }, [onRefresh, say]);
+  /** «Pasar a Publora» en una cuenta de Publer llena: manda ya las retenidas y refresca. */
+  const alertAction = useCallback(async (action: NonNullable<Snapshot['alerts'][number]['action']>) => {
+    try {
+      const r = await api.moveHeldToPublora({ account_name: action.account_name, platform: action.platform });
+      say(r.moved === 1 ? '1 publicación pasada a Publora' : `${r.moved} publicaciones pasadas a Publora`);
+      onRefresh();
+    } catch (e) {
+      say(e instanceof Error ? e.message : 'No se pudo pasar a Publora.');
+    }
+  }, [onRefresh, say]);
   const runTask = useCallback(async (t: Task, type: TaskCommandType, model?: AiModel) => {
     try {
       await api.taskCommand(t.id, { type, model });
@@ -416,6 +426,7 @@ export function Factory({ data, live, onRefresh }: {
             onTaskAction={(t, a) => (t.available_commands.find(x => x.type === a)?.needs_confirmation ? goTask(t.id) : runTask(t, a))}
             onArmory={id => { setCc(null); setSel({ type: 'armory', id }); }}
             onPublication={goPublication}
+            onAlertAction={alertAction}
             onPromotion={id => { setSel({ type: null, id: null }); setCc({ promo: id, tab: 'resumen', hl: null }); }}
             onRegister={() => setReg(null)} />
         </div>

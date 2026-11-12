@@ -46,6 +46,8 @@ export interface WorldProps {
   onArmory: (id: string) => void;
   /** Abre una publicación en el centro de control de su promoción (avisos de publicación). */
   onPublication?: (id: string) => void;
+  /** Botón del aviso (por ejemplo, «Pasar a Publora» en una cuenta de Publer llena). */
+  onAlertAction?: (action: NonNullable<Alert['action']>) => void;
   onPromotion: (id: string) => void;
   onRegister: () => void;
 }
@@ -56,7 +58,7 @@ export function stationVisual(s: Station) {
   return { alert, running: s.counts.running > 0 && !s.paused } as const;
 }
 
-export function World({ data, sel, onStation, onTask, onTaskAction, onArmory, onPublication, onPromotion, onRegister }: WorldProps) {
+export function World({ data, sel, onStation, onTask, onTaskAction, onArmory, onPublication, onAlertAction, onPromotion, onRegister }: WorldProps) {
   const brands = new Map(data.brands.map(b => [b.id, b]));
   const brandOfPromotion = (pid?: string | null) => {
     const p = data.promotions.find(x => x.id === pid);
@@ -87,7 +89,7 @@ export function World({ data, sel, onStation, onTask, onTaskAction, onArmory, on
             <button className="open-cc" onClick={e => { e.stopPropagation(); onRegister(); }}>Marcas y promociones →</button>
           </article>
         )}
-        <AttentionCard data={data} onStation={onStation} onTask={onTask} onArmory={onArmory} onPublication={onPublication} />
+        <AttentionCard data={data} onStation={onStation} onTask={onTask} onArmory={onArmory} onPublication={onPublication} onAlertAction={onAlertAction} />
       </div>
       <section className="res" style={{ left: TR.x1 + 140, top: TR.y0 - 300, width: 380 }} aria-label="Agentes y herramientas">
         <h2>Agentes y herramientas</h2>
@@ -237,9 +239,9 @@ export function openAlert(a: Alert, go: {
   else go.onStation(a.target_id);
 }
 
-export function AttentionCard({ data, onStation, onTask, onArmory, onPublication }: {
+export function AttentionCard({ data, onStation, onTask, onArmory, onPublication, onAlertAction }: {
   data: Snapshot; onStation: (id: string) => void; onTask: (id: string) => void; onArmory?: (id: string) => void;
-  onPublication?: (id: string) => void;
+  onPublication?: (id: string) => void; onAlertAction?: (action: NonNullable<Alert['action']>) => void;
 }) {
   // Lista entera desplegada y aviso con el texto completo: viven en la tarjeta, que no se desmonta al recargar datos
   const [listOpen, setListOpen] = useState(false);
@@ -268,6 +270,9 @@ export function AttentionCard({ data, onStation, onTask, onArmory, onPublication
                 }}>
                 <Dot s={a.kind} /><span><b>{a.title}</b>{a.detail}</span>
               </button>
+              {a.action && onAlertAction && (
+                <button type="button" className="btn attn-action" onClick={() => onAlertAction(a.action!)}>{a.action.label}</button>
+              )}
             </div>
           );
         })}

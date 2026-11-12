@@ -83,6 +83,31 @@ describe('World', () => {
     expect(error.mock.calls.filter(c => String(c[0]).includes('same key'))).toHaveLength(0);
   });
 
+  describe('cuenta de Publer llena', () => {
+    const full = (action: boolean) => ({ kind: 'BLOCKED', target_type: 'STATION', target_id: 'pub', station_id: 'pub',
+      title: 'La cuenta «Lito» de Publer está llena: 3 publicaciones en espera',
+      detail: action ? '2 pueden pasar ya a Publora' : 'Publora no está configurada para Litoques/TikTok',
+      ...(action ? { action: { type: 'PUBLER_TO_PUBLORA', label: 'Pasar a Publora', account_name: 'Lito', platform: 'TIKTOK' } } : {}) }) as unknown as Snapshot['alerts'][number];
+    const draw = (a: Snapshot['alerts'][number], onAlertAction = vi.fn()) => {
+      render(<World data={{ ...snapshot, alerts: [a] }} sel={{ type: null, id: null }} onStation={() => {}} onTask={() => {}}
+        onTaskAction={() => {}} onArmory={() => {}} onAlertAction={onAlertAction} onPromotion={() => {}} onRegister={() => {}} />);
+      return onAlertAction;
+    };
+
+    it('muestra la fila con el botón «Pasar a Publora» y lo pulsa con la cuenta y la red', () => {
+      const onAction = draw(full(true));
+      expect(screen.getByText('La cuenta «Lito» de Publer está llena: 3 publicaciones en espera')).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Pasar a Publora' }));
+      expect(onAction).toHaveBeenCalledWith({ type: 'PUBLER_TO_PUBLORA', label: 'Pasar a Publora', account_name: 'Lito', platform: 'TIKTOK' });
+    });
+
+    it('sin Publora para ninguna, la fila lo dice y no hay botón', () => {
+      draw(full(false));
+      expect(screen.getByText(/Publora no está configurada para Litoques\/TikTok/)).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Pasar a Publora' })).toBeNull();
+    });
+  });
+
   describe('tarjeta «Necesita atención» con muchos avisos', () => {
     const many = (n: number) => Array.from({ length: n }, (_, i) => ({ kind: 'BLOCKED', target_type: 'ARMORY', target_id: `a${i}`, station_id: 'pub',
       title: `Aviso número ${i} con un título bastante largo`, detail: `Detalle ${i}` }) as unknown as Snapshot['alerts'][number]);
