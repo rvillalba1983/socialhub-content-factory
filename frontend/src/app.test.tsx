@@ -470,6 +470,9 @@ describe('Cuenta en Publer', () => {
     fireEvent.change(await screen.findByLabelText('Cuenta de Publer para Instagram'), { target: { value: '  ' } });
     fireEvent.click(screen.getByRole('button', { name: 'Guardar cuentas' }));
     await waitFor(() => expect(save).toHaveBeenCalledWith('litoques', []));
+  });
+});
+
 describe('Instagram · API oficial', () => {
   it('guarda la clave sin mostrarla, la comprueba y enseña el límite de cada marca', async () => {
     vi.spyOn(api, 'instagram').mockResolvedValueOnce({ configured: false })
