@@ -1,6 +1,6 @@
 # SocialHub · Manual funcional
 
-Cómo funciona SocialHub hoy (8 nov 2026, fases 0 a 9; falta el instalador de macOS), sin detalles técnicos. Las capturas salen del vídeo demo del 3 nov 2026 y usan los datos de ejemplo del modo Demo.
+Cómo funciona SocialHub hoy (8 nov 2026, fases 0 a 9; falta el instalador de macOS), sin detalles técnicos. ¿Empiezas de cero? Mira el [tutorial](docs/TUTORIAL.md). Las capturas salen del vídeo demo del 3 nov 2026 y usan los datos de ejemplo del modo Demo.
 
 **Índice**
 
