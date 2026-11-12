@@ -416,7 +416,7 @@ class InstagramRouteTest {
     void anInvalidKeyFallsBackAtScheduleTimeAndAtPublishTime() throws Exception {
         // Al programarla: Meta no acepta la clave → se sigue por otra vía desde el primer momento
         Instant at = at(13);
-        CLOCK.set(at.minus(Duration.ofHours(12)));
+        CLOCK.set(at.minus(Duration.ofHours(24)));
         acceptKey = false;
         String id = publication("Reel", 13, "Reel con clave mala", List.of(reel));
         schedule(id);
@@ -531,7 +531,7 @@ class InstagramRouteTest {
     void linksThatArriveLetTheOfficialApiPublishAndThePublicFolderIsCleaned() throws Exception {
         Files.createDirectories(publicFolder);
         Instant at = at(17);
-        CLOCK.set(at.minus(Duration.ofHours(12)));
+        CLOCK.set(at.minus(Duration.ofHours(24)));
         String id = publication("Post", 17, "Foto con enlaces", List.of(photo));
         schedule(id);
 
@@ -564,14 +564,14 @@ class InstagramRouteTest {
     @Order(11)
     void linksThatDoNotArriveInTimeGoToPublerBeforeItsLimit() throws Exception {
         Instant at = at(18);
-        CLOCK.set(at.minus(Duration.ofHours(12)));
+        CLOCK.set(at.minus(Duration.ofHours(24)));
         String id = publication("Post", 18, "Foto sin enlaces", List.of(photo));
         schedule(id);
         assertThat(job(id).get("status").asString()).isEqualTo("WORKING");
         assertThat(list(publicFolder)).hasSize(1);
 
         // Pasa el corte (9 h antes): Publer aún llega (necesita 8 h)
-        CLOCK.set(at.minus(Duration.ofHours(9)).plusSeconds(60));
+        CLOCK.set(PublerRoute.handoverBy(at).plusSeconds(60));
         engine.tick();
         JsonNode job = job(id);
         assertThat(job.get("route").asString()).isEqualTo("Publer");
@@ -585,7 +585,7 @@ class InstagramRouteTest {
     @Order(12)
     void aLinkThatIsNotAnImageGoesToPubler() throws Exception {
         Instant at = at(19);
-        CLOCK.set(at.minus(Duration.ofHours(12)));
+        CLOCK.set(at.minus(Duration.ofHours(24)));
         String id = publication("Post", 19, "Foto con enlace malo", List.of(photo));
         schedule(id);
         Path staged = list(publicFolder).getFirst();
@@ -601,7 +601,7 @@ class InstagramRouteTest {
     @Order(13)
     void aLinkThatStopsBeingAnImageAtPublishTimeFailsWithoutPublishing() throws Exception {
         Instant at = at(20);
-        CLOCK.set(at.minus(Duration.ofHours(12)));
+        CLOCK.set(at.minus(Duration.ofHours(24)));
         String id = publication("Post", 20, "Foto que se rompe", List.of(photo));
         schedule(id);
         Path staged = list(publicFolder).getFirst();
@@ -622,7 +622,7 @@ class InstagramRouteTest {
     @Order(14)
     void leavingScheduledCleansThePublicFolder() throws Exception {
         Instant at = at(21);
-        CLOCK.set(at.minus(Duration.ofHours(12)));
+        CLOCK.set(at.minus(Duration.ofHours(24)));
         String id = publication("Post", 21, "Foto que se descarta", List.of(photo));
         schedule(id);
         assertThat(list(publicFolder)).hasSize(1);
@@ -800,7 +800,7 @@ class InstagramRouteTest {
         for (String status : List.of("needs_human", "failed")) {
             int hour = status.equals("failed") ? 21 : 20;
             Instant at = at(DAY2, hour);
-            CLOCK.set(at.minus(Duration.ofHours(14)));
+            CLOCK.set(at.minus(Duration.ofHours(24)));
             String id = publication("INSTAGRAM", DAY2, "Post", hour, "Foto con encargo " + status, List.of(photo));
             schedule(id);
             Path staged = list(publicFolder).getFirst();

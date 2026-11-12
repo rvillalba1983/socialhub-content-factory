@@ -147,6 +147,7 @@ class AiTypesTest {
     void theWeeklySpecOrdersThePiecesAndAttachesThemToThePublication() throws Exception {
         String task = order("WEEKLY_SPEC", "spec por lotes", "2030-11-12-instagram");
         JsonNode request = request(task);
+        String today = java.time.LocalDate.now(java.time.ZoneId.of("Europe/Madrid")).toString();
         // Por lotes: el encargo no depende de ninguna semana y lleva solo las publicaciones indicadas, con su fecha
         assertThat(request.get("inputs").has("week")).isFalse();
         assertThat(request.get("urgent").asBoolean()).isFalse();
@@ -164,7 +165,7 @@ class AiTypesTest {
         waitFor(() -> "FAILED".equals(task(task).get("status").asString()), "spec rechazado");
         assertThat(task(task).get("error").asString()).contains("El spec no se puede encargar").contains("Fuera de las carpetas");
         assertThat(list(orders.resolve("specs-de-claude"))).extracting(p -> p.getFileName().toString())
-                .containsExactly("spec-2030-11-11.rechazado");
+                .containsExactly("spec-" + today + ".rechazado");
 
         write(put("/api/promotions/poemario/folders"), "{\"items\":[{\"role\":\"GENERATED\",\"location\":"
                 + q(Files.createDirectories(drive.resolve("DeLito/generados"))) + "}]}").andExpect(status().isOk());
@@ -174,7 +175,7 @@ class AiTypesTest {
         result(task, completed(task, "{\"spec\":" + spec + ",\"summary\":\"1 historia\"}"));
         waitFor(() -> "COMPLETED".equals(task(task).get("status").asString()), "spec aplicado");
         String resultText = task(task).get("result").asString();
-        assertThat(resultText).contains("spec-2030-11-11.json").contains("piezas encargadas");
+        assertThat(resultText).contains("spec-" + today + ".json").contains("piezas encargadas");
         String pieces = resultText.replaceAll(".*\\(tarea ([0-9a-f-]+)\\).*", "$1");
         waitFor(() -> "COMPLETED".equals(task(pieces).get("status").asString()), "piezas generadas");
         assertThat(drive.resolve("DeLito/generados/2_martes_historia.jpg")).exists();

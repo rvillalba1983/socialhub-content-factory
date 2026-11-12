@@ -116,6 +116,20 @@ class PublerRouteTest {
     }
 
     @Test
+    void ifNoPcPassFitsBeforePublersLimitNoOrderIsCreated() {
+        var p = publication("p1", "promo-litoques", Platform.TIKTOK, 0);
+        // Publicación a las 19:00: el límite de Publer es a las 11:00 y la última pasada del PC antes es la de las 10:50
+        Instant at = p.scheduledAt();
+        // Desde 10 h antes (9:00) todavía llega la de las 10:50; entre las 10:45 y el límite, no
+        Instant fits = at.minus(java.time.Duration.ofHours(10));
+        Instant late = at.minus(java.time.Duration.ofHours(8)).minus(java.time.Duration.ofMinutes(5));
+        assertThat(route().schedule(p, job(p), fits)).isInstanceOf(PublishRoute.Outcome.Pending.class);
+        var outcome = route().schedule(p, job(p), late);
+        assertThat(outcome).isInstanceOf(PublishRoute.Outcome.Failed.class);
+        assertThat(((PublishRoute.Outcome.Failed) outcome).reason()).contains("ninguna pasada de Claude con Chrome");
+    }
+
+    @Test
     void withTheAccountTheOrderIsCreated() {
         var p = publication("p1", "promo-litoques", Platform.TIKTOK, 0);
         assertThat(route().schedule(p, job(p), NOW)).isEqualTo(new PublishRoute.Outcome.Pending("task-1"));
