@@ -9,8 +9,8 @@ import { AgentChip, BrandTag, Dot, Pill, StepState, prefersReducedMotion, stepCl
 // Geometría del anillo (coordenadas del lienzo)
 export const TR = { x0: 300, x1: 2260, y0: 620, y1: 1250, r: 150 };
 const SX = [650, 1070, 1490, 1910];
-/** Alto del centro: su borde inferior queda 70 por encima de la fila de abajo (estación 07 incluida); las tarjetas se anclan abajo. */
-const HUB_H = TR.y1 - 70 - (TR.y0 + 85);
+/** Alto del centro: su borde inferior queda 15 por encima de los nodos de la fila de abajo (radio 40 sobre y1); las tarjetas se anclan abajo y crecen hacia arriba. */
+const HUB_H = TR.y1 - 55 - (TR.y0 + 85);
 export const WORLD = { w: 2780, h: 1700 };
 
 const pos = (i: number) => {
