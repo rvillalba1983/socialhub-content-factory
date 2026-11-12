@@ -38,7 +38,7 @@ export function Factory({ data, live, onRefresh }: {
   const [copias, setCopias] = useState(false);
   const [halted, setHalted] = useState<string | null>(null);
   const [closed, setClosed] = useState(false);
-  const [reg, setReg] = useState<{ kind: 'brand' | 'promotion'; id: string | null; brandId?: string; focus?: 'folders' | 'publora' } | false | null>(false);
+  const [reg, setReg] = useState<{ kind: 'brand' | 'promotion'; id: string | null; brandId?: string; focus?: 'folders' | 'publora' | 'publer' } | false | null>(false);
   const [demoAvailable, setDemoAvailable] = useState(true);
   useEffect(() => { api.appMode().then(m => { setDemoAvailable(m.demo_available); setHalted(m.halted_reason ?? null); }).catch(() => {}); }, []);
   // Abrir una promoción cierra el registro de operaciones
@@ -226,8 +226,8 @@ export function Factory({ data, live, onRefresh }: {
   const goRecommendation = useCallback((t: RecommendationTarget) => {
     setSel({ type: null, id: null }); setCc(null); setOps(false); setClaude(false); setCopias(false); setReg(false);
     if (t.screen === 'PROPOSALS' && t.promotion_id) setCc({ promo: t.promotion_id, tab: 'publicaciones', hl: null, filter: 'PROPOSAL' });
-    else if ((t.screen === 'BRAND_FOLDERS' || t.screen === 'PUBLORA') && t.brand_id) {
-      setReg({ kind: 'brand', id: t.brand_id, focus: t.screen === 'PUBLORA' ? 'publora' : 'folders' });
+    else if ((t.screen === 'BRAND_FOLDERS' || t.screen === 'PUBLORA' || t.screen === 'PUBLER') && t.brand_id) {
+      setReg({ kind: 'brand', id: t.brand_id, focus: t.screen === 'PUBLORA' ? 'publora' : t.screen === 'PUBLER' ? 'publer' : 'folders' });
     }
     // Con promotion_id (activar una planificada o en pausa) se abre esa promoción; sin él, el alta de una nueva
     else if (t.screen === 'NEW_PROMOTION' && t.brand_id) {
