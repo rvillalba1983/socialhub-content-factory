@@ -462,3 +462,8 @@ tr.op-detail td{background:var(--surface-2)}
 .attn-row.full .aitem b,.attn-row.full .aitem>span:not(.dot){display:block;overflow:visible;-webkit-line-clamp:unset}
 .vp[data-lod="1"] .attn-more{font-size:18px;padding:8px 16px}
 .vp[data-lod="1"] .attn-row .aitem-toggle{width:40px;height:40px;font-size:18px}
+
+/* «Qué hacer ahora»: el botón «Ver N más» queda pegado justo debajo de la última fila visible, dentro de la franja */
+.next-strip{display:flex;flex-direction:column;align-items:stretch;gap:8px}
+.next-strip>*{flex:none}
+.next-strip .next-more{align-self:flex-start;margin:0}
