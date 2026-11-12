@@ -19,10 +19,21 @@ class HandoverCutoffTest {
     private static final ZoneId MADRID = ZoneId.of("Europe/Madrid");
 
     @Test
-    void usuallyTheCutoffIsNineHoursBefore() {
+    void whenThePassIsRightBeforeTheLimitTheCutoffIsNineHoursBefore() {
         // 14:00 - 8 h = 6:00: la pasada de las 5:50 está justo antes del límite y basta con ceder una hora antes
         Instant at = at(LocalDate.of(2026, 11, 25), LocalTime.of(14, 0));
         assertThat(PublerRoute.handoverBy(at)).isEqualTo(at.minus(Duration.ofHours(9)));
+    }
+
+    @Test
+    void theCutoffIsAlwaysBetweenNineAndThirteenHoursFortyMinutesBefore() {
+        // 30 min antes de la última pasada del PC que cabe antes del límite, y nunca menos de 9 h antes de la publicación
+        LocalDate day = LocalDate.of(2026, 11, 25);
+        for (int minutes = 0; minutes < 24 * 60; minutes += 10) {
+            Instant at = at(day, LocalTime.of(minutes / 60, minutes % 60));
+            Duration before = Duration.between(PublerRoute.handoverBy(at), at);
+            assertThat(before).isBetween(Duration.ofHours(9), Duration.ofHours(13).plusMinutes(40));
+        }
     }
 
     @Test

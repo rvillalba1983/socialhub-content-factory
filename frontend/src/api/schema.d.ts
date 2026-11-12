@@ -1063,7 +1063,7 @@ export interface components {
             detail?: string;
             /** @description Promoción a la que se refiere la recomendación (propuestas retenidas, por revisar o en camino). La interfaz usa este campo y no lo deduce del id ni del título */
             promotion_id?: string;
-            /** @description Solo en propuestas en camino: cuándo llegarán, en español («sobre las 9:40» o «mañana sobre las 9:40»). La interfaz usa este campo y no lo deduce del título */
+            /** @description Solo en propuestas en camino: cuándo llegarán, en español («sobre las 10:50» o «mañana sobre las 5:50»). La interfaz usa este campo y no lo deduce del título */
             eta_text?: string;
             target?: components["schemas"]["RecommendationTarget"];
         };

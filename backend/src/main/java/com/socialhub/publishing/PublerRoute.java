@@ -58,8 +58,9 @@ class PublerRoute implements PublishRoute {
 
     /**
      * El último momento en que una vía anterior puede ceder la publicación a Publer sin que se quede sin una pasada de
-     * Claude con Chrome antes del límite de Publer. Normalmente es una hora antes del límite; si la última pasada
-     * anterior cae antes (las pasadas son cada 5 h), es 30 minutos antes de esa pasada.
+     * Claude con Chrome antes del límite de Publer. Es 30 minutos antes de la última pasada del PC que cabe antes
+     * del límite (con 10 minutos de margen), y nunca menos de una hora antes del límite: entre 9 h y unas 13 h 40 min antes
+     * de la publicación (las pasadas son cada 5 h).
      */
     static Instant handoverBy(Instant scheduledAt) {
         Instant limit = deadline(scheduledAt);

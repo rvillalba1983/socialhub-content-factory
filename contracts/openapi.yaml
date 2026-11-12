@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: SocialHub API
-  version: 1.0.0
+  version: 1.1.0
   description: |
     API de SocialHub, la fábrica de contenido. Es la fuente de la verdad: el backend genera a partir de
     este contrato las interfaces de los controladores y los modelos.
@@ -1556,7 +1556,7 @@ components:
         eta_text:
           type: string
           description: >
-            Solo en propuestas en camino: cuándo llegarán, en español («sobre las 9:40» o «mañana sobre las 9:40»).
+            Solo en propuestas en camino: cuándo llegarán, en español («sobre las 10:50» o «mañana sobre las 5:50»).
             La interfaz usa este campo y no lo deduce del título
         target:
           $ref: "#/components/schemas/RecommendationTarget"
