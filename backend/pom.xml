@@ -21,6 +21,7 @@
     <java.version>25</java.version>
     <spring-modulith.version>2.1.2</spring-modulith.version>
     <jmolecules.version>2025.0.2</jmolecules.version>
+    <archunit.version>1.5.1</archunit.version>
     <mapstruct.version>1.6.3</mapstruct.version>
     <openapi-generator.version>7.26.0</openapi-generator.version>
     <!-- Binarios de PostgreSQL usados en desarrollo y pruebas (el instalador trae los suyos) -->
@@ -47,6 +48,32 @@
         <version>${jmolecules.version}</version>
         <type>pom</type>
         <scope>import</scope>
+      </dependency>
+      <!-- ArchUnit no tiene BOM: todas sus piezas en la misma versión (si no, Modulith arrastra la 1.4.1 hasta el jar) -->
+      <dependency>
+        <groupId>com.tngtech.archunit</groupId>
+        <artifactId>archunit</artifactId>
+        <version>${archunit.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.tngtech.archunit</groupId>
+        <artifactId>archunit-junit5</artifactId>
+        <version>${archunit.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.tngtech.archunit</groupId>
+        <artifactId>archunit-junit5-api</artifactId>
+        <version>${archunit.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.tngtech.archunit</groupId>
+        <artifactId>archunit-junit5-engine</artifactId>
+        <version>${archunit.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.tngtech.archunit</groupId>
+        <artifactId>archunit-junit5-engine-api</artifactId>
+        <version>${archunit.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -95,10 +122,12 @@
       <artifactId>micrometer-tracing-bridge-otel</artifactId>
     </dependency>
 
-    <!-- Arquitectura: módulos (Spring Modulith) y DDD/hexagonal (jMolecules) -->
+    <!-- Arquitectura: módulos (Spring Modulith) y DDD/hexagonal (jMolecules).
+         En ejecución solo hacen falta las anotaciones (@ApplicationModule...); el análisis (Modulith core, ArchUnit)
+         queda para las pruebas. -->
     <dependency>
       <groupId>org.springframework.modulith</groupId>
-      <artifactId>spring-modulith-starter-core</artifactId>
+      <artifactId>spring-modulith-api</artifactId>
     </dependency>
     <dependency>
       <groupId>org.jmolecules</groupId>
@@ -195,7 +224,6 @@
     <dependency>
       <groupId>com.tngtech.archunit</groupId>
       <artifactId>archunit-junit5</artifactId>
-      <version>1.5.1</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
