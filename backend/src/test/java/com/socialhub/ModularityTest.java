@@ -9,7 +9,6 @@ import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.library.GeneralCodingRules;
 import java.util.Set;
 import org.jmolecules.archunit.JMoleculesArchitectureRules;
-import org.jmolecules.archunit.JMoleculesDddRules;
 import org.junit.jupiter.api.Test;
 import org.springframework.modulith.core.ApplicationModules;
 import org.springframework.modulith.docs.Documenter;
@@ -21,15 +20,17 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
  * Comprueba la arquitectura:
  * <ul>
  *   <li>Spring Modulith: cada módulo solo usa la parte pública de los demás.</li>
- *   <li>jMolecules: reglas de DDD (agregados, entidades, objetos valor) y de la arquitectura hexagonal.</li>
+ *   <li>jMolecules: reglas de DDD (dentro de {@code verify()}) y de la arquitectura hexagonal.</li>
+ *   <li>ArchUnit: el dominio sin frameworks y que solo mira al dominio, y reglas generales de código.</li>
  * </ul>
  */
 @AnalyzeClasses(packages = "com.socialhub", importOptions = ImportOption.DoNotIncludeTests.class)
 class ModularityTest {
 
-    @ArchTest
-    static final ArchRule ddd = JMoleculesDddRules.all();
+    // Las reglas de DDD de jMolecules (JMoleculesDddRules.all()) ya las ejecuta modules.verify(): con una sonda (un
+    // agregado que referencia a otro) falla modulesRespectTheirBoundaries, así que no se repiten aquí.
 
+    // La hexagonal se mantiene a propósito: no se ha comprobado que verify() la cubra igual de bien.
     @ArchTest
     static final ArchRule hexagonal = JMoleculesArchitectureRules.ensureHexagonal();
 
