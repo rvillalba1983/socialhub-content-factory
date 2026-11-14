@@ -1,4 +1,4 @@
-package com.socialhub.production;
+package com.socialhub.production.domain.events;
 
 import org.jmolecules.event.annotation.DomainEvent;
 import org.jspecify.annotations.Nullable;

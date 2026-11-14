@@ -1,6 +1,6 @@
 package com.socialhub.publishing;
 
-import com.socialhub.promotion.BrandIdentity;
+import com.socialhub.promotion.PromotionQueries.QualityRules;
 import com.socialhub.publishing.domain.Platform;
 import com.socialhub.publishing.domain.Publication;
 import java.io.IOException;
@@ -52,7 +52,7 @@ final class QualityChecker {
      * @param others textos de las demás publicaciones de la promoción (id → texto), para detectar duplicados
      * @return clave → mensaje, en orden
      */
-    static Map<String, String> check(Publication p, List<String> files, BrandIdentity identity, Map<String, String> others) {
+    static Map<String, String> check(Publication p, List<String> files, QualityRules identity, Map<String, String> others) {
         Map<String, String> issues = new LinkedHashMap<>();
         Kind kind = kind(p.getType());
         String caption = p.getCaption() == null ? "" : p.getCaption();

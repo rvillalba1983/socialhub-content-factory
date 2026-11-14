@@ -7,7 +7,7 @@ import com.socialhub.armory.adapter.in.web.ArmoryWebMapper;
 import com.socialhub.platform.AppModeHolder;
 import com.socialhub.production.adapter.in.web.ProductionView;
 import com.socialhub.promotion.PromotionQueries;
-import com.socialhub.promotion.adapter.in.web.PromotionWebMapper;
+import com.socialhub.promotion.adapter.in.web.PromotionView;
 import com.socialhub.publishing.PublishingQueries;
 import com.socialhub.publishing.adapter.in.web.PublicationWebMapper;
 import com.socialhub.api.model.AlertDto;
@@ -28,7 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 class FactoryController implements FactoryApi {
 
     private final PromotionQueries promotions;
-    private final PromotionWebMapper promotionMapper;
+    private final PromotionView promotionView;
     private final ProductionView production;
     private final PublishingQueries publishing;
     private final PublicationWebMapper publicationMapper;
@@ -50,8 +50,8 @@ class FactoryController implements FactoryApi {
         return ResponseEntity.ok(new FactoryDto(
                 OffsetDateTime.now(clock),
                 mode.isDemo(),
-                promotionMapper.toBrandDtos(promotions.brands()),
-                promotionMapper.toPromotionDtos(promotions.promotions()),
+                promotionView.brands(),
+                promotionView.promotions(),
                 snapshot.stations(),
                 snapshot.tasks(),
                 publicationMapper.toDtos(publishing.all()),

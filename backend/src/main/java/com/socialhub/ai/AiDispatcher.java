@@ -205,7 +205,7 @@ class AiDispatcher {
             inputs.put("title", task.title());
             inputs.put("items", task.inputs());
             AiJob job = jobOf(task, type, brandId);
-            Map<String, Object> identity = promotions.identityOf(task.promotionId()).forAi();
+            Map<String, Object> identity = promotions.identityForAi(task.promotionId());
             if (!identity.isEmpty()) inputs.put("brand_identity", identity);
             contexts.forEach(c -> inputs.putAll(c.context(task.promotionId(), brandId)));
             handlers.of(type).ifPresent(h -> inputs.putAll(h.inputs(job)));

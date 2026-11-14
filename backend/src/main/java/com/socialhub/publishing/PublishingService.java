@@ -3,8 +3,8 @@ package com.socialhub.publishing;
 import com.socialhub.platform.AppModeHolder;
 import com.socialhub.platform.NotFoundException;
 import com.socialhub.platform.live.FactoryChanged;
-import com.socialhub.production.ProductionEvents.ReviewApproved;
-import com.socialhub.production.ProductionEvents.SwitchedToManual;
+import com.socialhub.production.domain.events.ProductionEvents.ReviewApproved;
+import com.socialhub.production.domain.events.ProductionEvents.SwitchedToManual;
 import com.socialhub.promotion.PromotionQueries;
 import com.socialhub.publishing.domain.Publication;
 import com.socialhub.publishing.domain.PublicationFile;
@@ -51,7 +51,7 @@ public class PublishingService {
     /** Alta desde el centro de control. El identificador es la fecha y la plataforma: «2026-11-10-instagram». */
     @Transactional
     public Publication create(String promotionId, Publication.Details details, PublicationStatus status) {
-        promotions.promotion(promotionId);
+        promotions.requirePromotion(promotionId);
         String base = details.scheduledOn() + "-" + details.platform().name().toLowerCase(Locale.ROOT);
         String id = base;
         for (int n = 2; publications.exists(id); n++) id = base + "-" + n;

@@ -2,7 +2,7 @@ package com.socialhub.production;
 
 import com.socialhub.platform.AppMode;
 import com.socialhub.platform.AppModeHolder;
-import com.socialhub.production.ProductionEvents.TaskInterrupted;
+import com.socialhub.production.domain.events.ProductionEvents.TaskInterrupted;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;

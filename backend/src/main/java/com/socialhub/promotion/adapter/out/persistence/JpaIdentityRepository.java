@@ -1,6 +1,6 @@
 package com.socialhub.promotion.adapter.out.persistence;
 
-import com.socialhub.promotion.BrandIdentity;
+import com.socialhub.promotion.domain.BrandIdentity;
 import com.socialhub.promotion.domain.IdentityRepository;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
