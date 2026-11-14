@@ -1,9 +1,13 @@
 package com.socialhub;
 
+import com.tngtech.archunit.base.DescribedPredicate;
+import com.tngtech.archunit.core.domain.JavaMethodCall;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
+import com.tngtech.archunit.library.GeneralCodingRules;
+import java.util.Set;
 import org.jmolecules.archunit.JMoleculesArchitectureRules;
 import org.jmolecules.archunit.JMoleculesDddRules;
 import org.junit.jupiter.api.Test;
@@ -46,6 +50,35 @@ class ModularityTest {
                     "..domain..", "com.socialhub.platform..", "java..", "javax..", "org.jmolecules..", "org.jspecify..",
                     "lombok..")
             .because("el dominio no depende de la raíz de su módulo ni de otros módulos");
+
+    // Reglas generales de código
+
+    @ArchTest
+    static final ArchRule sinSalidaEstandar = GeneralCodingRules.NO_CLASSES_SHOULD_ACCESS_STANDARD_STREAMS;
+
+    @ArchTest
+    static final ArchRule sinInyeccionPorCampo = GeneralCodingRules.NO_CLASSES_SHOULD_USE_FIELD_INJECTION;
+
+    @ArchTest
+    static final ArchRule sinJavaUtilLogging = noClasses().should().dependOnClassesThat().resideInAPackage("java.util.logging..")
+            .because("el registro va por SLF4J (@Slf4j); la regla GeneralCodingRules.NO_CLASSES_SHOULD_USE_JAVA_UTIL_LOGGING "
+                    + "no detectó una llamada a Logger.getLogger en la sonda, esta sí");
+
+    private static final Set<String> TIME_TYPES = Set.of("java.time.Instant", "java.time.LocalDate",
+            "java.time.LocalDateTime", "java.time.OffsetDateTime", "java.time.ZonedDateTime", "java.time.LocalTime");
+
+    /** Toda la hora sale del {@code Clock} (que las pruebas fijan): nadie pide la hora del sistema sin pasarle uno. */
+    @ArchTest
+    static final ArchRule horaSoloDelClock = noClasses()
+            .that().doNotHaveFullyQualifiedName("com.socialhub.platform.ClockConfiguration")
+            .should().callMethodWhere(new DescribedPredicate<JavaMethodCall>("sea now() sin argumentos de un tipo de fecha") {
+                @Override
+                public boolean test(JavaMethodCall call) {
+                    return call.getTarget().getName().equals("now") && call.getTarget().getRawParameterTypes().isEmpty()
+                            && TIME_TYPES.contains(call.getTargetOwner().getFullName());
+                }
+            })
+            .because("sin Clock inyectado, las pruebas no pueden fijar la hora");
 
     @Test
     void modulesRespectTheirBoundaries() {
