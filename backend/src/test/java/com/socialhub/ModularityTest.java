@@ -51,6 +51,11 @@ class ModularityTest {
     void modulesRespectTheirBoundaries() {
         ApplicationModules modules = ApplicationModules.of(SocialHubApplication.class);
         modules.verify();
-        new Documenter(modules).writeModulesAsPlantUml();
+    }
+
+    /** Escribe la documentación de los módulos (diagramas y fichas) en {@code target/spring-modulith-docs}. */
+    @Test
+    void writesModuleDocumentation() {
+        new Documenter(ApplicationModules.of(SocialHubApplication.class)).writeDocumentation();
     }
 }

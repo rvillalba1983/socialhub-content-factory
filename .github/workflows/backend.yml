@@ -87,6 +87,13 @@ jobs:
         if: failure()
         shell: bash
         run: python3 ../.github/scripts/resumen-pruebas.py target/surefire-reports 2>/dev/null || python ../.github/scripts/resumen-pruebas.py target/surefire-reports
+      - name: Documentación de los módulos (Spring Modulith)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: modulith-docs-${{ matrix.os }}
+          path: backend/target/spring-modulith-docs
+          if-no-files-found: ignore
       - name: Informes de pruebas
         if: failure()
         uses: actions/upload-artifact@v4
