@@ -8,7 +8,7 @@ public final class ProductionEvents {
 
     private ProductionEvents() {}
 
-    public sealed interface TaskNotice permits ReviewApproved, SwitchedToManual, TaskCompleted, TaskInterrupted {}
+    public sealed interface TaskNotice permits ReviewApproved, SwitchedToManual, TaskInterrupted {}
 
     /** Raúl ha aprobado una revisión: las publicaciones en revisión de esa promoción quedan aprobadas. */
     @DomainEvent
@@ -17,9 +17,6 @@ public final class ProductionEvents {
     /** Una tarea fallida pasa a publicación manual con LEEME. */
     @DomainEvent
     public record SwitchedToManual(String taskId, @Nullable String promotionId) implements TaskNotice {}
-
-    @DomainEvent
-    public record TaskCompleted(String taskId) implements TaskNotice {}
 
     /** Una tarea en ejecución se ha pausado o cancelado: el motor debe parar lo que estuviera haciendo. */
     @DomainEvent

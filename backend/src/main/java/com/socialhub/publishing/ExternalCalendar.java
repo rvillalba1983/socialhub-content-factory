@@ -34,7 +34,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.jmolecules.architecture.hexagonal.PrimaryPort;
 import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -71,7 +70,7 @@ public class ExternalCalendar {
     private final Clock clock;
 
     ExternalCalendar(ExternalCalendarRepository calendar, PubloraAccountRepository accounts, PubloraGateway publora,
-                     SecretStore secrets, PublishJobRepository jobs, PromotionQueries promotions, @Lazy AiOrders orders,
+                     SecretStore secrets, PublishJobRepository jobs, PromotionQueries promotions, AiOrders orders,
                      TransactionTemplate transactions, ApplicationEventPublisher events, Clock clock) {
         this.calendar = calendar;
         this.accounts = accounts;

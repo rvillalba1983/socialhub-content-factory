@@ -27,7 +27,6 @@ import java.util.Locale;
 import java.util.Map;
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -70,7 +69,7 @@ class InstagramRoute implements PublishRoute {
 
     InstagramRoute(SecretStore secrets, InstagramGateway instagram, InstagramAccountRepository accounts,
                    PublicationFileRepository files, PromotionQueries promotions, PublicMediaHost host,
-                   PublicMediaRepository publicMedia, @Lazy AiOrders orders,
+                   PublicMediaRepository publicMedia, AiOrders orders,
                    @Value("${socialhub.instagram.poll-millis:10000}") long pollMillis,
                    @Value("${socialhub.instagram.max-polls:30}") int maxPolls) {
         this.secrets = secrets;

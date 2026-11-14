@@ -30,7 +30,6 @@ import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -88,7 +87,7 @@ class PublishingEngine {
 
     PublishingEngine(PublishJobRepository jobs, PublicationRepository publications, PublicationFileRepository files,
                      PromotionQueries promotions, List<PublishRoute> routes, ApplicationEventPublisher events,
-                     TransactionTemplate transactions, @Lazy AiOrders orders, Clock clock) {
+                     TransactionTemplate transactions, AiOrders orders, Clock clock) {
         this.orders = orders;
         this.jobs = jobs;
         this.publications = publications;

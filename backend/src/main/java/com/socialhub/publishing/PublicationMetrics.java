@@ -27,7 +27,6 @@ import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -57,7 +56,7 @@ class PublicationMetrics implements AiTypeHandler {
     private final Clock clock;
 
     PublicationMetrics(PublicationRepository publications, MetricsRepository metrics, PublishJobRepository jobs,
-                       @Lazy AiOrders orders, TransactionTemplate transactions, ApplicationEventPublisher events, Clock clock) {
+                       AiOrders orders, TransactionTemplate transactions, ApplicationEventPublisher events, Clock clock) {
         this.publications = publications;
         this.metrics = metrics;
         this.jobs = jobs;

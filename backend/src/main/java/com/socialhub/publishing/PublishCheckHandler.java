@@ -9,7 +9,6 @@ import com.socialhub.publishing.domain.PublerAccountRepository;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 
@@ -25,7 +24,7 @@ class PublishCheckHandler implements AiTypeHandler {
     private final PublishingEngine engine;
     private final PublerAccountRepository accounts;
 
-    PublishCheckHandler(PublishingQueries queries, PublicationFileRepository files, @Lazy PublishingEngine engine,
+    PublishCheckHandler(PublishingQueries queries, PublicationFileRepository files, PublishingEngine engine,
                         PublerAccountRepository accounts) {
         this.queries = queries;
         this.files = files;

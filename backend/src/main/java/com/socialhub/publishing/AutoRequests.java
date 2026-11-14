@@ -19,7 +19,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -47,7 +46,7 @@ class AutoRequests {
     private final TransactionTemplate transactions;
     private final Clock clock;
 
-    AutoRequests(PublicationRepository publications, AutoRequestRepository done, @Lazy AiOrders orders,
+    AutoRequests(PublicationRepository publications, AutoRequestRepository done, AiOrders orders,
                  TransactionTemplate transactions, Clock clock) {
         this.publications = publications;
         this.done = done;
