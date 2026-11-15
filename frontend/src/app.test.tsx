@@ -821,6 +821,23 @@ describe('Control de calidad', () => {
     expect(await screen.findByText(/Aceptado: Se sube en Publer/)).toBeInTheDocument();
     expect(screen.getByText(/1 aviso abierto/)).toBeInTheDocument();
   });
+
+  it('explica qué es y qué hacer con cada aviso, sin jerga', async () => {
+    const publication: Publication = {
+      id: 'p-1', promotion_id: 'p', platform: 'INSTAGRAM', type: 'Carrusel', title: 'Poema 1',
+      scheduled_on: '2026-11-10', scheduled_time: '19:00', timezone: 'Europe/Madrid', status: 'IN_PRODUCTION', route: 'Publer', demo: false,
+    };
+    vi.spyOn(api, 'publicationFiles').mockResolvedValue({ items: [] });
+    vi.spyOn(api, 'publicationQuality').mockResolvedValue({ open: 1, issues: [
+      { key: 'FILES_MISSING', source: 'CODE', message: 'No tiene archivos asociados.', accepted: false },
+    ] });
+    render(<PublicationEditor promotionId="p" publication={publication} onClose={() => {}} onSaved={() => {}} />);
+    expect(await screen.findByText(/añade abajo, en «Archivos»/)).toBeInTheDocument();
+    expect(screen.getByText('¿Qué es esto?')).toBeInTheDocument();
+    expect(screen.getByText(/lo doy por bueno aunque falle/)).toBeInTheDocument();
+    expect(screen.queryByText(/spec\.json/)).not.toBeInTheDocument();
+    expect(screen.getByText(/todavía no tiene imágenes ni vídeos/)).toBeInTheDocument();
+  });
 });
 
 describe('Memoria editorial', () => {
@@ -1055,6 +1072,25 @@ describe('Qué hacer ahora dentro de la ficha de una marca', () => {
     expect(ids).not.toContain('publer-account:b:TIKTOK');
     expect(ids).toEqual(expect.arrayContaining(['proposals-review:p', 'orders-not-collected', 'publer-account:b:YOUTUBE',
       'publer-account:otra:INSTAGRAM', 'publora:b', 'brand-folders:otra']));
+  });
+
+  it('en la ficha de b quita también el aviso de identidad, que ya sale en «Te falta por completar»', () => {
+    const identity = rec({ id: 'brand-identity:b', kind: 'IDENTITY_MISSING', title: 'Cuéntale a Claude cómo es b',
+      target: { screen: 'BRAND_IDENTITY', brand_id: 'b' } });
+    expect(withoutBrandNotices([identity], 'b')).toHaveLength(0);
+    expect(withoutBrandNotices([identity], 'otra')).toHaveLength(1);
+    expect(withoutBrandNotices([identity], null)).toHaveLength(1);
+  });
+
+  it('los avisos nuevos llevan a su pantalla', () => {
+    const open = vi.fn();
+    render(<NextSteps onOpen={open} items={[
+      rec({ id: 'brand-identity:b', kind: 'IDENTITY_MISSING', title: 'Cuéntale a Claude cómo es b', target: { screen: 'BRAND_IDENTITY', brand_id: 'b' } }),
+      rec({ id: 'publication-too-soon:p', kind: 'PUBLICATION_TOO_SOON', title: 'Sale pronto', target: { screen: 'PUBLICATIONS', brand_id: 'b', promotion_id: 'p' } }),
+    ]} />);
+    fireEvent.click(screen.getByRole('button', { name: /Sale pronto/ }));
+    expect(open).toHaveBeenCalledWith({ screen: 'PUBLICATIONS', brand_id: 'b', promotion_id: 'p' });
+    expect(screen.getByRole('button', { name: /Ir a la identidad de la marca/ })).toBeInTheDocument();
   });
 
   it('si no queda ninguna, la franja no se pinta', () => {

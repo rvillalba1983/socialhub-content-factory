@@ -625,3 +625,10 @@ Rama `fase-12-oauth`. Decisión de Raúl: botón «Conectar con Instagram» que 
 | **Google Drive** | No hace falta | SocialHub y Claude usan carpetas sincronizadas por Google Drive para escritorio; el enlace público de las imágenes lo obtiene Claude con su conector | Nada que hacer. La API de Drive con OAuth exigiría un proyecto de Google Cloud y pantalla de consentimiento con permisos sensibles, sin aportar nada |
 
 **Conclusión:** no hay ningún otro sistema donde un OAuth sea posible y útil sin requisitos externos (plan de pago o auditoría de TikTok), así que solo se implementa el de Meta. Cada uno queda documentado con sus enlaces.
+
+## Fase 12 · Claridad (15 nov 2026)
+
+Hallazgos de Raúl al usar SocialHub de verdad. Decisiones (técnicas, a partir de lo que pidió Raúl):
+- **Editar y «Nueva publicación»:** la página baja suavemente al formulario y pone el foco en su primer campo editable; al «Cerrar» o «Guardar» vuelve a la fila. Con «reducir movimiento» en el sistema el salto es directo.
+- **Control de calidad:** explicación dentro del bloque («¿Qué es esto?», qué hace Aceptar, «Comprobar de nuevo» y «Revisar con Claude») y una frase de «qué hacer» por cada comprobación. El cuadro «Archivos» ya no habla de spec.json.
+- **Avisos nuevos** (solo en «Qué hacer ahora» y «Te falta por completar»): identidad de la marca incompleta (tono, público o temas que no se tocan; en la ficha, con botón «Importar desde .txt») y publicaciones de camino a publicar sin 6 horas de margen o con la hora ya pasada. Ya existían y no se duplican: cuenta de Publer, cuenta de Instagram para la API oficial y publicaciones en producción sin contenido a menos de 3 días. «Temas que no se tocan» vacío cuenta como identidad incompleta: si una marca de verdad no tiene ninguno, el aviso no se va hasta que se escriba algo.

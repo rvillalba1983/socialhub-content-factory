@@ -4,14 +4,15 @@ import type { Recommendation, RecommendationTarget } from './api/schema';
 /** Un destino de navegación solo es válido si trae los datos que necesita su pantalla. */
 export function canOpen(t?: RecommendationTarget): t is RecommendationTarget {
   if (!t) return false;
-  if (t.screen === 'BRAND_FOLDERS' || t.screen === 'PUBLORA' || t.screen === 'PUBLER' || t.screen === 'NEW_PROMOTION') return !!t.brand_id;
-  if (t.screen === 'PROPOSALS') return !!t.promotion_id;
+  if (t.screen === 'BRAND_FOLDERS' || t.screen === 'BRAND_IDENTITY' || t.screen === 'PUBLORA' || t.screen === 'PUBLER' || t.screen === 'NEW_PROMOTION') return !!t.brand_id;
+  if (t.screen === 'PROPOSALS' || t.screen === 'PUBLICATIONS') return !!t.promotion_id;
   return true;
 }
 
 const BUTTON_LABEL: Record<RecommendationTarget['screen'], string> = {
   BRAND_FOLDERS: 'Ir a las carpetas de la marca', PROPOSALS: 'Ir a las propuestas', PUBLORA: 'Ir a Publora', PUBLER: 'Indicar la cuenta de Publer',
   BACKUPS: 'Ir a Copias', NEW_PROMOTION: 'Dar de alta la promoción', CLAUDE: 'Ir a Claude', INSTAGRAM: 'Renovar conexión',
+  BRAND_IDENTITY: 'Ir a la identidad de la marca', PUBLICATIONS: 'Ir a las publicaciones',
 };
 
 function buttonLabel(t: RecommendationTarget): string {
@@ -21,14 +22,14 @@ function buttonLabel(t: RecommendationTarget): string {
 /**
  * Dentro de la ficha de una marca, sus avisos ya salen en «Te falta por completar» (`BrandNotices`), así que se quitan de
  * «Qué hacer ahora»: las carpetas sin crear (BRAND_FOLDERS_MISSING) y la cuenta de Publer de Instagram o TikTok
- * (PUBLER_ACCOUNT_MISSING, cuyo id acaba en la red). Identidad, Instagram API y «publico» no tienen recomendación.
+ * (PUBLER_ACCOUNT_MISSING, cuyo id acaba en la red). La identidad (IDENTITY_MISSING) también se quita aquí. Instagram API y «publico» no tienen recomendación.
  * Lo demás (propuestas retenidas, Publora, otras marcas…) se queda.
  */
 export function withoutBrandNotices(items: Recommendation[], brandId: string | null | undefined): Recommendation[] {
   if (!brandId) return items;
   return items.filter(r => {
     if (r.target?.brand_id !== brandId) return true;
-    if (r.kind === 'BRAND_FOLDERS_MISSING') return false;
+    if (r.kind === 'BRAND_FOLDERS_MISSING' || r.kind === 'IDENTITY_MISSING') return false;
     if (r.kind === 'PUBLER_ACCOUNT_MISSING') return !/:(INSTAGRAM|TIKTOK)$/.test(r.id);
     return true;
   });

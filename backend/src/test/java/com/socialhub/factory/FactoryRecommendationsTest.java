@@ -363,6 +363,39 @@ class FactoryRecommendationsTest {
     }
 
     @Test
+    void aBrandWithAnActivePromotionAndAnIncompleteIdentityAsksForIt() {
+        when(promotions.identityGaps("litoques")).thenReturn(List.of("el tono", "los temas que no se tocan"));
+        var r = subject().compute().getFirst();
+        assertThat(r.getKind()).isEqualTo(KindEnum.IDENTITY_MISSING);
+        assertThat(r.getTitle()).isEqualTo("Cuéntale a Claude cómo es Litoques");
+        assertThat(r.getDetail()).contains("Falta el tono, los temas que no se tocan").contains("importarlo desde un .txt");
+        assertThat(r.getTarget().getScreen()).isEqualTo(ScreenEnum.BRAND_IDENTITY);
+        assertThat(r.getTarget().getBrandId()).isEqualTo("litoques");
+        // Sin promoción en marcha no hace falta todavía
+        when(promotions.promotionRefs()).thenReturn(List.of(ref("PAUSED", LocalDate.of(2026, 11, 1), LocalDate.of(2026, 12, 31))));
+        assertThat(kinds()).doesNotContain(KindEnum.IDENTITY_MISSING);
+    }
+
+    @Test
+    void aPublicationOnItsWayWithoutSixHoursOfMarginAsksToChangeItsTime() {
+        var soon = new PublishingQueries.WithoutMargin("lit-1", "2026-11-09-instagram", "Poema 1", madrid(11, 9, 14, 0));
+        when(publishing.withoutMargin(now)).thenReturn(List.of(soon));
+        var r = subject().compute().getFirst();
+        assertThat(r.getKind()).isEqualTo(KindEnum.PUBLICATION_TOO_SOON);
+        assertThat(r.getTitle()).isEqualTo("«Poema 1» ya no deja 6 horas de margen");
+        assertThat(r.getDetail()).contains("sale el 9 de nov a las 14:00").contains("aún no está programada");
+        assertThat(r.getTarget().getScreen()).isEqualTo(ScreenEnum.PUBLICATIONS);
+        assertThat(r.getTarget().getPromotionId()).isEqualTo("lit-1");
+        // Si su hora ya pasó, lo dice
+        when(publishing.withoutMargin(now)).thenReturn(List.of(
+                new PublishingQueries.WithoutMargin("lit-1", "x", "Poema 1", madrid(11, 8, 19, 0))));
+        assertThat(subject().compute().getFirst().getDetail()).contains("ya pasó");
+        // Una promoción pausada no avisa
+        when(promotions.promotionRefs()).thenReturn(List.of(ref("PAUSED", LocalDate.of(2026, 11, 1), LocalDate.of(2026, 12, 31))));
+        assertThat(kinds()).doesNotContain(KindEnum.PUBLICATION_TOO_SOON);
+    }
+
+    @Test
     void row8AnUrgentOrderArrivesAtTheNextPassAndOneWithoutRushAtTheNightOne() {
         now = madrid(11, 9, 9, 40);
         when(sent.waiting()).thenReturn(List.of(

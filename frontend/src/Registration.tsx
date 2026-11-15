@@ -17,7 +17,7 @@ import { BrandNotices } from './BrandNotices';
 import type { SavedRef } from './Recommendations';
 
 /** `focus`: tarjeta de la marca a la que bajar al abrir (desde una recomendación). */
-type Editing = { kind: 'brand'; id: string | null; focus?: 'folders' | 'publora' | 'publer' } | { kind: 'promotion'; id: string | null; brandId?: string } | null;
+type Editing = { kind: 'brand'; id: string | null; focus?: 'folders' | 'publora' | 'publer' | 'identity' } | { kind: 'promotion'; id: string | null; brandId?: string } | null;
 
 const PROMOTION_STATUS: [PromotionInput['status'], string][] = [
   ['PLANNED', 'Planificada'], ['ACTIVE', 'Activa'], ['PAUSED', 'En pausa'], ['FINISHED', 'Terminada'],
