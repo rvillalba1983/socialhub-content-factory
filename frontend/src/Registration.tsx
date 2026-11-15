@@ -6,6 +6,7 @@ import {
   type PromotionResource, type PublishingRoute, type Setting, type Snapshot,
 } from './model';
 import { Pill } from './ui';
+import { WhereHelp } from './WhereHelp';
 import { PubloraCard } from './Publora';
 import { PublerCard } from './Publer';
 import { InstagramAccountCard } from './Instagram';
@@ -174,6 +175,7 @@ export function BrandForm({ brand, onCancel, onSaved }: { brand?: Brand; onCance
       {brand && <p className="src brand-id">Identificador: {brand.id}</p>}
       <Field label="Nombre"><input required maxLength={80} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></Field>
       <Field label="Cuenta"><input required maxLength={80} value={form.handle} onChange={e => setForm({ ...form, handle: e.target.value })} /></Field>
+      <WhereHelp topic="brand-handle" />
       <Field label="Color de la marca">
         <span className="color-row"><input type="color" aria-label="Color de la marca" value={form.color} onChange={e => setForm({ ...form, color: e.target.value.toUpperCase() })} />
           <span className="mono">{form.color}</span></span>
@@ -182,6 +184,7 @@ export function BrandForm({ brand, onCancel, onSaved }: { brand?: Brand; onCance
         <input value={base} onChange={e => setBase(e.target.value)} placeholder="G:\Mi unidad\SocialHub\Litoques" spellCheck={false} />
         <small className="src">SocialHub la usa como Material y crea dentro borradores, generados, aprobados, publicados, informes y encargos.</small>
       </Field>}
+      {!brand && <WhereHelp topic="drive-root" />}
       <FormActions busy={busy} error={error} onCancel={onCancel} />
     </form>
   );
@@ -248,6 +251,7 @@ export function PromotionForm({ data, promotion, brandId, onCancel, onSaved }: {
           <input required aria-label="Ubicación" placeholder="G:\Mi unidad\…" value={r.location} onChange={e => up({ ...r, location: e.target.value })} />
           <input aria-label="Para qué" placeholder="Para qué" value={r.description} onChange={e => up({ ...r, description: e.target.value })} />
         </>)} />
+      <WhereHelp topic="local-path" />
       <Rows<Automation> label="Tareas programadas" value={form.automations ?? []} onChange={v => set('automations', v)}
         blank={{ name: '', schedule: '', model: 'SONNET', runs_on: 'CLOUD', status: 'IDLE' }}
         render={(a, up) => (<>
@@ -258,6 +262,7 @@ export function PromotionForm({ data, promotion, brandId, onCancel, onSaved }: {
           <select aria-label="Dónde" value={a.runs_on} onChange={e => up({ ...a, runs_on: e.target.value as Automation['runs_on'] })}>
             <option value="CLOUD">Nube</option><option value="PC">PC de Raúl</option></select>
         </>)} />
+      <WhereHelp topic="claude-tasks" />
       <Rows<PublishingRoute> label="Vías de publicación, por orden de preferencia" value={form.routes ?? []} onChange={v => set('routes', v)}
         blank={{ name: '', status: 'IDLE', label: '', notes: '' }}
         render={(r, up) => (<>

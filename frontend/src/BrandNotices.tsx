@@ -1,9 +1,15 @@
 import { useEffect, useState } from 'react';
 import { api } from './api';
 import { FOLDER_ROLES } from './model';
+import type { HelpTopicId } from './helpTopics';
+import { WhereHelp } from './WhereHelp';
 
 /** Lo que le falta por completar a la marca. Cada aviso lleva a su tarjeta (`data-card`). */
-export type BrandNotice = { id: string; text: string; card: string; action: string; dismiss?: { label: string; run: () => Promise<void> } };
+export type BrandNotice = {
+  id: string; text: string; card: string; action: string; dismiss?: { label: string; run: () => Promise<void> };
+  /** Ayuda «¿Dónde lo saco?» del aviso, si el dato se consigue fuera de SocialHub. */
+  help?: HelpTopicId;
+};
 
 export function goToCard(card: string) {
   document.querySelector(`[data-card="${card}"]`)?.scrollIntoView?.({ block: 'start', behavior: 'smooth' });
@@ -58,7 +64,7 @@ export async function loadBrandNotices(brandId: string): Promise<BrandNotice[]> 
   const orders = folders?.items.find(f => f.role === 'ORDERS');
   if (meta?.configured && igAccount?.ig_user_id && orders && share && !share.shared) {
     out.push({
-      id: 'public-share', card: 'folders', action: 'Ir a las carpetas',
+      id: 'public-share', card: 'folders', action: 'Ir a las carpetas', help: 'drive-public',
       text: 'Comparte la carpeta «publico» de esta marca con «cualquier persona con el enlace» (SocialHub no puede comprobarlo).',
       dismiss: { label: 'Ya está compartida', run: async () => { await api.setBrandPublicShare(brandId, true); } },
     });
@@ -95,6 +101,7 @@ export function BrandNotices({ brandId, version }: { brandId: string; version: n
                 }}>{n.dismiss.label}</button>
               )}
             </span>
+            {n.help && <div className="notice-help"><WhereHelp topic={n.help} /></div>}
           </li>
         ))}
       </ul>

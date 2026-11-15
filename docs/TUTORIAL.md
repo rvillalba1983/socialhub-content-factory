@@ -362,6 +362,183 @@ Pasos (todos 👤 tuyos):
 - Una misma cuenta puede servir a varias marcas. Pon su nombre en «Cuenta en Publer» de cada marca. Las marcas que la compartan comparten también el tope de 10 programadas.
 - Las publicaciones salen públicas («Todo el mundo»), con Comentarios, Dúo y Stitch activados y sin música añadida.
 
+### 5.5 Dónde se saca cada dato
+
+Todo lo que SocialHub te pide y se consigue fuera de él, en una tabla. En la propia interfaz, junto a cada campo, hay un desplegable **¿Dónde lo saco?** con estos mismos pasos.
+
+| Dato | Para qué | Dónde se saca | Enlace |
+|---|---|---|---|
+| Clave de la API de Instagram (token de Meta) | Publicar en Instagram con la API oficial de Meta. Es la clave de un «usuario del sistema»: no caduca y vale para todas las marcas. | Meta Business › Configuración › Usuarios › Usuarios del sistema › «Generar identificador» (caducidad «Nunca»; permisos instagram_basic e instagram_content_publish). | [Usuarios del sistema (Meta Business)](https://business.facebook.com/settings/system-users)<br>[Ayuda de Meta: añadir usuarios del sistema](https://www.facebook.com/business/help/503306463479099)<br>[Tus apps de Meta para desarrolladores](https://developers.facebook.com/apps)<br>[Meta: publicar contenido con la API de Instagram](https://developers.facebook.com/documentation/instagram-platform/content-publishing) |
+| Identificador de la cuenta de Instagram (API oficial) | Decirle a Meta en qué cuenta publica esta marca. Meta no deja listar las cuentas: hay que pegar el número de cada una. | Meta Business › Configuración › Cuentas › Cuentas de Instagram › la cuenta de la marca › su ID (número largo). | [Configuración de Meta Business](https://business.facebook.com/settings)<br>[Ayuda de Publer: pasar Instagram a cuenta profesional](https://publer.com/help/en/article/how-to-switch-my-instagram-account-to-a-creatorbusiness-account-wc99en) |
+| Cuenta de la marca | El nombre de usuario de la marca en la red. SocialHub lo muestra y lo usa para reconocer la marca. | Tu perfil de Instagram: el @usuario que sale arriba. | [Instagram en la web](https://www.instagram.com/) |
+| Cuenta de Instagram en Publer | Claude programa en Publer con Chrome y busca la cuenta por este nombre. Sin ella, la publicación queda retenida. | Publer › lista de cuentas sociales: el nombre de la cuenta de Instagram, tal cual. | [Publer (iniciar sesión)](https://app.publer.com)<br>[Ayuda de Publer: pasar Instagram a cuenta profesional](https://publer.com/help/en/article/how-to-switch-my-instagram-account-to-a-creatorbusiness-account-wc99en) |
+| Cuenta de TikTok en Publer | Claude programa los TikTok en Publer con Chrome y busca la cuenta por este nombre. Las dos marcas pueden usar la misma. | Publer › lista de cuentas sociales: el nombre de la cuenta de TikTok (@litoques.eldelito sale como «Lito · Litoques · El DeLito»). | [Ayuda de Publer: conectar TikTok](https://publer.com/help/en/article/how-to-connect-tiktok-accounts-4wlb4o/)<br>[Publer (iniciar sesión)](https://app.publer.com)<br>[Perfil de TikTok @litoques.eldelito](https://www.tiktok.com/@litoques.eldelito) |
+| Clave de la API de Publora | Publicar por Publora cuando falla Publer. Vale para todas las marcas y se guarda solo en este ordenador. | Publora › «API» en la barra lateral › «Generate API Key» (se ve una sola vez). | [Publora (iniciar sesión)](https://publora.com)<br>[Documentación de Publora: autenticación](https://docs.publora.com/authentication) |
+| Cuenta de Publora de la marca | Qué cuenta conectada en Publora usa esta marca en cada red. La lista sale de tu cuenta de Publora, una vez puesta la clave. | Publora › «Channels» › «Add Channel»; después se elige en SocialHub de la lista de cuentas conectadas. | [Publora (iniciar sesión)](https://publora.com)<br>[Documentación de Publora: autenticación](https://docs.publora.com/authentication) |
+| Carpeta raíz de Drive de la marca | La carpeta donde SocialHub crea borradores, generados, aprobados, publicados, informes y encargos. Tiene que estar en el disco que sincroniza Google Drive. | Explorador de archivos › unidad G: (Google Drive para escritorio) › «Mi unidad» › la carpeta de la marca › copiar la ruta. | [Descargar Google Drive para escritorio](https://www.google.com/drive/download/)<br>[Google Drive en la web](https://drive.google.com) |
+| Ruta de cada carpeta de Drive | Qué carpeta hace cada papel (material, borradores, encargos…). Con «Crear carpetas» se rellenan solas; cámbialas solo si quieres otra ruta. | Explorador de archivos › la carpeta de ese papel dentro de G: › copiar la ruta. | [Descargar Google Drive para escritorio](https://www.google.com/drive/download/) |
+| Carpeta «publico» compartida | Meta descarga las imágenes de Instagram de un enlace público. SocialHub deja una copia en «publico» y la borra al terminar. SocialHub no puede comprobar este permiso. | drive.google.com › Mi unidad › la marca › encargos › publico › Compartir › «Cualquier persona con el enlace» (Lector). | [Google Drive en la web](https://drive.google.com)<br>[Ayuda de Google: compartir archivos y carpetas](https://support.google.com/drive/answer/7166529) |
+| Carpeta de copias de seguridad | Dónde se guardan las copias de SocialHub. Si es una carpeta de Drive, la copia queda fuera de este ordenador. | Explorador de archivos › una carpeta de Drive en G: › copiar la ruta. | [Descargar Google Drive para escritorio](https://www.google.com/drive/download/) |
+| Ruta de un archivo o carpeta del ordenador | SocialHub necesita la ruta completa de un archivo (un spec.json, una pieza, un documento) o de una carpeta de Drive. | Explorador de archivos › seleccionar el archivo o la carpeta › Ctrl + Mayús + C. | [Descargar Google Drive para escritorio](https://www.google.com/drive/download/) |
+| Tareas programadas de Claude | Claude hace los encargos de SocialHub desde dos tareas programadas: «Encargos de SocialHub» (nube) y «Publicar con Chrome (SocialHub)» (tu PC). SocialHub no llama a Claude. | App de Claude › «Scheduled» en la barra izquierda. | [Descargar la app de Claude](https://claude.ai/download)<br>[Ayuda de Claude: tareas programadas](https://support.claude.com/en/articles/13854387-schedule-recurring-tasks-in-claude-cowork) |
+
+Los enlaces son oficiales y se han abierto uno a uno. Los de **Meta Business** (`business.facebook.com`) piden iniciar sesión y por eso no se han podido abrir sin ella: la ruta de menús que acompaña a cada uno es la que vale si Meta cambia la dirección. Los valores reales (claves, identificadores) nunca se escriben en este documento ni se suben al repositorio.
+
+Los pasos de cada dato, uno a uno:
+
+#### Clave de la API de Instagram (token de Meta)
+
+Publicar en Instagram con la API oficial de Meta. Es la clave de un «usuario del sistema»: no caduca y vale para todas las marcas.
+
+1. Abre «Usuarios del sistema» de tu porfolio empresarial e inicia sesión. [Usuarios del sistema (Meta Business)](https://business.facebook.com/settings/system-users)
+2. Elige el usuario del sistema de SocialHub (rol Administrador). Si no existe, pulsa «Añadir».
+3. En «Asignar activos», comprueba que tiene la app de SocialHub (control total) y las cuentas de Instagram de tus marcas.
+4. Pulsa «Generar identificador», elige la app, caducidad «Nunca» y marca los permisos instagram_basic e instagram_content_publish.
+5. Copia el identificador generado (Meta lo enseña una sola vez) y pégalo en el campo de arriba.
+
+**Ojo:** Es un secreto: no lo pegues en chats ni lo guardes en Drive. Si pasó por un chat, genera otro y borra el anterior.
+
+Más enlaces:
+   - [Ayuda de Meta: añadir usuarios del sistema](https://www.facebook.com/business/help/503306463479099)
+   - [Tus apps de Meta para desarrolladores](https://developers.facebook.com/apps)
+   - [Meta: publicar contenido con la API de Instagram](https://developers.facebook.com/documentation/instagram-platform/content-publishing)
+
+#### Identificador de la cuenta de Instagram (API oficial)
+
+Decirle a Meta en qué cuenta publica esta marca. Meta no deja listar las cuentas: hay que pegar el número de cada una.
+
+1. Abre la configuración de tu porfolio en Meta Business e inicia sesión. [Configuración de Meta Business](https://business.facebook.com/settings)
+2. Entra en Cuentas › Cuentas de Instagram.
+3. Pulsa la cuenta de esta marca (por ejemplo, @elde_lito o @litoques).
+4. Copia el ID de la cuenta: es un número largo, solo con cifras.
+5. Pégalo en el campo de arriba. SocialHub lo comprueba con Meta y enseña el @usuario; si no es el de la marca, es otra cuenta.
+
+**Ojo:** La cuenta tiene que ser profesional (Empresa o Creador) y estar asignada al usuario del sistema.
+
+Más enlaces:
+   - [Ayuda de Publer: pasar Instagram a cuenta profesional](https://publer.com/help/en/article/how-to-switch-my-instagram-account-to-a-creatorbusiness-account-wc99en)
+
+#### Cuenta de la marca
+
+El nombre de usuario de la marca en la red. SocialHub lo muestra y lo usa para reconocer la marca.
+
+1. Abre Instagram e inicia sesión con la cuenta de la marca; abre su perfil. [Instagram en la web](https://www.instagram.com/)
+2. Copia el nombre de usuario que sale arriba, con la @ (por ejemplo, @elde_lito).
+
+#### Cuenta de Instagram en Publer
+
+Claude programa en Publer con Chrome y busca la cuenta por este nombre. Sin ella, la publicación queda retenida.
+
+1. Abre Publer e inicia sesión con tu cuenta. [Publer (iniciar sesión)](https://app.publer.com)
+2. Mira el nombre con el que sale la cuenta de Instagram de la marca en la lista de cuentas sociales de Publer.
+3. Cópialo tal cual (mayúsculas, tildes y símbolos incluidos) y pégalo en el campo de arriba.
+4. Si la cuenta no está conectada, conéctala primero en Publer (el plan Free admite 3 cuentas).
+
+**Ojo:** La cuenta de Instagram tiene que ser profesional (Empresa o Creador).
+
+Más enlaces:
+   - [Ayuda de Publer: pasar Instagram a cuenta profesional](https://publer.com/help/en/article/how-to-switch-my-instagram-account-to-a-creatorbusiness-account-wc99en)
+
+#### Cuenta de TikTok en Publer
+
+Claude programa los TikTok en Publer con Chrome y busca la cuenta por este nombre. Las dos marcas pueden usar la misma.
+
+1. Conecta la cuenta de TikTok (@litoques.eldelito, personal y pública) en Publer si aún no lo está. [Ayuda de Publer: conectar TikTok](https://publer.com/help/en/article/how-to-connect-tiktok-accounts-4wlb4o/)
+2. Abre Publer e inicia sesión. [Publer (iniciar sesión)](https://app.publer.com)
+3. Mira el nombre con el que sale la cuenta de TikTok en la lista de cuentas sociales (en este caso, «Lito · Litoques · El DeLito»).
+4. Cópialo tal cual y pégalo en el campo de arriba.
+
+Más enlaces:
+   - [Perfil de TikTok @litoques.eldelito](https://www.tiktok.com/@litoques.eldelito)
+
+#### Clave de la API de Publora
+
+Publicar por Publora cuando falla Publer. Vale para todas las marcas y se guarda solo en este ordenador.
+
+1. Entra en Publora e inicia sesión. [Publora (iniciar sesión)](https://publora.com)
+2. Pulsa «API» en la barra lateral.
+3. Pulsa «Generate API Key».
+4. Copia la clave enseguida: se ve una sola vez. Pégala en el campo de arriba.
+
+**Ojo:** Es un secreto: no la pegues en chats ni la guardes en Drive.
+
+Más enlaces:
+   - [Documentación de Publora: autenticación](https://docs.publora.com/authentication)
+
+#### Cuenta de Publora de la marca
+
+Qué cuenta conectada en Publora usa esta marca en cada red. La lista sale de tu cuenta de Publora, una vez puesta la clave.
+
+1. Pon primero la clave de Publora (arriba).
+2. Si tu cuenta no sale en la lista, conéctala en Publora: «Channels» en la barra lateral › «Add Channel» y sigue la autorización. [Publora (iniciar sesión)](https://publora.com)
+3. Vuelve aquí, elige la cuenta de cada red y pulsa «Guardar cuentas».
+
+Más enlaces:
+   - [Documentación de Publora: autenticación](https://docs.publora.com/authentication)
+
+#### Carpeta raíz de Drive de la marca
+
+La carpeta donde SocialHub crea borradores, generados, aprobados, publicados, informes y encargos. Tiene que estar en el disco que sincroniza Google Drive.
+
+1. Instala Google Drive para escritorio e inicia sesión: en el Explorador de archivos aparece la unidad G: con «Mi unidad». [Descargar Google Drive para escritorio](https://www.google.com/drive/download/)
+2. Dentro de «Mi unidad», crea (o elige) la carpeta de la marca; por ejemplo, G:\Mi unidad\socialhub\eldelito.
+3. Copia la ruta: en el Explorador de archivos, con la carpeta o el archivo seleccionado, pulsa Ctrl + Mayús + C (o clic derecho › Copiar como ruta de acceso). En Mac: Opción + clic derecho › Copiar como nombre de ruta. Quita las comillas del principio y del final.
+4. Pégala en el campo de arriba y pulsa «Crear carpetas».
+
+Más enlaces:
+   - [Google Drive en la web](https://drive.google.com)
+
+#### Ruta de cada carpeta de Drive
+
+Qué carpeta hace cada papel (material, borradores, encargos…). Con «Crear carpetas» se rellenan solas; cámbialas solo si quieres otra ruta.
+
+1. Comprueba que Google Drive para escritorio está abierto (unidad G:). [Descargar Google Drive para escritorio](https://www.google.com/drive/download/)
+2. Abre en el Explorador de archivos la carpeta que quieres para ese papel.
+3. Copia la ruta: en el Explorador de archivos, con la carpeta o el archivo seleccionado, pulsa Ctrl + Mayús + C (o clic derecho › Copiar como ruta de acceso). En Mac: Opción + clic derecho › Copiar como nombre de ruta. Quita las comillas del principio y del final.
+4. Pégala en el campo de ese papel y pulsa «Guardar carpetas».
+
+#### Carpeta «publico» compartida
+
+Meta descarga las imágenes de Instagram de un enlace público. SocialHub deja una copia en «publico» y la borra al terminar. SocialHub no puede comprobar este permiso.
+
+1. Abre Google Drive en la web e inicia sesión. [Google Drive en la web](https://drive.google.com)
+2. Ve a Mi unidad › la carpeta de la marca › encargos › publico.
+3. Clic derecho en «publico» › Compartir.
+4. En «Acceso general», elige «Cualquier persona con el enlace» con el permiso «Lector».
+5. Pulsa «Listo». Después, en «Te falta por completar», pulsa «Ya está compartida».
+
+Más enlaces:
+   - [Ayuda de Google: compartir archivos y carpetas](https://support.google.com/drive/answer/7166529)
+
+#### Carpeta de copias de seguridad
+
+Dónde se guardan las copias de SocialHub. Si es una carpeta de Drive, la copia queda fuera de este ordenador.
+
+1. Comprueba que Google Drive para escritorio está abierto (unidad G:). [Descargar Google Drive para escritorio](https://www.google.com/drive/download/)
+2. En «Mi unidad» crea (o elige) la carpeta de copias; por ejemplo, G:\Mi unidad\SocialHub\Copias.
+3. Copia la ruta: en el Explorador de archivos, con la carpeta o el archivo seleccionado, pulsa Ctrl + Mayús + C (o clic derecho › Copiar como ruta de acceso). En Mac: Opción + clic derecho › Copiar como nombre de ruta. Quita las comillas del principio y del final.
+4. Pégala en el campo de arriba y pulsa «Guardar carpeta».
+
+#### Ruta de un archivo o carpeta del ordenador
+
+SocialHub necesita la ruta completa de un archivo (un spec.json, una pieza, un documento) o de una carpeta de Drive.
+
+1. Comprueba que Google Drive para escritorio está abierto (unidad G:). [Descargar Google Drive para escritorio](https://www.google.com/drive/download/)
+2. Busca el archivo o la carpeta en el Explorador de archivos.
+3. Copia la ruta: en el Explorador de archivos, con la carpeta o el archivo seleccionado, pulsa Ctrl + Mayús + C (o clic derecho › Copiar como ruta de acceso). En Mac: Opción + clic derecho › Copiar como nombre de ruta. Quita las comillas del principio y del final.
+4. Pégala en el campo de arriba.
+
+#### Tareas programadas de Claude
+
+Claude hace los encargos de SocialHub desde dos tareas programadas: «Encargos de SocialHub» (nube) y «Publicar con Chrome (SocialHub)» (tu PC). SocialHub no llama a Claude.
+
+1. Abre la app de Claude e inicia sesión con tu cuenta de pago. [Descargar la app de Claude](https://claude.ai/download)
+2. En la barra de la izquierda pulsa «Scheduled»: ahí salen tus tareas programadas y sus ejecuciones.
+3. Comprueba que están las dos. Si falta alguna, pídele a Claude que la cree con el texto de docs/tarea-programada-encargos.md (la de Chrome, desde una conversación vinculada a tu PC).
+
+Más enlaces:
+   - [Ayuda de Claude: tareas programadas](https://support.claude.com/en/articles/13854387-schedule-recurring-tasks-in-claude-cowork)
+
 ## 6. Conectar SocialHub con Claude: las dos tareas programadas
 
 Son dos tareas, y hacen falta las dos. 👤 Tú se las pides a Claude; 🤖 después corren solas.

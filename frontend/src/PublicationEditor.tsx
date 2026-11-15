@@ -6,6 +6,7 @@ import {
   type PublicationStatus, type StatusCode,
 } from './model';
 import { Pill } from './ui';
+import { WhereHelp } from './WhereHelp';
 
 const INITIAL: PublicationStatus[] = ['IDEA', 'PROPOSAL', 'IN_PRODUCTION', 'DRAFT'];
 type Initial = NonNullable<PublicationInput['initial_status']>;
@@ -191,6 +192,7 @@ function PublicationFiles({ id, locked }: { id: string; locked: boolean }) {
           <button className="btn" disabled={!path.trim()}>Añadir archivo</button>
         </form>
       )}
+      {!locked && <WhereHelp topic="local-path" />}
       {error && <p className="error" role="alert">{error}</p>}
     </fieldset>
   );
