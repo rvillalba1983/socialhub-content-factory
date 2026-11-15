@@ -368,8 +368,10 @@ Todo lo que SocialHub te pide y se consigue fuera de él, en una tabla. En la pr
 
 | Dato | Para qué | Dónde se saca | Enlace |
 |---|---|---|---|
-| Clave de la API de Instagram (token de Meta) | Publicar en Instagram con la API oficial de Meta. Es la clave de un «usuario del sistema»: no caduca y vale para todas las marcas. | Meta Business › Configuración › Usuarios › Usuarios del sistema › «Generar identificador» (caducidad «Nunca»; permisos instagram_basic e instagram_content_publish). | [Usuarios del sistema (Meta Business)](https://business.facebook.com/settings/system-users)<br>[Ayuda de Meta: añadir usuarios del sistema](https://www.facebook.com/business/help/503306463479099)<br>[Tus apps de Meta para desarrolladores](https://developers.facebook.com/apps)<br>[Meta: publicar contenido con la API de Instagram](https://developers.facebook.com/documentation/instagram-platform/content-publishing) |
-| Identificador de la cuenta de Instagram (API oficial) | Decirle a Meta en qué cuenta publica esta marca. Meta no deja listar las cuentas: hay que pegar el número de cada una. | Meta Business › Configuración › Cuentas › Cuentas de Instagram › la cuenta de la marca › su ID (número largo). | [Configuración de Meta Business](https://business.facebook.com/settings)<br>[Ayuda de Publer: pasar Instagram a cuenta profesional](https://publer.com/help/en/article/how-to-switch-my-instagram-account-to-a-creatorbusiness-account-wc99en) |
+| App ID y App Secret de la app de Meta | Para «Conectar con Instagram»: SocialHub los usa para pedir permiso a Meta en tu nombre y detectar la cuenta de cada marca. Se pegan una sola vez. | Meta for Developers › tu app › Configuración de la app › Básica («Identificador de la app» y «Clave secreta de la app»). | [Tus apps de Meta para desarrolladores](https://developers.facebook.com/apps)<br>[Meta: API de Instagram con inicio de sesión de Facebook](https://developers.facebook.com/docs/instagram-platform/instagram-api-with-facebook-login) |
+| Dirección de redireccionamiento OAuth (para Meta) | Meta solo devuelve a SocialHub a una dirección que tú hayas autorizado. Es la que sale en el campo de arriba: cópiala tal cual en tu app. | Meta for Developers › tu app › Inicio de sesión con Facebook › Configuración › «URI de redireccionamiento OAuth válidas». | [Meta: crear el inicio de sesión a mano (OAuth)](https://developers.facebook.com/docs/facebook-login/guides/advanced/manual-flow) |
+| Clave de la API de Instagram (token de Meta) | Alternativa a «Conectar con Instagram»: la clave de un «usuario del sistema» no caduca y vale para todas las marcas. Se usa cuando no hay una conexión vigente. | Meta Business › Configuración › Usuarios › Usuarios del sistema › «Generar identificador» (caducidad «Nunca»; permisos instagram_basic e instagram_content_publish). | [Usuarios del sistema (Meta Business)](https://business.facebook.com/settings/system-users)<br>[Ayuda de Meta: añadir usuarios del sistema](https://www.facebook.com/business/help/503306463479099)<br>[Tus apps de Meta para desarrolladores](https://developers.facebook.com/apps)<br>[Meta: publicar contenido con la API de Instagram](https://developers.facebook.com/documentation/instagram-platform/content-publishing) |
+| Identificador de la cuenta de Instagram (API oficial) | Decirle a Meta en qué cuenta publica esta marca. «Conectar con Instagram» lo rellena solo si el @usuario coincide; si no, elige la cuenta de la lista o pega aquí su número. | Meta Business › Configuración › Cuentas › Cuentas de Instagram › la cuenta de la marca › su ID (número largo). | [Configuración de Meta Business](https://business.facebook.com/settings)<br>[Ayuda de Publer: pasar Instagram a cuenta profesional](https://publer.com/help/en/article/how-to-switch-my-instagram-account-to-a-creatorbusiness-account-wc99en) |
 | Cuenta de la marca | El nombre de usuario de la marca en la red. SocialHub lo muestra y lo usa para reconocer la marca. | Tu perfil de Instagram: el @usuario que sale arriba. | [Instagram en la web](https://www.instagram.com/) |
 | Cuenta de Instagram en Publer | Claude programa en Publer con Chrome y busca la cuenta por este nombre. Sin ella, la publicación queda retenida. | Publer › lista de cuentas sociales: el nombre de la cuenta de Instagram, tal cual. | [Publer (iniciar sesión)](https://app.publer.com)<br>[Ayuda de Publer: pasar Instagram a cuenta profesional](https://publer.com/help/en/article/how-to-switch-my-instagram-account-to-a-creatorbusiness-account-wc99en) |
 | Cuenta de TikTok en Publer | Claude programa los TikTok en Publer con Chrome y busca la cuenta por este nombre. Las dos marcas pueden usar la misma. | Publer › lista de cuentas sociales: el nombre de la cuenta de TikTok (@litoques.eldelito sale como «Lito · Litoques · El DeLito»). | [Ayuda de Publer: conectar TikTok](https://publer.com/help/en/article/how-to-connect-tiktok-accounts-4wlb4o/)<br>[Publer (iniciar sesión)](https://app.publer.com)<br>[Perfil de TikTok @litoques.eldelito](https://www.tiktok.com/@litoques.eldelito) |
@@ -386,9 +388,41 @@ Los enlaces son oficiales y se han abierto uno a uno. Los de **Meta Business** (
 
 Los pasos de cada dato, uno a uno:
 
+#### App ID y App Secret de la app de Meta
+
+Para «Conectar con Instagram»: SocialHub los usa para pedir permiso a Meta en tu nombre y detectar la cuenta de cada marca. Se pegan una sola vez.
+
+1. Abre tus apps de Meta for Developers e inicia sesión.
+2. Entra en la app de SocialHub. En modo desarrollo vale: tú eres administrador y no hace falta la revisión de Meta.
+3. En el menú de la izquierda, pulsa Configuración de la app › Básica.
+4. Copia el «Identificador de la app» (App ID) y pégalo en el primer campo de arriba.
+5. En «Clave secreta de la app» (App Secret) pulsa «Mostrar» (te pide tu contraseña), cópiala y pégala en el segundo campo.
+6. Pulsa «Guardar la app»: SocialHub los comprueba con Meta antes de guardarlos.
+
+**Ojo:** El App Secret es un secreto: no lo pegues en chats ni lo guardes en Drive. SocialHub lo guarda solo en este ordenador y no vuelve a enseñarlo.
+
+Más enlaces:
+   - [Tus apps de Meta para desarrolladores](https://developers.facebook.com/apps)
+   - [Meta: API de Instagram con inicio de sesión de Facebook](https://developers.facebook.com/docs/instagram-platform/instagram-api-with-facebook-login)
+
+#### Dirección de redireccionamiento OAuth (para Meta)
+
+Meta solo devuelve a SocialHub a una dirección que tú hayas autorizado. Es la que sale en el campo de arriba: cópiala tal cual en tu app.
+
+1. Pulsa «Copiar» en el campo de arriba (es http://localhost:8686/api/instagram/oauth/callback).
+2. Abre tus apps de Meta for Developers y entra en la de SocialHub.
+3. En el menú de la izquierda, pulsa Inicio de sesión con Facebook › Configuración.
+4. Pega la dirección en «URI de redireccionamiento OAuth válidas» y pulsa «Guardar cambios».
+5. Comprueba que «Inicio de sesión de OAuth de cliente» y «Inicio de sesión de OAuth web» están activados.
+
+**Ojo:** Tiene que ser idéntica, letra por letra (http, localhost y el puerto 8686). Si no, Meta responde que la dirección no coincide.
+
+Más enlaces:
+   - [Meta: crear el inicio de sesión a mano (OAuth)](https://developers.facebook.com/docs/facebook-login/guides/advanced/manual-flow)
+
 #### Clave de la API de Instagram (token de Meta)
 
-Publicar en Instagram con la API oficial de Meta. Es la clave de un «usuario del sistema»: no caduca y vale para todas las marcas.
+Alternativa a «Conectar con Instagram»: la clave de un «usuario del sistema» no caduca y vale para todas las marcas. Se usa cuando no hay una conexión vigente.
 
 1. Abre «Usuarios del sistema» de tu porfolio empresarial e inicia sesión. [Usuarios del sistema (Meta Business)](https://business.facebook.com/settings/system-users)
 2. Elige el usuario del sistema de SocialHub (rol Administrador). Si no existe, pulsa «Añadir».
@@ -405,7 +439,7 @@ Más enlaces:
 
 #### Identificador de la cuenta de Instagram (API oficial)
 
-Decirle a Meta en qué cuenta publica esta marca. Meta no deja listar las cuentas: hay que pegar el número de cada una.
+Decirle a Meta en qué cuenta publica esta marca. «Conectar con Instagram» lo rellena solo si el @usuario coincide; si no, elige la cuenta de la lista o pega aquí su número.
 
 1. Abre la configuración de tu porfolio en Meta Business e inicia sesión. [Configuración de Meta Business](https://business.facebook.com/settings)
 2. Entra en Cuentas › Cuentas de Instagram.

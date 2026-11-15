@@ -67,7 +67,7 @@ const TOPICS = {
       'En el menú de la izquierda, pulsa Configuración de la app › Básica.',
       'Copia el «Identificador de la app» (App ID) y pégalo en el primer campo de arriba.',
       'En «Clave secreta de la app» (App Secret) pulsa «Mostrar» (te pide tu contraseña), cópiala y pégala en el segundo campo.',
-      'Pulsa «Comprobar y guardar»: SocialHub los comprueba con Meta antes de guardarlos.',
+      'Pulsa «Guardar la app»: SocialHub los comprueba con Meta antes de guardarlos.',
     ],
     links: [META_IG_LOGIN],
     warning: 'El App Secret es un secreto: no lo pegues en chats ni lo guardes en Drive. SocialHub lo guarda solo en este ordenador y no vuelve a enseñarlo.',

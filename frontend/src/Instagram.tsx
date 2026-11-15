@@ -74,7 +74,7 @@ export function InstagramKeyCard({ onChanged }: { onChanged?: () => void }) {
           placeholder={status?.app_secret_saved ? 'App Secret guardado (pega otro para cambiarlo)' : 'App Secret de tu app de Meta'}
           value={appSecret} onChange={e => setAppSecret(e.target.value)} />
         <button className="btn" disabled={busy || appId.trim().length < 5 || (!status?.app_secret_saved && appSecret.trim().length < 16)}>
-          Comprobar y guardar</button>
+          Guardar la app</button>
       </form>
       <WhereHelp topic="meta-app" />
 
