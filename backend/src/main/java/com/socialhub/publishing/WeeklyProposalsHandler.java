@@ -97,6 +97,21 @@ class WeeklyProposalsHandler implements AiTypeHandler {
         }
     }
 
+    /**
+     * El primer día de la ventana: el tercer dato de entrada si es una fecha dentro de la semana (la ronda de W+1 empieza
+     * después de la ventana ampliada de la primera semana) o, si no, el lunes.
+     */
+    LocalDate windowStart(AiJob job) {
+        LocalDate monday = weekStart(job);
+        if (job.inputs().size() < 3) return monday;
+        try {
+            LocalDate start = LocalDate.parse(job.inputs().get(2));
+            return start.isAfter(monday) && !start.isAfter(monday.plusDays(6)) ? start : monday;
+        } catch (DateTimeParseException e) {
+            return monday;
+        }
+    }
+
     /** La semana (su lunes) escrita en un archivo de petición ya enviado, si existe, se lee y trae una fecha. */
     private Optional<LocalDate> sentWeek(@Nullable String requestPath) {
         if (requestPath == null || requestPath.isBlank()) return Optional.empty();
@@ -122,7 +137,7 @@ class WeeklyProposalsHandler implements AiTypeHandler {
 
     @Override
     public Map<String, Object> inputs(AiJob job) {
-        LocalDate from = weekStart(job);
+        LocalDate from = windowStart(job);
         Map<String, Object> inputs = new LinkedHashMap<>();
         LocalDate end = windowEnd(job);
         inputs.put("week", Map.of("from", from.toString(), "to", end.toString()));
@@ -158,7 +173,7 @@ class WeeklyProposalsHandler implements AiTypeHandler {
             return "Sin propuestas: " + (reason.isEmpty() ? "Claude no da el motivo" : reason);
         }
         if (items.size() > MAX) throw new IllegalArgumentException("Demasiadas propuestas (más de " + MAX + ")");
-        LocalDate from = weekStart(job);
+        LocalDate from = windowStart(job);
         LocalDate to = windowEnd(job);
         PromotionQueries.Dates dates = promotions.datesOf(job.promotionId());
         Instant earliest = clock.instant().plus(MIN_LEAD);
