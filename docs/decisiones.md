@@ -603,6 +603,14 @@ Decisiones técnicas (la numeración la propuso Raúl; el resto es técnico):
 - **Web:** `1.2.57 · a1b2c3d` en pequeño junto al nombre, con la fecha en el recuadro del ratón y el detalle (versión, commit, fecha de compilación, modo Real/Demo) al pulsar.
 - **Workflow de instaladores:** un trabajo `version` calcula la versión y el commit una sola vez y lo usan Windows y macOS. La prueba de actualización exige que la versión nueva sea mayor que la instalada, instala encima de la release anterior, abre SocialHub y comprueba que la web devuelve la versión y el commit nuevos. La instalación limpia de Windows y el `.dmg` comprueban lo mismo. En macOS no hay actualización real: se arrastra la app y solo se comprueba la versión.
 
+## Fase 12 · Pruebas de los flujos de la aplicación (15 nov 2026)
+
+Matriz completa en `docs/pruebas-flujos.md` (14 flujos: los 12 de Raúl más «vida entera de una publicación» y «copia y restauración con datos de negocio»). Decisiones técnicas, sin librerías nuevas:
+- **Pruebas de flujo en `com.socialhub.flows`** con `@FlowTest`: SocialHub entero (PostgreSQL real, modo real), reloj propio `FlowClock` (arranca el mar 10 nov 2026 10:00 y se adelanta a mano) y solo lo de fuera simulado: Claude y Drive (archivos en disco), Meta y Publora (servidor HTTP local), Publer (archivo de resultado de Claude). Un contexto de Spring por clase, cerrado al acabar (`@DirtiesContext`), para no dejar PostgreSQL abiertos.
+- **Cierre (`/api/app/shutdown`)** se prueba arrancando SocialHub en un proceso aparte (la llamada hace `System.exit`).
+- **Los relojes internos (motor, calendario, métricas) se aceleran por clase** con `@TestPropertySource` en lugar de llamar a sus métodos, para probar el flujo por la API como lo vería la interfaz.
+- **Fallos de la aplicación encontrados** (no se han tocado; ver la matriz): el resultado de Claude pisa el texto que Raúl ha escrito mientras tanto; un aviso de calidad aceptado no caduca nunca (duda funcional); la incidencia «Publicación manual con LEEME» queda escrita en la publicación ya publicada.
+
 ## Fase 12 · «Conectar con Instagram» (OAuth de Meta) y otros sistemas (15 nov 2026)
 
 Rama `fase-12-oauth`. Decisión de Raúl: botón «Conectar con Instagram» que haga la autenticación de Meta, detecte la cuenta de cada marca y guarde las credenciales; la clave de usuario del sistema se mantiene como alternativa. Lo demás es técnico.
