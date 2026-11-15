@@ -141,7 +141,7 @@ class PiecesToQualityFlowTest {
             String type = id.contains("12-01") ? "Carrusel" : "Reel";
             f.ok(f.put("/api/publications/" + id, """
                     {"platform":"%s","type":"%s","title":"x","scheduled_on":"%s","scheduled_time":"19:00",
-                     "caption":"Un texto para esta pieza.","hashtags":"#poesia"}""".formatted(platform, type, id.substring(0, 10))));
+                     "caption":"Texto propio de la pieza %s.","hashtags":"#poesia"}""".formatted(platform, type, id.substring(0, 10), id)));
         }
         for (String id : List.of("2026-12-01-instagram", "2026-12-02-instagram", "2026-12-03-instagram", "2026-12-04-tiktok")) {
             for (String next : List.of("DRAFT", "IN_REVIEW", "APPROVED")) {
