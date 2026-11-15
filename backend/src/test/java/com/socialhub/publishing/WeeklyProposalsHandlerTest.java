@@ -194,4 +194,16 @@ class WeeklyProposalsHandlerTest {
         assertThatThrownBy(() -> handler.apply(week9(), JSON.readTree("{\"proposals\":{}}"), JSON.createObjectNode()))
                 .hasMessageContaining("Faltan las propuestas");
     }
+
+    @Test
+    void anExtendedFirstWindowAcceptsTheDaysUpToItsEnd() {
+        var handler = monday();
+        AiJob extended = job(List.of("2026-11-09", "2026-11-18"), madrid(8, 20, 42));
+        assertThat(handler.windowEnd(extended)).isEqualTo(LocalDate.of(2026, 11, 18));
+        assertThat(handler.windowEnd(week9())).isEqualTo(LocalDate.of(2026, 11, 15));
+        // El miércoles 18 de la semana siguiente entra; el jueves 19 ya queda fuera de la ventana
+        String text = handler.apply(extended, proposals(p("2026-11-18", "19:00", "INSTAGRAM"), p("2026-11-19", "19:00", "INSTAGRAM")),
+                JSON.createObjectNode());
+        assertThat(text).contains("1 propuesta").contains("1 descartada").contains("fuera de la semana");
+    }
 }

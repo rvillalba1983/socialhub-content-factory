@@ -582,3 +582,10 @@ Decisión técnica (error visto en el PC de Raúl: la promoción «Primera» emp
 - El aviso es el resultado de la tarea completada, no un error rojo. No se añade recomendación nueva en «Qué hacer ahora».
 - **No se vuelve a pedir:** el registro de encargos automáticos (`AiAutoOrderEntity`) guarda la semana pedida, haya salido con propuestas o sin ellas.
 - El contrato `task-result.v1` no exigía `minItems`: no cambia.
+
+Decisión de Raúl:
+- **La primera ventana de propuestas se extiende hasta la primera fecha de cadencia con margen.** Si una promoción empieza en un día sin cadencia (p. ej. un domingo con cadencia x/v), la ventana de la primera petición no acaba en el domingo: llega hasta su primera fecha de cadencia con al menos 6 h de margen sobre la recogida de Claude. Ejemplo: «Primera» empieza el domingo 15 nov con x/v a las 19:00 y pide del 15 al miércoles 18 nov. Si la fecha de cadencia cae dentro de la semana, no cambia nada; si la promoción termina antes de esa fecha, la ventana no se extiende (sin propuestas es una respuesta válida).
+
+Decisiones técnicas:
+- La cadencia es texto libre: se leen los grupos «días + hora» («L/X/V 19:00», «x/v a las 19:00»; L M X J V S D). Si no se entiende, la ventana es la de siempre.
+- La ventana extendida viaja como segundo dato de entrada del encargo (el miércoles, `2026-11-18`); el manejador la usa para `inputs.week.to`, lo ya planificado y para aceptar o descartar las propuestas.

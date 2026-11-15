@@ -8,6 +8,10 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.time.LocalTime;
 import java.time.ZonedDateTime;
 import java.time.format.TextStyle;
@@ -109,7 +113,7 @@ class AiAutoOrders {
      * guardado de la promoción, y comparten el registro de lo ya pedido: no se pide dos veces.
      */
     synchronized FirstWeekResult requestFirstWeek(String promotionId, LocalDate startsOn, LocalDate endsOn, ZonedDateTime now) {
-        Optional<FirstWeek> first = firstWeek(now, startsOn, endsOn);
+        Optional<FirstWeek> first = firstWeek(now, startsOn, endsOn, promotions.cadenceOf(promotionId));
         if (first.isEmpty()) return FirstWeekResult.NOT_DUE;
         if (!hasRoom(now, first.get().to())) return FirstWeekResult.NO_ROOM;
         LocalDate week = first.get().week(), from = first.get().from(), to = first.get().to();
@@ -121,7 +125,8 @@ class AiAutoOrders {
             String goal = "La promoción empieza ahora: propón sus publicaciones del " + from + " al " + to
                     + ", según su cadencia, sus objetivos, sus hitos y su memoria editorial. No propongas nada antes del "
                     + from + ".";
-            String taskId = orders.submitInternal(promotionId, AiRequestType.WEEKLY_PROPOSALS, title, goal, List.of(week.toString()));
+            String taskId = orders.submitInternal(promotionId, AiRequestType.WEEKLY_PROPOSALS, title, goal,
+                    to.isAfter(week.plusDays(6)) ? List.of(week.toString(), to.toString()) : List.of(week.toString()));
             done.save(new AiAutoOrderEntity(promotionId, AiRequestType.WEEKLY_PROPOSALS.name(), week, taskId, clock.instant()));
         });
         log.info("Propuestas de la primera semana pedidas: {} (del {} al {})", promotionId, from, to);
@@ -150,6 +155,73 @@ class AiAutoOrders {
      * no ha terminado.
      */
     static Optional<FirstWeek> firstWeek(ZonedDateTime now, LocalDate startsOn, LocalDate endsOn) {
+        return firstWeek(now, startsOn, endsOn, null);
+    }
+
+    private static final Pattern CADENCE = Pattern.compile(
+            "(?<![\\p{L}])([LMXJVSD](?:\\s*[/,\\-]\\s*[LMXJVSD])*)(?![\\p{L}])\\s*(?:a\\s+las?\\s+)?(\\d{1,2}):(\\d{2})",
+            Pattern.CASE_INSENSITIVE);
+    private static final String DAY_LETTERS = "LMXJVSD";
+
+    /**
+     * Los huecos de la cadencia («L/X/V 19:00 · historias M/J 13:00», «x/v a las 19:00»): día de la semana y hora. Un texto
+     * sin días y hora reconocibles no da ningún hueco.
+     */
+    static List<java.util.Map.Entry<DayOfWeek, LocalTime>> cadenceSlots(@org.jspecify.annotations.Nullable String cadence) {
+        List<java.util.Map.Entry<DayOfWeek, LocalTime>> slots = new ArrayList<>();
+        if (cadence == null) return slots;
+        Matcher m = CADENCE.matcher(cadence);
+        while (m.find()) {
+            int hour = Integer.parseInt(m.group(2)), minute = Integer.parseInt(m.group(3));
+            if (hour > 23 || minute > 59) continue;
+            LocalTime time = LocalTime.of(hour, minute);
+            for (char c : m.group(1).toUpperCase(Locale.ROOT).toCharArray()) {
+                int i = DAY_LETTERS.indexOf(c);
+                if (i >= 0) slots.add(java.util.Map.entry(DayOfWeek.of(i + 1), time));
+            }
+        }
+        return slots;
+    }
+
+    /**
+     * La primera fecha de la cadencia con margen: el primer hueco desde hoy (o desde el inicio, si es posterior) que queda a
+     * {@link #MIN_LEAD} o más de la recogida, dentro de la promoción. Vacío si la cadencia no se entiende o no hay ninguno.
+     */
+    static Optional<LocalDate> firstCadenceDate(ZonedDateTime now, LocalDate startsOn, LocalDate endsOn,
+                                                @org.jspecify.annotations.Nullable String cadence) {
+        List<java.util.Map.Entry<DayOfWeek, LocalTime>> slots = cadenceSlots(cadence);
+        if (slots.isEmpty()) return Optional.empty();
+        ZoneId zone = now.getZone();
+        java.time.Instant earliest = ClaudePickups.pickupFor(now.toInstant().plus(ClaudePickups.DISPATCH_MAX), false)
+                .toInstant().plus(MIN_LEAD);
+        LocalDate day = startsOn.isAfter(now.toLocalDate()) ? startsOn : now.toLocalDate();
+        for (; !day.isAfter(endsOn); day = day.plusDays(1)) {
+            for (var slot : slots) {
+                if (slot.getKey() == day.getDayOfWeek() && !day.atTime(slot.getValue()).atZone(zone).toInstant().isBefore(earliest)) {
+                    return Optional.of(day);
+                }
+            }
+            if (day.isAfter(now.toLocalDate().plusDays(60))) break;
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * Igual, pero si la promoción empieza en un día sin cadencia (o sin margen) y su primera fecha con margen cae después del
+     * domingo, la ventana se extiende hasta esa fecha (sin pasar del fin de la promoción).
+     */
+    static Optional<FirstWeek> firstWeek(ZonedDateTime now, LocalDate startsOn, LocalDate endsOn,
+                                         @org.jspecify.annotations.Nullable String cadence) {
+        Optional<FirstWeek> normal = firstWeekBase(now, startsOn, endsOn);
+        if (normal.isEmpty()) return normal;
+        FirstWeek w = normal.get();
+        if (!w.to().equals(w.week().plusDays(6))) return normal; // la promoción acaba esa semana
+        Optional<LocalDate> first = firstCadenceDate(now, w.from(), endsOn, cadence);
+        if (first.isEmpty() || !first.get().isAfter(w.to())) return normal;
+        return Optional.of(new FirstWeek(w.week(), w.from(), first.get()));
+    }
+
+    private static Optional<FirstWeek> firstWeekBase(ZonedDateTime now, LocalDate startsOn, LocalDate endsOn) {
         LocalDate today = now.toLocalDate();
         LocalDate week = startsOn.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
         ZonedDateTime usual = week.minusWeeks(1).atTime(PROPOSALS_FROM).atZone(now.getZone());
