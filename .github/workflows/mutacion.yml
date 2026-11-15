@@ -1,0 +1,69 @@
+name: Mutación
+
+# Pruebas de mutación (PIT) solo sobre las clases que cambia la PR respecto a main.
+# Mide si las pruebas detectan cambios en el código (calidad, no cobertura). Falla si se matan menos del 75 % de los mutantes.
+# Va en Linux: PostgreSQL incluido arranca sin root en el runner (ver docs/decisiones.md).
+
+on:
+  pull_request:
+    paths:
+      - "backend/src/main/**"
+      - "backend/src/test/**"
+      - "backend/pom.xml"
+      - ".github/workflows/mutacion.yml"
+      - ".github/scripts/resumen-mutacion.py"
+
+permissions:
+  contents: read
+
+jobs:
+  mutacion:
+    name: Mutación de las clases cambiadas
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Clases cambiadas respecto a main
+        id: clases
+        working-directory: .
+        shell: bash
+        run: |
+          base=$(git merge-base "origin/${{ github.base_ref }}" HEAD)
+          # Solo clases de producción añadidas o modificadas (la API generada no está en src/)
+          files=$(git diff --name-only --diff-filter=AM "$base" HEAD -- 'backend/src/main/java/**/*.java' \
+                  | grep -v 'package-info.java' | grep -v '/SocialHubApplication.java' | grep -v 'MapperImpl' || true)
+          classes=""
+          for f in $files; do
+            fqn=${f#backend/src/main/java/}; fqn=${fqn%.java}; fqn=${fqn//\//.}
+            classes="$classes,$fqn*"   # el * incluye las clases internas
+          done
+          classes=${classes#,}
+          echo "classes=$classes" >> "$GITHUB_OUTPUT"
+          echo "Clases a mutar: ${classes:-ninguna}"
+          if [ -z "$classes" ]; then echo "Esta PR no cambia clases de producción: no hay nada que mutar." >> "$GITHUB_STEP_SUMMARY"; fi
+      - uses: actions/setup-java@v4
+        if: steps.clases.outputs.classes != ''
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+      - name: Mutación (umbral 75 %)
+        if: steps.clases.outputs.classes != ''
+        run: |
+          mvn -B test-compile org.pitest:pitest-maven:mutationCoverage \
+            -Dpit.targetClasses='${{ steps.clases.outputs.classes }}' -Dpit.threshold=75
+      - name: Resumen por módulo
+        if: always() && steps.clases.outputs.classes != ''
+        run: python3 ../.github/scripts/resumen-mutacion.py target/pit-reports/mutations.xml
+      - name: Informe HTML de mutación
+        if: always() && steps.clases.outputs.classes != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: informe-mutacion
+          path: backend/target/pit-reports
+          if-no-files-found: ignore
