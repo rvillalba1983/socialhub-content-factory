@@ -174,11 +174,16 @@ test.describe('Mapa', () => {
     };
     // Arrastre hasta el límite hacia cada lado: el borde del contenido de ese lado debe quedar dentro de la ventana
     for (const side of ['r', 'l', 'b', 't'] as const) {
-      for (let i = 0; i < 30; i++) {
+      const series: string[] = [];
+      let last = '', same = 0;
+      for (let i = 0; i < 40 && same < 2; i++) {
         if (side === 'r') await drag(x1, y1, x0, y1);
         else if (side === 'l') await drag(x0, y1, x1, y1);
         else if (side === 'b') await drag(x0, y1, x0, y0);
         else await drag(x0, y0, x0, y1);
+        const tf = await page.evaluate(() => getComputedStyle(document.querySelector('.world')!).transform);
+        series.push(tf.replace('matrix(3.5, 0, 0, 3.5, ', '').replace(')', ''));
+        same = tf === last ? same + 1 : 0; last = tf;
       }
       await page.waitForTimeout(800);
       const info = await page.evaluate((sd) => {
@@ -195,7 +200,7 @@ test.describe('Mapa', () => {
         return { ok: sd === 'r' ? r <= v.right + 2 : sd === 'l' ? l >= v.left - 2 : sd === 'b' ? b <= v.bottom + 2 : t >= v.top - 2,
           detail: `${sd}: l=${Math.round(l)} t=${Math.round(t)} r=${Math.round(r)} b=${Math.round(b)} vp=${Math.round(v.right)}x${Math.round(v.bottom)} ${who} tf=${getComputedStyle(w).transform} lod=${document.querySelector('main.vp')!.getAttribute('data-lod')}` };
       }, side);
-      expect(info.ok, info.detail).toBe(true);
+      expect(info.ok, info.detail + ' | ' + series.join(' ; ')).toBe(true);
     }
   });
 
