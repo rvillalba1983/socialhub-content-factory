@@ -742,6 +742,23 @@ describe('Control de calidad', () => {
     expect(await screen.findByText(/Aceptado: Se sube en Publer/)).toBeInTheDocument();
     expect(screen.getByText(/1 aviso abierto/)).toBeInTheDocument();
   });
+
+  it('explica qué es y qué hacer con cada aviso, sin jerga', async () => {
+    const publication: Publication = {
+      id: 'p-1', promotion_id: 'p', platform: 'INSTAGRAM', type: 'Carrusel', title: 'Poema 1',
+      scheduled_on: '2026-11-10', scheduled_time: '19:00', timezone: 'Europe/Madrid', status: 'IN_PRODUCTION', route: 'Publer', demo: false,
+    };
+    vi.spyOn(api, 'publicationFiles').mockResolvedValue({ items: [] });
+    vi.spyOn(api, 'publicationQuality').mockResolvedValue({ open: 1, issues: [
+      { key: 'FILES_MISSING', source: 'CODE', message: 'No tiene archivos asociados.', accepted: false },
+    ] });
+    render(<PublicationEditor promotionId="p" publication={publication} onClose={() => {}} onSaved={() => {}} />);
+    expect(await screen.findByText(/añade abajo, en «Archivos»/)).toBeInTheDocument();
+    expect(screen.getByText('¿Qué es esto?')).toBeInTheDocument();
+    expect(screen.getByText(/lo doy por bueno aunque falle/)).toBeInTheDocument();
+    expect(screen.queryByText(/spec\.json/)).not.toBeInTheDocument();
+    expect(screen.getByText(/todavía no tiene imágenes ni vídeos/)).toBeInTheDocument();
+  });
 });
 
 describe('Memoria editorial', () => {

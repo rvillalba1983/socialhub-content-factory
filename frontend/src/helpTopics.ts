@@ -185,7 +185,7 @@ const TOPICS = {
   'local-path': {
     label: 'Ruta de un archivo o carpeta del ordenador',
     where: 'Explorador de archivos › seleccionar el archivo o la carpeta › Ctrl + Mayús + C.',
-    purpose: 'SocialHub necesita la ruta completa de un archivo (un spec.json, una pieza, un documento) o de una carpeta de Drive.',
+    purpose: 'SocialHub necesita la ruta completa de un archivo (una pieza, una imagen, un vídeo, un documento) o de una carpeta de Drive.',
     steps: [
       { text: 'Comprueba que Google Drive para escritorio está abierto (unidad G:).', link: DRIVE_DOWNLOAD },
       'Busca el archivo o la carpeta en el Explorador de archivos.',
