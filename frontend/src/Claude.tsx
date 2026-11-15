@@ -6,6 +6,7 @@ import {
   type Snapshot, type StatusCode,
 } from './model';
 import { Pill } from './ui';
+import { WhereHelp } from './WhereHelp';
 
 const PAGE = 50;
 
@@ -75,6 +76,7 @@ export function Claude({ data, onClose, onTask, onMessage }: {
           </div>
           <button className="btn" onClick={load}>Actualizar</button>
         </div>
+        <WhereHelp topic="claude-tasks" />
         {error && <p className="error" role="alert">{error}</p>}
 
         <div className="grid2">

@@ -589,3 +589,16 @@ Decisión de Raúl:
 Decisiones técnicas:
 - La cadencia es texto libre: se leen los grupos «días + hora» («L/X/V 19:00», «x/v a las 19:00»; L M X J V S D). Si no se entiende, la ventana es la de siempre.
 - La ventana extendida viaja como segundo dato de entrada del encargo (el miércoles, `2026-11-18`); el manejador la usa para `inputs.week.to`, lo ya planificado y para aceptar o descartar las propuestas.
+
+## Fase 12 · Versión visible y numeración de instaladores (15 nov 2026)
+
+Problema (diagnosticado con el registro de Raúl): el instalador que generaba la Action desde `main` salía siempre con la versión por defecto del workflow (1.1.0), igual que la ya instalada. Windows reconocía el mismo producto y entraba en «modo mantenimiento» («Skipping FindRelatedProducts: not run in maintenance mode»): no actualizaba nada. Además la web no enseñaba qué versión estaba en marcha.
+
+Decisiones técnicas (la numeración la propuso Raúl; el resto es técnico):
+- **Fuente de verdad: `<revision>` en `backend/pom.xml`** (1.2.0). `<version>` es `${revision}` (Maven 3.5+, sin plugins ni librerías nuevas). Las compilaciones de GitHub la sustituyen con `-Drevision=...`, de modo que el jar lleva la misma versión que el instalador y que enseña la web.
+- **Numeración:** release (`publicar`) = la versión exacta que se escribe (vacía: la del pom, 1.2.0); cualquier otra compilación (a mano sin publicar, o PR) = `<mayor>.<menor>.<número de ejecución>`, por ejemplo 1.2.57. Crece en cada ejecución (Windows compara los tres números y el MSI admite hasta 65535 en el último). Consecuencia: tras instalar un 1.2.57 de pruebas, una release 1.2.0 sería menor y no actualizaría; al subir de release hay que subir `<revision>` (1.3.0) o publicar con un número mayor.
+- **`UPGRADE_UUID` no cambia.**
+- **Commit y fecha de compilación sin librerías nuevas:** goal `build-info` del `spring-boot-maven-plugin` (ya en el pom) con la propiedad adicional `commit`, que el workflow pasa con `-Dsocialhub.commit=<7 primeros caracteres del SHA>` (el de la cabeza de la PR, no el del merge). En local sale `local`. No se añade `git-commit-id-plugin`.
+- **API:** `GET /api/system/version` (etiqueta `App`) devuelve `version`, `commit` y `build_time`; solo lectura. Sin `build-info.properties` (IDE) devuelve «desconocida».
+- **Web:** `1.2.57 · a1b2c3d` en pequeño junto al nombre, con la fecha en el recuadro del ratón y el detalle (versión, commit, fecha de compilación, modo Real/Demo) al pulsar.
+- **Workflow de instaladores:** un trabajo `version` calcula la versión y el commit una sola vez y lo usan Windows y macOS. La prueba de actualización exige que la versión nueva sea mayor que la instalada, instala encima de la release anterior, abre SocialHub y comprueba que la web devuelve la versión y el commit nuevos. La instalación limpia de Windows y el `.dmg` comprueban lo mismo. En macOS no hay actualización real: se arrastra la app y solo se comprueba la versión.

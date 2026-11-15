@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { api } from './api';
 import { FOLDER_ROLES, type Folder, type FolderRole } from './model';
 import { Pill } from './ui';
+import { WhereHelp } from './WhereHelp';
 
 /** La carpeta raíz no se guarda aparte: es la de Material cuando la de Encargos cuelga de ella como «encargos». */
 function deriveRoot(own: Partial<Record<FolderRole, string>>): string {
@@ -97,7 +98,10 @@ export function FolderRoles({ owner, id, onSaved }: {
           <button type="button" className="btn primary" disabled={busy || base.trim() === ''} onClick={create}>Crear carpetas</button>
         </div>
       )}
+      {owner === 'brand' && folders !== null && <WhereHelp topic="drive-root" />}
+      {owner === 'brand' && folders !== null && <WhereHelp topic="drive-public" />}
       {owner === 'brand' && folders !== null && <h4>Rutas de cada papel <small className="src">· avanzado: cámbialas solo si quieres otra ruta</small></h4>}
+      {folders !== null && <WhereHelp topic="drive-role-paths" />}
       {folders !== null && FOLDER_ROLES.map(([role, label, hint]) => {
         const f = byRole.get(role);
         return (

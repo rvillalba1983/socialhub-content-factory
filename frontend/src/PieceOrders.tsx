@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from './api';
 import { dateTime, type PieceSpecList, type Promotion } from './model';
+import { WhereHelp } from './WhereHelp';
 
 /**
  * Encargar piezas (lo que hacía promo.py) a partir de un spec.json. Se listan los de la carpeta vigilada de la
@@ -63,6 +64,7 @@ export function PieceOrders({ promotions, onOrdered, onTask }: {
         </label>
         <button className="btn" disabled={busy || !path.trim()}>Encargar</button>
       </form>
+      <WhereHelp topic="local-path" />
       {error && <p className="error" role="alert">{error}</p>}
     </div>
   );
