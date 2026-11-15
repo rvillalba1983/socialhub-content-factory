@@ -1,6 +1,7 @@
-package com.socialhub.operations;
+package com.socialhub.operations.adapter.in.web;
 
 import com.socialhub.api.model.ExternalOperationDto;
+import com.socialhub.operations.domain.ExternalOperation;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;

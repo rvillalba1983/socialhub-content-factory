@@ -1,5 +1,6 @@
-package com.socialhub.operations;
+package com.socialhub.operations.adapter.out.persistence;
 
+import com.socialhub.operations.domain.ExternalOperation;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -15,15 +16,13 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.jspecify.annotations.Nullable;
 
-/** Una llamada a un sistema externo y su resultado. Solo se añaden filas; nunca se modifican. */
+/** Fila de {@code external_operation}. */
 @Entity
 @Table(name = "external_operation")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PACKAGE)
-class ExternalOperation {
-
-    enum Outcome { SUCCESS, FAILURE }
+class ExternalOperationEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -33,7 +32,7 @@ class ExternalOperation {
     private String operation;
 
     @Enumerated(EnumType.STRING)
-    private Outcome outcome;
+    private ExternalOperation.Outcome outcome;
 
     private Instant startedAt;
     private long durationMs;
@@ -44,4 +43,14 @@ class ExternalOperation {
     private @Nullable String errorMessage;
 
     private @Nullable String detail;
+
+    static ExternalOperationEntity of(ExternalOperation o) {
+        return new ExternalOperationEntity(o.id(), o.system(), o.operation(), o.outcome(), o.startedAt(), o.durationMs(),
+                o.traceId(), o.errorType(), o.errorMessage(), o.detail());
+    }
+
+    ExternalOperation toDomain() {
+        return new ExternalOperation(id, system, operation, outcome, startedAt, durationMs, traceId, errorType,
+                errorMessage, detail);
+    }
 }
