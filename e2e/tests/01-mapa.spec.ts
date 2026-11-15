@@ -169,14 +169,14 @@ test.describe('Mapa', () => {
     const drag = async (fx: number, fy: number, tx: number, ty: number) => {
       await page.mouse.move(fx, fy);
       await page.mouse.down();
-      for (let i = 1; i <= 4; i++) await page.mouse.move(fx + ((tx - fx) * i) / 4, fy + ((ty - fy) * i) / 4);
+      await page.mouse.move(tx, ty, { steps: 2 });
       await page.mouse.up();
     };
     // Arrastre hasta el límite hacia cada lado: el borde del contenido de ese lado debe quedar dentro de la ventana
     for (const side of ['r', 'l', 'b', 't'] as const) {
       const series: string[] = [];
       let last = '', same = 0;
-      for (let i = 0; i < 40 && same < 2; i++) {
+      for (let i = 0; i < 60 && same < 2; i++) {
         if (side === 'r') await drag(x1, y1, x0, y1);
         else if (side === 'l') await drag(x0, y1, x1, y1);
         else if (side === 'b') await drag(x0, y1, x0, y0);
