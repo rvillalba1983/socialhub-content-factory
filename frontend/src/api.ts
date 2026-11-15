@@ -18,7 +18,8 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
     try { detail = (await res.json()).detail ?? detail; } catch { /* sin cuerpo */ }
     throw new ApiError(res.status, detail);
   }
-  return res.status === 204 ? (undefined as T) : res.json();
+  // 204 y 202 (el cierre de la app: «se está cerrando») no llevan cuerpo
+  return res.status === 204 || res.status === 202 ? (undefined as T) : res.json();
 }
 
 const post = <T>(path: string, body: unknown) => call<T>(path, { method: 'POST', body: JSON.stringify(body) });

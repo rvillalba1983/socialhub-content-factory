@@ -575,6 +575,16 @@ Decisiones técnicas:
 - **`verify()` ya ejecuta las reglas DDD de jMolecules** (sonda: un agregado que referencia a otro rompe `modulesRespectTheirBoundaries`), así que se quita el `@ArchTest` de DDD duplicado; el hexagonal se deja.
 - Ninguna regla nueva falla solo por `ai`, `pieces`, `tools` u `operations`: no ha hecho falta limitar ninguna a los módulos hexagonales.
 
+## Fase 12 · Pruebas e2e con Playwright (`fase-12-playwright`)
+
+- **Las pidió Raúl:** calidad antes que cobertura. 8 recorridos reales (técnica; carpeta `e2e/`): mapa, alta de marca con carpetas, identidad desde .txt, avisos, promoción y propuestas, Agentes y herramientas, Claude y cierre de la app.
+- **Modo real, no demo:** arrancan el jar con la web dentro, PostgreSQL incluido en un puerto libre y una carpeta de datos temporal. Los servicios externos se simulan con carpetas temporales: las de Drive son carpetas del disco y Claude lo hace el propio recorrido, que deja en `de-claude` el resultado que dejaría la tarea programada. No se llama a Meta, Publer ni Publora, ni se guardan claves. Solo se adelantan los envíos y lecturas de Claude (`--socialhub.ai.dispatch-millis` y `read-millis` a 1,5 s).
+- **Cada recorrido vigila la consola:** un `console.error` o una excepción sin declarar hace fallar la prueba (`allowConsole` para los esperados, como un 409).
+- **Un solo arranque para todos, en orden;** el de cierre va el último y comprueba que no queda ni el jar ni PostgreSQL.
+- **`e2e.yml` en Linux** (PR con cambios en `e2e`, `frontend`, `backend` o `contracts`): capturas, trazas y registro de la app como artefacto si falla. En local: `cd e2e && npm ci && npm run e2e:full` (o `E2E_PORT=… E2E_REUSE=1` para reutilizar una app ya arrancada).
+- **Arreglos que salieron de las pruebas:** `AiSettingsInput.models` admitía 10 tipos y hay 11 (no se podían guardar los ajustes de Claude); y «Cerrar» no enseñaba «SocialHub se ha cerrado» porque la respuesta 202 sin cuerpo se leía como JSON.
+- **Fallos de la app anotados, sin arreglar:** la ficha de una marca sin conexión de Meta pide `/api/instagram/accounts` y deja un 400 en la consola (los recorridos lo toleran en `fixtures.ts`); con 4 o más promociones las tarjetas se salen del anillo y tapan estaciones; al acercar al máximo con el mapa arrastrado al borde la pantalla puede quedar vacía (límites medidos al nivel de detalle 1); el panel lateral tapa la lista de herramientas; el cierre tarda 30 s con una pestaña abierta (Tomcat espera a la petición de «En directo»); letra del mapa alejado por debajo de los 12 px prometidos (11,5 a 11,9 px el texto y solo unos 7 px el número de avisos de cada estación, `.badge`); el zoom mínimo con la rueda queda un 2 % por debajo del encuadre.
+
 ## Fase 12 · Propuestas vacías (15 nov 2026)
 
 Decisión técnica (error visto en el PC de Raúl: la promoción «Primera» empieza en domingo y Claude contestó con `proposals: []` y el motivo en `summary`):
