@@ -69,6 +69,15 @@ class ServicesWatch {
                 "Segunda vía de publicación (API de Publora). La clave vive en la carpeta de datos de SocialHub.",
                 publora(publora.hasKey(), !promotions.brandRefs().isEmpty()
                         && promotions.brandRefs().stream().allMatch(b -> publora.isDismissed(b.id()))), List.of("Publicar"));
+        // Con clave y sin comprobación vigente (tras reiniciar o guardar una cuenta), una sola llamada a Meta: la tarjeta
+        // pasa sola a OK o FAILED. check() deja siempre su resultado, así que no se repite hasta el siguiente cambio.
+        if (instagram.hasKey() && !instagram.hasCheck()) {
+            try {
+                instagram.check();
+            } catch (RuntimeException e) {
+                log.warn("Comprobación de Instagram omitida: {}", e.toString());
+            }
+        }
         var ig = instagram.health();
         register(InstagramService.ARMORY_ID, InstagramService.ARMORY_NAME, InstagramService.ARMORY_DESCRIPTION,
                 new Result(ig.status(), ig.note()), List.of("Publicar", "Instagram"));
