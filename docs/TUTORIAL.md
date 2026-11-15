@@ -115,7 +115,7 @@ Toda esta sección es 👤 **Tú**: crear cuentas e iniciar sesión no lo puede 
 
 **Cerrar:** botón **Cerrar** en la barra de arriba y confirma. Se paran el motor, la base de datos y el servidor. Lo que quedó a medias sigue al volver a abrirlo.
 
-**Actualizar:** instala el `.msi` nuevo encima. Tus datos no se tocan.
+**Actualizar:** instala el `.msi` nuevo encima. Tus datos no se tocan. **Qué versión tienes:** arriba, junto al nombre «SocialHub» (por ejemplo `1.2.57 · a1b2c3d`); pulsa para ver el detalle.
 
 **Dónde quedan tus datos y registros:** `%LOCALAPPDATA%\SocialHub` (pega eso en la barra del Explorador). Los registros están en la subcarpeta `logs` (`socialhub.log` y `pg_ctl.log`).
 

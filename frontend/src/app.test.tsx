@@ -20,6 +20,7 @@ import type { PromotionMetrics, Recommendation } from './api/schema';
 import { PieceOrders } from './PieceOrders';
 import type { ExternalOperationPage, Snapshot, Station, Task } from './model';
 import { TaskPanel } from './Panel';
+import { VersionBadge } from './Version';
 import { TodayCard, World, openAlert } from './World';
 import type { Publication } from './model';
 
@@ -848,6 +849,36 @@ describe('Copias', () => {
     expect(onHalted).toHaveBeenCalledWith('Cierra y abre');
     render(<Halted reason="Cierra y abre" />);
     expect(screen.getByRole('alertdialog', { name: 'SocialHub está parado' })).toHaveTextContent('Cierra y abre');
+  });
+});
+
+describe('Versión de SocialHub', () => {
+  it('enseña versión y commit junto al nombre, y el detalle al pulsar', async () => {
+    vi.spyOn(api, 'appVersion').mockResolvedValue({ version: '1.2.7', commit: 'a1b2c3d', build_time: '2026-11-15T10:30:00Z' });
+    render(<VersionBadge demo={false} />);
+    const badge = await screen.findByRole('button', { name: '1.2.7 · a1b2c3d' });
+    expect(badge).toHaveAttribute('title', expect.stringContaining('1.2.7'));
+    expect(screen.queryByRole('dialog', { name: 'Versión de SocialHub' })).toBeNull();
+    fireEvent.click(badge);
+    const pop = screen.getByRole('dialog', { name: 'Versión de SocialHub' });
+    expect(pop).toHaveTextContent('Commit');
+    expect(pop).toHaveTextContent('a1b2c3d');
+    expect(pop).toHaveTextContent('Compilada el');
+    expect(pop).toHaveTextContent('Real');
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'Versión de SocialHub' })).toBeNull();
+  });
+
+  it('en modo demo lo dice en el detalle y, si falla la consulta, no enseña nada', async () => {
+    const spy = vi.spyOn(api, 'appVersion').mockResolvedValue({ version: '1.2.0', commit: 'local', build_time: '2026-11-15T10:30:00Z' });
+    const { unmount } = render(<VersionBadge demo />);
+    fireEvent.click(await screen.findByRole('button', { name: '1.2.0 · local' }));
+    expect(screen.getByRole('dialog', { name: 'Versión de SocialHub' })).toHaveTextContent('Demo');
+    unmount();
+    spy.mockRejectedValue(new Error('sin conexión'));
+    const { container } = render(<VersionBadge demo={false} />);
+    await waitFor(() => expect(spy).toHaveBeenCalledTimes(2));
+    expect(container).toBeEmptyDOMElement();
   });
 });
 

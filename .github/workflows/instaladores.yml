@@ -2,13 +2,19 @@ name: Instaladores
 
 # A mano: genera el instalador de Windows (.msi) y, si se pide, el de macOS (.dmg), con Java y PostgreSQL dentro.
 # El .msi se instala y se prueba en la propia máquina de GitHub antes de darlo por bueno.
+#
+# Versiones (la fuente de verdad es <revision> en backend/pom.xml, por ejemplo 1.2.0):
+#  - Release (publicar): la versión que se escribe, o la del pom si se deja vacía. Por ejemplo 1.2.0.
+#  - Cualquier otra compilación (a mano sin publicar, o PR): <mayor>.<menor>.<número de ejecución>, por ejemplo 1.2.57.
+#    Así sube en cada ejecución y Windows lo trata como una actualización de verdad (con la misma versión
+#    entraría en «modo mantenimiento» y no cambiaría nada). El jar lleva esa misma versión, y la web la enseña.
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Versión (tres números, por ejemplo 1.0.0)"
-        required: true
-        default: "1.1.0"
+        description: "Solo si publicas una release: versión exacta de tres números (vacío: la del pom). Sin publicar se ignora y sale 1.2.<ejecución>"
+        required: false
+        default: ""
       sistemas:
         description: "Instaladores (macOS gasta x10 minutos)"
         type: choice
@@ -31,18 +37,46 @@ env:
   # Sin tildes: WiX usa la página de códigos 1252 del instalador en inglés y rechaza otros caracteres
   DESCRIPCION: "Fabrica de contenido de El DeLito y Litoques"
   FABRICANTE: "Raul Villalba"
-  VERSION: ${{ inputs.version || '1.1.0' }}
 
 jobs:
-  windows:
-    name: Instalador de Windows (.msi)
-    runs-on: windows-latest
-    timeout-minutes: 40
+  version:
+    name: Versión de esta compilación
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.calcular.outputs.version }}
+      commit: ${{ steps.calcular.outputs.commit }}
     steps:
       - uses: actions/checkout@v4
-      - name: Comprobar la versión
-        shell: bash
-        run: '[[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::La versión tiene que ser de tres números, como 1.0.0"; exit 1; }'
+      - name: Calcular la versión
+        id: calcular
+        env:
+          ENTRADA: ${{ inputs.version }}
+          PUBLICAR: ${{ inputs.publicar }}
+          CABEZA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          base=$(sed -n 's:.*<revision>\(.*\)</revision>.*:\1:p' backend/pom.xml | head -1)
+          [[ "$base" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::No encuentro <revision> de tres números en backend/pom.xml (sale «$base»)"; exit 1; }
+          if [ "$PUBLICAR" = "true" ]; then
+            version="${ENTRADA:-$base}"
+          else
+            version="${base%.*}.${GITHUB_RUN_NUMBER}"
+          fi
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::La versión tiene que ser de tres números, como 1.2.0 (sale «$version»)"; exit 1; }
+          [ "${version##*.}" -le 65535 ] || { echo "::error::El MSI no admite un último número mayor de 65535 ($version)"; exit 1; }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "commit=${CABEZA::7}" >> "$GITHUB_OUTPUT"
+          echo "### SocialHub $version (commit ${CABEZA::7})" >> "$GITHUB_STEP_SUMMARY"
+
+  windows:
+    name: Instalador de Windows (.msi)
+    needs: version
+    runs-on: windows-latest
+    timeout-minutes: 40
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      COMMIT: ${{ needs.version.outputs.commit }}
+    steps:
+      - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -60,7 +94,8 @@ jobs:
           npm run build
       - name: Empaquetar SocialHub con la web
         working-directory: backend
-        run: mvn -B -DskipTests package
+        shell: bash
+        run: mvn -B -DskipTests -Drevision="$VERSION" -Dsocialhub.commit="$COMMIT" package
       # jpackage necesita WiX (gratuito) para crear el .msi
       - name: WiX 3.14
         shell: pwsh
@@ -96,12 +131,29 @@ jobs:
           function Instalados { Get-ItemProperty "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*" | Where-Object { $_.DisplayName -eq "SocialHub" } }
           $p = Start-Process msiexec.exe -ArgumentList "/i `"$($viejo.FullName)`" /qn" -Wait -PassThru
           if ($p.ExitCode -ne 0) { throw "No se instaló $($viejo.Name): $($p.ExitCode)" }
-          Write-Host "Instalado: $((Instalados).DisplayVersion)"
+          $antes = (Instalados).DisplayVersion
+          Write-Host "Instalado: $antes"
+          # Con la misma versión (o menor) Windows entra en «modo mantenimiento» y no actualiza nada: aquí tiene que subir
+          if ([version]$antes -ge [version]$env:VERSION) { throw "La versión nueva ($env:VERSION) no es mayor que la instalada ($antes): Windows no actualizaría" }
           $p = Start-Process msiexec.exe -ArgumentList "/i `"$($nuevo.FullName)`" /qn /l*v `"$env:RUNNER_TEMP\actualizar.log`"" -Wait -PassThru
           if ($p.ExitCode -ne 0) { Get-Content "$env:RUNNER_TEMP\actualizar.log" -Tail 40; throw "No se actualizó encima de $($viejo.Name): $($p.ExitCode)" }
           $ins = @(Instalados)
           if ($ins.Count -ne 1 -or $ins[0].DisplayVersion -ne $env:VERSION) { $ins | Format-List DisplayName, DisplayVersion; throw "Tras actualizar tiene que quedar solo SocialHub $env:VERSION" }
-          Write-Host "Actualizado encima de $($viejo.Name): queda SocialHub $env:VERSION"
+          Write-Host "Actualizado encima de $($viejo.Name): de $antes a $env:VERSION"
+          # Después de actualizar, la web tiene que devolver la versión nueva (y no la anterior)
+          $exe = Join-Path $env:ProgramFiles "SocialHub\SocialHub.exe"
+          $app = Start-Process $exe -PassThru
+          $v = $null
+          for ($i = 0; $i -lt 90; $i++) {
+            try { $v = Invoke-RestMethod http://localhost:8686/api/system/version -TimeoutSec 3; break } catch {}
+            Start-Sleep 2
+          }
+          if (-not $v) { Get-Content (Join-Path $env:LOCALAPPDATA "SocialHub\logs\socialhub.log") -Tail 60 -ErrorAction SilentlyContinue; throw "SocialHub actualizado no respondió en localhost:8686" }
+          Write-Host "La web devuelve: versión $($v.version), commit $($v.commit), compilada $($v.build_time)"
+          if ($v.version -ne $env:VERSION) { throw "Tras actualizar, la web dice $($v.version) y tendría que decir $env:VERSION" }
+          if ($v.commit -ne $env:COMMIT) { throw "Tras actualizar, el commit es $($v.commit) y tendría que ser $env:COMMIT" }
+          Invoke-WebRequest http://localhost:8686/api/app/shutdown -Method Post -Headers @{ 'X-SocialHub-Request' = '1' } -UseBasicParsing | Out-Null
+          if (-not $app.WaitForExit(60000)) { throw "SocialHub no se cerró tras actualizar" }
           $u = Start-Process msiexec.exe -ArgumentList "/x `"$($nuevo.FullName)`" /qn" -Wait -PassThru
           if ($u.ExitCode -ne 0) { throw "No se desinstaló tras actualizar: $($u.ExitCode)" }
       # Prueba real: se instala (en Archivos de programa), se abre, responde, no arranca dos veces y se cierra desde la web
@@ -125,6 +177,9 @@ jobs:
           $logs = Join-Path $env:LOCALAPPDATA "SocialHub\logs\socialhub.log"
           if (-not $ok) { if (Test-Path $logs) { Get-Content $logs -Tail 60 }; throw "SocialHub instalado no respondió en localhost:8686" }
           Write-Host "Responde: $($r.Content)"
+          $v = Invoke-RestMethod http://localhost:8686/api/system/version
+          Write-Host "Versión: $($v.version), commit $($v.commit), compilada $($v.build_time)"
+          if ($v.version -ne $env:VERSION -or $v.commit -ne $env:COMMIT) { throw "La web dice $($v.version) · $($v.commit) y tendría que decir $env:VERSION · $env:COMMIT" }
           if (-not $twin.WaitForExit(60000)) { throw "El segundo clic no terminó: arrancarían dos SocialHub" }
           # PostgreSQL lleva al lado las bibliotecas de Visual C++ de Java (hay equipos sin ellas instaladas)
           $pgbin = Join-Path $env:LOCALAPPDATA "SocialHub\runtime\postgres-windows-x86_64\bin"
@@ -185,9 +240,12 @@ jobs:
     name: Instalador de macOS (.dmg)
     # macOS gasta x10 minutos: solo a mano con «windows-y-macos» o en una PR que cambia este workflow
     if: github.event_name == 'pull_request' || inputs.sistemas == 'windows-y-macos'
-    needs: windows
+    needs: [version, windows]
     runs-on: macos-latest
     timeout-minutes: 40
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      COMMIT: ${{ needs.version.outputs.commit }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -207,7 +265,7 @@ jobs:
           npm run build
       - name: Empaquetar SocialHub con la web
         working-directory: backend
-        run: mvn -B -DskipTests package
+        run: mvn -B -DskipTests -Drevision="$VERSION" -Dsocialhub.commit="$COMMIT" package
       # PostgreSQL y FFmpeg salen del sistema en el que se compila (perfiles del pom): aquí, Apple Silicon
       - name: Comprobar que el jar lleva PostgreSQL y FFmpeg de macOS
         run: |
@@ -254,6 +312,9 @@ jobs:
           app=$!
           if ! esperar; then mostrar_registro; cat "$RUNNER_TEMP/salida.log"; echo "::error::SocialHub instalado no respondió en 127.0.0.1:8686"; exit 1; fi
           echo "Responde: $(cat "$RUNNER_TEMP/modo.json")"
+          curl -fsS --noproxy '*' http://127.0.0.1:8686/api/system/version > "$RUNNER_TEMP/version.json"
+          echo "Versión: $(cat "$RUNNER_TEMP/version.json")"
+          python3 -c "import sys,json; d=json.load(open('$RUNNER_TEMP/version.json')); sys.exit(0 if d['version']=='$VERSION' and d['commit']=='$COMMIT' else 1)" || { echo "::error::La web no dice $VERSION · $COMMIT"; exit 1; }
           curl -fsS --noproxy '*' http://127.0.0.1:8686/ | grep -q '<div id="root">' || { echo "::error::La web no se sirve"; exit 1; }
           [ -f "$logs" ] || { echo "::error::No hay registro en $logs"; exit 1; }
           # PostgreSQL arrancó: hay proceso suyo, su carpeta de datos tiene postmaster.pid y el registro no habla de fallos

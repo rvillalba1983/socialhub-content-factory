@@ -201,6 +201,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/system/version": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Versión de SocialHub que está en marcha
+         * @description Versión, commit y fecha de compilación del programa instalado. Sirve para saber si lo que tienes en el PC es lo último. Solo lectura.
+         */
+        get: operations["getAppVersion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/backups": {
         parameters: {
             query?: never;
@@ -1745,6 +1765,23 @@ export interface components {
             /** @description Motivo por el que SocialHub está parado (tras restaurar una copia) */
             halted_reason?: string;
         };
+        AppVersion: {
+            /**
+             * @description Versión de tres números (por ejemplo 1.2.7)
+             * @example 1.2.7
+             */
+            version: string;
+            /**
+             * @description Commit con el que se compiló, de 7 caracteres (o «local» si se compiló a mano)
+             * @example a1b2c3d
+             */
+            commit: string;
+            /**
+             * Format: date-time
+             * @description Fecha y hora de compilación
+             */
+            build_time: string;
+        };
         AppModeChange: {
             mode: components["schemas"]["AppMode"];
         };
@@ -2233,6 +2270,7 @@ export type EditorialMemory = components['schemas']['EditorialMemory'];
 export type Brand = components['schemas']['Brand'];
 export type AppMode = components['schemas']['AppMode'];
 export type AppModeState = components['schemas']['AppModeState'];
+export type AppVersion = components['schemas']['AppVersion'];
 export type AppModeChange = components['schemas']['AppModeChange'];
 export type BrandList = components['schemas']['BrandList'];
 export type BrandInput = components['schemas']['BrandInput'];
@@ -2653,6 +2691,27 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getAppVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Versión en marcha */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppVersion"];
+                };
             };
             default: components["responses"]["Problem"];
         };

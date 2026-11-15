@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: SocialHub API
-  version: 1.1.0
+  version: 1.2.0
   description: |
     API de SocialHub, la fábrica de contenido. Es la fuente de la verdad: el backend genera a partir de
     este contrato las interfaces de los controladores y los modelos.
@@ -48,7 +48,7 @@ tags:
   - name: Backups
     description: Copias de seguridad de la base de datos real, en la carpeta de copias (ajuste general)
   - name: App
-    description: La aplicación en sí (cerrarla desde la web)
+    description: La aplicación en sí (cerrarla desde la web y ver qué versión es)
 
 paths:
   /api/factory:
@@ -311,6 +311,22 @@ paths:
         - $ref: "#/components/parameters/RequestGuard"
       responses:
         "202": { description: SocialHub se está cerrando }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/system/version:
+    get:
+      tags: [App]
+      operationId: getAppVersion
+      summary: Versión de SocialHub que está en marcha
+      description: >
+        Versión, commit y fecha de compilación del programa instalado. Sirve para saber si lo que tienes en el PC es
+        lo último. Solo lectura.
+      responses:
+        "200":
+          description: Versión en marcha
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AppVersion" }
         default: { $ref: "#/components/responses/Problem" }
 
   /api/backups:
@@ -2378,6 +2394,14 @@ components:
         mode: { $ref: "#/components/schemas/AppMode" }
         demo_available: { type: boolean, description: El modo demo está permitido en esta instalación }
         halted_reason: { type: string, description: "Motivo por el que SocialHub está parado (tras restaurar una copia)" }
+
+    AppVersion:
+      type: object
+      required: [version, commit, build_time]
+      properties:
+        version: { type: string, description: "Versión de tres números (por ejemplo 1.2.7)", example: 1.2.7 }
+        commit: { type: string, description: "Commit con el que se compiló, de 7 caracteres (o «local» si se compiló a mano)", example: a1b2c3d }
+        build_time: { type: string, format: date-time, description: Fecha y hora de compilación }
 
     AppModeChange:
       type: object
