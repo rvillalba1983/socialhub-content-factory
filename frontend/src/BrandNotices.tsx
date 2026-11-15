@@ -9,7 +9,12 @@ export type BrandNotice = {
   id: string; text: string; card: string; action: string; dismiss?: { label: string; run: () => Promise<void> };
   /** Ayuda «¿Dónde lo saco?» del aviso, si el dato se consigue fuera de SocialHub. */
   help?: HelpTopicId;
+  /** Segundo botón que solo hace algo en pantalla (sin recargar los avisos). */
+  extra?: { label: string; run: () => void };
 };
+
+/** Evento con el que un aviso pide a la tarjeta de identidad que abra «Importar desde .txt». */
+export const IDENTITY_IMPORT_EVENT = 'socialhub:identity-import';
 
 export function goToCard(card: string) {
   document.querySelector(`[data-card="${card}"]`)?.scrollIntoView?.({ block: 'start', behavior: 'smooth' });
@@ -29,10 +34,14 @@ export async function loadBrandNotices(brandId: string): Promise<BrandNotice[]> 
   const out: BrandNotice[] = [];
 
   if (identity) {
-    const missing = [identity.tone.trim() === '' && 'el tono', identity.audience.trim() === '' && 'el público'].filter(Boolean);
+    const missing = [
+      identity.tone.trim() === '' && 'el tono', identity.audience.trim() === '' && 'el público',
+      identity.forbidden_topics.length === 0 && 'los temas que no se tocan',
+    ].filter(Boolean) as string[];
     if (missing.length) {
       out.push({ id: 'identity', card: 'identity', action: 'Ir a la identidad',
-        text: `Falta rellenar la identidad de la marca: ${missing.join(' y ')}.` });
+        text: `Falta rellenar la identidad de la marca: ${missing.join(', ')}. Sin ella, Claude propone sin conocer su voz ni lo que no se toca.`,
+        extra: { label: 'Importar desde .txt', run: () => { goToCard('identity'); window.dispatchEvent(new Event(IDENTITY_IMPORT_EVENT)); } } });
     }
   }
   if (folders) {
@@ -94,6 +103,7 @@ export function BrandNotices({ brandId, version }: { brandId: string; version: n
             <span>{n.text}</span>
             <span className="notice-actions">
               <button type="button" className="btn" onClick={() => goToCard(n.card)}>{n.action}</button>
+              {n.extra && <button type="button" className="btn" onClick={n.extra.run}>{n.extra.label}</button>}
               {n.dismiss && (
                 <button type="button" className="btn" onClick={() => {
                   setError(null);

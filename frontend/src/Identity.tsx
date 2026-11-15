@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from './api';
 import type { BrandIdentity } from './model';
+import { IDENTITY_IMPORT_EVENT } from './BrandNotices';
 import { identityChanges, identityTemplate, parseIdentityText, type IdentityChange } from './identityImport';
 
 const lines = (v: string[]) => v.join('\n');
@@ -20,6 +21,13 @@ export function IdentityForm({ brandId, brand, onSaved }: {
   const [copied, setCopied] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+
+  // El aviso «Te falta por completar» puede pedir que se abra la importación
+  useEffect(() => {
+    const open = () => setImporting(true);
+    window.addEventListener(IDENTITY_IMPORT_EVENT, open);
+    return () => window.removeEventListener(IDENTITY_IMPORT_EVENT, open);
+  }, []);
 
   useEffect(() => {
     api.brandIdentity(brandId).then(setIdentity).catch(e => setError(e instanceof Error ? e.message : String(e)));

@@ -1,5 +1,5 @@
 import type {
-  Backup, BackupList, Restoration, AiOrder, AiOrderInput, BrandIdentity, ExternalCalendar, PublicationMetrics, PromotionMetrics, PublishJob, PubloraStatus, PubloraAccountList, PubloraAccountInput, PublerAccountList, PublerAccountInput, PublerMoveInput, PublerMoveResult, InstagramStatus, InstagramCheck, InstagramAccount, QualityReport, RejectionReason, EditorialDecision, EditorialMemory, AiRequestPage, AiSettings, AiSettingsInput, AppMode, AppModeState, Brand, FolderInput, FolderList, Publication, PublicationFile, PublicationFileList, PublicationInput, PublicationStatus, PieceOrder, PieceSpecList, BrandInput, ExternalOperationPage, Promotion, PromotionInput, OperationOutcome, Snapshot, Station, StationCommandType, Task, TaskCommand,
+  Backup, BackupList, Restoration, AiOrder, AiOrderInput, BrandIdentity, ExternalCalendar, PublicationMetrics, PromotionMetrics, PublishJob, PubloraStatus, PubloraAccountList, PubloraAccountInput, PublerAccountList, PublerAccountInput, PublerMoveInput, PublerMoveResult, InstagramStatus, InstagramCheck, InstagramAccount, InstagramOAuthStart, InstagramDetectedAccountList, QualityReport, RejectionReason, EditorialDecision, EditorialMemory, AiRequestPage, AiSettings, AiSettingsInput, AppMode, AppModeState, AppVersion, Brand, FolderInput, FolderList, Publication, PublicationFile, PublicationFileList, PublicationInput, PublicationStatus, PieceOrder, PieceSpecList, BrandInput, ExternalOperationPage, Promotion, PromotionInput, OperationOutcome, Snapshot, Station, StationCommandType, Task, TaskCommand,
 } from './model';
 
 export class ApiError extends Error {
@@ -28,6 +28,7 @@ const putJson = <T>(path: string, body: unknown) => call<T>(path, { method: 'PUT
 export const api = {
   factory: () => call<Snapshot>('/api/factory'),
   appMode: () => call<AppModeState>('/api/app-mode'),
+  appVersion: () => call<AppVersion>('/api/system/version'),
   changeAppMode: (mode: AppMode) => putJson<AppModeState>('/api/app-mode', { mode }),
   createBrand: (input: BrandInput) => post<Brand>('/api/brands', input),
   updateBrand: (id: string, input: BrandInput) => putJson<Brand>(`/api/brands/${encodeURIComponent(id)}`, input),
@@ -88,6 +89,11 @@ export const api = {
   saveInstagramKey: (key: string) => putJson<InstagramStatus>('/api/instagram/key', { key }),
   deleteInstagramKey: () => call<void>('/api/instagram/key', { method: 'DELETE' }),
   checkInstagram: () => post<InstagramCheck>('/api/instagram/check', {}),
+  saveInstagramApp: (appId: string, appSecret: string) =>
+    putJson<InstagramStatus>('/api/instagram/app', { app_id: appId, app_secret: appSecret }),
+  startInstagramOAuth: () => post<InstagramOAuthStart>('/api/instagram/oauth/start', {}),
+  disconnectInstagram: () => call<void>('/api/instagram/oauth', { method: 'DELETE' }),
+  instagramAccounts: () => call<InstagramDetectedAccountList>('/api/instagram/accounts'),
   brandInstagramAccount: (id: string) => call<InstagramAccount>(`/api/brands/${encodeURIComponent(id)}/instagram-account`),
   saveBrandInstagramAccount: (id: string, igUserId: string) =>
     putJson<InstagramAccount>(`/api/brands/${encodeURIComponent(id)}/instagram-account`, { ig_user_id: igUserId }),

@@ -10,6 +10,7 @@ import { FolderRoles } from './Folders';
 import { PublicationEditor, ReasonForm } from './PublicationEditor';
 import { api } from './api';
 import { PromotionMetricsTab } from './PromotionMetrics';
+import { scrollToId } from './scrollTo';
 
 const TABS: [string, string][] = [
   ['resumen', 'Resumen'], ['calendario', 'Calendario'], ['publicaciones', 'Publicaciones'], ['tareas', 'Tareas'],
@@ -34,6 +35,10 @@ export function ControlCenter({ p, brand, data, initialTab, initialFilter = 'all
     setActionError(null);
     try { await action(); onMessage?.(message); } catch (e) { setActionError(e instanceof Error ? e.message : String(e)); }
   };
+  /** Al pulsar «Editar» o «Nueva publicación» la página baja al formulario; al cerrar o guardar, vuelve a la fila. */
+  const [scrollTarget, setScrollTo] = useState<string | null>(null);
+  const openEditor = (id: string) => { setEditing(id); setScrollTo('form'); };
+  const backToRow = (id: string | null) => { setScrollTo(id ? `row:${id}` : null); };
   const [tab, setTab] = useState(initialTab);
   const [filter, setFilter] = useState(initialFilter);
   const [hl, setHl] = useState<string | null>(highlight);
@@ -66,6 +71,17 @@ export function ControlCenter({ p, brand, data, initialTab, initialFilter = 'all
   useEffect(() => {
     if (hl && tab === 'publicaciones') document.getElementById(`row-${hl}`)?.scrollIntoView?.({ block: 'center' });
   }, [hl, tab]);
+
+  useEffect(() => {
+    if (!scrollTarget) return;
+    // Espera a que el formulario o la fila estén ya pintados
+    const frame = requestAnimationFrame(() => {
+      if (scrollTarget === 'form') scrollToId('publication-editor', true);
+      else if (scrollTarget.startsWith('row:')) scrollToId(`row-${scrollTarget.slice(4)}`);
+      setScrollTo(null);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [scrollTarget]);
 
   const jump = (id: string) => { setTab('publicaciones'); setFilter('all'); setHl(id); };
   const freeDays = p.milestones.find(m => m.ends_on && /gratis/i.test(m.label));
@@ -158,7 +174,7 @@ export function ControlCenter({ p, brand, data, initialTab, initialFilter = 'all
                   <button className="btn" onClick={() => void act(() => api.orderFromClaude(p.id, {
                     type: 'WEEKLY_PROPOSALS', goal: `Propón las publicaciones de la semana que viene para «${p.name}», según su cadencia, objetivos, hitos y memoria editorial.`,
                   }), 'Propuestas pedidas a Claude: llegarán como «Propuesta»')}>Pedir propuestas a Claude</button>{' '}
-                  <button className="btn primary" onClick={() => setEditing('new')}>Nueva publicación</button>
+                  <button className="btn primary" onClick={() => openEditor('new')}>Nueva publicación</button>
                 </span>
               </div>
               {actionError && <p className="error" role="alert">{actionError}</p>}
@@ -174,8 +190,8 @@ export function ControlCenter({ p, brand, data, initialTab, initialFilter = 'all
               {editing && (
                 <PublicationEditor key={editing} promotionId={p.id}
                   publication={editing === 'new' ? undefined : pubs.find(x => x.id === editing)}
-                  onClose={() => setEditing(null)}
-                  onSaved={(saved, message) => { setEditing(saved.id); setHl(saved.id); onMessage?.(message); }} />
+                  onClose={() => { backToRow(editing === 'new' ? null : editing); setEditing(null); }}
+                  onSaved={(saved, message) => { setEditing(saved.id); setHl(saved.id); backToRow(saved.id); onMessage?.(message); }} />
               )}
               <div className="tbl-wrap"><table>
                 <thead><tr><th>Fecha</th><th>Plataforma</th><th>Tipo</th><th>Pieza</th><th>Estado</th><th>Vía</th><th>Observaciones</th><th /></tr></thead>
@@ -194,7 +210,7 @@ export function ControlCenter({ p, brand, data, initialTab, initialFilter = 'all
                               onClick={() => void act(() => api.changePublicationStatus(x.id, 'IN_PRODUCTION'), `Propuesta aprobada · ${x.title}`)}>Aprobar</button>{' '}
                             <button className="btn" aria-label={`Rechazar ${x.title}`} onClick={() => setRejecting(x.id)}>Rechazar</button>{' '}
                           </>}
-                          <button className="btn" aria-label={`Editar ${x.title}`} onClick={() => setEditing(x.id)}>Editar</button>
+                          <button className="btn" aria-label={`Editar ${x.title}`} onClick={() => openEditor(x.id)}>Editar</button>
                         </td>
                       </tr>
                     );

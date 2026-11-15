@@ -584,3 +584,69 @@ Decisiones técnicas:
 - **`e2e.yml` en Linux** (PR con cambios en `e2e`, `frontend`, `backend` o `contracts`): capturas, trazas y registro de la app como artefacto si falla. En local: `cd e2e && npm ci && npm run e2e:full` (o `E2E_PORT=… E2E_REUSE=1` para reutilizar una app ya arrancada).
 - **Arreglos que salieron de las pruebas:** `AiSettingsInput.models` admitía 10 tipos y hay 11 (no se podían guardar los ajustes de Claude); y «Cerrar» no enseñaba «SocialHub se ha cerrado» porque la respuesta 202 sin cuerpo se leía como JSON.
 - **Fallos de la app anotados, sin arreglar:** con 4 o más promociones las tarjetas se salen del anillo y tapan estaciones; al acercar al máximo con el mapa arrastrado al borde la pantalla puede quedar vacía (límites medidos al nivel de detalle 1); el panel lateral tapa la lista de herramientas; el cierre tarda 30 s con una pestaña abierta (Tomcat espera a la petición de «En directo»); letra más pequeña del mapa alejado de 11,9 px (decisiones prometía 12).
+
+## Fase 12 · Propuestas vacías (15 nov 2026)
+
+Decisión técnica (error visto en el PC de Raúl: la promoción «Primera» empieza en domingo y Claude contestó con `proposals: []` y el motivo en `summary`):
+- **Una lista `outputs.proposals` vacía es una respuesta válida.** La tarea se completa con el texto «Sin propuestas: <summary>» (más los avisos de Claude) y no crea nada. Solo es error si el campo falta o no es una lista.
+- El aviso es el resultado de la tarea completada, no un error rojo. No se añade recomendación nueva en «Qué hacer ahora».
+- **No se vuelve a pedir:** el registro de encargos automáticos (`AiAutoOrderEntity`) guarda la semana pedida, haya salido con propuestas o sin ellas.
+- El contrato `task-result.v1` no exigía `minItems`: no cambia.
+
+Decisión de Raúl:
+- **La primera ventana de propuestas se extiende hasta la primera fecha de cadencia con margen.** Si una promoción empieza en un día sin cadencia (p. ej. un domingo con cadencia x/v), la ventana de la primera petición no acaba en el domingo: llega hasta su primera fecha de cadencia con al menos 6 h de margen sobre la recogida de Claude. Ejemplo: «Primera» empieza el domingo 15 nov con x/v a las 19:00 y pide del 15 al miércoles 18 nov. Si la fecha de cadencia cae dentro de la semana, no cambia nada; si la promoción termina antes de esa fecha, la ventana no se extiende (sin propuestas es una respuesta válida).
+
+Decisiones técnicas:
+- La cadencia es texto libre: se leen los grupos «días + hora» («L/X/V 19:00», «x/v a las 19:00»; L M X J V S D). Si no se entiende, la ventana es la de siempre.
+- La ventana extendida viaja como segundo dato de entrada del encargo (el miércoles, `2026-11-18`); el manejador la usa para `inputs.week.to`, lo ya planificado y para aceptar o descartar las propuestas.
+
+## Fase 12 · Versión visible y numeración de instaladores (15 nov 2026)
+
+Problema (diagnosticado con el registro de Raúl): el instalador que generaba la Action desde `main` salía siempre con la versión por defecto del workflow (1.1.0), igual que la ya instalada. Windows reconocía el mismo producto y entraba en «modo mantenimiento» («Skipping FindRelatedProducts: not run in maintenance mode»): no actualizaba nada. Además la web no enseñaba qué versión estaba en marcha.
+
+Decisiones técnicas (la numeración la propuso Raúl; el resto es técnico):
+- **Fuente de verdad: `<revision>` en `backend/pom.xml`** (1.2.0). `<version>` es `${revision}` (Maven 3.5+, sin plugins ni librerías nuevas). Las compilaciones de GitHub la sustituyen con `-Drevision=...`, de modo que el jar lleva la misma versión que el instalador y que enseña la web.
+- **Numeración:** release (`publicar`) = la versión exacta que se escribe (vacía: la del pom, 1.2.0); cualquier otra compilación (a mano sin publicar, o PR) = `<mayor>.<menor>.<número de ejecución>`, por ejemplo 1.2.57. Crece en cada ejecución (Windows compara los tres números y el MSI admite hasta 65535 en el último). Consecuencia: tras instalar un 1.2.57 de pruebas, una release 1.2.0 sería menor y no actualizaría; al subir de release hay que subir `<revision>` (1.3.0) o publicar con un número mayor.
+- **`UPGRADE_UUID` no cambia.**
+- **Commit y fecha de compilación sin librerías nuevas:** goal `build-info` del `spring-boot-maven-plugin` (ya en el pom) con la propiedad adicional `commit`, que el workflow pasa con `-Dsocialhub.commit=<7 primeros caracteres del SHA>` (el de la cabeza de la PR, no el del merge). En local sale `local`. No se añade `git-commit-id-plugin`.
+- **API:** `GET /api/system/version` (etiqueta `App`) devuelve `version`, `commit` y `build_time`; solo lectura. Sin `build-info.properties` (IDE) devuelve «desconocida».
+- **Web:** `1.2.57 · a1b2c3d` en pequeño junto al nombre, con la fecha en el recuadro del ratón y el detalle (versión, commit, fecha de compilación, modo Real/Demo) al pulsar.
+- **Workflow de instaladores:** un trabajo `version` calcula la versión y el commit una sola vez y lo usan Windows y macOS. La prueba de actualización exige que la versión nueva sea mayor que la instalada, instala encima de la release anterior, abre SocialHub y comprueba que la web devuelve la versión y el commit nuevos. La instalación limpia de Windows y el `.dmg` comprueban lo mismo. En macOS no hay actualización real: se arrastra la app y solo se comprueba la versión.
+
+## Fase 12 · Pruebas de los flujos de la aplicación (15 nov 2026)
+
+Matriz completa en `docs/pruebas-flujos.md` (14 flujos: los 12 de Raúl más «vida entera de una publicación» y «copia y restauración con datos de negocio»). Decisiones técnicas, sin librerías nuevas:
+- **Pruebas de flujo en `com.socialhub.flows`** con `@FlowTest`: SocialHub entero (PostgreSQL real, modo real), reloj propio `FlowClock` (arranca el mar 10 nov 2026 10:00 y se adelanta a mano) y solo lo de fuera simulado: Claude y Drive (archivos en disco), Meta y Publora (servidor HTTP local), Publer (archivo de resultado de Claude). Un contexto de Spring por clase, cerrado al acabar (`@DirtiesContext`), para no dejar PostgreSQL abiertos.
+- **Cierre (`/api/app/shutdown`)** se prueba arrancando SocialHub en un proceso aparte (la llamada hace `System.exit`).
+- **Los relojes internos (motor, calendario, métricas) se aceleran por clase** con `@TestPropertySource` en lugar de llamar a sus métodos, para probar el flujo por la API como lo vería la interfaz.
+- **Fallos de la aplicación encontrados** (no se han tocado; ver la matriz): el resultado de Claude pisa el texto que Raúl ha escrito mientras tanto; un aviso de calidad aceptado no caduca nunca (duda funcional); la incidencia «Publicación manual con LEEME» queda escrita en la publicación ya publicada.
+
+## Fase 12 · «Conectar con Instagram» (OAuth de Meta) y otros sistemas (15 nov 2026)
+
+Rama `fase-12-oauth`. Decisión de Raúl: botón «Conectar con Instagram» que haga la autenticación de Meta, detecte la cuenta de cada marca y guarde las credenciales; la clave de usuario del sistema se mantiene como alternativa. Lo demás es técnico.
+
+- **Flujo (técnico):** Facebook Login con `graph.facebook.com` (la misma versión fija `socialhub.instagram.version`). Permisos mínimos `instagram_basic`, `instagram_content_publish`, `pages_show_list` y `pages_read_engagement`. `POST /api/instagram/oauth/start` crea un `state` de 32 bytes aleatorios, de un solo uso y con 10 minutos de vida; `GET /api/instagram/oauth/callback` lo comprueba **antes** de llamar a Meta (si no vale, no hay ninguna llamada), cambia el `code` por una clave, esta por una de larga duración (`fb_exchange_token`, unos 60 días; 60 si Meta no dice la duración), lista `/me/accounts?fields=name,instagram_business_account{id,username}` y redirige a `/?instagram=ok|error&message=…`.
+- **Dirección de redireccionamiento:** `http://localhost:{server.port}/api/instagram/oauth/callback` (8686). Sale en la tarjeta con botón «Copiar» y ayuda «¿Dónde lo saco?» (Meta for Developers › tu app › Inicio de sesión con Facebook › Configuración › «URI de redireccionamiento OAuth válidas»).
+- **Secretos:** App ID, App Secret y la conexión (clave + caducidad + @usuarios, en JSON) viven en `<datos>/secretos/` (`instagram-app-id.key`, `instagram-app-secret.key`, `instagram-oauth.key`), igual que la clave de usuario del sistema: nunca en la base de datos, el repositorio ni los registros. El secreto y las claves van en el cuerpo de un POST o en la cabecera `Authorization`, nunca en una URL; el secreto no vuelve a salir por la API (solo `app_secret_saved`). Al guardar App ID y Secret se comprueban con Meta (`client_credentials`).
+- **Qué clave usa la publicación (técnico):** la conexión mientras no haya caducado y, si no, la clave de usuario del sistema (`InstagramCredentials.activeToken`). Una conexión caducada no se usa; si no hay clave del sistema, la ruta queda «no configurada» y la publicación sigue por Publer, como sin clave.
+- **Autodetección (técnico):** al conectar, cada marca **sin cuenta** recibe la cuenta cuyo @usuario coincide con su `handle` (sin mayúsculas ni @). No se pisa una cuenta que Raúl puso a mano y es otra. En la ficha, un desplegable con las cuentas encontradas (`GET /api/instagram/accounts`) y el campo manual, que sigue disponible.
+- **Caducidad (técnico):** recomendación `INSTAGRAM_CONNECTION_EXPIRING` («La conexión con Instagram caduca en N días» / «ha caducado») cuando quedan 7 días o menos, con botón «Renovar conexión» que lleva a la tarjeta (nuevo destino `INSTAGRAM`), donde «Renovar conexión» repite el flujo con un clic. Si hay clave de usuario del sistema, el aviso lo dice. «Agentes y herramientas» enseña «Conectado con Meta · caduca el …» o «caducó el …».
+- **Pruebas:** `InstagramOAuthTest` (Meta simulado con HTTP local: state inventado, repetido y caducado, permiso denegado, código malo, intercambio, larga duración, caducidad, autodetección, renovación, clave del sistema, y que ninguna clave sale en la API ni en el registro); `FactoryRecommendationsTest`; frontal con la API simulada. **Playwright con Meta simulado: no hay infraestructura e2e en `main`** (Playwright solo está en el entorno de Claude, no en el repositorio ni en CI), así que no se ha añadido.
+
+### Estudio: «otros sistemas» (¿se puede hacer lo mismo?)
+
+| Sistema | ¿OAuth hace falta? | Qué exige | Conclusión |
+|---|---|---|---|
+| **Publer** | No: solo clave de API (Ajustes › API y webhooks › Generar clave, con ámbitos) | API **solo en los planes Business y Enterprise**; Raúl tiene el plan Free. [Cómo acceder a la API](https://publer.com/help/en/article/how-to-access-the-publer-api-1w08edo) · [Autenticación](https://publer.com/docs/getting-started/authentication) | No se implementa: exige un plan de pago (prohibido sin autorización expresa). Hoy Publer se maneja con Chrome. Si Raúl decide pagar Business, sería una vía por clave, sin OAuth |
+| **Publora** | No: clave de API (ya integrada, `PubloraService`) | La clave de «API» en su panel. [Autenticación](https://docs.publora.com/authentication) (no se pudo abrir en esta sesión; lo confirma la integración que ya funciona) | Ya hecho: no hay OAuth que añadir |
+| **TikTok** (Content Posting API) | Sí: OAuth 2.0 con Login Kit | App de TikTok for Developers con los productos Login Kit y Content Posting API y el permiso `video.publish` (o `video.upload` para dejarlo en borradores). **Auditoría de la app**: hasta pasarla, los clientes sin auditar solo pueden publicar con visibilidad privada (`SELF_ONLY`) y como mucho 5 usuarios cada 24 h; la auditoría exige que la app sirva a creadores en general, **no** a uso interno o de pruebas. Redirect URI propia (puede ser `localhost`). [Guía de contenido](https://developers.tiktok.com/doc/content-sharing-guidelines) · [Solicitud de auditoría](https://developers.tiktok.com/application/content-posting-api) · [Publicar directo](https://developers.tiktok.com/doc/content-posting-api-reference-direct-post) | No se implementa: para publicar en público hace falta una auditoría que una herramienta personal difícilmente pasa; sin ella todo sale privado. TikTok sigue en Publer. Se puede reabrir si Raúl quiere probar la solicitud de auditoría |
+| **Google Drive** | No hace falta | SocialHub y Claude usan carpetas sincronizadas por Google Drive para escritorio; el enlace público de las imágenes lo obtiene Claude con su conector | Nada que hacer. La API de Drive con OAuth exigiría un proyecto de Google Cloud y pantalla de consentimiento con permisos sensibles, sin aportar nada |
+
+**Conclusión:** no hay ningún otro sistema donde un OAuth sea posible y útil sin requisitos externos (plan de pago o auditoría de TikTok), así que solo se implementa el de Meta. Cada uno queda documentado con sus enlaces.
+
+## Fase 12 · Claridad (15 nov 2026)
+
+Hallazgos de Raúl al usar SocialHub de verdad. Decisiones (técnicas, a partir de lo que pidió Raúl):
+- **Editar y «Nueva publicación»:** la página baja suavemente al formulario y pone el foco en su primer campo editable; al «Cerrar» o «Guardar» vuelve a la fila. Con «reducir movimiento» en el sistema el salto es directo.
+- **Control de calidad:** explicación dentro del bloque («¿Qué es esto?», qué hace Aceptar, «Comprobar de nuevo» y «Revisar con Claude») y una frase de «qué hacer» por cada comprobación. El cuadro «Archivos» ya no habla de spec.json.
+- **Avisos nuevos** (solo en «Qué hacer ahora» y «Te falta por completar»): identidad de la marca incompleta (tono, público o temas que no se tocan; en la ficha, con botón «Importar desde .txt») y publicaciones de camino a publicar sin 6 horas de margen o con la hora ya pasada. Ya existían y no se duplican: cuenta de Publer, cuenta de Instagram para la API oficial y publicaciones en producción sin contenido a menos de 3 días. «Temas que no se tocan» vacío cuenta como identidad incompleta: si una marca de verdad no tiene ninguno, el aviso no se va hasta que se escriba algo.
