@@ -116,6 +116,9 @@ export async function openMap(page: Page) {
   await page.goto('/');
   await expect(page.locator('.node')).toHaveCount(8);
   await expect(page.locator('.zpct')).not.toHaveText('');
+  // La franja «Qué hacer ahora» cambia el alto del mapa y la app vuelve a encuadrar al aparecer: se espera a que salga
+  const state = await page.request.get('/api/factory').then(r => r.json());
+  if (state.recommendations.length > 0) await expect(page.getByRole('region', { name: 'Qué hacer ahora' })).toBeVisible();
   // Espera a que el encuadre inicial termine (y no lo repita una actualización de datos, como al aparecer «Qué hacer ahora»)
   let last = '';
   await expect.poll(async () => {

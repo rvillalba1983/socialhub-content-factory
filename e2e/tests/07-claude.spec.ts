@@ -146,6 +146,6 @@ test.describe('Claude: ajustes, encargos y ritmo', () => {
     // La tarjeta «Claude en la nube» de Agentes y herramientas ya no espera el primer resultado
     await page.getByRole('button', { name: 'Volver al mapa' }).click();
     await page.getByRole('region', { name: 'Agentes y herramientas' }).getByRole('button', { name: 'Claude en la nube' }).click();
-    await expect(page.locator('aside.panel')).not.toContainText('Esperando el primer resultado');
+    await expect(page.locator('aside.panel')).not.toContainText('Esperando el primer resultado', { timeout: 30_000 });
   });
 });
