@@ -574,3 +574,11 @@ Decisiones técnicas:
 - **Pruebas por módulo:** `ProductionModuleTest` (publica `ReviewApproved` al aprobar) y `PublishingModuleTest` (aprobación, aviso de calidad y paso a manual con `Scenario`). Las propiedades van en `@TestPropertySource`, porque `@ApplicationModuleTest` no tiene `properties`.
 - **`verify()` ya ejecuta las reglas DDD de jMolecules** (sonda: un agregado que referencia a otro rompe `modulesRespectTheirBoundaries`), así que se quita el `@ArchTest` de DDD duplicado; el hexagonal se deja.
 - Ninguna regla nueva falla solo por `ai`, `pieces`, `tools` u `operations`: no ha hecho falta limitar ninguna a los módulos hexagonales.
+
+## Fase 12 · Propuestas vacías (15 nov 2026)
+
+Decisión técnica (error visto en el PC de Raúl: la promoción «Primera» empieza en domingo y Claude contestó con `proposals: []` y el motivo en `summary`):
+- **Una lista `outputs.proposals` vacía es una respuesta válida.** La tarea se completa con el texto «Sin propuestas: <summary>» (más los avisos de Claude) y no crea nada. Solo es error si el campo falta o no es una lista.
+- El aviso es el resultado de la tarea completada, no un error rojo. No se añade recomendación nueva en «Qué hacer ahora».
+- **No se vuelve a pedir:** el registro de encargos automáticos (`AiAutoOrderEntity`) guarda la semana pedida, haya salido con propuestas o sin ellas.
+- El contrato `task-result.v1` no exigía `minItems`: no cambia.

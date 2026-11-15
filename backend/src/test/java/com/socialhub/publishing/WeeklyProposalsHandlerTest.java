@@ -177,4 +177,21 @@ class WeeklyProposalsHandlerTest {
         assertThatThrownBy(() -> handler.apply(week9(), JSON.readTree("{}"), JSON.createObjectNode()))
                 .hasMessageContaining("Faltan las propuestas");
     }
+
+    @Test
+    void anEmptyListIsValidAndCreatesNothing() {
+        var handler = monday();
+        assertThat(handler.apply(week9(), JSON.readTree("{\"proposals\":[],\"summary\":\"El domingo no toca publicar\"}"),
+                JSON.createObjectNode())).isEqualTo("Sin propuestas: El domingo no toca publicar");
+        assertThat(handler.apply(week9(), proposals(), JSON.createObjectNode())).isEqualTo("Sin propuestas: Claude no da el motivo");
+    }
+
+    @Test
+    void aNonListFails() {
+        var handler = monday();
+        assertThatThrownBy(() -> handler.apply(week9(), JSON.readTree("{\"proposals\":\"nada\"}"), JSON.createObjectNode()))
+                .hasMessageContaining("Faltan las propuestas");
+        assertThatThrownBy(() -> handler.apply(week9(), JSON.readTree("{\"proposals\":{}}"), JSON.createObjectNode()))
+                .hasMessageContaining("Faltan las propuestas");
+    }
 }

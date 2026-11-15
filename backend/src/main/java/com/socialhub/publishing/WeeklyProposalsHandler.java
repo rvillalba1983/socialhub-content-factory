@@ -36,7 +36,8 @@ import tools.jackson.databind.ObjectMapper;
 /**
  * Propuestas de la semana: Claude propone las publicaciones de una semana y SocialHub las crea como «Propuesta» para
  * que Raúl apruebe o rechace cada una. Cada propuesta se comprueba por separado: las no válidas se descartan (y se cuentan en el resumen) y las buenas
- * entran. Si no queda ninguna, el encargo falla.
+ * entran. Si no queda ninguna, el encargo falla. Una lista vacía de Claude (con su motivo en el resumen) no es un fallo:
+ * la tarea se completa como «Sin propuestas: …» y no se vuelve a pedir para la misma semana.
  */
 @Component
 @RequiredArgsConstructor
@@ -134,7 +135,12 @@ class WeeklyProposalsHandler implements AiTypeHandler {
     @Override
     public String apply(AiJob job, JsonNode outputs, JsonNode result) {
         JsonNode items = outputs.path("proposals");
-        if (!items.isArray() || items.isEmpty()) throw new IllegalArgumentException("Faltan las propuestas («outputs.proposals»)");
+        if (!items.isArray()) throw new IllegalArgumentException("Faltan las propuestas («outputs.proposals») o no son una lista");
+        // Una lista vacía es una respuesta válida: Claude puede decidir que no toca publicar (p. ej., sin 6 h de margen)
+        if (items.isEmpty()) {
+            String reason = outputs.path("summary").isString() ? outputs.path("summary").asString().strip() : "";
+            return "Sin propuestas: " + (reason.isEmpty() ? "Claude no da el motivo" : reason);
+        }
         if (items.size() > MAX) throw new IllegalArgumentException("Demasiadas propuestas (más de " + MAX + ")");
         LocalDate from = weekStart(job);
         LocalDate to = from.plusDays(6);
