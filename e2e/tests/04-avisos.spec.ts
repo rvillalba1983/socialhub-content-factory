@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { expect, makeTempDir, openMap, test, toast, unique } from '../support/fixtures';
+import { daysFromToday, expect, makeTempDir, openMap, test, toast, unique } from '../support/fixtures';
 import type { Locator, Page } from '@playwright/test';
 
 /** ¿La tarjeta está a la vista en la ventana del navegador (la parte de arriba dentro de la pantalla)? */
@@ -15,10 +15,12 @@ test.describe('Avisos: «Qué hacer ahora» y «Te falta por completar»', () =>
     const brandName = unique('Marca avisos');
     const promoName = unique('Promoción avisos');
     const brand = await api.createBrand(brandName, `@${unique('avisos').toLowerCase()}`);
-    await api.createPromotion(brand.id, promoName);
+    // Empieza hoy (hora de España), no «hace tres días»: la primera semana de una promoción es la de su fecha de inicio,
+    // y de lunes a miércoles «hace tres días» cae en una semana ya terminada y no se piden propuestas (sin recomendación)
+    await api.createPromotion(brand.id, promoName, { starts_on: daysFromToday(0) });
     // Más recomendaciones de otra marca, para que la franja tenga más de 3 y salga «Ver N más»
     const other = await api.createBrand(unique('Marca vecina'), `@${unique('vecina').toLowerCase()}`);
-    await api.createPromotion(other.id, unique('Promoción vecina'));
+    await api.createPromotion(other.id, unique('Promoción vecina'), { starts_on: daysFromToday(0) });
 
     await openMap(page);
     const next = strip(page);

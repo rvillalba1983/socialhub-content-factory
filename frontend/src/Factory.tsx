@@ -16,7 +16,7 @@ import {
 import { ArmoryPanel, StationPanel, TaskPanel } from './Panel';
 import { Dot, Pill, prefersReducedMotion } from './ui';
 import { World, openAlert, type Selection } from './World';
-import { clampView, fitScale, validBox, type Box } from './viewLimits';
+import { boxForLevel, clampView, fitScale, validBox, type Box, type LevelBoxes } from './viewLimits';
 
 interface View { s: number; tx: number; ty: number }
 const clampS = (s: number) => Math.max(0.08, Math.min(3.5, s));
@@ -33,8 +33,12 @@ export function Factory({ data, live, onRefresh }: {
   const world = useRef<HTMLDivElement>(null);
   const view = useRef<View>({ s: 0.5, tx: 0, ty: 0 });
   const anim = useRef<number>(0);
-  // Caja del contenido (nivel de detalle 1) y límites de la vista; se rellenan al encuadrar y al cambiar los datos
+  // Caja del contenido al nivel de detalle 1 (el más compacto): sirve para el encuadre y el zoom mínimo
   const bounds = useRef<Box | null>(null);
+  // Caja del contenido en cada nivel (1, 2 y 3): limita el desplazamiento con la del nivel que se ve, para poder llegar
+  // a todo el contenido (el tamaño de las tarjetas cambia con el detalle). Se rellenan al encuadrar y al cambiar los datos.
+  const levelBounds = useRef<LevelBoxes>({});
+  const measuredAt = useRef(0);
   const clampRef = useRef<(v: View) => View>(v => v);
   const [lod, setLod] = useState(1);
   const [zoom, setZoom] = useState(50);
@@ -101,12 +105,27 @@ export function Factory({ data, live, onRefresh }: {
     const b = { x0: 1e9, y0: 1e9, x1: -1e9, y1: -1e9 };
     w.querySelectorAll(selector).forEach(e => {
       const q = e.getBoundingClientRect();
+      if (!q.width && !q.height) return; // oculto en este nivel de detalle
       b.x0 = Math.min(b.x0, (q.left - wr.left) / s); b.y0 = Math.min(b.y0, (q.top - wr.top) / s);
       b.x1 = Math.max(b.x1, (q.right - wr.left) / s); b.y1 = Math.max(b.y1, (q.bottom - wr.top) / s);
     });
     el.dataset.lod = prev;
     return b;
   }, []);
+
+  /** Mide el contenido en el nivel 1 (encuadre y zoom mínimo) y en cada nivel (límite del desplazamiento). */
+  const measureBounds = useCallback(() => {
+    const b1 = measure(1, CONTENT);
+    bounds.current = b1;
+    levelBounds.current = { 1: b1, 2: measure(2, CONTENT), 3: measure(3, CONTENT) };
+    measuredAt.current = performance.now();
+    return b1;
+  }, [measure]);
+
+  /** Vuelve a medir si hace un rato que no se mide (el contenido puede haber cambiado sin que cambien los datos, p. ej. al cargar las fuentes). */
+  const refreshBounds = useCallback(() => {
+    if (fitted.current && world.current && vp.current && performance.now() - measuredAt.current > 400) measureBounds();
+  }, [measureBounds]);
 
   const pads = useCallback(() => {
     const wide = vp.current!.clientWidth > 760;
@@ -122,19 +141,18 @@ export function Factory({ data, live, onRefresh }: {
   }, [avail, pads]);
   const clampZoom = useCallback((s: number) => Math.max(minScale(), Math.min(3.5, s)), [minScale]);
   clampRef.current = v => {
-    const b = bounds.current;
+    const b = boxForLevel(lodFor(clampS(v.s)), levelBounds.current, bounds.current);
     return vp.current && validBox(b) ? clampView(v, b, avail(), minScale()) : v;
   };
 
   const fit = useCallback(() => {
     if (!vp.current || !world.current) return;
     const a = avail(), { pt, pb } = pads();
-    const b = measure(1, CONTENT);
-    bounds.current = b;
+    const b = measureBounds();
     const w = b.x1 - b.x0, h = b.y1 - b.y0, ah = a.h - pt - pb;
     const s = validBox(b) ? fitScale(b, a, pt, pb) : clampS(0.7);
     animateTo({ s, tx: (a.w - w * s) / 2 - b.x0 * s, ty: pt + (ah - h * s) / 2 - b.y0 * s });
-  }, [avail, measure, animateTo]);
+  }, [avail, measureBounds, animateTo]);
 
   const flyToStation = useCallback((id: string, scale = 1.15) => {
     if (!vp.current) return;
@@ -157,8 +175,8 @@ export function Factory({ data, live, onRefresh }: {
 
   // El contenido cambia con los datos (promociones, tarjetas): se vuelve a medir para los límites
   useLayoutEffect(() => {
-    if (fitted.current && world.current && vp.current) bounds.current = measure(1, CONTENT);
-  }, [data, measure]);
+    if (fitted.current && world.current && vp.current) measureBounds();
+  }, [data, measureBounds]);
 
   // La franja de «Qué hacer ahora» cambia el alto del mapa: se vuelve a encuadrar al aparecer o desaparecer
   const hasNext = data.recommendations.length > 0;
@@ -187,6 +205,7 @@ export function Factory({ data, live, onRefresh }: {
     const skip = (t: EventTarget | null) => (t as HTMLElement | null)?.closest?.('.panel,.cc,.float,input,select,.results');
     const down = (e: PointerEvent) => {
       if (skip(e.target) || (e.pointerType === 'mouse' && e.button !== 0)) return;
+      refreshBounds();
       ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (ptrs.size === 1) drag = { x: e.clientX, y: e.clientY, tx: view.current.tx, ty: view.current.ty, moved: false };
       if (ptrs.size === 2) {
@@ -218,6 +237,7 @@ export function Factory({ data, live, onRefresh }: {
     const wheel = (e: WheelEvent) => {
       if (skip(e.target)) return;
       e.preventDefault();
+      refreshBounds();
       const r = el.getBoundingClientRect();
       if (!e.ctrlKey && e.deltaMode === 0 && Math.abs(e.deltaX) > Math.abs(e.deltaY) * 0.5 && Math.abs(e.deltaY) < 50) {
         cancelAnimationFrame(anim.current);
@@ -235,7 +255,7 @@ export function Factory({ data, live, onRefresh }: {
       el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up);
       el.removeEventListener('wheel', wheel); document.removeEventListener('click', click, true);
     };
-  }, [apply, zoomAt, clampZoom]);
+  }, [apply, zoomAt, clampZoom, refreshBounds]);
 
   // ---------- navegación ----------
   const goStation = useCallback((id: string) => {
