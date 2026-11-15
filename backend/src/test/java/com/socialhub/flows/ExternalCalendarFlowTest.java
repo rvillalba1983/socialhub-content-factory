@@ -49,6 +49,7 @@ class ExternalCalendarFlowTest {
     static HttpServer publora;
     /** A: lo hecho a mano (g-9), una cuenta ajena y un borrador · FAIL: error del servidor · B: otra cosa distinta (g-10). */
     static volatile String mode = "A";
+    static String firstTask;
 
     @Autowired MockMvc mvc;
     @Autowired FlowClock clock;
@@ -159,6 +160,7 @@ class ExternalCalendarFlowTest {
         JsonNode request = sent.getFirst();
         assertThat(request.get("inputs").get("brand").get("handle").asString()).isEqualTo("@elde_lito");
         String task = request.get("taskId").asString();
+        firstTask = task;
         assertThat(f.task(task).get("status").asString()).isEqualTo("WAITING");
 
         // Un elemento sin origen válido: el resultado entero se rechaza y no se guarda nada de Publer ni de la red
@@ -207,7 +209,7 @@ class ExternalCalendarFlowTest {
         clock.set(madrid(11, 10));
         f.waitFor(() -> f.requestsOfType("para-claude-pc", "socialhub.calendar-read").size() == 2, "encargo del día siguiente");
         JsonNode second = f.requestsOfType("para-claude-pc", "socialhub.calendar-read").stream()
-                .filter(r -> r.get("inputs").get("publer_window").toString().contains("2026-11-11")).findFirst().orElseThrow();
+                .filter(r -> !r.get("taskId").asString().equals(firstTask)).findFirst().orElseThrow();
         String task = second.get("taskId").asString();
         // Algo ya planificado en SocialHub esa semana: no cuenta como «de fuera»
         f.ok(f.post("/api/promotions/poemario/publications", """
