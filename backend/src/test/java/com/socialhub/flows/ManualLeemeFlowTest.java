@@ -125,8 +125,8 @@ class ManualLeemeFlowTest {
         assertThat(f.publication("poemario", id).get("confirmation").asString()).contains("instagram.com/p/ABC123");
         // Resuelta: el aviso desaparece
         assertThat(f.hasAlert(id)).isFalse();
-        // (La incidencia «Publicación manual con LEEME» sigue escrita en la publicación ya publicada: ver
-        // «Fallos de la aplicación encontrados» en docs/pruebas-flujos.md. Aquí no se da por buena ni por mala.)
+        // Y la incidencia «Publicación manual con LEEME» se quita de la publicación ya publicada
+        assertThat(f.publication("poemario", id).has("flag") && !f.publication("poemario", id).get("flag").isNull()).isFalse();
         clock.reset();
     }
 

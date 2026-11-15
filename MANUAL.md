@@ -183,7 +183,7 @@ SocialHub comprueba solo:
 
 Con **Revisar con Claude**, Claude revisa además el tono, la ortografía y las afirmaciones sin fuente.
 
-Mientras quede un aviso abierto, la publicación **no pasa a «Aprobada» ni a «Programada»**. Cada aviso se corrige o se acepta con un motivo.
+Mientras quede un aviso abierto, la publicación **no pasa a «Aprobada» ni a «Programada»**. Cada aviso se corrige o se acepta con un motivo. **Aceptar solo vale mientras no cambie la publicación**: si cambias el texto, los hashtags o los archivos, las aceptaciones se anulan y los avisos se comprueban de nuevo (reaparecen si siguen fallando).
 
 **Archivos, publicación y métricas**
 

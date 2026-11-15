@@ -51,6 +51,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 class AiAutoOrders {
 
     static final LocalTime FROM = LocalTime.of(9, 0);
+    /** Registro (en {@code ai_auto_order}, con el último día de la ventana en la fecha) de una primera ventana ampliada. */
+    static final String FIRST_WINDOW_END = "FIRST_WINDOW_END";
 
     private final PromotionQueries promotions;
     private final PromotionService promotionService;
@@ -87,9 +89,10 @@ class AiAutoOrders {
         n += createSpecBatches(now);
         Optional<LocalDate> balance = balanceWeek(now);
         if (balance.isPresent()) n += create(AiRequestType.WEEKLY_BALANCE, balance.get());
+        // Primero la primera semana: si su ventana se extiende, la ronda de W+1 empieza después
+        n += createFirstWeeks(now);
         Optional<LocalDate> proposals = proposalsWeek(now);
         if (proposals.isPresent()) n += create(AiRequestType.WEEKLY_PROPOSALS, proposals.get());
-        n += createFirstWeeks(now);
         return n;
     }
 
@@ -128,6 +131,10 @@ class AiAutoOrders {
             String taskId = orders.submitInternal(promotionId, AiRequestType.WEEKLY_PROPOSALS, title, goal,
                     to.isAfter(week.plusDays(6)) ? List.of(week.toString(), to.toString()) : List.of(week.toString()));
             done.save(new AiAutoOrderEntity(promotionId, AiRequestType.WEEKLY_PROPOSALS.name(), week, taskId, clock.instant()));
+            // Hasta dónde llegó su ventana: la ronda de W+1 empieza el día siguiente si la ventana invadió esa semana
+            if (to.isAfter(week.plusDays(6))) {
+                done.save(new AiAutoOrderEntity(promotionId, FIRST_WINDOW_END, to, taskId, clock.instant()));
+            }
         });
         log.info("Propuestas de la primera semana pedidas: {} (del {} al {})", promotionId, from, to);
         return FirstWeekResult.REQUESTED;
@@ -312,16 +319,29 @@ class AiAutoOrders {
         if (done.existsById(key)) return WeekResult.ALREADY_REQUESTED;
         // Sin nada que hacer todavía (p. ej., sin publicaciones aprobadas): no se crea ni se marca como hecho
         if (!handlers.of(type).map(h -> h.readyForAutoOrder(promotionId, week)).orElse(true)) return WeekResult.NOT_READY;
+        // La ventana ampliada de la primera semana ya cubre esos días de W+1: la ronda semanal empieza el día siguiente
+        LocalDate start = week;
+        if (type == AiRequestType.WEEKLY_PROPOSALS) {
+            LocalDate covered = done.findByPromotionIdAndType(promotionId, FIRST_WINDOW_END).stream()
+                    .map(AiAutoOrderEntity::getWeekStart).filter(d -> !d.isBefore(week)).max(LocalDate::compareTo).orElse(null);
+            if (covered != null) start = covered.plusDays(1);
+            // Nada que proponer: la primera ventana ya llega hasta el final de W+1
+            if (start.isAfter(week.plusDays(6))) return WeekResult.NOT_READY;
+        }
+        LocalDate from = start;
         transactions.executeWithoutResult(s -> {
             String title = type.label() + " · semana del " + week.getDayOfMonth() + " "
                     + week.getMonth().getDisplayName(TextStyle.SHORT, Locale.of("es", "ES"));
             String goal = switch (type) {
-                case WEEKLY_PROPOSALS -> "Propón las publicaciones de la semana del " + week + " para esta promoción, "
-                        + "según su cadencia, sus objetivos, sus hitos y su memoria editorial.";
+                case WEEKLY_PROPOSALS -> "Propón las publicaciones de la semana del " + week + " para esta promoción"
+                        + (from.isAfter(week) ? " (desde el " + from + ": los días anteriores ya los cubre la primera semana)" : "")
+                        + ", según su cadencia, sus objetivos, sus hitos y su memoria editorial.";
                 default -> "Haz el balance de la semana del " + week + " de esta promoción: qué se publicó, qué falló y "
                         + "qué conviene cambiar. Sin inventar cifras.";
             };
-            String taskId = orders.submitInternal(promotionId, type, title, goal, List.of(week.toString()));
+            List<String> inputs = from.isAfter(week) ? List.of(week.toString(), week.plusDays(6).toString(), from.toString())
+                    : List.of(week.toString());
+            String taskId = orders.submitInternal(promotionId, type, title, goal, inputs);
             done.save(new AiAutoOrderEntity(promotionId, type.name(), week, taskId, clock.instant()));
         });
         log.info("Encargo semanal creado: {} de {} (semana del {})", type, promotionId, week);

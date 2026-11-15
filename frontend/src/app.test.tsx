@@ -605,6 +605,8 @@ describe('Instagram · API oficial', () => {
     expect(await screen.findByLabelText('Dirección de redireccionamiento para Meta')).toHaveValue(redirect);
     // Sin App ID y App Secret guardados no se puede conectar
     expect(screen.getByRole('button', { name: 'Conectar con Instagram' })).toBeDisabled();
+    expect(screen.getByText(/Para conectar, primero guarda el App ID y el App Secret de tu app de Meta \(arriba\)\./)).toBeInTheDocument();
+    expect(screen.queryByText(/SocialHub ya usa la clave de usuario del sistema/)).not.toBeInTheDocument();
     const secret = screen.getByLabelText('App Secret de Meta');
     expect(secret).toHaveAttribute('type', 'password');
     fireEvent.change(screen.getByLabelText('App ID de Meta'), { target: { value: '1234567890123' } });
@@ -617,6 +619,26 @@ describe('Instagram · API oficial', () => {
     fireEvent.click(connect);
     await waitFor(() => expect(open).toHaveBeenCalledWith('https://www.facebook.com/v23.0/dialog/oauth?state=abc', '_self'));
     expect(start).toHaveBeenCalled();
+    expect(screen.queryByText(/primero guarda el App ID/)).not.toBeInTheDocument();
+  });
+
+  it('dice por qué no se puede conectar y avisa de que ya se usa la clave del sistema', async () => {
+    vi.spyOn(api, 'instagram').mockResolvedValue({ configured: true, system_key: true, key_hint: '…abcd',
+      redirect_uri: 'http://localhost:8686/api/instagram/oauth/callback', app_id: '1234567890123', app_secret_saved: false });
+    render(<InstagramKeyCard />);
+    expect(await screen.findByText(/Para conectar, primero guarda el App ID y el App Secret/)).toBeInTheDocument();
+    expect(screen.getByText(/Mientras tanto, SocialHub ya usa la clave de usuario del sistema\./)).toBeInTheDocument();
+  });
+
+  it('enseña el error si no se puede empezar la conexión con Meta', async () => {
+    vi.spyOn(api, 'instagram').mockResolvedValue({ configured: false, redirect_uri: 'http://localhost:8686/api/instagram/oauth/callback',
+      app_id: '1234567890123', app_secret_saved: true });
+    vi.spyOn(api, 'startInstagramOAuth').mockRejectedValue(new Error('Meta no responde'));
+    render(<InstagramKeyCard />);
+    const connect = await screen.findByRole('button', { name: 'Conectar con Instagram' });
+    await waitFor(() => expect(connect).toBeEnabled());
+    fireEvent.click(connect);
+    expect(await screen.findByRole('alert')).toHaveTextContent('Meta no responde');
   });
 
   it('copia la dirección de redireccionamiento', async () => {
@@ -819,6 +841,8 @@ describe('Control de calidad', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Aceptar aviso' }));
     await waitFor(() => expect(accept).toHaveBeenCalledWith('p-1', 'FILES_MISSING', 'Se sube en Publer'));
     expect(await screen.findByText(/Aceptado: Se sube en Publer/)).toBeInTheDocument();
+    expect(screen.getByText(/\(vale mientras no cambie la publicación\)/)).toBeInTheDocument();
+    expect(screen.getByText(/las aceptaciones se anulan y los avisos se comprueban de nuevo/)).toBeInTheDocument();
     expect(screen.getByText(/1 aviso abierto/)).toBeInTheDocument();
   });
 

@@ -60,6 +60,9 @@ public class InstagramService {
         return new Status(key != null, key == null ? null : hint(key));
     }
 
+    /** Ya hay un resultado de {@link #check()} vigente (se pierde al guardar la clave o una cuenta y al reiniciar). */
+    public boolean hasCheck() { return last != null; }
+
     /** Hay con qué llamar a Meta: una conexión vigente o la clave de usuario del sistema. */
     public boolean hasKey() { return credentials.activeToken().isPresent(); }
 
@@ -94,8 +97,9 @@ public class InstagramService {
         String error = null;
         try {
             name = instagram.me(key).name();
-        } catch (InstagramException e) {
-            error = e.getMessage();
+        } catch (RuntimeException e) {
+            // Cualquier fallo queda en el resultado: así «last» siempre se pone y nadie vuelve a comprobar en bucle
+            error = e.getMessage() == null ? e.toString() : e.getMessage();
         }
         List<BrandCheck> brands = new ArrayList<>();
         for (var brand : promotions.brandRefs()) {
@@ -109,8 +113,9 @@ public class InstagramService {
                 String username = instagram.account(key, account.igUserId()).username();
                 var quota = instagram.publishingLimit(key, account.igUserId());
                 brands.add(new BrandCheck(brand.id(), brand.name(), username, quota.used(), quota.total(), null));
-            } catch (InstagramException e) {
-                brands.add(new BrandCheck(brand.id(), brand.name(), account.username(), null, null, e.getMessage()));
+            } catch (RuntimeException e) {
+                brands.add(new BrandCheck(brand.id(), brand.name(), account.username(), null, null,
+                        e.getMessage() == null ? e.toString() : e.getMessage()));
             }
         }
         boolean ok = error == null && brands.stream().noneMatch(b -> b.error() != null);

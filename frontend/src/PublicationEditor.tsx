@@ -341,7 +341,8 @@ function QualityPanel({ publication, promotionId }: { publication: Publication; 
           y el tamaño que admite la red y que se vean bien), el texto (que no falte ni se pase de largo), los hashtags y lo que has fijado
           en la identidad de la marca (llamada a la acción, hashtags fijos y expresiones prohibidas).</p>
         <ul>
-          <li><b>Aceptar</b> significa «lo doy por bueno aunque falle». Escribes el motivo, el aviso deja de bloquear y queda anotado.</li>
+          <li><b>Aceptar</b> significa «lo doy por bueno aunque falle». Escribes el motivo, el aviso deja de bloquear y queda anotado.
+            Solo vale mientras no cambie la publicación: si cambias el texto, los hashtags o los archivos, las aceptaciones se anulan y los avisos se comprueban de nuevo (reaparecen si siguen fallando).</li>
           <li><b>Comprobar de nuevo</b> vuelve a pasar las comprobaciones. Úsalo después de corregir algo (añadir un archivo, cambiar el texto…).</li>
           <li><b>Revisar con Claude</b> le pide a Claude una segunda lectura: coherencia, tono de la marca, ortografía y datos sin fuente.
             Sus avisos llegan aquí en la siguiente recogida.</li>
@@ -352,7 +353,7 @@ function QualityPanel({ publication, promotionId }: { publication: Publication; 
       {report?.issues.map(i => (
         <div key={i.key} className="quality-row">
           <span className={`pill ${i.accepted ? 's-ok' : 's-block'}`}>{i.source === 'CLAUDE' ? 'Claude' : 'Comprobación'}</span>
-          <span>{i.message}{i.accepted && <small className="src"> · Aceptado: {i.accepted_reason}</small>}
+          <span>{i.message}{i.accepted && <small className="src"> · Aceptado: {i.accepted_reason} (vale mientras no cambie la publicación)</small>}
             {!i.accepted && <small className="quality-todo">Qué hacer: {whatToDo(i.key, i.source)}</small>}</span>
           {!i.accepted && accepting !== i.key && (
             <button type="button" className="btn" onClick={() => { setAccepting(i.key); setReason(''); }}>Aceptar</button>

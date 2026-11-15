@@ -28,6 +28,11 @@ class JpaQualityRepository implements QualityRepository {
     }
 
     @Override
+    public void clearAcceptances(String publicationId) {
+        acks.deleteByPublication(publicationId);
+    }
+
+    @Override
     public List<ReviewIssue> reviewIssues(String publicationId) {
         return reviews.findByPublicationIdOrderByIssueKey(publicationId).stream()
                 .map(r -> new ReviewIssue(r.getIssueKey(), r.getMessage())).toList();

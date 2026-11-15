@@ -77,9 +77,12 @@ class CaptionsHandler implements AiTypeHandler {
         }
         // Se comprueba antes de guardar, para no fallar dentro de la transacción del servicio
         validateOrder(job.promotionId(), texts.stream().map(PublishingService.Texts::publicationId).toList());
-        service.applyTexts(job.promotionId(), texts);
+        int kept = service.applyTexts(job.promotionId(), texts).size();
+        int saved = texts.size() - kept;
         String summary = outputs.path("summary").isString() ? outputs.path("summary").asString().strip() : "";
-        return texts.size() + (texts.size() == 1 ? " texto guardado" : " textos guardados") + " para revisar"
+        return (saved == 0 ? "Ningún texto guardado" : saved + (saved == 1 ? " texto guardado" : " textos guardados") + " para revisar")
+                + (kept == 0 ? "" : " · " + kept + (kept == 1 ? " no se aplicó" : " no se aplicaron")
+                        + " porque ya tenían texto tuyo (queda en la incidencia de la publicación)")
                 + (summary.isEmpty() ? "" : " · " + summary);
     }
 }

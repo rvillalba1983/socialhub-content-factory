@@ -205,6 +205,40 @@ class CaptionsToPublicationFlowTest {
     }
 
 
+    @Test
+    @Order(6)
+    void claudesResultNeverOverwritesTheTextRaulWroteInTheMeantime() throws Exception {
+        Flow f = flow();
+        // Dos publicaciones sin texto en un mismo encargo: Raúl escribe el texto de la primera mientras Claude trabaja
+        create("2027-02-01", "INSTAGRAM", "Post", "Con texto mientras tanto", "IN_PRODUCTION");
+        create("2027-02-02", "INSTAGRAM", "Post", "Sigue sin texto", "IN_PRODUCTION");
+        String task = f.order("poemario", "CAPTIONS", "Textos mientras escribo", "2027-02-01-instagram", "2027-02-02-instagram");
+        f.ok(f.put("/api/publications/2027-02-01-instagram", pub("2027-02-01", "INSTAGRAM", "Post", "Con texto mientras tanto",
+                "Mi texto, escrito a mano.", "#mio")));
+
+        f.complete(task, """
+                {"publications":[
+                  {"id":"2027-02-01-instagram","caption":"Texto de Claude que no debe pisar.","hashtags":"#claude"},
+                  {"id":"2027-02-02-instagram","caption":"Texto de Claude para la otra.","hashtags":"#eldelito"}]}""");
+
+        // Lo de Raúl se queda tal cual; el de Claude queda a la vista en la incidencia para copiarlo si quiere
+        JsonNode mine = f.publication("poemario", "2027-02-01-instagram");
+        assertThat(mine.get("caption").asString()).isEqualTo("Mi texto, escrito a mano.");
+        assertThat(mine.get("hashtags").asString()).isEqualTo("#mio");
+        assertThat(mine.get("flag").asString()).contains("Texto de Claude que no debe pisar.").contains("#claude");
+        // La otra sí recibe el texto de Claude, sin incidencia
+        JsonNode other = f.publication("poemario", "2027-02-02-instagram");
+        assertThat(other.get("caption").asString()).isEqualTo("Texto de Claude para la otra.");
+        assertThat(other.has("flag") && !other.get("flag").isNull()).isFalse();
+        assertThat(f.task(task).get("result").asString()).contains("1 texto guardado").contains("1 no se aplicó");
+
+        // Si Raúl no toca el texto de Claude, un nuevo resultado de Claude sí lo sustituye (sigue siendo suyo)
+        String again = f.order("poemario", "CAPTIONS", "Otra vez", "2027-02-02-instagram");
+        f.complete(again, "{\"publications\":[{\"id\":\"2027-02-02-instagram\",\"caption\":\"Segunda de Claude.\",\"hashtags\":\"#eldelito\"}]}");
+        assertThat(f.publication("poemario", "2027-02-02-instagram").get("caption").asString()).isEqualTo("Segunda de Claude.");
+    }
+
+
     // ------------------------------------------------------------------ utilidades
 
     private static String pub(String day, String platform, String type, String title, String caption, String hashtags) {
