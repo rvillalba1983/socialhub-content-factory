@@ -171,16 +171,22 @@ test.describe('Mapa', () => {
       await page.mouse.down();
       for (let i = 1; i <= 8; i++) await page.mouse.move(cx + (dx * i) / 8, cy + (dy * i) / 8);
       await page.mouse.up();
-      await expect.poll(() => page.evaluate((sd) => {
+      await page.waitForTimeout(800);
+      const info = await page.evaluate((sd) => {
         const v = document.querySelector('main.vp')!.getBoundingClientRect();
-        let l = Infinity, t = Infinity, r = -Infinity, b = -Infinity;
+        const w = document.querySelector('.world') as HTMLElement;
+        let l = Infinity, t = Infinity, r = -Infinity, b = -Infinity, who = '';
         document.querySelectorAll('.st,.hub,.res,.node,.seglabel').forEach(el => {
           const q = el.getBoundingClientRect();
           if (!q.width || !q.height) return;
-          l = Math.min(l, q.left); t = Math.min(t, q.top); r = Math.max(r, q.right); b = Math.max(b, q.bottom);
+          l = Math.min(l, q.left); t = Math.min(t, q.top);
+          if (q.right > r) { r = q.right; if (sd === 'r') who = `${el.className} ${Math.round(q.left)}-${Math.round(q.right)}`; }
+          b = Math.max(b, q.bottom);
         });
-        return sd === 'r' ? r <= v.right + 2 : sd === 'l' ? l >= v.left - 2 : sd === 'b' ? b <= v.bottom + 2 : t >= v.top - 2;
-      }, side), { message: `borde ${side}` }).toBe(true);
+        return { ok: sd === 'r' ? r <= v.right + 2 : sd === 'l' ? l >= v.left - 2 : sd === 'b' ? b <= v.bottom + 2 : t >= v.top - 2,
+          detail: `${sd}: l=${Math.round(l)} t=${Math.round(t)} r=${Math.round(r)} b=${Math.round(b)} vp=${Math.round(v.right)}x${Math.round(v.bottom)} ${who} tf=${getComputedStyle(w).transform} lod=${document.querySelector('main.vp')!.getAttribute('data-lod')}` };
+      }, side);
+      expect(info.ok, info.detail).toBe(true);
     }
   });
 
