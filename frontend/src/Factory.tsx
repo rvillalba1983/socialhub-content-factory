@@ -5,6 +5,7 @@ import { ControlCenter } from './ControlCenter';
 import { ExternalOperations } from './ExternalOperations';
 import { Backups, Closed, Halted, ShutdownButton } from './Backups';
 import { Registration } from './Registration';
+import { VersionBadge } from './Version';
 import { NextSteps, savedMessage, toastDuration, withoutBrandNotices, type SavedRef } from './Recommendations';
 import type { RecommendationTarget } from './api/schema';
 import { Icon } from './icons';
@@ -414,6 +415,7 @@ export function Factory({ data, live, onRefresh }: {
     <>
       <header className="top">
         <button className="mark" onClick={home} aria-label="Volver a la vista general"><i />SocialHub</button>
+        <VersionBadge demo={data.demo} />
         <nav className="crumbs" aria-label="Ruta de navegación">
           {crumbs.map((c, i) => (
             <span key={i} style={{ display: 'contents' }}>

@@ -1,20 +1,40 @@
 package com.socialhub.platform.web;
 
 import com.socialhub.api.AppApi;
+import com.socialhub.api.model.AppVersionDto;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.SpringApplication;
+import org.springframework.boot.info.BuildProperties;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Cerrar SocialHub desde la web (no tiene ventana propia). */
+/** Cerrar SocialHub desde la web (no tiene ventana propia) y decir qué versión es. */
 @Slf4j
 @RestController
 @RequiredArgsConstructor
 class AppController implements AppApi {
 
     private final ConfigurableApplicationContext context;
+    /** Vacío si se ejecuta sin compilar con Maven (por ejemplo, desde el IDE): no existe build-info.properties. */
+    private final ObjectProvider<BuildProperties> build;
+
+    @Override
+    public ResponseEntity<AppVersionDto> getAppVersion() {
+        BuildProperties info = build.getIfAvailable();
+        if (info == null) {
+            return ResponseEntity.ok(new AppVersionDto("desconocida", "local", OffsetDateTime.now(ZoneOffset.UTC)));
+        }
+        String commit = info.get("commit");
+        return ResponseEntity.ok(new AppVersionDto(
+                info.getVersion(),
+                commit == null || commit.isBlank() ? "local" : commit,
+                info.getTime().atOffset(ZoneOffset.UTC)));
+    }
 
     @Override
     public ResponseEntity<Void> shutdownApp(String requestGuard) {
