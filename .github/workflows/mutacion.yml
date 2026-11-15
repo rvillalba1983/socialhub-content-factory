@@ -52,6 +52,9 @@ jobs:
           distribution: temurin
           java-version: "25"
           cache: maven
+      - name: Bibliotecas del sistema para el FFmpeg incluido (Linux)
+        if: steps.clases.outputs.classes != ''
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq libxcb1 libxcb-shm0 libasound2t64 libpulse0 libva2 libva-drm2
       - name: Mutación (umbral 75 %)
         if: steps.clases.outputs.classes != ''
         run: |
