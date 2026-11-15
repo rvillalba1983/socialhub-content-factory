@@ -31,6 +31,12 @@
     <javacpp.version>1.5.14</javacpp.version>
     <ffmpeg.version>8.1.2-${javacpp.version}</ffmpeg.version>
     <javacpp.platform>linux-x86_64</javacpp.platform>
+    <!-- Pruebas de mutación (PIT): `mvn test-compile org.pitest:pitest-maven:mutationCoverage`. No va en `verify`.
+         Umbral de mutantes matados: 0 por defecto; la PR lo sube con -Dpit.threshold=75 (ver .github/workflows/mutacion.yml) -->
+    <pitest.version>1.30.2</pitest.version>
+    <pitest-junit5.version>1.2.3</pitest-junit5.version>
+    <pit.threshold>0</pit.threshold>
+    <pit.targetClasses>com.socialhub.*</pit.targetClasses>
   </properties>
 
   <dependencyManagement>
@@ -337,6 +343,46 @@
             </configuration>
           </execution>
         </executions>
+      </plugin>
+      <!-- Pruebas de mutación: mide si las pruebas detectan cambios en el código (calidad, no cobertura) -->
+      <plugin>
+        <groupId>org.pitest</groupId>
+        <artifactId>pitest-maven</artifactId>
+        <version>${pitest.version}</version>
+        <dependencies>
+          <dependency>
+            <groupId>org.pitest</groupId>
+            <artifactId>pitest-junit5-plugin</artifactId>
+            <version>${pitest-junit5.version}</version>
+          </dependency>
+        </dependencies>
+        <configuration>
+          <targetClasses>
+            <param>${pit.targetClasses}</param>
+          </targetClasses>
+          <targetTests>
+            <param>com.socialhub.*</param>
+          </targetTests>
+          <excludedClasses>
+            <!-- API generada desde el contrato, mapeadores generados y arranque -->
+            <param>com.socialhub.api.*</param>
+            <param>*MapperImpl</param>
+            <param>com.socialhub.SocialHubApplication</param>
+          </excludedClasses>
+          <mutationThreshold>${pit.threshold}</mutationThreshold>
+          <threads>2</threads>
+          <timeoutConstant>8000</timeoutConstant>
+          <outputFormats>
+            <param>HTML</param>
+            <param>XML</param>
+          </outputFormats>
+          <timestampedReports>false</timestampedReports>
+          <failWhenNoMutations>false</failWhenNoMutations>
+          <avoidCallsTo>
+            <param>org.slf4j</param>
+            <param>java.util.logging</param>
+          </avoidCallsTo>
+        </configuration>
       </plugin>
     </plugins>
   </build>
