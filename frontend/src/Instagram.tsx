@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from './api';
 import type { InstagramAccount, InstagramCheck, InstagramStatus } from './model';
 import { Pill } from './ui';
+import { WhereHelp } from './WhereHelp';
 
 /**
  * API oficial de Instagram: la clave de «usuario del sistema» del porfolio de Meta (no caduca, vale para todas las
@@ -52,6 +53,7 @@ export function InstagramKeyCard({ onChanged }: { onChanged?: () => void }) {
           placeholder={status?.configured ? 'Pegar otra clave' : 'Pega aquí la clave del usuario del sistema'} value={key} onChange={e => setKey(e.target.value)} />
         <button className="btn" disabled={busy || key.trim().length < 10}>Comprobar y guardar</button>
       </form>
+      <WhereHelp topic="meta-token" />
       {check && (
         <div role="status" aria-label="Resultado de la comprobación">
           <p>{check.ok ? <Pill s="OK" label={`Clave válida${check.name ? ` · ${check.name}` : ''}`} /> : <Pill s="FAILED" label="Hay algo que revisar" />}</p>
@@ -109,6 +111,7 @@ export function InstagramAccountCard({ brandId, onSaved }: { brandId: string; on
       <label className="field"><span>Cuenta de Instagram (API oficial)</span>
         <input inputMode="numeric" autoComplete="off" aria-label="Cuenta de Instagram (API oficial)" placeholder="Identificador de la cuenta (número largo)"
           value={id} onChange={e => setId(e.target.value)} /></label>
+      <WhereHelp topic="instagram-account-id" />
       {account?.username && <p><Pill s="OK" label={`@${account.username}`} /></p>}
       {error && <p className="error" role="alert">{error}</p>}
       <div className="form-actions">

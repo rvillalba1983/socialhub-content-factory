@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from './api';
 import type { Platform, PublerAccount } from './model';
+import { WhereHelp } from './WhereHelp';
 
 const PLATFORMS: [Platform, string, string][] = [
   ['INSTAGRAM', 'Instagram', 'Litoques'],
@@ -47,9 +48,12 @@ export function PublerCard({ brandId, onSaved }: { brandId: string; onSaved?: (m
       {loaded && (
         <form onSubmit={e => void save(e)} aria-label="Cuenta de Publer de la marca">
           {PLATFORMS.map(([platform, label, example]) => (
-            <label key={platform} className="field"><span>Cuenta de {label} en Publer</span>
-              <input aria-label={`Cuenta de Publer para ${label}`} maxLength={120} placeholder={`Por ejemplo: «${example}»`}
-                value={names[platform] ?? ''} onChange={e => setNames({ ...names, [platform]: e.target.value })} /></label>
+            <div key={platform} className="field-help">
+              <label className="field"><span>Cuenta de {label} en Publer</span>
+                <input aria-label={`Cuenta de Publer para ${label}`} maxLength={120} placeholder={`Por ejemplo: «${example}»`}
+                  value={names[platform] ?? ''} onChange={e => setNames({ ...names, [platform]: e.target.value })} /></label>
+              <WhereHelp topic={platform === 'TIKTOK' ? 'publer-account-tiktok' : 'publer-account-instagram'} />
+            </div>
           ))}
           <div className="form-actions"><button className="btn primary" disabled={busy}>Guardar cuentas</button></div>
         </form>
