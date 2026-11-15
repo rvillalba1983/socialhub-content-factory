@@ -93,9 +93,7 @@ export const test = base.extend<Fixtures>({
     await http.dispose();
   },
 
-  // Sin clave ni conexión de Meta, la ficha de una marca pide /api/instagram/accounts y la API contesta 400 (documentado en el
-  // contrato). La web lo ignora, pero el navegador lo anota en la consola: fallo conocido, anotado en la PR.
-  allowedConsole: async ({}, use) => { await use([/status of 400.*\/api\/instagram\/accounts/]); },
+  allowedConsole: async ({}, use) => { await use([]); },
   allowConsole: async ({ allowedConsole }, use) => { await use(pattern => { allowedConsole.push(pattern); }); },
 
   // Cada recorrido vigila la consola del navegador: un error o una excepción sin declarar hace fallar la prueba
