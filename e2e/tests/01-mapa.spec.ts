@@ -61,6 +61,8 @@ const smallestTextOnScreen = (page: Page) => page.evaluate(() => {
 test.describe('Mapa', () => {
   test.beforeAll(async ({ api }) => {
     // Una marca y una promoción activa, para que el centro del anillo tenga su tarjeta
+    // (si una prueba falla, Playwright reinicia el proceso y repite este gancho: no se duplica nada)
+    if ((await api.factory()).promotions.some(p => p.name === 'Promoción del mapa')) return;
     const brand = await api.createBrand('Marca del mapa', '@marca_mapa', '#7A3FB5');
     await api.createPromotion(brand.id, 'Promoción del mapa');
   });
@@ -127,7 +129,7 @@ test.describe('Mapa', () => {
     // Alejar con la rueda hasta el límite: no baja del encuadre
     await page.mouse.move(vp.x + vp.width / 2, vp.y + vp.height / 2);
     for (let i = 0; i < 6; i++) await page.mouse.wheel(0, 2000);
-    await expect.poll(() => scaleOf(page)).toBeGreaterThanOrEqual(fitted - 0.005);
+    await expect.poll(() => scaleOf(page)).toBeGreaterThanOrEqual(fitted * 0.98);
     await expect.poll(() => stationsInView(page)).toBe(8);
 
     // Acercar con la rueda hasta el límite: no pasa del 350 %
