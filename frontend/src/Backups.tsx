@@ -3,6 +3,7 @@ import { api } from './api';
 import { Icon } from './icons';
 import { dateTime, type Backup, type BackupList } from './model';
 import { Pill } from './ui';
+import { WhereHelp } from './WhereHelp';
 
 const KIND: Record<Backup['kind'], string> = { DAILY: 'Diaria', MANUAL: 'A mano', BEFORE_RESTORE: 'Antes de restaurar' };
 
@@ -64,6 +65,7 @@ export function Backups({ onClose, onMessage, onHalted }: { onClose: () => void;
             {list.folder && !list.folder_available && <p><Pill s="BLOCKED" label="No disponible" /> No se encuentra la carpeta. Mientras tanto, las copias van a este ordenador. ¿Está abierto Google Drive?</p>}
             <label className="field"><span>Carpeta (por ejemplo, una de Google Drive en G:)</span>
               <input value={folder} onChange={e => setFolder(e.target.value)} placeholder="G:\Mi unidad\SocialHub\Copias" spellCheck={false} /></label>
+            <WhereHelp topic="backups-folder" />
             <div className="form-actions">
               <button className="btn primary" disabled={!!busy}>{busy === 'carpeta' ? 'Guardando…' : 'Guardar carpeta'}</button>
               <span className="src">Las próximas copias van a: <span className="mono">{where}</span></span>
