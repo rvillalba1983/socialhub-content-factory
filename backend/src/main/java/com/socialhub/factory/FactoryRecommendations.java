@@ -11,6 +11,7 @@ import com.socialhub.api.model.RecommendationTargetDto;
 import com.socialhub.backup.BackupService;
 import com.socialhub.pieces.ContentGaps;
 import com.socialhub.promotion.PromotionQueries;
+import com.socialhub.publishing.InstagramOAuthService;
 import com.socialhub.publishing.PublerAccountService;
 import com.socialhub.publishing.PublishingQueries;
 import com.socialhub.publishing.PubloraService;
@@ -44,6 +45,9 @@ import org.springframework.stereotype.Component;
  *   marca y red, con botón a la tarjeta «Cuenta en Publer» de la ficha. Va tras las de publicación: bloquea publicaciones reales.</li>
  *   <li>La tarea «Publicar con Chrome» no contesta: encargos de {@code para-claude-pc} sin resultado desde hace 90
  *   minutos después de la pasada que les tocaba (cada 5 h, desde las 0:50). Sin botón.</li>
+ *   <li>La conexión con Instagram («Conectar con Instagram») caduca en 7 días o menos, o ya caducó: botón a la tarjeta
+ *   «Instagram · API oficial», donde está «Renovar conexión». Si hay clave de usuario del sistema, se dice que mientras tanto
+ *   se usará esa. Sin conexión guardada no sale nada.</li>
  *   <li>Propuestas de una promoción retenidas, con el motivo (la marca sin carpeta de «Encargos», la carpeta no
  *   disponible porque Drive está cerrado o el límite diario alcanzado, este último con botón a «Claude»). Una sola
  *   fila por promoción, con este orden de motivos.</li>
@@ -77,6 +81,7 @@ class FactoryRecommendations {
     private final BackupService backups;
     private final AiAutoStarted autoStarted;
     private final ContentGaps contentGaps;
+    private final InstagramOAuthService instagramOAuth;
     private final Clock clock;
 
     List<RecommendationDto> compute() {
@@ -116,6 +121,9 @@ class FactoryRecommendations {
                             + ": sin la cuenta no se puede programar en Publer",
                     RecommendationTargetDto.ScreenEnum.PUBLER, m.brandId(), null));
         }
+
+        // 0c. Instagram: la conexión con Meta caduca pronto o ya caducó
+        instagramOAuth.notice().ifPresent(n -> all.add(instagramExpiring(n)));
 
         // 1. Propuestas retenidas, o paradas por Drive o por el límite diario
         Map<String, AiHeldOrders.Held> held = new LinkedHashMap<>();
@@ -286,6 +294,19 @@ class FactoryRecommendations {
     }
 
     private static String hour(ZonedDateTime time) { return ClaudePickups.hour(time); }
+
+    private static RecommendationDto instagramExpiring(InstagramOAuthService.Notice n) {
+        String title = n.expired() ? "La conexión con Instagram ha caducado"
+                : n.daysLeft() == 0 ? "La conexión con Instagram caduca hoy"
+                : n.daysLeft() == 1 ? "La conexión con Instagram caduca mañana"
+                : "La conexión con Instagram caduca en " + n.daysLeft() + " días";
+        String detail = n.systemKeyFallback()
+                ? "Mientras no la renueves se usa la clave de usuario del sistema. Pulsa «Renovar conexión» (un clic)"
+                : n.expired() ? "Sin ella no se puede publicar por la API oficial: pulsa «Renovar conexión» (un clic)"
+                : "Pulsa «Renovar conexión» (un clic) antes de que caduque";
+        return recommendation("instagram-connection-expiring", RecommendationDto.KindEnum.INSTAGRAM_CONNECTION_EXPIRING, title,
+                detail, RecommendationTargetDto.ScreenEnum.INSTAGRAM, null, null);
+    }
 
     private static RecommendationDto recommendation(String id, RecommendationDto.KindEnum kind, String title,
                                                     @Nullable String detail,

@@ -13,7 +13,6 @@ import com.socialhub.publishing.domain.PublicationFileRepository;
 import com.socialhub.publishing.domain.PublicMediaHost;
 import com.socialhub.publishing.domain.PublicMediaRepository;
 import com.socialhub.publishing.domain.PublishJob;
-import com.socialhub.publishing.domain.SecretStore;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
@@ -56,7 +55,7 @@ class InstagramRoute implements PublishRoute {
     static Instant cutoff(Instant scheduledAt) { return PublerRoute.handoverBy(scheduledAt); }
     static final int MAX_CAROUSEL = 20;
 
-    private final SecretStore secrets;
+    private final InstagramCredentials credentials;
     private final InstagramGateway instagram;
     private final InstagramAccountRepository accounts;
     private final PublicationFileRepository files;
@@ -67,12 +66,12 @@ class InstagramRoute implements PublishRoute {
     private final long pollMillis;
     private final int maxPolls;
 
-    InstagramRoute(SecretStore secrets, InstagramGateway instagram, InstagramAccountRepository accounts,
+    InstagramRoute(InstagramCredentials credentials, InstagramGateway instagram, InstagramAccountRepository accounts,
                    PublicationFileRepository files, PromotionQueries promotions, PublicMediaHost host,
                    PublicMediaRepository publicMedia, AiOrders orders,
                    @Value("${socialhub.instagram.poll-millis:10000}") long pollMillis,
                    @Value("${socialhub.instagram.max-polls:30}") int maxPolls) {
-        this.secrets = secrets;
+        this.credentials = credentials;
         this.instagram = instagram;
         this.accounts = accounts;
         this.files = files;
@@ -86,7 +85,7 @@ class InstagramRoute implements PublishRoute {
 
     @Override public Id id() { return Id.OFFICIAL; }
 
-    @Override public boolean configured() { return secrets.get(KEY).isPresent(); }
+    @Override public boolean configured() { return credentials.activeToken().isPresent(); }
 
     @Override public boolean applies(Publication p) { return p.getPlatform() == Platform.INSTAGRAM; }
 
@@ -174,7 +173,7 @@ class InstagramRoute implements PublishRoute {
 
     @Override
     public Outcome publish(Publication p, PublishJob job, Instant now) {
-        String key = secrets.get(KEY).orElse(null);
+        String key = credentials.activeToken().orElse(null);
         if (key == null) return new Outcome.Failed("la clave de la API de Instagram ya no está");
         String brand = promotions.brandOf(p.getPromotionId());
         var account = accounts.account(brand).orElse(null);
@@ -229,7 +228,7 @@ class InstagramRoute implements PublishRoute {
 
     /** Clave, cuenta de la marca, archivos y que Meta reconoce la cuenta. */
     private Outcome checkBasics(Publication p) {
-        String key = secrets.get(KEY).orElse(null);
+        String key = credentials.activeToken().orElse(null);
         if (key == null) return new Outcome.Failed("no configurada");
         String brand = promotions.brandOf(p.getPromotionId());
         var account = accounts.account(brand).orElse(null);
@@ -249,7 +248,7 @@ class InstagramRoute implements PublishRoute {
 
     @Override
     public java.util.Optional<Outcome> check(Publication p, PublishJob job, Instant now) {
-        String key = secrets.get(KEY).orElse(null);
+        String key = credentials.activeToken().orElse(null);
         if (key == null) return java.util.Optional.of(new Outcome.NotYet("la clave de la API de Instagram ya no está"));
         if (job.getExternalId() == null) return java.util.Optional.of(new Outcome.Failed("sin identificador de Meta"));
         try {
