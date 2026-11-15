@@ -94,7 +94,7 @@ test.describe('Avisos: «Qué hacer ahora» y «Te falta por completar»', () =>
     // 3. Carpetas, desde la carpeta raíz
     const root = path.join(makeTempDir('avisos'), 'raiz');
     const folders = page.getByRole('form', { name: 'Carpetas de Drive' });
-    await folders.getByLabel('Carpeta raíz').fill(root);
+    await folders.getByLabel('Carpeta raíz', { exact: true }).fill(root);
     await folders.getByRole('button', { name: 'Crear carpetas' }).click();
     await expect(toast(page)).toHaveText('Carpetas creadas');
 

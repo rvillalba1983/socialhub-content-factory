@@ -37,7 +37,6 @@ export default defineConfig({
     permissions: ['clipboard-read', 'clipboard-write'],
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: { width: 1366, height: 768 } } }],
   webServer: {

@@ -20,7 +20,7 @@ test.describe('Alta de una marca con sus carpetas de Drive', () => {
 
     const form = page.getByRole('form', { name: 'Nueva marca' });
     await form.getByLabel('Nombre').fill(name);
-    await form.getByLabel('Cuenta').fill(handle);
+    await form.getByLabel('Cuenta', { exact: true }).fill(handle);
     await form.getByLabel('Color de la marca').first().fill('#1f7a4d');
     await form.getByLabel('Carpeta raíz de Drive (opcional)').fill(root);
     await form.getByRole('button', { name: 'Guardar' }).click();
@@ -46,7 +46,7 @@ test.describe('Alta de una marca con sus carpetas de Drive', () => {
     // En la lista de marcas sale la nueva; al abrirla, la tarjeta «Carpetas de Drive» tiene la raíz y 7 «Accesible»
     await brandRow(page, name).click();
     const card = page.getByRole('form', { name: 'Carpetas de Drive' });
-    await expect(card.getByLabel('Carpeta raíz')).toHaveValue(root);
+    await expect(card.getByLabel('Carpeta raíz', { exact: true })).toHaveValue(root);
     await expect(card.getByText('Accesible', { exact: true })).toHaveCount(7);
     await expect(card.getByText('No disponible')).toHaveCount(0);
     // Con todas las carpetas hechas ya no se avisa de carpetas sin configurar
@@ -70,7 +70,7 @@ test.describe('Alta de una marca con sus carpetas de Drive', () => {
     await page.getByRole('button', { name: 'Nueva marca' }).click();
     const form = page.getByRole('form', { name: 'Nueva marca' });
     await form.getByLabel('Nombre').fill(name);
-    await form.getByLabel('Cuenta').fill(`@${unique('sinunidad').toLowerCase()}`);
+    await form.getByLabel('Cuenta', { exact: true }).fill(`@${unique('sinunidad').toLowerCase()}`);
     await form.getByLabel('Carpeta raíz de Drive (opcional)').fill(path.join(blocker, 'raiz'));
     await form.getByRole('button', { name: 'Guardar' }).click();
 

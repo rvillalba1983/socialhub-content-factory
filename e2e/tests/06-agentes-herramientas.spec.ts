@@ -32,7 +32,7 @@ test.describe('Agentes y herramientas', () => {
     await expect(card.getByRole('button', { name: 'Borrar clave' })).toHaveCount(0);
 
     // El campo es de contraseña (la clave no se ve) y una clave demasiado corta no se puede enviar
-    const input = card.getByLabel('Clave de la API de Instagram');
+    const input = card.getByLabel('Clave de la API de Instagram', { exact: true });
     await expect(input).toHaveAttribute('type', 'password');
     await expect(input).toHaveAttribute('placeholder', 'Pega aquí la clave del usuario del sistema');
     const save = card.getByRole('button', { name: 'Comprobar y guardar' });
