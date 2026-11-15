@@ -5,6 +5,8 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
+import org.springframework.context.event.ContextClosedEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
@@ -49,6 +51,23 @@ public class LiveUpdates {
     @Scheduled(fixedRate = 25_000)
     void heartbeat() {
         emitters.forEach(e -> send(e, "ping", Map.of()));
+    }
+
+    /**
+     * Al apagar la app se terminan las conexiones de «En directo»: si no, Tomcat espera a que acaben (hasta 30 s con una
+     * pestaña abierta) antes de parar y «Cerrar» tarda. El navegador, al ver cortada la conexión, reintenta sin más.
+     */
+    @EventListener
+    void onClose(ContextClosedEvent event) {
+        List<SseEmitter> open = List.copyOf(emitters);
+        emitters.clear();
+        open.forEach(e -> {
+            try {
+                e.complete();
+            } catch (RuntimeException ignored) {
+                // ya estaba cerrada
+            }
+        });
     }
 
     public int subscribers() { return emitters.size(); }
