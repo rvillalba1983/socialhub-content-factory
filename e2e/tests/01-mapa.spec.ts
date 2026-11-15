@@ -140,12 +140,9 @@ test.describe('Mapa', () => {
     await expect.poll(() => scaleOf(page)).toBeGreaterThan(3);
   });
 
-  // FALLO CONOCIDO DE LA APP (no se arregla aquí; está en el resumen de la PR): los límites del arrastre se calculan con
-  // la caja del contenido al nivel de detalle 1, donde las tarjetas son más grandes que al nivel 3. Si el mapa está
-  // arrastrado hasta el borde y se acerca al máximo, el contenido queda hasta ~490 px más allá del centro y la pantalla
-  // puede quedarse vacía. Cuando se arregle, esta prueba pasará y Playwright avisará de que quite `test.fail`.
+  // Los límites del arrastre son la unión de las cajas del contenido en los niveles de detalle 1, 2 y 3: con el zoom al
+  // máximo se puede llegar a cada borde del contenido y la pantalla no queda vacía.
   test('acercar al máximo con el mapa arrastrado al borde no deja la pantalla vacía', async ({ page }) => {
-    test.fail(true, 'Fallo conocido: límites medidos al nivel de detalle 1 (ver comentario)');
     await openMap(page);
     await settledScale(page);
     const vp = (await page.locator('main.vp').boundingBox())!;
@@ -158,6 +155,33 @@ test.describe('Mapa', () => {
     for (let i = 0; i < 8; i++) await page.mouse.wheel(0, -2000);
     await expect.poll(() => scaleOf(page)).toBeGreaterThan(3);
     await expect.poll(() => centerInsideContent(page), { timeout: 3000 }).toBe(true);
+  });
+
+  test('con el zoom al máximo se llega a ver entero el borde del contenido en cada lado', async ({ page }) => {
+    await openMap(page);
+    await settledScale(page);
+    const vp = (await page.locator('main.vp').boundingBox())!;
+    await page.mouse.move(vp.x + vp.width / 2, vp.y + vp.height / 2);
+    for (let i = 0; i < 8; i++) await page.mouse.wheel(0, -2000);
+    await expect.poll(() => scaleOf(page)).toBeGreaterThan(3);
+    const cx = vp.x + vp.width / 2, cy = vp.y + vp.height / 2;
+    // Arrastre brutal hacia cada lado: el borde del contenido de ese lado debe quedar dentro de la ventana
+    for (const [dx, dy, side] of [[-6000, 0, 'r'], [6000, 0, 'l'], [0, -6000, 'b'], [0, 6000, 't']] as const) {
+      await page.mouse.move(cx, cy);
+      await page.mouse.down();
+      for (let i = 1; i <= 8; i++) await page.mouse.move(cx + (dx * i) / 8, cy + (dy * i) / 8);
+      await page.mouse.up();
+      await expect.poll(() => page.evaluate((sd) => {
+        const v = document.querySelector('main.vp')!.getBoundingClientRect();
+        let l = Infinity, t = Infinity, r = -Infinity, b = -Infinity;
+        document.querySelectorAll('.st,.hub,.res,.node,.seglabel').forEach(el => {
+          const q = el.getBoundingClientRect();
+          if (!q.width || !q.height) return;
+          l = Math.min(l, q.left); t = Math.min(t, q.top); r = Math.max(r, q.right); b = Math.max(b, q.bottom);
+        });
+        return sd === 'r' ? r <= v.right + 2 : sd === 'l' ? l >= v.left - 2 : sd === 'b' ? b <= v.bottom + 2 : t >= v.top - 2;
+      }, side), { message: `borde ${side}` }).toBe(true);
+    }
   });
 
   test('zoom semántico: al alejar solo hay texto legible, al acercar sale el detalle', async ({ page }) => {

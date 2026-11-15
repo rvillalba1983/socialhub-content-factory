@@ -14,6 +14,19 @@ export const HARD_MIN_SCALE = 0.08;
 export const validBox = (b: Box | null | undefined): b is Box =>
   !!b && Number.isFinite(b.x0 + b.y0 + b.x1 + b.y1) && b.x1 - b.x0 > 0 && b.y1 - b.y0 > 0;
 
+/**
+ * Unión de varias cajas (las del contenido medido en cada nivel de detalle). Ignora las no válidas; si no queda ninguna,
+ * devuelve null.
+ */
+export function unionBox(boxes: Array<Box | null | undefined>): Box | null {
+  const ok = boxes.filter(validBox);
+  if (!ok.length) return null;
+  return {
+    x0: Math.min(...ok.map(b => b.x0)), y0: Math.min(...ok.map(b => b.y0)),
+    x1: Math.max(...ok.map(b => b.x1)), y1: Math.max(...ok.map(b => b.y1)),
+  };
+}
+
 /** Zoom con el que «Encuadrar todo» deja el contenido: lo más pequeño que se permite. */
 export function fitScale(b: Box, a: Area, padTop: number, padBottom: number, pad = 16, cap = 0.7): number {
   const w = b.x1 - b.x0, h = b.y1 - b.y0, ah = a.h - padTop - padBottom;
