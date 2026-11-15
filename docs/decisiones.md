@@ -575,6 +575,21 @@ Decisiones técnicas:
 - **`verify()` ya ejecuta las reglas DDD de jMolecules** (sonda: un agregado que referencia a otro rompe `modulesRespectTheirBoundaries`), así que se quita el `@ArchTest` de DDD duplicado; el hexagonal se deja.
 - Ninguna regla nueva falla solo por `ai`, `pieces`, `tools` u `operations`: no ha hecho falta limitar ninguna a los módulos hexagonales.
 
+## Fase 12 · Propuestas vacías (15 nov 2026)
+
+Decisión técnica (error visto en el PC de Raúl: la promoción «Primera» empieza en domingo y Claude contestó con `proposals: []` y el motivo en `summary`):
+- **Una lista `outputs.proposals` vacía es una respuesta válida.** La tarea se completa con el texto «Sin propuestas: <summary>» (más los avisos de Claude) y no crea nada. Solo es error si el campo falta o no es una lista.
+- El aviso es el resultado de la tarea completada, no un error rojo. No se añade recomendación nueva en «Qué hacer ahora».
+- **No se vuelve a pedir:** el registro de encargos automáticos (`AiAutoOrderEntity`) guarda la semana pedida, haya salido con propuestas o sin ellas.
+- El contrato `task-result.v1` no exigía `minItems`: no cambia.
+
+Decisión de Raúl:
+- **La primera ventana de propuestas se extiende hasta la primera fecha de cadencia con margen.** Si una promoción empieza en un día sin cadencia (p. ej. un domingo con cadencia x/v), la ventana de la primera petición no acaba en el domingo: llega hasta su primera fecha de cadencia con al menos 6 h de margen sobre la recogida de Claude. Ejemplo: «Primera» empieza el domingo 15 nov con x/v a las 19:00 y pide del 15 al miércoles 18 nov. Si la fecha de cadencia cae dentro de la semana, no cambia nada; si la promoción termina antes de esa fecha, la ventana no se extiende (sin propuestas es una respuesta válida).
+
+Decisiones técnicas:
+- La cadencia es texto libre: se leen los grupos «días + hora» («L/X/V 19:00», «x/v a las 19:00»; L M X J V S D). Si no se entiende, la ventana es la de siempre.
+- La ventana extendida viaja como segundo dato de entrada del encargo (el miércoles, `2026-11-18`); el manejador la usa para `inputs.week.to`, lo ya planificado y para aceptar o descartar las propuestas.
+
 ## Fase 12 · Versión visible y numeración de instaladores (15 nov 2026)
 
 Problema (diagnosticado con el registro de Raúl): el instalador que generaba la Action desde `main` salía siempre con la versión por defecto del workflow (1.1.0), igual que la ya instalada. Windows reconocía el mismo producto y entraba en «modo mantenimiento» («Skipping FindRelatedProducts: not run in maintenance mode»): no actualizaba nada. Además la web no enseñaba qué versión estaba en marcha.

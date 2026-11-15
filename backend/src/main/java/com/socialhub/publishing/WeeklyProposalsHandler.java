@@ -36,7 +36,8 @@ import tools.jackson.databind.ObjectMapper;
 /**
  * Propuestas de la semana: Claude propone las publicaciones de una semana y SocialHub las crea como «Propuesta» para
  * que Raúl apruebe o rechace cada una. Cada propuesta se comprueba por separado: las no válidas se descartan (y se cuentan en el resumen) y las buenas
- * entran. Si no queda ninguna, el encargo falla.
+ * entran. Si no queda ninguna, el encargo falla. Una lista vacía de Claude (con su motivo en el resumen) no es un fallo:
+ * la tarea se completa como «Sin propuestas: …» y no se vuelve a pedir para la misma semana.
  */
 @Component
 @RequiredArgsConstructor
@@ -81,6 +82,21 @@ class WeeklyProposalsHandler implements AiTypeHandler {
         });
     }
 
+    /**
+     * El último día de la ventana: el segundo dato de entrada si es una fecha posterior al domingo (la primera ventana de una
+     * promoción que empieza en un día sin cadencia se extiende hasta su primera fecha de cadencia) o, si no, el domingo.
+     */
+    LocalDate windowEnd(AiJob job) {
+        LocalDate sunday = weekStart(job).plusDays(6);
+        if (job.inputs().size() < 2) return sunday;
+        try {
+            LocalDate end = LocalDate.parse(job.inputs().get(1));
+            return end.isAfter(sunday) ? end : sunday;
+        } catch (DateTimeParseException e) {
+            return sunday;
+        }
+    }
+
     /** La semana (su lunes) escrita en un archivo de petición ya enviado, si existe, se lee y trae una fecha. */
     private Optional<LocalDate> sentWeek(@Nullable String requestPath) {
         if (requestPath == null || requestPath.isBlank()) return Optional.empty();
@@ -108,11 +124,12 @@ class WeeklyProposalsHandler implements AiTypeHandler {
     public Map<String, Object> inputs(AiJob job) {
         LocalDate from = weekStart(job);
         Map<String, Object> inputs = new LinkedHashMap<>();
-        inputs.put("week", Map.of("from", from.toString(), "to", from.plusDays(6).toString()));
+        LocalDate end = windowEnd(job);
+        inputs.put("week", Map.of("from", from.toString(), "to", end.toString()));
         inputs.put("promotion", promotions.summaryForAi(job.promotionId()));
-        inputs.put("already_planned", queries.forAi(job.promotionId(), from, from.plusDays(6)));
+        inputs.put("already_planned", queries.forAi(job.promotionId(), from, end));
         // Lo programado o publicado fuera de SocialHub (Publer, Publora o la red) también ocupa la semana
-        List<Map<String, Object>> outside = external.forAi(job.promotionId(), from, from.plusDays(6));
+        List<Map<String, Object>> outside = external.forAi(job.promotionId(), from, end);
         if (!outside.isEmpty()) inputs.put("planned_outside_socialhub", outside);
         inputs.put("expected_outputs", "proposals: [{scheduled_on (yyyy-mm-dd, dentro de la semana), scheduled_time (HH:mm), "
                 + "platform (INSTAGRAM o TIKTOK), type (Carrusel, Historia, Reel…), title, idea, why}] (máximo " + MAX
@@ -134,10 +151,15 @@ class WeeklyProposalsHandler implements AiTypeHandler {
     @Override
     public String apply(AiJob job, JsonNode outputs, JsonNode result) {
         JsonNode items = outputs.path("proposals");
-        if (!items.isArray() || items.isEmpty()) throw new IllegalArgumentException("Faltan las propuestas («outputs.proposals»)");
+        if (!items.isArray()) throw new IllegalArgumentException("Faltan las propuestas («outputs.proposals») o no son una lista");
+        // Una lista vacía es una respuesta válida: Claude puede decidir que no toca publicar (p. ej., sin 6 h de margen)
+        if (items.isEmpty()) {
+            String reason = outputs.path("summary").isString() ? outputs.path("summary").asString().strip() : "";
+            return "Sin propuestas: " + (reason.isEmpty() ? "Claude no da el motivo" : reason);
+        }
         if (items.size() > MAX) throw new IllegalArgumentException("Demasiadas propuestas (más de " + MAX + ")");
         LocalDate from = weekStart(job);
-        LocalDate to = from.plusDays(6);
+        LocalDate to = windowEnd(job);
         PromotionQueries.Dates dates = promotions.datesOf(job.promotionId());
         Instant earliest = clock.instant().plus(MIN_LEAD);
         List<Publication.Details> proposals = new ArrayList<>();

@@ -115,6 +115,11 @@ public class PromotionQueries {
                 .toList();
     }
 
+    /** La cadencia de la promoción, en el texto que escribió Raúl; nulo si no hay promoción o no la tiene. */
+    public @org.jspecify.annotations.Nullable String cadenceOf(String promotionId) {
+        return repository.promotion(promotionId).map(Promotion::cadence).orElse(null);
+    }
+
     /** Usuario de la marca en las redes («@elde_lito»); vacío si no existe. */
     public String handleOf(String brandId) {
         return repository.brand(brandId).map(b -> b.handle()).orElse("");
