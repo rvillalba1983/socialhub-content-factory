@@ -76,7 +76,14 @@ public final class Flow {
     }
 
     public String q(Object text) {
-        return json.writeValueAsString(text.toString());
+        return quote(text.toString());
+    }
+
+    private static final JsonMapper JSON = JsonMapper.builder().build();
+
+    /** Un texto como cadena JSON, con sus comillas y escapes. */
+    public static String quote(String text) {
+        return JSON.writeValueAsString(text);
     }
 
     // ------------------------------------------------------------------ Lo que se ve
