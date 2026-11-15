@@ -184,7 +184,7 @@ test.describe('Mapa', () => {
           b = Math.max(b, q.bottom);
         });
         return { ok: sd === 'r' ? r <= v.right + 2 : sd === 'l' ? l >= v.left - 2 : sd === 'b' ? b <= v.bottom + 2 : t >= v.top - 2,
-          detail: `${sd}: l=${Math.round(l)} t=${Math.round(t)} r=${Math.round(r)} b=${Math.round(b)} vp=${Math.round(v.right)}x${Math.round(v.bottom)} ${who} tf=${getComputedStyle(w).transform} lod=${document.querySelector('main.vp')!.getAttribute('data-lod')}` };
+          detail: `${sd}: l=${Math.round(l)} t=${Math.round(t)} r=${Math.round(r)} b=${Math.round(b)} vp=${Math.round(v.right)}x${Math.round(v.bottom)} ${who} tf=${getComputedStyle(w).transform} lod=${document.querySelector('main.vp')!.getAttribute('data-lod')} dbg=${document.querySelector('main.vp')!.getAttribute('data-dbg')}` };
       }, side);
       expect(info.ok, info.detail).toBe(true);
     }

@@ -117,6 +117,7 @@ export function Factory({ data, live, onRefresh }: {
     const b1 = measure(1, CONTENT);
     bounds.current = b1;
     levelBounds.current = { 1: b1, 2: measure(2, CONTENT), 3: measure(3, CONTENT) };
+    vp.current!.dataset.dbg = JSON.stringify(levelBounds.current); // DEBUG
     return b1;
   }, [measure]);
 
