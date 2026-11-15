@@ -20,13 +20,18 @@ test.describe('Agentes y herramientas', () => {
     const side = page.locator('aside.panel');
     await expect(side.getByRole('heading', { name: 'Instagram · API oficial' })).toBeVisible();
     await expect(side.getByText('Servicio', { exact: true })).toBeVisible();
-    await expect(side).toContainText('Sin clave: pégala en esta tarjeta');
+    await expect(side).toContainText('Sin conexión: pulsa «Conectar con Instagram» o pega la clave en esta tarjeta');
     await expect(side).toContainText('0 € · gratuito');
     await expect(side).toContainText('Sabe hacer');
 
-    // La tarjeta de la clave: «Sin clave» y nada que comprobar o borrar todavía
+    // La tarjeta: «Sin conectar» y sin clave; «Conectar con Instagram» espera a que se guarde la app de Meta
     const card = side.getByRole('region', { name: 'Instagram · API oficial' });
-    await expect(card.getByRole('heading', { name: 'Clave de la API oficial' })).toBeVisible();
+    await expect(card.getByText('Sin conectar', { exact: true })).toBeVisible();
+    await expect(card.getByRole('button', { name: 'Conectar con Instagram' })).toBeDisabled();
+    await expect(card.getByRole('button', { name: 'Guardar la app' })).toBeDisabled();
+    await expect(card.getByLabel('App Secret de Meta')).toHaveAttribute('type', 'password');
+    await expect(card.getByRole('button', { name: 'Desconectar' })).toHaveCount(0);
+    await expect(card.getByRole('heading', { name: 'Clave de usuario del sistema (alternativa)' })).toBeVisible();
     await expect(card.getByText('Sin clave', { exact: true })).toBeVisible();
     await expect(card.getByRole('button', { name: 'Comprobar clave' })).toHaveCount(0);
     await expect(card.getByRole('button', { name: 'Borrar clave' })).toHaveCount(0);

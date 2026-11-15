@@ -55,7 +55,7 @@ test.describe('Avisos: «Qué hacer ahora» y «Te falta por completar»', () =>
     const notices = page.getByRole('region', { name: 'Avisos de la marca' });
     await expect(notices.getByRole('heading', { name: 'Te falta por completar' })).toBeVisible();
     await expect(notices.getByRole('listitem')).toHaveCount(4);
-    await expect(notices).toContainText('Falta rellenar la identidad de la marca: el tono y el público.');
+    await expect(notices).toContainText('Falta rellenar la identidad de la marca: el tono, el público, los temas que no se tocan.');
     await expect(notices).toContainText('Carpetas sin configurar: Material, Borradores, Generados, Aprobados, Publicados, Informes, Encargos.');
     await expect(notices).toContainText('Falta indicar la cuenta de Publer de Instagram.');
     await expect(notices).toContainText('Falta indicar la cuenta de Publer de TikTok.');
@@ -75,6 +75,7 @@ test.describe('Avisos: «Qué hacer ahora» y «Te falta por completar»', () =>
     const identity = page.getByRole('form', { name: 'Identidad de la marca' });
     await identity.getByLabel('Tono de comunicación').fill('Cercano y con humor');
     await identity.getByLabel('Público objetivo').fill('Lectores de 25 a 45 años');
+    await identity.getByLabel('Temas que no se tocan (una por línea)').fill('Política de partidos');
     await identity.getByRole('button', { name: 'Guardar identidad' }).click();
     await expect(toast(page)).toHaveText('Identidad de la marca guardada');
     await expect(notices).not.toContainText('Falta rellenar la identidad');

@@ -59,7 +59,7 @@ test.describe('Identidad de la marca: importar desde .txt', () => {
     await openBrand(page, name);
     // La marca recién creada avisa de que falta la identidad
     const notices = page.getByRole('region', { name: 'Avisos de la marca' });
-    await expect(notices).toContainText('Falta rellenar la identidad de la marca: el tono y el público.');
+    await expect(notices).toContainText('Falta rellenar la identidad de la marca: el tono, el público, los temas que no se tocan.');
 
     const form = page.getByRole('form', { name: 'Identidad de la marca' });
     await form.getByRole('button', { name: 'Importar desde .txt' }).click();
