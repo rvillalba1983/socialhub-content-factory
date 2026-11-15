@@ -181,7 +181,11 @@ public final class Flow {
     }
 
     public void waitFor(Callable<Boolean> condition, String what) throws Exception {
-        long deadline = System.currentTimeMillis() + 30_000;
+        waitFor(condition, what, 30);
+    }
+
+    public void waitFor(Callable<Boolean> condition, String what, int seconds) throws Exception {
+        long deadline = System.currentTimeMillis() + seconds * 1000L;
         while (!condition.call()) {
             assertThat(System.currentTimeMillis()).as("Esperando: " + what).isLessThan(deadline);
             Thread.sleep(150);
