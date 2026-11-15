@@ -1,7 +1,7 @@
 package com.socialhub.publishing;
 
 import com.socialhub.ai.AiContextProvider;
-import com.socialhub.promotion.EditorialDecision;
+import com.socialhub.promotion.PromotionQueries.DecisionRef;
 import com.socialhub.promotion.PromotionQueries;
 import com.socialhub.publishing.domain.EditorialMemoryRepository;
 import com.socialhub.publishing.domain.Publication;
@@ -41,7 +41,7 @@ public class EditorialMemory implements AiContextProvider {
     private final EditorialMemoryRepository memory;
     private final Clock clock;
 
-    public record Snapshot(List<EditorialDecision> decisions, List<EditorialMemoryRepository.Rejection> rejections,
+    public record Snapshot(List<DecisionRef> decisions, List<EditorialMemoryRepository.Rejection> rejections,
                            List<EditorialMemoryRepository.Correction> corrections, List<Publication> published) {}
 
     @Transactional(readOnly = true)
@@ -52,7 +52,7 @@ public class EditorialMemory implements AiContextProvider {
                 .filter(p -> ids.contains(p.getPromotionId()) && DONE.contains(p.getStatus()) && !p.getScheduledOn().isBefore(since))
                 .sorted(Comparator.comparing(Publication::getScheduledOn).thenComparing(Publication::getScheduledTime).reversed())
                 .toList();
-        return new Snapshot(promotions.decisions(brandId), memory.rejections(brandId, LIMIT), memory.corrections(brandId, LIMIT),
+        return new Snapshot(promotions.decisionRefs(brandId), memory.rejections(brandId, LIMIT), memory.corrections(brandId, LIMIT),
                 published);
     }
 
@@ -64,7 +64,7 @@ public class EditorialMemory implements AiContextProvider {
             return Map.of();
         }
         Map<String, Object> m = new LinkedHashMap<>();
-        m.put("decisions", s.decisions().stream().map(EditorialDecision::text).toList());
+        m.put("decisions", s.decisions().stream().map(DecisionRef::text).toList());
         m.put("published_last_8_weeks", s.published().stream().map(p -> {
             Map<String, Object> x = new LinkedHashMap<>();
             x.put("date", p.getScheduledOn().toString());

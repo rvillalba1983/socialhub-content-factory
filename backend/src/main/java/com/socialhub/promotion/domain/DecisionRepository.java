@@ -1,6 +1,5 @@
 package com.socialhub.promotion.domain;
 
-import com.socialhub.promotion.EditorialDecision;
 import java.time.Instant;
 import java.util.List;
 import org.jmolecules.architecture.hexagonal.SecondaryPort;

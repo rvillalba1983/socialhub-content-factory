@@ -7,6 +7,7 @@ import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
+@org.springframework.modulith.Modulithic(sharedModules = "platform")
 @ConfigurationPropertiesScan
 @EnableScheduling
 public class SocialHubApplication {

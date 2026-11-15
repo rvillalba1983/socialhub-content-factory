@@ -556,3 +556,21 @@ Más decisiones de Raúl (12 nov, mismas peticiones):
 - **Mapa, zoom semántico:** al alejar (nivel 1, por debajo del 72 %) las estaciones muestran solo nombre, estado y número de tareas y avisos (bloqueadas + con error); la promoción, solo marca, estado, nombre, día y el botón; «Necesita atención», solo el número y el primer aviso (sin botones); «Agentes y herramientas», solo los nombres. El detalle completo sale al acercarse. En ese nivel todo el texto mide 42-44 px del lienzo, de modo que al encuadrar mide al menos 12 px en pantalla (comprobado: 1366x768 encuadra al 30 % y 1600x900 al 45 %, sin ningún texto por debajo de 12 px). Las reglas del nivel 1 se limitan al lienzo (`.world`) para que no cambien las fichas que se abren sobre el mapa.
 
 Decisión técnica: el encuadre de 1366x768 queda en el 30 % y no en el 41 %, porque la franja «Qué hacer ahora» le quita altura al mapa; el tamaño de letra se calcula para ese caso, que es el peor.
+
+## Fase 12 · Arquitectura (12 nov 2026)
+
+Decisión de Raúl:
+- **Aplicar la auditoría de arquitectura completa (opción c).** Esta PR protege las fronteras con pruebas (reglas de ArchUnit y de Spring Modulith). El paso de `ai`, `pieces`, `tools` y `operations` a hexagonal, los identificadores con tipo y los puertos primarios como interfaces van en la PR siguiente.
+
+Decisiones técnicas:
+- Las reglas nuevas que fallen solo por `ai`, `pieces`, `tools` u `operations` se limitan de momento a los módulos hexagonales, con un comentario que lo dice; no se congelan con `FreezingArchRule`.
+- **Reglas del dominio** (`ModularityTest`): `dominioSinFrameworks` y `dominioSoloMiraAlDominio`. Los `package-info` quedan fuera de las reglas porque llevan `@NamedInterface` de Modulith. Los eventos de producción pasan a `production.domain.events` (interfaz con nombre `events`); `BrandIdentity` y `EditorialDecision` a `promotion.domain`.
+- **`PromotionQueries` no devuelve tipos de `promotion.domain` a otros módulos:** `requirePromotion`, `identityForAi`, `QualityRules` y `DecisionRef`; la vista completa del anillo usa `PromotionView` (adaptador web) con los DTO.
+- **ArchUnit 1.5.1 en `dependencyManagement`** y `spring-modulith-api` en lugar de `starter-core`: ArchUnit y el análisis de Modulith ya no van en el jar (118,0 MB a 113,3 MB).
+- **`allowedDependencies` en cada módulo** (también `demo`, que no tenía `package-info`). `platform` deja de ser abierto: interfaces con nombre `live`, `observability`, `postgres`, `process` y `desktop`, y `@Modulithic(sharedModules = "platform")`.
+- **Documentación de Modulith:** `spring-modulith-apt` en el compilador, prueba `writesModuleDocumentation` y artefacto `modulith-docs-*` en `backend.yml`.
+- **Reglas generales:** sin salida estándar, sin inyección por campo, sin `java.util.logging` (regla propia: la de `GeneralCodingRules` no detectó una llamada en la sonda) y la hora solo del `Clock` (`PostgresArchive` lo recibe inyectado).
+- **Eventos sin oyente:** se quitan `AiResultApplied` y `TaskCompleted`. El ciclo de beans se corta en `AiHandlers` (busca los manejadores la primera vez que se usan) y desaparecen los `@Lazy` de publicaciones.
+- **Pruebas por módulo:** `ProductionModuleTest` (publica `ReviewApproved` al aprobar) y `PublishingModuleTest` (aprobación, aviso de calidad y paso a manual con `Scenario`). Las propiedades van en `@TestPropertySource`, porque `@ApplicationModuleTest` no tiene `properties`.
+- **`verify()` ya ejecuta las reglas DDD de jMolecules** (sonda: un agregado que referencia a otro rompe `modulesRespectTheirBoundaries`), así que se quita el `@ArchTest` de DDD duplicado; el hexagonal se deja.
+- Ninguna regla nueva falla solo por `ai`, `pieces`, `tools` u `operations`: no ha hecho falta limitar ninguna a los módulos hexagonales.

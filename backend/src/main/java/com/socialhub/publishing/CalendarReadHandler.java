@@ -23,7 +23,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import org.jspecify.annotations.Nullable;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 
@@ -42,7 +41,7 @@ class CalendarReadHandler implements AiTypeHandler {
     private final ExternalCalendar calendar;
     private final PublerAccountRepository accounts;
 
-    CalendarReadHandler(PublishingQueries queries, PromotionQueries promotions, @Lazy ExternalCalendar calendar,
+    CalendarReadHandler(PublishingQueries queries, PromotionQueries promotions, ExternalCalendar calendar,
                         PublerAccountRepository accounts) {
         this.queries = queries;
         this.promotions = promotions;

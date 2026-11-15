@@ -15,7 +15,6 @@ import java.util.Map;
 import java.util.Optional;
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 
@@ -40,7 +39,7 @@ class PublicLinkHandler implements AiTypeHandler {
     private final Clock clock;
     private final String linkBase;
 
-    PublicLinkHandler(PublicMediaRepository media, PublicMediaHost host, PublishingQueries queries, @Lazy PublishingEngine engine,
+    PublicLinkHandler(PublicMediaRepository media, PublicMediaHost host, PublishingQueries queries, PublishingEngine engine,
                       Clock clock,
                       @Value("${socialhub.publishing.public-link-base:" + DRIVE_LINK + "}") String linkBase) {
         this.media = media;

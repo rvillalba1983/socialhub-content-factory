@@ -10,7 +10,6 @@ import com.socialhub.publishing.domain.PublishJob;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -34,7 +33,7 @@ class PublerRoute implements PublishRoute {
     private final PromotionQueries promotions;
     private final java.time.Clock clock;
 
-    PublerRoute(@Lazy AiOrders orders, PublerAccountRepository accounts, PublerCapacity capacity,
+    PublerRoute(AiOrders orders, PublerAccountRepository accounts, PublerCapacity capacity,
                 PromotionQueries promotions, java.time.Clock clock) {
         this.orders = orders;
         this.accounts = accounts;

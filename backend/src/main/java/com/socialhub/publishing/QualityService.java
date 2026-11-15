@@ -48,7 +48,7 @@ public class QualityService {
         List<String> paths = files.files(publicationId).stream().map(PublicationFile::path).toList();
         var acceptances = quality.acceptances(publicationId);
         List<QualityIssue> result = new ArrayList<>();
-        QualityChecker.check(p, paths, promotions.identityOf(p.getPromotionId()), others).forEach((key, message) ->
+        QualityChecker.check(p, paths, promotions.qualityRulesOf(p.getPromotionId()), others).forEach((key, message) ->
                 result.add(withAcceptance(new QualityIssue(key, QualityIssue.Source.CODE, message, null, null), acceptances)));
         quality.reviewIssues(publicationId).forEach(r ->
                 result.add(withAcceptance(new QualityIssue(r.key(), QualityIssue.Source.CLAUDE, r.message(), null, null), acceptances)));

@@ -17,7 +17,7 @@ import com.socialhub.platform.AppMode;
 import com.socialhub.platform.AppModeHolder;
 import com.socialhub.production.adapter.in.web.ProductionView;
 import com.socialhub.promotion.PromotionQueries;
-import com.socialhub.promotion.adapter.in.web.PromotionWebMapper;
+import com.socialhub.promotion.adapter.in.web.PromotionView;
 import com.socialhub.publishing.PublerAccountService;
 import com.socialhub.publishing.PublishingQueries;
 import com.socialhub.publishing.adapter.in.web.PublicationWebMapper;
@@ -34,7 +34,7 @@ class FactoryControllerTest {
     private final AppModeHolder mode = mock(AppModeHolder.class);
     private final AiHeldOrders held = mock(AiHeldOrders.class);
     private final FactoryRecommendations recommendations = mock(FactoryRecommendations.class);
-    private final PromotionWebMapper promotionMapper = mock(PromotionWebMapper.class);
+    private final PromotionView promotionView = mock(PromotionView.class);
     private final PromotionQueries promotions = mock(PromotionQueries.class);
     private final ArmoryQueries armory = mock(ArmoryQueries.class);
     private final ArmoryWebMapper armoryMapper = mock(ArmoryWebMapper.class);
@@ -52,7 +52,7 @@ class FactoryControllerTest {
                 new AiHeldOrders.Held("t2", "gen", "Textos", "Sin carpeta", "lit-1", AiRequestType.CAPTIONS),
                 new AiHeldOrders.Held("t3", "est", "Propuestas sin promoción", "Sin promoción", null, AiRequestType.WEEKLY_PROPOSALS)));
         when(recommendations.compute()).thenReturn(List.of(shown));
-        return new FactoryController(promotions, promotionMapper, production, publishing, publicationMapper, armory,
+        return new FactoryController(promotions, promotionView, production, publishing, publicationMapper, armory,
                 armoryMapper, mode, Clock.fixed(Instant.parse("2026-11-09T10:00:00Z"), ZoneOffset.UTC), held, recommendations, publer);
     }
 

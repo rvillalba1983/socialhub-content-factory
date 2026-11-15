@@ -17,6 +17,7 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -66,8 +67,10 @@ class PostgresArchive implements DatabaseArchive {
     private final DataSource real;
     private final String url;
     private final String user;
+    private final Clock clock;
 
-    PostgresArchive(ModeDataSources databases) {
+    PostgresArchive(ModeDataSources databases, Clock clock) {
+        this.clock = clock;
         this.real = databases.of(AppMode.REAL);
         this.url = databases.jdbcUrl(AppMode.REAL);
         this.user = databases.user();
@@ -97,7 +100,7 @@ class PostgresArchive implements DatabaseArchive {
                 }
                 zip.putNextEntry(new ZipEntry(MANIFEST));
                 zip.write(JSON.writerWithDefaultPrettyPrinter().writeValueAsBytes(
-                        new Manifest(FORMAT, "SocialHub", Instant.now(), version, infos, sequences)));
+                        new Manifest(FORMAT, "SocialHub", clock.instant(), version, infos, sequences)));
                 zip.closeEntry();
                 zip.finish();
             } finally {
