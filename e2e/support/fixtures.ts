@@ -134,14 +134,8 @@ export const toast = (page: Page) => page.locator('.toast');
 export const brandRow = (page: Page, name: string) =>
   page.locator('button.qrow').filter({ has: page.locator('.qname', { hasText: name }) });
 
-/**
- * Abre el centro de control de una promoción desde su tarjeta del mapa, con el teclado (Enter). Con 4 o más promociones
- * las tarjetas se salen del anillo y las estaciones o la leyenda pueden taparlas (fallo conocido de la app, anotado en la
- * PR), así que un clic podría caer en otra cosa.
- */
+/** Abre el centro de control de una promoción haciendo clic en su tarjeta del mapa. */
 export async function openPromotion(page: Page, name: string) {
-  const card = page.getByRole('article', { name: `Abrir el centro de control de ${name}` });
-  await card.focus();
-  await page.keyboard.press('Enter');
+  await page.getByRole('article', { name: `Abrir el centro de control de ${name}` }).click();
   await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
 }

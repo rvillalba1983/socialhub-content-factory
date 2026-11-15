@@ -17,7 +17,7 @@ test.describe('Cierre de la app', () => {
   test('el botón «Cerrar» pide confirmación, para el servidor y apaga PostgreSQL', async ({ page, request, allowConsole }) => {
     // Al cerrarse el servidor, las peticiones que la web aún lanza fallan: es lo esperado
 
-    test.setTimeout(150_000);
+    test.setTimeout(90_000);
     allowConsole(/ERR_CONNECTION_REFUSED|Failed to load resource|Failed to fetch/);
     const dataDir = fs.readFileSync(path.join(here, '..', '.run', 'data-dir.txt'), 'utf8').trim();
     const canInspect = process.platform !== 'win32';
@@ -45,12 +45,12 @@ test.describe('Cierre de la app', () => {
     // La API deja de contestar
     await expect.poll(async () => {
       try { await request.get('/api/app-mode', { timeout: 2000 }); return 'responde'; } catch { return 'parada'; }
-    }, { timeout: 30_000, intervals: [500] }).toBe('parada');
+    }, { timeout: 15_000, intervals: [500] }).toBe('parada');
 
-    // Y no queda nada vivo: ni el jar ni PostgreSQL. Con una pestaña abierta, el cierre ordenado de Tomcat espera 30 s a
-    // la petición de «En directo» (fallo conocido, anotado en la PR), así que se da hasta un minuto
+    // Y no queda nada vivo: ni el jar ni PostgreSQL. Con la pestaña abierta, el cierre no espera a la petición de «En
+    // directo» (se cierra al apagar), así que bastan unos segundos
     if (canInspect) {
-      await expect.poll(() => aliveWith(dataDir), { timeout: 60_000, message: 'procesos que siguen vivos' }).toEqual([]);
+      await expect.poll(() => aliveWith(dataDir), { timeout: 20_000, message: 'procesos que siguen vivos' }).toEqual([]);
     }
   });
 });
