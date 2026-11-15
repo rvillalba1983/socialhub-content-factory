@@ -7,6 +7,8 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
+    // La prueba de la ayuda lee MANUAL.md y docs/TUTORIAL.md (están fuera de frontend/)
+    fs: { allow: ['..'] },
     proxy: { '/api': { target: 'http://127.0.0.1:8686', changeOrigin: false } },
   },
   build: { outDir: 'dist', emptyOutDir: true },

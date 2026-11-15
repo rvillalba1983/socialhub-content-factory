@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from './api';
 import type { Platform, PubloraAccount, PubloraStatus } from './model';
 import { Pill } from './ui';
+import { WhereHelp } from './WhereHelp';
 
 const PLATFORMS: [Platform, string, string][] = [['INSTAGRAM', 'Instagram', 'instagram'], ['TIKTOK', 'TikTok', 'tiktok']];
 
@@ -67,6 +68,7 @@ export function PubloraCard({ brandId, onSaved }: { brandId: string; onSaved?: (
           placeholder={status?.configured ? 'Pegar otra clave' : 'Pega aquí la clave (Settings › API Keys)'} value={key} onChange={e => setKey(e.target.value)} />
         <button className="btn" disabled={busy || key.trim().length < 10}>Comprobar y guardar</button>
       </form>
+      <WhereHelp topic="publora-key" />
       {status?.configured && (
         <form onSubmit={saveAccounts} aria-label="Cuentas de Publora de la marca">
           {PLATFORMS.map(([platform, label, prefix]) => (
@@ -79,6 +81,7 @@ export function PubloraCard({ brandId, onSaved }: { brandId: string; onSaved?: (
                 ))}
               </select></label>
           ))}
+          <WhereHelp topic="publora-account" />
           <div className="form-actions"><button className="btn primary" disabled={busy}>Guardar cuentas</button></div>
         </form>
       )}
