@@ -37,6 +37,7 @@ public class PublishingService {
 
     static final String MANUAL_FLAG = "Publicación manual con LEEME";
     static final String QUALITY_FLAG = "Control de calidad pendiente";
+    static final String SUGGESTION_FLAG = "Claude propuso otro texto, que no se ha aplicado porque ya habías escrito el tuyo";
 
     private final PublicationRepository publications;
     private final ApplicationEventPublisher events;
@@ -63,7 +64,12 @@ public class PublishingService {
     @Transactional
     public Publication update(String id, Publication.Details details) {
         Publication publication = find(id);
+        String captionBefore = publication.getCaption(), hashtagsBefore = publication.getHashtags();
         Publication.TextCorrection correction = publication.edit(details, clock.instant());
+        if (!java.util.Objects.equals(captionBefore, publication.getCaption())
+                || !java.util.Objects.equals(hashtagsBefore, publication.getHashtags())) {
+            quality.invalidateAcceptances(id);
+        }
         if (correction != null) {
             memory.add(new com.socialhub.publishing.domain.EditorialMemoryRepository.Correction(
                     promotions.brandOf(publication.getPromotionId()), publication.getPromotionId(), id,
@@ -131,6 +137,7 @@ public class PublishingService {
         Path real = insideFolders(publication.getPromotionId(), path);
         var file = new PublicationFile(real.toString(), PublicationFile.Origin.MANUAL, clock.instant());
         if (!files.add(publicationId, file)) throw new IllegalArgumentException("Ese archivo ya está asociado");
+        quality.invalidateAcceptances(publicationId);
         events.publishEvent(new FactoryChanged("publication", publicationId));
         return file;
     }
@@ -154,6 +161,7 @@ public class PublishingService {
                 added++;
             }
         }
+        if (added > 0) quality.invalidateAcceptances(publicationId);
         events.publishEvent(new FactoryChanged("publication", publicationId));
         return added;
     }
@@ -163,6 +171,7 @@ public class PublishingService {
     public void detach(String publicationId, String path) {
         find(publicationId).requireEditable();
         if (!files.remove(publicationId, path)) throw new NotFoundException("Ese archivo no está asociado");
+        quality.invalidateAcceptances(publicationId);
         events.publishEvent(new FactoryChanged("publication", publicationId));
     }
 
@@ -194,9 +203,15 @@ public class PublishingService {
     /** Texto y hashtags de una publicación, para guardarlos juntos. */
     public record Texts(String publicationId, String caption, String hashtags) {}
 
-    /** Guarda los textos propuestos. Comprueba todas las publicaciones antes de cambiar ninguna. */
+    /**
+     * Guarda los textos propuestos. Comprueba todas las publicaciones antes de cambiar ninguna. Si la publicación ya
+     * tiene un texto de Raúl (escrito o corregido), no se toca: el de Claude queda en la incidencia de la publicación para
+     * que lo copie si quiere.
+     *
+     * @return los identificadores de las publicaciones que no se tocaron por tener ya texto de Raúl
+     */
     @Transactional
-    public void applyTexts(String promotionId, List<Texts> texts) {
+    public List<String> applyTexts(String promotionId, List<Texts> texts) {
         List<Publication> found = new ArrayList<>();
         for (Texts t : texts) {
             Publication p = find(t.publicationId());
@@ -208,11 +223,23 @@ public class PublishingService {
             }
             found.add(p);
         }
+        List<String> kept = new ArrayList<>();
         for (int i = 0; i < texts.size(); i++) {
-            found.get(i).proposeTexts(texts.get(i).caption(), texts.get(i).hashtags());
-            publications.save(found.get(i));
-            events.publishEvent(new FactoryChanged("publication", found.get(i).getId()));
+            Publication p = found.get(i);
+            Texts t = texts.get(i);
+            if (p.hasOwnText()) {
+                String suggestion = SUGGESTION_FLAG + ": «" + t.caption() + "»"
+                        + (t.hashtags().isBlank() ? "" : " " + t.hashtags());
+                p.flag(p.getFlag() == null || p.getFlag().startsWith(SUGGESTION_FLAG) ? suggestion : p.getFlag() + " · " + suggestion);
+                kept.add(p.getId());
+            } else {
+                p.proposeTexts(t.caption(), t.hashtags());
+                quality.invalidateAcceptances(p.getId());
+            }
+            publications.save(p);
+            events.publishEvent(new FactoryChanged("publication", p.getId()));
         }
+        return kept;
     }
 
     /** Raúl descarta el texto de la publicación con su motivo: queda en la memoria editorial. */
@@ -220,6 +247,7 @@ public class PublishingService {
     public Publication discardTexts(String id, com.socialhub.publishing.domain.RejectionReason reason, @Nullable String note) {
         Publication publication = find(id);
         String discarded = publication.discardTexts();
+        quality.invalidateAcceptances(id);
         memory.add(new com.socialhub.publishing.domain.EditorialMemoryRepository.Rejection(
                 promotions.brandOf(publication.getPromotionId()), publication.getPromotionId(), id,
                 com.socialhub.publishing.domain.EditorialMemoryRepository.Kind.TEXT, reason, blank(note),

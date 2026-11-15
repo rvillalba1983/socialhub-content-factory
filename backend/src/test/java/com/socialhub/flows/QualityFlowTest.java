@@ -210,6 +210,49 @@ class QualityFlowTest {
     }
 
 
+    @Test
+    @Order(8)
+    void anAcceptedNoticeIsVoidedWhenTheTextOrTheFilesChangeAndAppearsAgainIfItStillFails() throws Exception {
+        Flow f = flow();
+        String id = "2026-12-08-instagram";
+        post("2026-12-08", "Post", "Un poema. COMPRA YA. Cuéntanos qué te parece.", "#eldelito", square);
+        assertThat(keys(id)).containsExactly("FORBIDDEN:compra ya");
+        f.ok(f.post("/api/publications/" + id + "/quality-acceptances", "{\"key\":\"FORBIDDEN:compra ya\",\"reason\":\"Es una cita\"}"));
+        assertThat(f.read("/api/publications/" + id + "/quality").get("open").asInt()).isZero();
+
+        // Cambiar otra cosa (el título, la hora) no anula la aceptación; guardar el mismo texto tampoco
+        f.ok(f.put("/api/publications/" + id, """
+                {"platform":"INSTAGRAM","type":"Post","title":"Otro título","scheduled_on":"2026-12-08","scheduled_time":"20:00",
+                 "caption":"Un poema. COMPRA YA. Cuéntanos qué te parece.","hashtags":"#eldelito"}"""));
+        assertThat(f.read("/api/publications/" + id + "/quality").get("open").asInt()).isZero();
+
+        // Cambia el texto y sigue diciendo lo prohibido: la aceptación ya no vale y el aviso vuelve a estar abierto
+        f.ok(f.put("/api/publications/" + id, publication("2026-12-08", "Post", "Otro poema. COMPRA YA. Cuéntanos qué te parece.", "#eldelito")));
+        assertThat(keys(id)).containsExactly("FORBIDDEN:compra ya");
+        JsonNode again = f.read("/api/publications/" + id + "/quality");
+        assertThat(again.get("open").asInt()).isEqualTo(1);
+        assertThat(again.get("issues").get(0).get("accepted").asBoolean()).isFalse();
+        f.post("/api/publications/" + id + "/status-changes", "{\"status\":\"DRAFT\"}").andExpect(status().isOk());
+        f.post("/api/publications/" + id + "/status-changes", "{\"status\":\"IN_REVIEW\"}").andExpect(status().isOk());
+        f.post("/api/publications/" + id + "/status-changes", "{\"status\":\"APPROVED\"}").andExpect(status().isConflict());
+
+        // Se acepta otra vez y se quita lo prohibido: el aviso desaparece; si vuelve a escribirse, vuelve a salir abierto
+        f.ok(f.post("/api/publications/" + id + "/quality-acceptances", "{\"key\":\"FORBIDDEN:compra ya\",\"reason\":\"Otra vez\"}"));
+        f.ok(f.put("/api/publications/" + id, publication("2026-12-08", "Post", "Un poema limpio. Cuéntanos qué te parece.", "#eldelito")));
+        assertThat(keys(id)).isEmpty();
+        f.ok(f.put("/api/publications/" + id, publication("2026-12-08", "Post", "Un poema. Compra ya. Cuéntanos qué te parece.", "#eldelito")));
+        assertThat(f.read("/api/publications/" + id + "/quality").get("open").asInt()).isEqualTo(1);
+
+        // Lo mismo con los archivos: se acepta el formato de un PNG y, al cambiar los archivos, deja de valer
+        String png = "2026-12-09-instagram";
+        post("2026-12-09", "Post", "Una captura del poema. Cuéntanos qué te parece.", "#eldelito", squarePng);
+        f.ok(f.post("/api/publications/" + png + "/quality-acceptances", "{\"key\":" + f.q("FILE_FORMAT:" + squarePng) + ",\"reason\":\"Es una captura\"}"));
+        assertThat(f.read("/api/publications/" + png + "/quality").get("open").asInt()).isZero();
+        f.post("/api/publications/" + png + "/files", "{\"path\":" + f.q(square) + "}").andExpect(status().isCreated());
+        assertThat(f.read("/api/publications/" + png + "/quality").get("open").asInt()).as("cambiaron los archivos").isEqualTo(1);
+    }
+
+
     // ------------------------------------------------------------------ utilidades
 
     private static String publication(String day, String type, String caption, String hashtags) {

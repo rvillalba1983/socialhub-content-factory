@@ -103,6 +103,10 @@ export function InstagramKeyCard({ onChanged }: { onChanged?: () => void }) {
               const { authorization_url } = await api.startInstagramOAuth();
               window.open(authorization_url, '_self');
             })}>{connection ? 'Renovar conexión' : 'Conectar con Instagram'}</button>
+          {!appReady && (
+            <span className="src"> Para conectar, primero guarda el App ID y el App Secret de tu app de Meta (arriba).
+              {status?.system_key ? ' Mientras tanto, SocialHub ya usa la clave de usuario del sistema.' : ''}</span>
+          )}
           {connection && (
             <button type="button" className="btn" disabled={busy}
               onClick={() => void run(async () => { await api.disconnectInstagram(); setCheck(null); })}>Desconectar</button>

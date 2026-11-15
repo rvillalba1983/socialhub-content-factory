@@ -72,6 +72,15 @@ public class QualityService {
         return issues(publicationId);
     }
 
+    /**
+     * Cambió el texto o los archivos de la publicación: lo aceptado antes ya no vale. Los avisos vuelven a comprobarse
+     * y reaparecen si siguen fallando. Aceptar solo vale mientras no cambie la publicación.
+     */
+    @Transactional
+    public void invalidateAcceptances(String publicationId) {
+        quality.clearAcceptances(publicationId);
+    }
+
     /** Guarda los avisos de la revisión de Claude (sustituyen a los de su revisión anterior). */
     @Transactional
     public void applyReview(String publicationId, List<QualityRepository.ReviewIssue> review, String taskId) {

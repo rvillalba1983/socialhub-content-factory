@@ -162,6 +162,11 @@ public final class Publication {
         this.aiHashtags = this.hashtags;
     }
 
+    /** Hay un texto o unos hashtags que no son la propuesta de Claude sin tocar: los puso o los corrigió Raúl. */
+    public boolean hasOwnText() {
+        return (caption != null && !caption.equals(aiCaption)) || (hashtags != null && !hashtags.equals(aiHashtags));
+    }
+
     /** Raúl descarta el texto: se borran el texto, los hashtags y la propuesta de Claude. Devuelve lo descartado. */
     public String discardTexts() {
         if (caption == null && hashtags == null) throw new DomainException("No hay texto que descartar.");
