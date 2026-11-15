@@ -140,8 +140,8 @@ test.describe('Mapa', () => {
     await expect.poll(() => scaleOf(page)).toBeGreaterThan(3);
   });
 
-  // Los límites del arrastre son la unión de las cajas del contenido en los niveles de detalle 1, 2 y 3: con el zoom al
-  // máximo se puede llegar a cada borde del contenido y la pantalla no queda vacía.
+  // Los límites del arrastre usan la caja del contenido del nivel de detalle que se ve (cada nivel tiene tarjetas de otro
+  // tamaño): con el zoom al máximo el centro no sale del contenido y la pantalla no queda vacía.
   test('acercar al máximo con el mapa arrastrado al borde no deja la pantalla vacía', async ({ page }) => {
     await openMap(page);
     await settledScale(page);
@@ -164,7 +164,7 @@ test.describe('Mapa', () => {
     await page.mouse.move(vp.x + vp.width / 2, vp.y + vp.height / 2);
     for (let i = 0; i < 8; i++) await page.mouse.wheel(0, -2000);
     await expect.poll(() => scaleOf(page)).toBeGreaterThan(3);
-    const cx = vp.x + vp.width / 2, cy = vp.y + vp.height / 2;
+    const cx = vp.x + vp.width / 2, cy = vp.y + vp.height - 40;
     // Arrastre brutal hacia cada lado: el borde del contenido de ese lado debe quedar dentro de la ventana
     for (const [dx, dy, side] of [[-6000, 0, 'r'], [6000, 0, 'l'], [0, -6000, 'b'], [0, 6000, 't']] as const) {
       await page.mouse.move(cx, cy);

@@ -14,17 +14,17 @@ export const HARD_MIN_SCALE = 0.08;
 export const validBox = (b: Box | null | undefined): b is Box =>
   !!b && Number.isFinite(b.x0 + b.y0 + b.x1 + b.y1) && b.x1 - b.x0 > 0 && b.y1 - b.y0 > 0;
 
+/** Cajas del contenido medidas en cada nivel de detalle (1, 2 y 3). */
+export type LevelBoxes = Partial<Record<1 | 2 | 3, Box | null>>;
+
 /**
- * Unión de varias cajas (las del contenido medido en cada nivel de detalle). Ignora las no válidas; si no queda ninguna,
- * devuelve null.
+ * Caja que limita el desplazamiento al nivel de detalle que se ve. Cada nivel tiene su propio tamaño de tarjetas (con
+ * más detalle pueden ser más grandes o más pequeñas que al nivel 1), así que se usa la del nivel actual: se llega a
+ * todos los bordes de lo que se ve y no se puede dejar la pantalla vacía. Si ese nivel no se ha medido, la de reserva.
  */
-export function unionBox(boxes: Array<Box | null | undefined>): Box | null {
-  const ok = boxes.filter(validBox);
-  if (!ok.length) return null;
-  return {
-    x0: Math.min(...ok.map(b => b.x0)), y0: Math.min(...ok.map(b => b.y0)),
-    x1: Math.max(...ok.map(b => b.x1)), y1: Math.max(...ok.map(b => b.y1)),
-  };
+export function boxForLevel(level: number, boxes: LevelBoxes, fallback: Box | null): Box | null {
+  const b = boxes[level as 1 | 2 | 3];
+  return validBox(b) ? b : fallback;
 }
 
 /** Zoom con el que «Encuadrar todo» deja el contenido: lo más pequeño que se permite. */

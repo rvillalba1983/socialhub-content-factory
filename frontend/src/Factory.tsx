@@ -16,7 +16,7 @@ import {
 import { ArmoryPanel, StationPanel, TaskPanel } from './Panel';
 import { Dot, Pill, prefersReducedMotion } from './ui';
 import { World, openAlert, type Selection } from './World';
-import { clampView, fitScale, unionBox, validBox, type Box } from './viewLimits';
+import { boxForLevel, clampView, fitScale, validBox, type Box, type LevelBoxes } from './viewLimits';
 
 interface View { s: number; tx: number; ty: number }
 const clampS = (s: number) => Math.max(0.08, Math.min(3.5, s));
@@ -35,9 +35,9 @@ export function Factory({ data, live, onRefresh }: {
   const anim = useRef<number>(0);
   // Caja del contenido al nivel de detalle 1 (el más compacto): sirve para el encuadre y el zoom mínimo
   const bounds = useRef<Box | null>(null);
-  // Unión de las cajas de los niveles 1, 2 y 3: limita el desplazamiento, para poder llegar a todo el contenido
-  // (con más detalle las tarjetas son más grandes que al nivel 1). Se rellenan al encuadrar y al cambiar los datos.
-  const panBounds = useRef<Box | null>(null);
+  // Caja del contenido en cada nivel (1, 2 y 3): limita el desplazamiento con la del nivel que se ve, para poder llegar
+  // a todo el contenido (el tamaño de las tarjetas cambia con el detalle). Se rellenan al encuadrar y al cambiar los datos.
+  const levelBounds = useRef<LevelBoxes>({});
   const clampRef = useRef<(v: View) => View>(v => v);
   const [lod, setLod] = useState(1);
   const [zoom, setZoom] = useState(50);
@@ -112,11 +112,11 @@ export function Factory({ data, live, onRefresh }: {
     return b;
   }, []);
 
-  /** Mide el contenido en el nivel 1 (encuadre) y en todos los niveles (límite del desplazamiento). */
+  /** Mide el contenido en el nivel 1 (encuadre y zoom mínimo) y en cada nivel (límite del desplazamiento). */
   const measureBounds = useCallback(() => {
     const b1 = measure(1, CONTENT);
     bounds.current = b1;
-    panBounds.current = unionBox([b1, measure(2, CONTENT), measure(3, CONTENT)]);
+    levelBounds.current = { 1: b1, 2: measure(2, CONTENT), 3: measure(3, CONTENT) };
     return b1;
   }, [measure]);
 
@@ -134,7 +134,7 @@ export function Factory({ data, live, onRefresh }: {
   }, [avail, pads]);
   const clampZoom = useCallback((s: number) => Math.max(minScale(), Math.min(3.5, s)), [minScale]);
   clampRef.current = v => {
-    const b = panBounds.current ?? bounds.current;
+    const b = boxForLevel(lodFor(clampS(v.s)), levelBounds.current, bounds.current);
     return vp.current && validBox(b) ? clampView(v, b, avail(), minScale()) : v;
   };
 
