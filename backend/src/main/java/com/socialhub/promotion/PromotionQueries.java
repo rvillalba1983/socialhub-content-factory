@@ -2,6 +2,8 @@ package com.socialhub.promotion;
 
 import com.socialhub.platform.NotFoundException;
 import com.socialhub.promotion.domain.Brand;
+import com.socialhub.promotion.domain.BrandIdentity;
+import com.socialhub.promotion.domain.EditorialDecision;
 import com.socialhub.promotion.domain.FolderAssignment;
 import com.socialhub.promotion.domain.FolderAssignment.Origin;
 import com.socialhub.promotion.domain.FolderRepository;
@@ -113,7 +115,6 @@ public class PromotionQueries {
                 .toList();
     }
 
-    /** Identidad de la marca (vacía si no se ha rellenado). */
     /** Usuario de la marca en las redes («@elde_lito»); vacío si no existe. */
     public String handleOf(String brandId) {
         return repository.brand(brandId).map(b -> b.handle()).orElse("");
@@ -124,18 +125,40 @@ public class PromotionQueries {
         if (repository.brand(brandId).isEmpty()) throw new NotFoundException("No existe la marca " + brandId);
     }
 
+    /** Falla con 404 si la promoción no existe. */
+    public void requirePromotion(String promotionId) {
+        if (repository.promotion(promotionId).isEmpty()) throw new NotFoundException("No existe la promoción " + promotionId);
+    }
+
+    /** Identidad de la marca (vacía si no se ha rellenado). Solo para el propio módulo: usa tipos de dominio. */
     public BrandIdentity identity(String brandId) {
         if (repository.brand(brandId).isEmpty()) throw new NotFoundException("No existe la marca " + brandId);
         return identities.identity(brandId).orElse(BrandIdentity.EMPTY);
     }
 
-    /** Identidad que se aplica a una promoción: la de su marca. */
-    public BrandIdentity identityOf(String promotionId) { return identity(brandOf(promotionId)); }
+    /** Identidad de la marca de la promoción, con los nombres que entiende Claude (solo los campos rellenos). */
+    public Map<String, Object> identityForAi(String promotionId) { return identity(brandOf(promotionId)).forAi(); }
 
-    /** Decisiones editoriales de la marca, por orden de alta. */
+    /** Lo que el control de calidad comprueba de la identidad de la marca de la promoción. */
+    public QualityRules qualityRulesOf(String promotionId) {
+        BrandIdentity identity = identity(brandOf(promotionId));
+        return new QualityRules(identity.forbiddenExpressions(), identity.callToAction(), identity.fixedHashtags());
+    }
+
+    /** Reglas de calidad de una marca: expresiones prohibidas, llamada a la acción y hashtags fijos. */
+    public record QualityRules(List<String> forbiddenExpressions, String callToAction, String fixedHashtags) {}
+
+    /** Decisiones editoriales de la marca, por orden de alta. Solo para el propio módulo: usa tipos de dominio. */
     public List<EditorialDecision> decisions(String brandId) {
         if (repository.brand(brandId).isEmpty()) throw new NotFoundException("No existe la marca " + brandId);
         return decisions.decisions(brandId);
+    }
+
+    /** Decisión editorial resumida, para otros módulos. */
+    public record DecisionRef(long id, String text, java.time.Instant createdAt) {}
+
+    public List<DecisionRef> decisionRefs(String brandId) {
+        return decisions(brandId).stream().map(d -> new DecisionRef(d.id(), d.text(), d.createdAt())).toList();
     }
 
     /** Lo que Claude necesita saber de una promoción para proponer contenido. */

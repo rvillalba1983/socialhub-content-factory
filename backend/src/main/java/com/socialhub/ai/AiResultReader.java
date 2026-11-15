@@ -20,7 +20,6 @@ import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -50,7 +49,6 @@ class AiResultReader {
     private final ObjectMapper json;
     private final Clock clock;
     private final TransactionTemplate transactions;
-    private final ApplicationEventPublisher events;
     private final AiHandlers handlers;
 
     @Scheduled(initialDelayString = "${socialhub.ai.initial-delay-millis:10000}",
@@ -143,8 +141,6 @@ class AiResultReader {
                     }
                     finish(sent, AiRequestEntity.Status.COMPLETED, file, result, null);
                     production.aiCompleted(taskId, applied);
-                    events.publishEvent(new AiResultApplied(taskId, type, sent.getPromotionId(), file.toString(),
-                            result.path("outputs")));
                 }
                 case "failed" -> {
                     String error = text(result.path("error"), "Claude no indica el motivo");

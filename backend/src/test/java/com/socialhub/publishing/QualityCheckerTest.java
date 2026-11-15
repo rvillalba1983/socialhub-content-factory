@@ -2,7 +2,7 @@ package com.socialhub.publishing;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.socialhub.promotion.BrandIdentity;
+import com.socialhub.promotion.PromotionQueries.QualityRules;
 import com.socialhub.publishing.domain.Platform;
 import com.socialhub.publishing.domain.Publication;
 import com.socialhub.publishing.domain.PublicationStatus;
@@ -21,8 +21,8 @@ class QualityCheckerTest {
 
     @TempDir Path dir;
 
-    private static final BrandIdentity IDENTITY = new BrandIdentity("", "", List.of(), List.of(), List.of("Compra ya"),
-            List.of(), "", "", "", "", "Comenta DELITO y te mando el enlace", "#eldelito #poesia");
+    private static final QualityRules IDENTITY = new QualityRules(List.of("Compra ya"),
+            "Comenta DELITO y te mando el enlace", "#eldelito #poesia");
 
     private static Publication pub(Platform platform, String type, String caption, String hashtags) {
         return Publication.builder().id("p1").promotionId("promo").platform(platform).type(type).title("Poema")

@@ -1,4 +1,4 @@
-package com.socialhub.promotion;
+package com.socialhub.promotion.domain;
 
 import java.time.Instant;
 import org.jmolecules.ddd.annotation.ValueObject;

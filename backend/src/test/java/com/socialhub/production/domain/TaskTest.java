@@ -4,10 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.socialhub.platform.DomainException;
-import com.socialhub.production.ProductionEvents.ReviewApproved;
-import com.socialhub.production.ProductionEvents.SwitchedToManual;
-import com.socialhub.production.ProductionEvents.TaskCompleted;
-import com.socialhub.production.ProductionEvents.TaskInterrupted;
+import com.socialhub.production.domain.events.ProductionEvents.ReviewApproved;
+import com.socialhub.production.domain.events.ProductionEvents.SwitchedToManual;
+import com.socialhub.production.domain.events.ProductionEvents.TaskInterrupted;
 import java.time.Instant;
 import java.util.List;
 import java.util.Set;
@@ -96,7 +95,7 @@ class TaskTest {
         review.execute(TaskCommandType.APPROVE, null, NOW);
         assertThat(review.getStatus()).isEqualTo(TaskStatus.COMPLETED);
         assertThat(review.getChecks()).allMatch(TaskCheck::passed);
-        assertThat(review.pendingNotices()).contains(new ReviewApproved("t", "promo"), new TaskCompleted("t"));
+        assertThat(review.pendingNotices()).containsExactly(new ReviewApproved("t", "promo"));
     }
 
     @Test

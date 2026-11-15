@@ -293,6 +293,12 @@
               <artifactId>lombok-mapstruct-binding</artifactId>
               <version>0.2.0</version>
             </path>
+            <!-- Lista los módulos y sus eventos en META-INF/spring-modulith (para la documentación) -->
+            <path>
+              <groupId>org.springframework.modulith</groupId>
+              <artifactId>spring-modulith-apt</artifactId>
+              <version>${spring-modulith.version}</version>
+            </path>
           </annotationProcessorPaths>
           <compilerArgs>
             <arg>-Amapstruct.defaultComponentModel=spring</arg>

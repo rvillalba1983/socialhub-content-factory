@@ -5,6 +5,8 @@ import com.socialhub.platform.NotFoundException;
 import com.socialhub.platform.live.FactoryChanged;
 import com.socialhub.promotion.domain.Brand;
 import com.socialhub.promotion.domain.BrandDraft;
+import com.socialhub.promotion.domain.BrandIdentity;
+import com.socialhub.promotion.domain.EditorialDecision;
 import com.socialhub.promotion.domain.FolderAssignment;
 import com.socialhub.promotion.domain.FolderRepository;
 import com.socialhub.promotion.domain.FolderRole;

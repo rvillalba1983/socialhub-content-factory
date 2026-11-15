@@ -45,7 +45,7 @@ public class AiOrders {
     /** Alta de un encargo que pide SocialHub por su cuenta (también los de publicación con Chrome en el PC): sigue la regla de urgencia. */
     @Transactional
     public String submitInternal(String promotionId, AiRequestType type, String title, String goal, List<String> inputs) {
-        promotions.promotion(promotionId);
+        promotions.requirePromotion(promotionId);
         if (goal.isBlank()) throw new IllegalArgumentException("Falta el objetivo del encargo");
         String name = title.isBlank() ? type.label() : title.strip();
         // Un alta a la vez por tipo y promoción: lo que se comprueba abajo (publicaciones ya en otro encargo) no puede

@@ -1,6 +1,6 @@
 package com.socialhub.promotion.adapter.out.persistence;
 
-import com.socialhub.promotion.EditorialDecision;
+import com.socialhub.promotion.domain.EditorialDecision;
 import com.socialhub.promotion.domain.DecisionRepository;
 import java.time.Instant;
 import java.util.List;

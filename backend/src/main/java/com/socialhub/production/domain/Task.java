@@ -3,11 +3,10 @@ package com.socialhub.production.domain;
 import static com.socialhub.production.domain.TaskStatus.*;
 
 import com.socialhub.platform.DomainException;
-import com.socialhub.production.ProductionEvents.ReviewApproved;
-import com.socialhub.production.ProductionEvents.SwitchedToManual;
-import com.socialhub.production.ProductionEvents.TaskCompleted;
-import com.socialhub.production.ProductionEvents.TaskInterrupted;
-import com.socialhub.production.ProductionEvents.TaskNotice;
+import com.socialhub.production.domain.events.ProductionEvents.ReviewApproved;
+import com.socialhub.production.domain.events.ProductionEvents.SwitchedToManual;
+import com.socialhub.production.domain.events.ProductionEvents.TaskInterrupted;
+import com.socialhub.production.domain.events.ProductionEvents.TaskNotice;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -481,7 +480,6 @@ public final class Task {
         reason = null;
         result = resultText;
         steps.replaceAll(s -> s.with(StepState.DONE));
-        pendingNotices.add(new TaskCompleted(id));
     }
 
     private void record(Instant at, String message) {

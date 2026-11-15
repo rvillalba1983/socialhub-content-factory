@@ -15,7 +15,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.jspecify.annotations.Nullable;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 
@@ -34,7 +33,7 @@ class PublerScheduleHandler implements AiTypeHandler {
     private final PublishingEngine engine;
     private final PublerAccountRepository accounts;
 
-    PublerScheduleHandler(PublishingQueries queries, PublicationFileRepository files, @Lazy PublishingEngine engine,
+    PublerScheduleHandler(PublishingQueries queries, PublicationFileRepository files, PublishingEngine engine,
                           PublerAccountRepository accounts) {
         this.queries = queries;
         this.files = files;
