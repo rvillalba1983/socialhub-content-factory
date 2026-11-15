@@ -274,7 +274,7 @@ class FactoryRecommendations {
                 : list.size() + " publicaciones de «" + promotion.name() + "» ya no dejan 6 horas de margen";
         String detail = (list.size() == 1 ? "" : "La primera, «" + first.title() + "»: ")
                 + (past ? "su hora (el " + day + " a las " + hour(when) + ") ya pasó"
-                        : "sale el " + day + " a las " + hour(when) + " y falta menos de 6 horas")
+                        : "sale el " + day + " a las " + hour(when) + " (faltan menos de 6 horas)")
                 + " y aún no está programada. SocialHub no programa con menos de 6 horas: cambia la hora o publícala a mano";
         return recommendation("publication-too-soon:" + promotion.id(), RecommendationDto.KindEnum.PUBLICATION_TOO_SOON,
                 title, detail, RecommendationTargetDto.ScreenEnum.PUBLICATIONS, promotion.brandId(), promotion.id())
