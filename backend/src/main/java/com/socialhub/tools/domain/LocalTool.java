@@ -1,8 +1,9 @@
-package com.socialhub.tools;
+package com.socialhub.tools.domain;
 
 import java.util.List;
 
-/** Una herramienta local que SocialHub sabe usar. */
+/** Una herramienta local que SocialHub sabe usar. La implementa cada adaptador de salida. */
+@org.jmolecules.architecture.hexagonal.SecondaryPort
 public interface LocalTool {
 
     /** Identificador estable, por ejemplo {@code ffmpeg}. */

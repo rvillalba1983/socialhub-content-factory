@@ -1,4 +1,7 @@
-package com.socialhub.tools;
+package com.socialhub.tools.adapter.out.ffmpeg;
+
+import com.socialhub.tools.domain.LocalTool;
+import com.socialhub.tools.domain.VideoProcessor;
 
 import com.socialhub.platform.AppPaths;
 import com.socialhub.platform.process.SafeProcess;
@@ -20,7 +23,7 @@ import org.springframework.stereotype.Component;
  */
 @Slf4j
 @Component
-public class FfmpegTool implements LocalTool {
+public class FfmpegTool implements LocalTool, VideoProcessor {
 
     private final SafeProcess process;
     private final Path cacheDir;
@@ -41,6 +44,7 @@ public class FfmpegTool implements LocalTool {
      * Ruta del ejecutable incluido. Solo se extrae la carpeta con el programa y sus bibliotecas; no se cargan las
      * bibliotecas JNI en la JVM (no hacen falta y pueden fallar si al sistema le faltan dependencias de dispositivos).
      */
+    @Override
     public synchronized Path executable() {
         if (executable == null) {
             System.setProperty("org.bytedeco.javacpp.cachedir", cacheDir.toString());
@@ -62,6 +66,7 @@ public class FfmpegTool implements LocalTool {
     }
 
     /** Ejecuta FFmpeg con argumentos ya validados por quien lo llama. */
+    @Override
     public SafeProcess.Result run(String operation, List<String> arguments, Duration timeout) throws InterruptedException {
         return process.run("ffmpeg", operation, executable(), arguments, null, timeout);
     }
@@ -74,12 +79,14 @@ public class FfmpegTool implements LocalTool {
     }
 
     /** Ruta de ffprobe, que va junto a ffmpeg. */
+    @Override
     public Path ffprobe() {
         Path exe = executable();
         return exe.resolveSibling(exe.getFileName().toString().replace("ffmpeg", "ffprobe"));
     }
 
     /** Duración en segundos de un audio o vídeo, con ffprobe. */
+    @Override
     public double probeDuration(Path media) throws InterruptedException {
         String out = process.run("ffprobe", "duration", ffprobe(),
                 List.of("-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", media.toString()),

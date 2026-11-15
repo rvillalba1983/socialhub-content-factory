@@ -2,7 +2,7 @@ package com.socialhub.pieces;
 
 import static com.socialhub.pieces.Drawing.*;
 
-import com.socialhub.tools.FfmpegTool;
+import com.socialhub.tools.Ffmpeg;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics2D;
@@ -33,9 +33,9 @@ class PieceGenerator {
     private static final int W = 1080, H_STORY = 1920, H_POST = 1350, FPS = 30;
     private static final Duration VIDEO_TIMEOUT = Duration.ofMinutes(15);
 
-    private final FfmpegTool ffmpeg;
+    private final Ffmpeg ffmpeg;
 
-    PieceGenerator(FfmpegTool ffmpeg) {
+    PieceGenerator(Ffmpeg ffmpeg) {
         this.ffmpeg = ffmpeg;
     }
 

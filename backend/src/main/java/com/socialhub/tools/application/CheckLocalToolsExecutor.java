@@ -1,6 +1,7 @@
-package com.socialhub.tools;
+package com.socialhub.tools.application;
 
 import com.socialhub.production.TaskExecutor;
+import com.socialhub.tools.LocalTools;
 import java.time.Duration;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -10,9 +11,9 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class CheckLocalToolsExecutor implements TaskExecutor {
 
-    static final String TYPE = "CHECK_LOCAL_TOOLS";
+    static final String TYPE = LocalTools.TASK_TYPE;
 
-    private final LocalToolRegistry registry;
+    private final LocalTools registry;
 
     @Override public String type() { return TYPE; }
     @Override public String agentName() { return "Comprobaciones locales"; }

@@ -1,4 +1,6 @@
-package com.socialhub.tools;
+package com.socialhub.tools.adapter.out.imaging;
+
+import com.socialhub.tools.domain.LocalTool;
 
 import java.awt.Font;
 import java.awt.Graphics2D;

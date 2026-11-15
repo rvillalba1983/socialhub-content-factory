@@ -1,9 +1,10 @@
-package com.socialhub.tools;
+package com.socialhub.tools.adapter.in.startup;
 
 import com.socialhub.platform.AppMode;
 import com.socialhub.platform.AppModeHolder;
 import com.socialhub.production.ProductionService;
 import com.socialhub.production.TaskRequest;
+import com.socialhub.tools.LocalTools;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,7 +28,7 @@ class StartupToolCheck {
     void onReady() {
         AppModeHolder.runIn(AppMode.REAL, () -> {
             try {
-                production.submitOrRequeue(TASK_ID, new TaskRequest("gen", null, CheckLocalToolsExecutor.TYPE,
+                production.submitOrRequeue(TASK_ID, new TaskRequest("gen", null, LocalTools.TASK_TYPE,
                         "Comprobar herramientas locales",
                         "Saber qué herramientas locales funcionan en este ordenador y con qué versión.", List.of(), List.of()),
                         "Comprobaciones locales");

@@ -7,7 +7,8 @@ import com.socialhub.platform.AppPaths;
 import com.socialhub.platform.SocialHubProperties;
 import com.socialhub.platform.observability.ExternalCalls;
 import com.socialhub.platform.process.SafeProcess;
-import com.socialhub.tools.FfmpegTool;
+import com.socialhub.tools.adapter.out.ffmpeg.FfmpegTool;
+import com.socialhub.tools.application.FfmpegService;
 import java.awt.Color;
 import java.awt.GradientPaint;
 import java.awt.Graphics2D;
@@ -37,7 +38,7 @@ class PieceGeneratorTest {
     static void prepare() throws Exception {
         ffmpeg = new FfmpegTool(new SafeProcess(ExternalCalls.unobserved()),
                 new AppPaths(new SocialHubProperties(data.toString(), null, null, null)));
-        generator = new PieceGenerator(ffmpeg);
+        generator = new PieceGenerator(new FfmpegService(ffmpeg));
         reader = new SpecReader(JsonMapper.builder().build(), generator);
         Path media = Files.createDirectories(drive.resolve("DeLito/material"));
         image(media.resolve("page 46.png"), 1600, 1200, new Color(180, 60, 40), new Color(250, 230, 200));
