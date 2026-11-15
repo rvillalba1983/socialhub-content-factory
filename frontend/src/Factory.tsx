@@ -5,6 +5,7 @@ import { ControlCenter } from './ControlCenter';
 import { ExternalOperations } from './ExternalOperations';
 import { Backups, Closed, Halted, ShutdownButton } from './Backups';
 import { Registration } from './Registration';
+import { VersionBadge } from './Version';
 import { NextSteps, savedMessage, toastDuration, withoutBrandNotices, type SavedRef } from './Recommendations';
 import type { RecommendationTarget } from './api/schema';
 import { Icon } from './icons';
@@ -44,7 +45,7 @@ export function Factory({ data, live, onRefresh }: {
   const [copias, setCopias] = useState(false);
   const [halted, setHalted] = useState<string | null>(null);
   const [closed, setClosed] = useState(false);
-  const [reg, setReg] = useState<{ kind: 'brand' | 'promotion'; id: string | null; brandId?: string; focus?: 'folders' | 'publora' | 'publer' } | false | null>(false);
+  const [reg, setReg] = useState<{ kind: 'brand' | 'promotion'; id: string | null; brandId?: string; focus?: 'folders' | 'publora' | 'publer' | 'identity' } | false | null>(false);
   const [openBrand, setOpenBrand] = useState<string | null>(null);
   const [demoAvailable, setDemoAvailable] = useState(true);
   useEffect(() => { api.appMode().then(m => { setDemoAvailable(m.demo_available); setHalted(m.halted_reason ?? null); }).catch(() => {}); }, []);
@@ -258,8 +259,10 @@ export function Factory({ data, live, onRefresh }: {
   const goRecommendation = useCallback((t: RecommendationTarget) => {
     setSel({ type: null, id: null }); setCc(null); setOps(false); setClaude(false); setCopias(false); setReg(false);
     if (t.screen === 'PROPOSALS' && t.promotion_id) setCc({ promo: t.promotion_id, tab: 'publicaciones', hl: null, filter: 'PROPOSAL' });
-    else if ((t.screen === 'BRAND_FOLDERS' || t.screen === 'PUBLORA' || t.screen === 'PUBLER') && t.brand_id) {
-      setReg({ kind: 'brand', id: t.brand_id, focus: t.screen === 'PUBLORA' ? 'publora' : t.screen === 'PUBLER' ? 'publer' : 'folders' });
+    else if (t.screen === 'PUBLICATIONS' && t.promotion_id) setCc({ promo: t.promotion_id, tab: 'publicaciones', hl: null, filter: 'pending' });
+    else if ((t.screen === 'BRAND_FOLDERS' || t.screen === 'PUBLORA' || t.screen === 'PUBLER' || t.screen === 'BRAND_IDENTITY') && t.brand_id) {
+      setReg({ kind: 'brand', id: t.brand_id,
+        focus: t.screen === 'PUBLORA' ? 'publora' : t.screen === 'PUBLER' ? 'publer' : t.screen === 'BRAND_IDENTITY' ? 'identity' : 'folders' });
     }
     // Con promotion_id (activar una planificada o en pausa) se abre esa promoción; sin él, el alta de una nueva
     else if (t.screen === 'NEW_PROMOTION' && t.brand_id) {
@@ -267,6 +270,7 @@ export function Factory({ data, live, onRefresh }: {
     }
     else if (t.screen === 'BACKUPS') setCopias(true);
     else if (t.screen === 'CLAUDE') setClaude(true);
+    else if (t.screen === 'INSTAGRAM') setSel({ type: 'armory', id: 'instagram-api' });
   }, []);
   const home = useCallback(() => { setCc(null); setSel({ type: null, id: null }); requestAnimationFrame(fit); }, [fit]);
 
@@ -288,6 +292,17 @@ export function Factory({ data, live, onRefresh }: {
     setToast(m);
     toastTimer.current = window.setTimeout(() => setToast(null), ms);
   }, []);
+  // Vuelta de Meta tras «Conectar con Instagram»: la dirección trae «?instagram=ok|error&message=…»
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const result = params.get('instagram');
+    if (result !== 'ok' && result !== 'error') return;
+    const message = params.get('message') ?? (result === 'ok' ? 'Conectado con Instagram' : 'No se pudo conectar con Instagram');
+    window.history.replaceState(null, '', window.location.pathname);
+    setSel({ type: 'armory', id: 'instagram-api' });
+    say(message, 9000);
+    onRefresh();
+  }, [say, onRefresh]);
   /** Al guardar, el paso siguiente sale del siguiente estado de la fábrica, no de lo que la interfaz supone. */
   const saved = useCallback(async (message: string, ref?: SavedRef) => {
     if (!ref) { say(message, message.includes('. ') ? 6000 : 2800); onRefresh(); return; }
@@ -414,6 +429,7 @@ export function Factory({ data, live, onRefresh }: {
     <>
       <header className="top">
         <button className="mark" onClick={home} aria-label="Volver a la vista general"><i />SocialHub</button>
+        <VersionBadge demo={data.demo} />
         <nav className="crumbs" aria-label="Ruta de navegación">
           {crumbs.map((c, i) => (
             <span key={i} style={{ display: 'contents' }}>

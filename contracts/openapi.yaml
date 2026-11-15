@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: SocialHub API
-  version: 1.1.0
+  version: 1.2.0
   description: |
     API de SocialHub, la fábrica de contenido. Es la fuente de la verdad: el backend genera a partir de
     este contrato las interfaces de los controladores y los modelos.
@@ -48,7 +48,7 @@ tags:
   - name: Backups
     description: Copias de seguridad de la base de datos real, en la carpeta de copias (ajuste general)
   - name: App
-    description: La aplicación en sí (cerrarla desde la web)
+    description: La aplicación en sí (cerrarla desde la web y ver qué versión es)
 
 paths:
   /api/factory:
@@ -313,6 +313,22 @@ paths:
         "202": { description: SocialHub se está cerrando }
         default: { $ref: "#/components/responses/Problem" }
 
+  /api/system/version:
+    get:
+      tags: [App]
+      operationId: getAppVersion
+      summary: Versión de SocialHub que está en marcha
+      description: >
+        Versión, commit y fecha de compilación del programa instalado. Sirve para saber si lo que tienes en el PC es
+        lo último. Solo lectura.
+      responses:
+        "200":
+          description: Versión en marcha
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AppVersion" }
+        default: { $ref: "#/components/responses/Problem" }
+
   /api/backups:
     get:
       tags: [Backups]
@@ -504,6 +520,102 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/InstagramCheck" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/instagram/app:
+    put:
+      tags: [Instagram]
+      operationId: saveInstagramApp
+      summary: Guarda el App ID y el App Secret de la app de Meta (para «Conectar con Instagram»)
+      description: >
+        Los comprueba con Meta antes de guardarlos. El App Secret se guarda solo en un archivo de la carpeta de datos
+        del ordenador, legible solo por el usuario; nunca en la base de datos, en el repositorio ni en los registros, y
+        no vuelve a salir por la API (solo «app_secret_saved»). Con «app_secret» vacío se conserva el ya guardado.
+      parameters:
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/InstagramAppInput" }
+      responses:
+        "200":
+          description: Datos de la app guardados
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InstagramStatus" }
+        "400": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/instagram/oauth/start:
+    post:
+      tags: [Instagram]
+      operationId: startInstagramOAuth
+      summary: Empieza «Conectar con Instagram»
+      description: >
+        Genera un «state» aleatorio de un solo uso (10 minutos de vida; protege frente a CSRF) y devuelve la dirección de
+        Meta a la que hay que llevar a Raúl para que dé su permiso. Hace falta haber guardado el App ID y el App Secret.
+      parameters:
+        - $ref: "#/components/parameters/RequestGuard"
+      responses:
+        "200":
+          description: Dirección de autorización de Meta
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InstagramOAuthStart" }
+        "400": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/instagram/oauth/callback:
+    get:
+      tags: [Instagram]
+      operationId: instagramOAuthCallback
+      summary: Vuelta de Meta tras el permiso (la «URI de redireccionamiento»)
+      description: >
+        Es la dirección que se da a Meta en «URI de redireccionamiento OAuth válidas»
+        (http://localhost:8686/api/instagram/oauth/callback). Rechaza, sin llamar a Meta, un «state» desconocido,
+        caducado o ya usado. Si es válido, cambia el «code» por una clave, esta por una de larga duración (unos 60 días),
+        guarda su caducidad, lista las páginas con su cuenta de Instagram y asigna sola la de cada marca cuyo @usuario
+        coincide. Responde siempre con una redirección a la interfaz: «/?instagram=ok» o «/?instagram=error», con el
+        texto en «message».
+      parameters:
+        - { name: code, in: query, required: false, schema: { type: string } }
+        - { name: state, in: query, required: false, schema: { type: string } }
+        - { name: error, in: query, required: false, schema: { type: string } }
+        - { name: error_description, in: query, required: false, schema: { type: string } }
+      responses:
+        "302":
+          description: Redirección a la interfaz de SocialHub
+          headers:
+            Location: { schema: { type: string } }
+
+  /api/instagram/oauth:
+    delete:
+      tags: [Instagram]
+      operationId: disconnectInstagramOAuth
+      summary: Borra la conexión hecha con «Conectar con Instagram»
+      description: No toca la clave de usuario del sistema, ni el App ID y el App Secret, ni las cuentas de las marcas.
+      parameters:
+        - $ref: "#/components/parameters/RequestGuard"
+      responses:
+        "204": { description: Conexión borrada }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/instagram/accounts:
+    get:
+      tags: [Instagram]
+      operationId: listInstagramAccounts
+      summary: Cuentas de Instagram profesionales de las páginas de Facebook de Raúl
+      description: >
+        Llama a Meta (GET /me/accounts) con la clave activa. Cada cuenta indica la marca a la que ya está asignada, si lo
+        está. Sirve para elegir la cuenta de cada marca sin copiar su identificador.
+      responses:
+        "200":
+          description: Cuentas detectadas
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InstagramDetectedAccountList" }
+        "400": { $ref: "#/components/responses/Problem" }
         default: { $ref: "#/components/responses/Problem" }
 
   /api/brands/{brand_id}/instagram-account:
@@ -1578,19 +1690,25 @@ components:
             - PC_TASK_SILENT
             - NO_PUBLISHING_ROUTE
             - PUBLER_ACCOUNT_MISSING
+            - INSTAGRAM_CONNECTION_EXPIRING
             - PROMOTION_AUTO_STARTED
             - CONTENT_MISSING
+            - IDENTITY_MISSING
+            - PUBLICATION_TOO_SOON
           description: >
             Por orden de prioridad: marca sin forma de publicar (NO_PUBLISHING_ROUTE) y tarea del PC «Publicar con
             Chrome» sin contestar (PC_TASK_SILENT), que van primero porque bloquean publicaciones reales (también salen
             como aviso en «Necesita atención»); marca sin cuenta de Publer para una red con publicaciones retenidas
-            (PUBLER_ACCOUNT_MISSING, con botón a la tarjeta «Cuenta en Publer»); propuestas retenidas (por la carpeta de Encargos, Drive cerrado o el límite
+            (PUBLER_ACCOUNT_MISSING, con botón a la tarjeta «Cuenta en Publer»); conexión con Instagram que caduca en 7 días o menos, o ya caducada (INSTAGRAM_CONNECTION_EXPIRING, con botón a la tarjeta «Instagram · API oficial», donde está «Renovar conexión»); propuestas retenidas (por la carpeta de Encargos, Drive cerrado o el límite
             diario), propuestas por revisar, marca sin todas sus carpetas, encargos
             sin recoger, marca sin cuenta de Publora, sin carpeta de copias, marca sin promoción activa, propuestas
             pedidas en camino y, la última, promoción activada sola hoy (PROMOTION_AUTO_STARTED, informativa: solo el día
             en que se activa). CONTENT_MISSING: publicación en producción sin contenido (sin piezas y fuera de cualquier spec abierto) que
             sale en menos de 3 días; con «publication_ids» y «promotion_id», el botón «Pedir contenido ya» pide un spec urgente
-            a mano de esas publicaciones (sin target: no navega). SPEC_WAITING ya no se calcula (el spec se pide por lotes, no por semana) y se conserva
+            a mano de esas publicaciones (sin target: no navega). IDENTITY_MISSING: marca con promoción en marcha a la que
+            le falta el tono, el público o los temas que no se tocan (botón a su identidad). PUBLICATION_TOO_SOON: publicaciones
+            de camino a publicar a las que ya no quedan 6 horas de margen, o cuya hora ya pasó, y aún no están programadas
+            (botón a las pendientes de la promoción). SPEC_WAITING ya no se calcula (el spec se pide por lotes, no por semana) y se conserva
             solo por compatibilidad
         title: { type: string, description: "Texto en español" }
         detail: { type: string, description: "Más información (por ejemplo, el motivo de un encargo retenido)" }
@@ -1620,12 +1738,13 @@ components:
       properties:
         screen:
           type: string
-          enum: [BRAND_FOLDERS, PROPOSALS, PUBLORA, PUBLER, BACKUPS, NEW_PROMOTION, CLAUDE]
+          enum: [BRAND_FOLDERS, PROPOSALS, PUBLORA, PUBLER, BACKUPS, NEW_PROMOTION, CLAUDE, INSTAGRAM, BRAND_IDENTITY, PUBLICATIONS]
           description: >
             BRAND_FOLDERS: Marcas → Carpetas de Drive de la marca (brand_id). PROPOSALS: publicaciones en estado
             Propuesta de la promoción (promotion_id). PUBLORA: tarjeta de Publora de la marca (brand_id). PUBLER: tarjeta «Cuenta en Publer» de la marca (brand_id). BACKUPS:
             ajuste de la carpeta de copias. NEW_PROMOTION: alta de promoción de la marca (brand_id); con promotion_id, abre esa promoción (planificada o en
-            pausa) para activarla. CLAUDE: pantalla «Claude», donde se cambia el límite diario de encargos (sin brand_id)
+            pausa) para activarla. CLAUDE: pantalla «Claude», donde se cambia el límite diario de encargos (sin brand_id). INSTAGRAM: tarjeta «Instagram · API oficial» de «Agentes y herramientas» (sin brand_id).
+            BRAND_IDENTITY: tarjeta de identidad de la marca (brand_id). PUBLICATIONS: publicaciones pendientes de la promoción (promotion_id)
         brand_id: { type: string }
         promotion_id: { type: string }
 
@@ -1848,8 +1967,62 @@ components:
       type: object
       required: [configured]
       properties:
-        configured: { type: boolean }
-        key_hint: { type: string, description: "Últimos 4 caracteres de la clave" }
+        configured:
+          type: boolean
+          description: Hay con qué llamar a Meta (una conexión vigente o la clave de usuario del sistema)
+        key_hint: { type: string, description: "Últimos 4 caracteres de la clave de usuario del sistema" }
+        system_key: { type: boolean, description: "Hay una clave de usuario del sistema pegada a mano (no caduca)" }
+        source:
+          type: string
+          enum: [OAUTH, SYSTEM_USER, NONE]
+          description: La que usa la publicación (la conexión vigente y, si no, la clave de usuario del sistema)
+        app_id: { type: string, description: App ID de la app de Meta (no es secreto) }
+        app_secret_saved: { type: boolean, description: "Hay un App Secret guardado (nunca sale por la API)" }
+        redirect_uri:
+          type: string
+          description: La «URI de redireccionamiento OAuth válida» que hay que dar a Meta, tal cual
+        connection: { $ref: "#/components/schemas/InstagramConnection" }
+
+    InstagramConnection:
+      type: object
+      required: [usernames, expires_at, days_left, expired]
+      properties:
+        name: { type: string, description: "Nombre de quien se conectó, según Meta" }
+        usernames:
+          type: array
+          items: { type: string }
+          description: "@usuarios de Instagram encontrados al conectar (sin la @)"
+        expires_at: { type: string, format: date-time }
+        days_left: { type: integer, description: "Días enteros que quedan (0 si caduca hoy o ya caducó)" }
+        expired: { type: boolean }
+
+    InstagramAppInput:
+      type: object
+      required: [app_id]
+      properties:
+        app_id: { type: string, maxLength: 40 }
+        app_secret: { type: string, maxLength: 200, description: "Vacío para conservar el ya guardado" }
+
+    InstagramOAuthStart:
+      type: object
+      required: [authorization_url]
+      properties:
+        authorization_url: { type: string }
+
+    InstagramDetectedAccount:
+      type: object
+      required: [ig_user_id, username, page_name]
+      properties:
+        ig_user_id: { type: string }
+        username: { type: string }
+        page_name: { type: string, description: Página de Facebook a la que está vinculada }
+        brand_id: { type: string, description: "Marca a la que ya está asignada" }
+
+    InstagramDetectedAccountList:
+      type: object
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/InstagramDetectedAccount" } }
 
     InstagramKeyInput:
       type: object
@@ -2063,7 +2236,7 @@ components:
         daily_limit: { type: integer, format: int32, minimum: 0, maximum: 100 }
         models:
           type: array
-          maxItems: 10
+          maxItems: 20
           items:
             type: object
             required: [type, model]
@@ -2227,6 +2400,14 @@ components:
         mode: { $ref: "#/components/schemas/AppMode" }
         demo_available: { type: boolean, description: El modo demo está permitido en esta instalación }
         halted_reason: { type: string, description: "Motivo por el que SocialHub está parado (tras restaurar una copia)" }
+
+    AppVersion:
+      type: object
+      required: [version, commit, build_time]
+      properties:
+        version: { type: string, description: "Versión de tres números (por ejemplo 1.2.7)", example: 1.2.7 }
+        commit: { type: string, description: "Commit con el que se compiló, de 7 caracteres (o «local» si se compiló a mano)", example: a1b2c3d }
+        build_time: { type: string, format: date-time, description: Fecha y hora de compilación }
 
     AppModeChange:
       type: object

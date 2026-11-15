@@ -76,7 +76,7 @@ describe('Ayuda junto a cada dato externo', () => {
     vi.spyOn(api, 'instagram').mockResolvedValue({ configured: false });
     vi.spyOn(api, 'brandInstagramAccount').mockResolvedValue({});
     const key = render(<InstagramKeyCard />);
-    expect(helps(key.container)).toEqual(['meta-token']);
+    expect(helps(key.container)).toEqual(['meta-app', 'meta-redirect-uri', 'meta-token']);
     key.unmount();
     const account = render(<InstagramAccountCard brandId="b" />);
     await screen.findByLabelText('Cuenta de Instagram (API oficial)');

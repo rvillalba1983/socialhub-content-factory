@@ -40,6 +40,7 @@ class FactoryRecommendationsTest {
     private final com.socialhub.ai.AiAutoStarted autoStarted = mock(com.socialhub.ai.AiAutoStarted.class);
     private final BackupService backups = mock(BackupService.class);
     private final com.socialhub.pieces.ContentGaps contentGaps = mock(com.socialhub.pieces.ContentGaps.class);
+    private final com.socialhub.publishing.InstagramOAuthService instagramOAuth = mock(com.socialhub.publishing.InstagramOAuthService.class);
 
     /** Lunes 9 de noviembre de 2026, 11:00 en España. */
     private Instant now = madrid(11, 9, 11, 0);
@@ -54,7 +55,7 @@ class FactoryRecommendationsTest {
 
     private FactoryRecommendations subject() {
         return new FactoryRecommendations(held, sent, promotions, publishing, publora, publer, backups, autoStarted,
-                contentGaps, Clock.fixed(now, ClaudePickups.ZONE));
+                contentGaps, instagramOAuth, Clock.fixed(now, ClaudePickups.ZONE));
     }
 
     /** Una marca «Litoques» con una promoción activa, todo en orden. */
@@ -362,6 +363,39 @@ class FactoryRecommendationsTest {
     }
 
     @Test
+    void aBrandWithAnActivePromotionAndAnIncompleteIdentityAsksForIt() {
+        when(promotions.identityGaps("litoques")).thenReturn(List.of("el tono", "los temas que no se tocan"));
+        var r = subject().compute().getFirst();
+        assertThat(r.getKind()).isEqualTo(KindEnum.IDENTITY_MISSING);
+        assertThat(r.getTitle()).isEqualTo("Cuéntale a Claude cómo es Litoques");
+        assertThat(r.getDetail()).contains("Falta el tono, los temas que no se tocan").contains("importarlo desde un .txt");
+        assertThat(r.getTarget().getScreen()).isEqualTo(ScreenEnum.BRAND_IDENTITY);
+        assertThat(r.getTarget().getBrandId()).isEqualTo("litoques");
+        // Sin promoción en marcha no hace falta todavía
+        when(promotions.promotionRefs()).thenReturn(List.of(ref("PAUSED", LocalDate.of(2026, 11, 1), LocalDate.of(2026, 12, 31))));
+        assertThat(kinds()).doesNotContain(KindEnum.IDENTITY_MISSING);
+    }
+
+    @Test
+    void aPublicationOnItsWayWithoutSixHoursOfMarginAsksToChangeItsTime() {
+        var soon = new PublishingQueries.WithoutMargin("lit-1", "2026-11-09-instagram", "Poema 1", madrid(11, 9, 14, 0));
+        when(publishing.withoutMargin(now)).thenReturn(List.of(soon));
+        var r = subject().compute().getFirst();
+        assertThat(r.getKind()).isEqualTo(KindEnum.PUBLICATION_TOO_SOON);
+        assertThat(r.getTitle()).isEqualTo("«Poema 1» ya no deja 6 horas de margen");
+        assertThat(r.getDetail()).contains("sale el 9 de nov a las 14:00").contains("aún no está programada");
+        assertThat(r.getTarget().getScreen()).isEqualTo(ScreenEnum.PUBLICATIONS);
+        assertThat(r.getTarget().getPromotionId()).isEqualTo("lit-1");
+        // Si su hora ya pasó, lo dice
+        when(publishing.withoutMargin(now)).thenReturn(List.of(
+                new PublishingQueries.WithoutMargin("lit-1", "x", "Poema 1", madrid(11, 8, 19, 0))));
+        assertThat(subject().compute().getFirst().getDetail()).contains("ya pasó");
+        // Una promoción pausada no avisa
+        when(promotions.promotionRefs()).thenReturn(List.of(ref("PAUSED", LocalDate.of(2026, 11, 1), LocalDate.of(2026, 12, 31))));
+        assertThat(kinds()).doesNotContain(KindEnum.PUBLICATION_TOO_SOON);
+    }
+
+    @Test
     void row8AnUrgentOrderArrivesAtTheNextPassAndOneWithoutRushAtTheNightOne() {
         now = madrid(11, 9, 9, 40);
         when(sent.waiting()).thenReturn(List.of(
@@ -594,5 +628,28 @@ class FactoryRecommendationsTest {
     void noPublishingRouteNeedsTheSilentPcTask() {
         unroutableThisWeek(PubloraService.Gap.NO_KEY);
         assertThat(subject().compute()).isEmpty();
+    }
+
+    @Test
+    void instagramConnectionExpiringSoonAsksToRenewItWithAButtonToTheCard() {
+        when(instagramOAuth.notice()).thenReturn(java.util.Optional.of(new com.socialhub.publishing.InstagramOAuthService.Notice(false, 6, false)));
+        var r = subject().compute().getFirst();
+        assertThat(r.getKind()).isEqualTo(KindEnum.INSTAGRAM_CONNECTION_EXPIRING);
+        assertThat(r.getTitle()).isEqualTo("La conexión con Instagram caduca en 6 días");
+        assertThat(r.getDetail()).contains("Renovar conexión");
+        assertThat(r.getTarget().getScreen()).isEqualTo(com.socialhub.api.model.RecommendationTargetDto.ScreenEnum.INSTAGRAM);
+    }
+
+    @Test
+    void anExpiredInstagramConnectionSaysSoAndMentionsTheSystemKeyFallback() {
+        when(instagramOAuth.notice()).thenReturn(java.util.Optional.of(new com.socialhub.publishing.InstagramOAuthService.Notice(true, 0, true)));
+        var r = subject().compute().getFirst();
+        assertThat(r.getTitle()).isEqualTo("La conexión con Instagram ha caducado");
+        assertThat(r.getDetail()).contains("clave de usuario del sistema");
+    }
+
+    @Test
+    void withoutAConnectionOrWithEnoughDaysThereIsNoInstagramNotice() {
+        assertThat(kinds()).doesNotContain(KindEnum.INSTAGRAM_CONNECTION_EXPIRING);
     }
 }

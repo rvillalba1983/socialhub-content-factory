@@ -13,11 +13,15 @@
 
   <groupId>com.socialhub</groupId>
   <artifactId>socialhub</artifactId>
-  <version>1.1.0</version>
+  <!-- La versión sale de aquí. Las compilaciones de GitHub la sustituyen con -Drevision=... (Maven 3.5+, sin plugins extra) -->
+  <version>${revision}</version>
   <name>SocialHub</name>
   <description>Fábrica de contenido para redes sociales</description>
 
   <properties>
+    <revision>1.2.0</revision>
+    <!-- Commit con el que se compila; el workflow de instaladores lo pasa con -Dsocialhub.commit=... -->
+    <socialhub.commit>local</socialhub.commit>
     <java.version>25</java.version>
     <spring-modulith.version>2.1.2</spring-modulith.version>
     <jmolecules.version>2025.0.2</jmolecules.version>
@@ -240,6 +244,18 @@
       <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
+        <executions>
+          <!-- META-INF/build-info.properties: versión y fecha de compilación, que la web enseña -->
+          <execution>
+            <id>build-info</id>
+            <goals><goal>build-info</goal></goals>
+            <configuration>
+              <additionalProperties>
+                <commit>${socialhub.commit}</commit>
+              </additionalProperties>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
       <!-- API first: interfaces de controladores y modelos generados desde contracts/openapi.yaml -->
       <plugin>

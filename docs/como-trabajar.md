@@ -49,6 +49,7 @@ Reglas:
 |---|---|---|
 | `backend.yml` | Cada PR con cambios en `backend/` | Pruebas en Windows (donde se usa SocialHub) y arranque real del jar. Si falla una prueba, anota la prueba y su error (se leen con `scripts/estado-pr.sh`) |
 | `frontend.yml` | Cada PR con cambios en `frontend/` o `contracts/` | Tipos de la API frente al contrato, pruebas y compilación |
+| `e2e.yml` | Cada PR con cambios en `e2e/`, `frontend/`, `backend/` o `contracts/` | Recorridos con navegador real (Playwright) sobre SocialHub arrancado de verdad, en Linux. Si falla, capturas y trazas como artefacto |
 | `mapa-codigo.yml` | Cada PR | Mapa 3D del código, enlazado en un comentario de la PR |
 | `diagramas.yml` | PR que cambia un `.d2` | Genera los SVG con D2 y los sube a la rama: no hace falta instalar D2 |
 | `instaladores.yml` | A mano, o PR que lo cambia | `.msi` (y `.dmg` si se pide), instalado y probado en Windows |

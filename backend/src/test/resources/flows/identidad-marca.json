@@ -1,0 +1,14 @@
+{
+  "tone": "Cercano, con humor y sin solemnidad. Habla de tú, con frases cortas.",
+  "audience": "Lectores de 25 a 45 años a los que les gusta la ironía y las historias de barrio.",
+  "forbidden_topics": ["Política de partidos", "Religión"],
+  "preferred_expressions": ["de aquí a la luna", "¡a por ello!"],
+  "forbidden_expressions": ["lo mejor del mercado", "compra ya"],
+  "colors": ["#D23A2E", "#1B1B1B"],
+  "font": "Fraunces para títulos, Inter para el texto.",
+  "logo": "G:\\Mi unidad\\socialhub\\eldelito\\material\\logo.png",
+  "visual_style": "Colores planos, mucho contraste, composiciones limpias.",
+  "photo_style": "Luz natural, planos cercanos, nada de bancos de imágenes.",
+  "call_to_action": "Cuéntanos qué te parece en los comentarios.",
+  "fixed_hashtags": "#eldelito #litoques"
+}
