@@ -38,6 +38,15 @@ class ModesAndRegistrationTest {
     @Autowired AppPaths paths;
 
     @Test
+    void reportsItsVersionFromTheBuild() throws Exception {
+        mvc.perform(get("/api/system/version"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.version").value(org.hamcrest.Matchers.matchesPattern("\\d+\\.\\d+\\.\\d+")))
+                .andExpect(jsonPath("$.commit").isNotEmpty())
+                .andExpect(jsonPath("$.build_time").isNotEmpty());
+    }
+
+    @Test
     @Order(1)
     void startsInRealModeWithOnlyTheStations() throws Exception {
         mvc.perform(get("/api/app-mode"))
