@@ -132,7 +132,7 @@ class QualityFlowTest {
         Flow f = flow();
         String id = "2026-12-02-instagram";
         // Sin motivo (o demasiado corto), o de un aviso que no existe: no se acepta
-        f.post("/api/publications/" + id + "/quality-acceptances", "{\"key\":\"FILE_FORMAT:" + squarePng + "\",\"reason\":\"ok\"}")
+        f.post("/api/publications/" + id + "/quality-acceptances", "{\"key\":" + f.q("FILE_FORMAT:" + squarePng) + ",\"reason\":\"ok\"}")
                 .andExpect(status().isBadRequest());
         f.post("/api/publications/" + id + "/quality-acceptances", "{\"key\":\"NO_EXISTE\",\"reason\":\"Porque sí\"}")
                 .andExpect(status().isBadRequest());
@@ -140,7 +140,7 @@ class QualityFlowTest {
         assertThat(f.read("/api/publications/" + id + "/quality").get("open").asInt()).isEqualTo(1);
 
         JsonNode accepted = f.ok(f.post("/api/publications/" + id + "/quality-acceptances",
-                "{\"key\":\"FILE_FORMAT:" + squarePng + "\",\"reason\":\"  El PNG es de una captura, no importa  \"}"));
+                "{\"key\":" + f.q("FILE_FORMAT:" + squarePng) + ",\"reason\":\"  El PNG es de una captura, no importa  \"}"));
         assertThat(accepted.get("open").asInt()).isZero();
         JsonNode issue = accepted.get("issues").get(0);
         assertThat(issue.get("accepted").asBoolean()).isTrue();
