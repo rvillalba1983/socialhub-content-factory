@@ -556,8 +556,9 @@ describe('Cuenta en Publer', () => {
 describe('Instagram · API oficial', () => {
   it('guarda la clave sin mostrarla, la comprueba y enseña el límite de cada marca', async () => {
     vi.spyOn(api, 'instagram').mockResolvedValueOnce({ configured: false })
-      .mockResolvedValue({ configured: true, key_hint: '…6789' });
-    const save = vi.spyOn(api, 'saveInstagramKey').mockResolvedValue({ configured: true, key_hint: '…6789' });
+      .mockResolvedValue({ configured: true, system_key: true, key_hint: '…6789' });
+    vi.spyOn(api, 'instagramAccounts').mockResolvedValue({ items: [] });
+    const save = vi.spyOn(api, 'saveInstagramKey').mockResolvedValue({ configured: true, system_key: true, key_hint: '…6789' });
     const check = vi.spyOn(api, 'checkInstagram').mockResolvedValue({
       ok: false, name: 'Usuario del sistema',
       brands: [{ brand_id: 'el-delito', brand_name: 'El DeLito', username: 'elde_lito', publishing_used: 3, publishing_total: 100 },
@@ -584,11 +585,89 @@ describe('Instagram · API oficial', () => {
   it('enseña el error de Meta si la clave no vale', async () => {
     vi.spyOn(api, 'instagram').mockResolvedValue({ configured: false });
     vi.spyOn(api, 'saveInstagramKey').mockRejectedValue(new Error('No se ha guardado: Meta no acepta la clave'));
+    vi.spyOn(api, 'instagramAccounts').mockResolvedValue({ items: [] });
     render(<InstagramKeyCard />);
     await screen.findByText('Sin clave');
     fireEvent.change(screen.getByLabelText('Clave de la API de Instagram'), { target: { value: 'clave-falsa-123456' } });
     fireEvent.click(screen.getByRole('button', { name: 'Comprobar y guardar' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Meta no acepta la clave');
+  });
+
+  it('guarda el App ID y el App Secret, enseña la dirección de redireccionamiento y conecta con Meta', async () => {
+    const redirect = 'http://localhost:8686/api/instagram/oauth/callback';
+    vi.spyOn(api, 'instagram').mockResolvedValueOnce({ configured: false, redirect_uri: redirect })
+      .mockResolvedValue({ configured: false, redirect_uri: redirect, app_id: '1234567890123', app_secret_saved: true });
+    const saveApp = vi.spyOn(api, 'saveInstagramApp')
+      .mockResolvedValue({ configured: false, redirect_uri: redirect, app_id: '1234567890123', app_secret_saved: true });
+    const start = vi.spyOn(api, 'startInstagramOAuth').mockResolvedValue({ authorization_url: 'https://www.facebook.com/v23.0/dialog/oauth?state=abc' });
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+    render(<InstagramKeyCard />);
+    expect(await screen.findByLabelText('Dirección de redireccionamiento para Meta')).toHaveValue(redirect);
+    // Sin App ID y App Secret guardados no se puede conectar
+    expect(screen.getByRole('button', { name: 'Conectar con Instagram' })).toBeDisabled();
+    const secret = screen.getByLabelText('App Secret de Meta');
+    expect(secret).toHaveAttribute('type', 'password');
+    fireEvent.change(screen.getByLabelText('App ID de Meta'), { target: { value: '1234567890123' } });
+    fireEvent.change(secret, { target: { value: 'secretoDePrueba0123456789' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar la app' }));
+    await waitFor(() => expect(saveApp).toHaveBeenCalledWith('1234567890123', 'secretoDePrueba0123456789'));
+    await waitFor(() => expect(screen.getByLabelText('App Secret de Meta')).toHaveValue(''));
+    const connect = screen.getByRole('button', { name: 'Conectar con Instagram' });
+    await waitFor(() => expect(connect).toBeEnabled());
+    fireEvent.click(connect);
+    await waitFor(() => expect(open).toHaveBeenCalledWith('https://www.facebook.com/v23.0/dialog/oauth?state=abc', '_self'));
+    expect(start).toHaveBeenCalled();
+  });
+
+  it('copia la dirección de redireccionamiento', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    vi.spyOn(api, 'instagram').mockResolvedValue({ configured: false, redirect_uri: 'http://localhost:8686/api/instagram/oauth/callback' });
+    render(<InstagramKeyCard />);
+    await screen.findByLabelText('Dirección de redireccionamiento para Meta');
+    fireEvent.click(screen.getByRole('button', { name: 'Copiar' }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith('http://localhost:8686/api/instagram/oauth/callback'));
+  });
+
+  it('conectado: enseña como quién y cuándo caduca, avisa a 7 días o menos y permite renovar', async () => {
+    const connection = { name: 'Raúl', usernames: ['elde_lito', 'litoques'], expires_at: '2027-01-14T10:00:00Z', days_left: 5, expired: false };
+    vi.spyOn(api, 'instagram').mockResolvedValue({ configured: true, source: 'OAUTH', app_id: '1234567890123', app_secret_saved: true,
+      redirect_uri: 'http://localhost:8686/api/instagram/oauth/callback', connection });
+    vi.spyOn(api, 'instagramAccounts').mockResolvedValue({ items: [
+      { ig_user_id: '1', username: 'elde_lito', page_name: 'Página El DeLito', brand_id: 'el-delito' },
+      { ig_user_id: '3', username: 'otra', page_name: 'Otra' }] });
+    vi.spyOn(api, 'startInstagramOAuth').mockResolvedValue({ authorization_url: 'https://www.facebook.com/dialog' });
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+    render(<InstagramKeyCard />);
+    expect(await screen.findByText('Conectado como @elde_lito, @litoques')).toBeInTheDocument();
+    expect(screen.getByText(/caduca el 14\/1\/2027/)).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('La conexión caduca en 5 días');
+    const found = await screen.findByRole('group', { name: 'Cuentas de Instagram encontradas' });
+    expect(within(found).getByText(/asignada a el-delito/)).toBeInTheDocument();
+    expect(within(found).getByText(/sin marca/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Renovar conexión' }));
+    await waitFor(() => expect(open).toHaveBeenCalledWith('https://www.facebook.com/dialog', '_self'));
+  });
+
+  it('conexión caducada: lo dice y deja renovar', async () => {
+    vi.spyOn(api, 'instagram').mockResolvedValue({ configured: false, source: 'NONE', app_id: '1234567890123', app_secret_saved: true,
+      connection: { usernames: ['elde_lito'], expires_at: '2026-11-01T10:00:00Z', days_left: 0, expired: true } });
+    render(<InstagramKeyCard />);
+    expect(await screen.findByText(/Conexión caducada el 1\/11\/2026/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Renovar conexión' })).toBeEnabled();
+  });
+
+  it('la ficha de la marca ofrece elegir entre las cuentas detectadas', async () => {
+    vi.spyOn(api, 'brandInstagramAccount').mockResolvedValue({});
+    vi.spyOn(api, 'instagramAccounts').mockResolvedValue({ items: [
+      { ig_user_id: '17841400000000001', username: 'elde_lito', page_name: 'Página El DeLito' }] });
+    const save = vi.spyOn(api, 'saveBrandInstagramAccount').mockResolvedValue({ ig_user_id: '17841400000000001', username: 'elde_lito' });
+    render(<InstagramAccountCard brandId="el-delito" />);
+    const select = await screen.findByLabelText('Elegir de tus cuentas de Instagram');
+    fireEvent.change(select, { target: { value: '17841400000000001' } });
+    expect(screen.getByLabelText('Cuenta de Instagram (API oficial)')).toHaveValue('17841400000000001');
+    fireEvent.click(screen.getByRole('button', { name: 'Comprobar y guardar' }));
+    await waitFor(() => expect(save).toHaveBeenCalledWith('el-delito', '17841400000000001'));
   });
 
   it('el campo de la marca comprueba el identificador y enseña el @usuario', async () => {
