@@ -65,6 +65,21 @@ public class PublishingQueries {
         return result;
     }
 
+    /** Una publicación de camino a publicar cuya hora ya no deja el margen mínimo para programarla. */
+    public record WithoutMargin(String promotionId, String publicationId, String title, java.time.Instant scheduledAt) {}
+
+    /**
+     * Publicaciones de camino a publicar (en producción, borrador, en revisión o aprobadas) a las que ya no les quedan
+     * {@link Publication#MIN_MARGIN} hasta su hora (o cuya hora ya pasó), por hora de publicación.
+     */
+    public List<WithoutMargin> withoutMargin(java.time.Instant now) {
+        return publications.findAll().stream()
+                .filter(p -> ON_THE_WAY.contains(p.getStatus()) && p.scheduledAt().isBefore(now.plus(Publication.MIN_MARGIN)))
+                .sorted(java.util.Comparator.comparing(Publication::scheduledAt))
+                .map(p -> new WithoutMargin(p.getPromotionId(), p.getId(), p.getTitle(), p.scheduledAt()))
+                .toList();
+    }
+
     /** Métricas de la publicación, si ya se pidieron. */
     public java.util.Optional<com.socialhub.publishing.domain.MetricsRepository.Metrics> metrics(String publicationId) {
         if (!publications.exists(publicationId)) throw new NotFoundException("No existe la publicación " + publicationId);

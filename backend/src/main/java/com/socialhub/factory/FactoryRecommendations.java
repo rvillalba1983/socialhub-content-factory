@@ -117,6 +117,16 @@ class FactoryRecommendations {
                     RecommendationTargetDto.ScreenEnum.PUBLER, m.brandId(), null));
         }
 
+        // 0c. Publicaciones de camino a publicar a las que ya no les quedan 6 horas de margen (o cuya hora ya pasó)
+        Map<String, List<PublishingQueries.WithoutMargin>> tooSoon = publishing.withoutMargin(now).stream()
+                .filter(w -> promotionById.containsKey(w.promotionId()))
+                .collect(Collectors.groupingBy(PublishingQueries.WithoutMargin::promotionId, LinkedHashMap::new, Collectors.toList()));
+        tooSoon.forEach((promotionId, list) -> {
+            var promotion = promotionById.get(promotionId);
+            if (!promotion.active() && !promotion.plannedAhead(today)) return;
+            all.add(noMargin(promotion, list, now));
+        });
+
         // 1. Propuestas retenidas, o paradas por Drive o por el límite diario
         Map<String, AiHeldOrders.Held> held = new LinkedHashMap<>();
         for (var h : heldOrders.current()) {
@@ -172,6 +182,18 @@ class FactoryRecommendations {
             all.add(recommendation("brand-folders:" + brand.id(), RecommendationDto.KindEnum.BRAND_FOLDERS_MISSING,
                     "Crea las carpetas de " + brand.name(), null,
                     RecommendationTargetDto.ScreenEnum.BRAND_FOLDERS, brand.id(), null));
+        }
+
+        // 3b. Marca con promoción en marcha y sin tono, público o temas que no se tocan: Claude propondría a ciegas
+        for (var brand : brands) {
+            if (allPromotions.stream().noneMatch(p -> p.brandId().equals(brand.id()) && (p.active() || p.plannedAhead(today)))) continue;
+            var gaps = promotions.identityGaps(brand.id());
+            if (gaps == null || gaps.isEmpty()) continue;
+            all.add(recommendation("brand-identity:" + brand.id(), RecommendationDto.KindEnum.IDENTITY_MISSING,
+                    "Cuéntale a Claude cómo es " + brand.name(),
+                    "Falta " + String.join(", ", gaps) + ". Sin eso, Claude propone sin conocer la voz de la marca ni lo que no se toca. "
+                            + "Puedes rellenarlo o importarlo desde un .txt",
+                    RecommendationTargetDto.ScreenEnum.BRAND_IDENTITY, brand.id(), null));
         }
 
         // 4. Encargo sin recoger (los del PC los recoge otra tarea y no se miran)
@@ -240,6 +262,23 @@ class FactoryRecommendations {
                         .promotionId(id)));
 
         return List.copyOf(all);
+    }
+
+    private static RecommendationDto noMargin(PromotionQueries.PromotionRef promotion,
+                                              List<PublishingQueries.WithoutMargin> list, Instant now) {
+        var first = list.getFirst();
+        var when = first.scheduledAt().atZone(ClaudePickups.ZONE);
+        String day = when.getDayOfMonth() + " de " + when.getMonth().getDisplayName(TextStyle.SHORT, Locale.of("es", "ES"));
+        boolean past = !first.scheduledAt().isAfter(now);
+        String title = list.size() == 1 ? "«" + first.title() + "» ya no deja 6 horas de margen"
+                : list.size() + " publicaciones de «" + promotion.name() + "» ya no dejan 6 horas de margen";
+        String detail = (list.size() == 1 ? "" : "La primera, «" + first.title() + "»: ")
+                + (past ? "su hora (el " + day + " a las " + hour(when) + ") ya pasó"
+                        : "sale el " + day + " a las " + hour(when) + " y falta menos de 6 horas")
+                + " y aún no está programada. SocialHub no programa con menos de 6 horas: cambia la hora o publícala a mano";
+        return recommendation("publication-too-soon:" + promotion.id(), RecommendationDto.KindEnum.PUBLICATION_TOO_SOON,
+                title, detail, RecommendationTargetDto.ScreenEnum.PUBLICATIONS, promotion.brandId(), promotion.id())
+                .promotionId(promotion.id());
     }
 
     private static RecommendationDto heldRow(PromotionQueries.PromotionRef promotion, String reason,

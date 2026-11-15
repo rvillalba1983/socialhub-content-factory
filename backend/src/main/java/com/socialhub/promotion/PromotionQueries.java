@@ -136,6 +136,19 @@ public class PromotionQueries {
         return identities.identity(brandId).orElse(BrandIdentity.EMPTY);
     }
 
+    /**
+     * Lo que falta en la identidad de la marca para que Claude no proponga a ciegas, en español y con artículo
+     * («el tono», «el público», «los temas que no se tocan»). Vacío si está completa.
+     */
+    public List<String> identityGaps(String brandId) {
+        BrandIdentity identity = identity(brandId);
+        List<String> gaps = new ArrayList<>();
+        if (identity.tone().isBlank()) gaps.add("el tono");
+        if (identity.audience().isBlank()) gaps.add("el público");
+        if (identity.forbiddenTopics().isEmpty()) gaps.add("los temas que no se tocan");
+        return gaps;
+    }
+
     /** Identidad de la marca de la promoción, con los nombres que entiende Claude (solo los campos rellenos). */
     public Map<String, Object> identityForAi(String promotionId) { return identity(brandOf(promotionId)).forAi(); }
 

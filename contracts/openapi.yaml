@@ -1596,6 +1596,8 @@ components:
             - PUBLER_ACCOUNT_MISSING
             - PROMOTION_AUTO_STARTED
             - CONTENT_MISSING
+            - IDENTITY_MISSING
+            - PUBLICATION_TOO_SOON
           description: >
             Por orden de prioridad: marca sin forma de publicar (NO_PUBLISHING_ROUTE) y tarea del PC «Publicar con
             Chrome» sin contestar (PC_TASK_SILENT), que van primero porque bloquean publicaciones reales (también salen
@@ -1606,7 +1608,10 @@ components:
             pedidas en camino y, la última, promoción activada sola hoy (PROMOTION_AUTO_STARTED, informativa: solo el día
             en que se activa). CONTENT_MISSING: publicación en producción sin contenido (sin piezas y fuera de cualquier spec abierto) que
             sale en menos de 3 días; con «publication_ids» y «promotion_id», el botón «Pedir contenido ya» pide un spec urgente
-            a mano de esas publicaciones (sin target: no navega). SPEC_WAITING ya no se calcula (el spec se pide por lotes, no por semana) y se conserva
+            a mano de esas publicaciones (sin target: no navega). IDENTITY_MISSING: marca con promoción en marcha a la que
+            le falta el tono, el público o los temas que no se tocan (botón a su identidad). PUBLICATION_TOO_SOON: publicaciones
+            de camino a publicar a las que ya no quedan 6 horas de margen, o cuya hora ya pasó, y aún no están programadas
+            (botón a las pendientes de la promoción). SPEC_WAITING ya no se calcula (el spec se pide por lotes, no por semana) y se conserva
             solo por compatibilidad
         title: { type: string, description: "Texto en español" }
         detail: { type: string, description: "Más información (por ejemplo, el motivo de un encargo retenido)" }
@@ -1636,12 +1641,13 @@ components:
       properties:
         screen:
           type: string
-          enum: [BRAND_FOLDERS, PROPOSALS, PUBLORA, PUBLER, BACKUPS, NEW_PROMOTION, CLAUDE]
+          enum: [BRAND_FOLDERS, PROPOSALS, PUBLORA, PUBLER, BACKUPS, NEW_PROMOTION, CLAUDE, BRAND_IDENTITY, PUBLICATIONS]
           description: >
             BRAND_FOLDERS: Marcas → Carpetas de Drive de la marca (brand_id). PROPOSALS: publicaciones en estado
             Propuesta de la promoción (promotion_id). PUBLORA: tarjeta de Publora de la marca (brand_id). PUBLER: tarjeta «Cuenta en Publer» de la marca (brand_id). BACKUPS:
             ajuste de la carpeta de copias. NEW_PROMOTION: alta de promoción de la marca (brand_id); con promotion_id, abre esa promoción (planificada o en
-            pausa) para activarla. CLAUDE: pantalla «Claude», donde se cambia el límite diario de encargos (sin brand_id)
+            pausa) para activarla. CLAUDE: pantalla «Claude», donde se cambia el límite diario de encargos (sin brand_id). BRAND_IDENTITY: tarjeta de identidad de la marca (brand_id).
+            PUBLICATIONS: publicaciones pendientes de la promoción (promotion_id)
         brand_id: { type: string }
         promotion_id: { type: string }
 

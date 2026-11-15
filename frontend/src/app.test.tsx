@@ -995,6 +995,25 @@ describe('Qué hacer ahora dentro de la ficha de una marca', () => {
       'publer-account:otra:INSTAGRAM', 'publora:b', 'brand-folders:otra']));
   });
 
+  it('en la ficha de b quita también el aviso de identidad, que ya sale en «Te falta por completar»', () => {
+    const identity = rec({ id: 'brand-identity:b', kind: 'IDENTITY_MISSING', title: 'Cuéntale a Claude cómo es b',
+      target: { screen: 'BRAND_IDENTITY', brand_id: 'b' } });
+    expect(withoutBrandNotices([identity], 'b')).toHaveLength(0);
+    expect(withoutBrandNotices([identity], 'otra')).toHaveLength(1);
+    expect(withoutBrandNotices([identity], null)).toHaveLength(1);
+  });
+
+  it('los avisos nuevos llevan a su pantalla', () => {
+    const open = vi.fn();
+    render(<NextSteps onOpen={open} items={[
+      rec({ id: 'brand-identity:b', kind: 'IDENTITY_MISSING', title: 'Cuéntale a Claude cómo es b', target: { screen: 'BRAND_IDENTITY', brand_id: 'b' } }),
+      rec({ id: 'publication-too-soon:p', kind: 'PUBLICATION_TOO_SOON', title: 'Sale pronto', target: { screen: 'PUBLICATIONS', brand_id: 'b', promotion_id: 'p' } }),
+    ]} />);
+    fireEvent.click(screen.getByRole('button', { name: /Sale pronto/ }));
+    expect(open).toHaveBeenCalledWith({ screen: 'PUBLICATIONS', brand_id: 'b', promotion_id: 'p' });
+    expect(screen.getByRole('button', { name: /Ir a la identidad de la marca/ })).toBeInTheDocument();
+  });
+
   it('si no queda ninguna, la franja no se pinta', () => {
     render(<NextSteps items={withoutBrandNotices([three[1]], 'b')} onOpen={() => {}} />);
     expect(screen.queryByRole('region', { name: 'Qué hacer ahora' })).toBeNull();
