@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { expect, openMap, test, toast, unique, type Api } from '../support/fixtures';
+import { brandRow, expect, openMap, test, toast, unique, type Api } from '../support/fixtures';
 import type { Page } from '@playwright/test';
 
 /** El ejemplo oficial del formato, el mismo que enlaza el manual. */
@@ -15,7 +15,7 @@ interface Identity {
 async function openBrand(page: Page, name: string) {
   await openMap(page);
   await page.getByRole('button', { name: 'Marcas', exact: true }).click();
-  await page.locator('button.qrow', { hasText: name }).click();
+  await brandRow(page, name).click();
   await expect(page.getByRole('form', { name: 'Identidad de la marca' })).toBeVisible();
 }
 

@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { expect, makeTempDir, openMap, test, toast, unique } from '../support/fixtures';
+import { brandRow, expect, makeTempDir, openMap, test, toast, unique } from '../support/fixtures';
 
 /** Las 7 carpetas de una marca, relativas a la raíz (Material es la propia raíz). */
 const SUBFOLDERS = ['borradores', 'generados', 'aprobados', 'publicados', 'informes', 'encargos',
@@ -44,7 +44,7 @@ test.describe('Alta de una marca con sus carpetas de Drive', () => {
     expect(folders.items.find(f => f.role === 'ORDERS')!.location).toBe(path.join(root, 'encargos'));
 
     // En la lista de marcas sale la nueva; al abrirla, la tarjeta «Carpetas de Drive» tiene la raíz y 7 «Accesible»
-    await page.locator('button.qrow', { hasText: name }).click();
+    await brandRow(page, name).click();
     const card = page.getByRole('form', { name: 'Carpetas de Drive' });
     await expect(card.getByLabel('Carpeta raíz')).toHaveValue(root);
     await expect(card.getByText('Accesible', { exact: true })).toHaveCount(7);
@@ -77,7 +77,7 @@ test.describe('Alta de una marca con sus carpetas de Drive', () => {
     await expect(toast(page)).toContainText(`Marca guardada · ${name} · no se pudieron crear las carpetas`);
     // La marca existe, sin carpetas, y la ficha avisa de que faltan
     expect((await api.factory()).brands.some(b => b.name === name)).toBe(true);
-    await page.locator('button.qrow', { hasText: name }).click();
+    await brandRow(page, name).click();
     await expect(page.getByRole('region', { name: 'Avisos de la marca' })).toContainText('Carpetas sin configurar');
   });
 });

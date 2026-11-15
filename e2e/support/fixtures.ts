@@ -8,6 +8,7 @@ export interface FactoryState {
   stations: { id: string; name: string }[];
   brands: { id: string; name: string; handle: string; color: string }[];
   promotions: { id: string; brand_id: string; name: string }[];
+  publications: { id: string; promotion_id: string; title: string; status: string }[];
   alerts: { kind: string; title: string; detail: string }[];
   recommendations: { id: string; kind: string; title: string; target?: { screen: string; brand_id?: string } }[];
 }
@@ -35,6 +36,20 @@ export class Api {
     return this.send<{ id: string; name: string }>('post', '/api/promotions', {
       brand_id: brandId, name, starts_on: daysFromToday(-3), ends_on: daysFromToday(40), status: 'ACTIVE',
       cadence: 'Posts L/X/V 19:00', goals: ['Objetivo de prueba'], ...extra,
+    });
+  }
+
+  /** Alta de una marca con sus 7 carpetas creadas en `root` (la carpeta raíz de la marca). */
+  async createBrandWithFolders(name: string, handle: string, root: string) {
+    const brand = await this.createBrand(name, handle);
+    await this.send('post', `/api/brands/${brand.id}/folders/creation`, { base: root });
+    return brand;
+  }
+
+  createPublication(promotionId: string, title: string, extra: Record<string, unknown> = {}) {
+    return this.send<{ id: string; title: string; status: string }>('post', `/api/promotions/${promotionId}/publications`, {
+      platform: 'INSTAGRAM', type: 'Carrusel', title, scheduled_on: daysFromToday(10), scheduled_time: '19:00', route: 'Publer',
+      initial_status: 'PROPOSAL', ...extra,
     });
   }
 
@@ -111,3 +126,19 @@ export async function openMap(page: Page) {
 
 /** Toast de confirmación de la app. */
 export const toast = (page: Page) => page.locator('.toast');
+
+/** Fila de una marca en la lista de «Marcas» (por su nombre, no por el texto de las promociones que lo citan). */
+export const brandRow = (page: Page, name: string) =>
+  page.locator('button.qrow').filter({ has: page.locator('.qname', { hasText: name }) });
+
+/**
+ * Abre el centro de control de una promoción desde su tarjeta del mapa, con el teclado (Enter). Con 4 o más promociones
+ * las tarjetas se salen del anillo y las estaciones o la leyenda pueden taparlas (fallo conocido de la app, anotado en la
+ * PR), así que un clic podría caer en otra cosa.
+ */
+export async function openPromotion(page: Page, name: string) {
+  const card = page.getByRole('article', { name: `Abrir el centro de control de ${name}` });
+  await card.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
+}
