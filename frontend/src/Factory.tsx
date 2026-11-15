@@ -270,6 +270,7 @@ export function Factory({ data, live, onRefresh }: {
     }
     else if (t.screen === 'BACKUPS') setCopias(true);
     else if (t.screen === 'CLAUDE') setClaude(true);
+    else if (t.screen === 'INSTAGRAM') setSel({ type: 'armory', id: 'instagram-api' });
   }, []);
   const home = useCallback(() => { setCc(null); setSel({ type: null, id: null }); requestAnimationFrame(fit); }, [fit]);
 
@@ -291,6 +292,17 @@ export function Factory({ data, live, onRefresh }: {
     setToast(m);
     toastTimer.current = window.setTimeout(() => setToast(null), ms);
   }, []);
+  // Vuelta de Meta tras «Conectar con Instagram»: la dirección trae «?instagram=ok|error&message=…»
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const result = params.get('instagram');
+    if (result !== 'ok' && result !== 'error') return;
+    const message = params.get('message') ?? (result === 'ok' ? 'Conectado con Instagram' : 'No se pudo conectar con Instagram');
+    window.history.replaceState(null, '', window.location.pathname);
+    setSel({ type: 'armory', id: 'instagram-api' });
+    say(message, 9000);
+    onRefresh();
+  }, [say, onRefresh]);
   /** Al guardar, el paso siguiente sale del siguiente estado de la fábrica, no de lo que la interfaz supone. */
   const saved = useCallback(async (message: string, ref?: SavedRef) => {
     if (!ref) { say(message, message.includes('. ') ? 6000 : 2800); onRefresh(); return; }

@@ -40,6 +40,7 @@ class FactoryRecommendationsTest {
     private final com.socialhub.ai.AiAutoStarted autoStarted = mock(com.socialhub.ai.AiAutoStarted.class);
     private final BackupService backups = mock(BackupService.class);
     private final com.socialhub.pieces.ContentGaps contentGaps = mock(com.socialhub.pieces.ContentGaps.class);
+    private final com.socialhub.publishing.InstagramOAuthService instagramOAuth = mock(com.socialhub.publishing.InstagramOAuthService.class);
 
     /** Lunes 9 de noviembre de 2026, 11:00 en España. */
     private Instant now = madrid(11, 9, 11, 0);
@@ -54,7 +55,7 @@ class FactoryRecommendationsTest {
 
     private FactoryRecommendations subject() {
         return new FactoryRecommendations(held, sent, promotions, publishing, publora, publer, backups, autoStarted,
-                contentGaps, Clock.fixed(now, ClaudePickups.ZONE));
+                contentGaps, instagramOAuth, Clock.fixed(now, ClaudePickups.ZONE));
     }
 
     /** Una marca «Litoques» con una promoción activa, todo en orden. */
@@ -627,5 +628,28 @@ class FactoryRecommendationsTest {
     void noPublishingRouteNeedsTheSilentPcTask() {
         unroutableThisWeek(PubloraService.Gap.NO_KEY);
         assertThat(subject().compute()).isEmpty();
+    }
+
+    @Test
+    void instagramConnectionExpiringSoonAsksToRenewItWithAButtonToTheCard() {
+        when(instagramOAuth.notice()).thenReturn(java.util.Optional.of(new com.socialhub.publishing.InstagramOAuthService.Notice(false, 6, false)));
+        var r = subject().compute().getFirst();
+        assertThat(r.getKind()).isEqualTo(KindEnum.INSTAGRAM_CONNECTION_EXPIRING);
+        assertThat(r.getTitle()).isEqualTo("La conexión con Instagram caduca en 6 días");
+        assertThat(r.getDetail()).contains("Renovar conexión");
+        assertThat(r.getTarget().getScreen()).isEqualTo(com.socialhub.api.model.RecommendationTargetDto.ScreenEnum.INSTAGRAM);
+    }
+
+    @Test
+    void anExpiredInstagramConnectionSaysSoAndMentionsTheSystemKeyFallback() {
+        when(instagramOAuth.notice()).thenReturn(java.util.Optional.of(new com.socialhub.publishing.InstagramOAuthService.Notice(true, 0, true)));
+        var r = subject().compute().getFirst();
+        assertThat(r.getTitle()).isEqualTo("La conexión con Instagram ha caducado");
+        assertThat(r.getDetail()).contains("clave de usuario del sistema");
+    }
+
+    @Test
+    void withoutAConnectionOrWithEnoughDaysThereIsNoInstagramNotice() {
+        assertThat(kinds()).doesNotContain(KindEnum.INSTAGRAM_CONNECTION_EXPIRING);
     }
 }
