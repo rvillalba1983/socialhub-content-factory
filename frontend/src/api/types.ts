@@ -10,7 +10,8 @@ export type {
   AiRequestPage, AiOrderInput, AiOrder, BrandIdentity, QualityIssue, QualityReport,
   RejectionReason, EditorialDecision, EditorialMemory, PublishJob, PublishRouteState,
   PublicationMetrics, PromotionMetrics, NetworkMetrics, FormatMetrics, ExternalCalendar, ExternalPost, ExternalSource, PubloraStatus, PubloraConnection, PubloraAccount, PubloraAccountList, PubloraAccountInput, PublerAccount, PublerAccountList, PublerAccountInput, PublerMoveInput, PublerMoveResult, AlertAction,
-  InstagramStatus, InstagramCheck, InstagramBrandCheck, InstagramAccount,
+  InstagramStatus, InstagramCheck, InstagramBrandCheck, InstagramAccount, InstagramConnection, InstagramAppInput,
+  InstagramOAuthStart, InstagramDetectedAccount, InstagramDetectedAccountList,
   Backup, BackupList, BackupFolderInput, Restoration, RestorationInput,
 } from './schema';
 

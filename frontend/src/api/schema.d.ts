@@ -364,6 +364,106 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/instagram/app": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Guarda el App ID y el App Secret de la app de Meta (para «Conectar con Instagram»)
+         * @description Los comprueba con Meta antes de guardarlos. El App Secret se guarda solo en un archivo de la carpeta de datos del ordenador, legible solo por el usuario; nunca en la base de datos, en el repositorio ni en los registros, y no vuelve a salir por la API (solo «app_secret_saved»). Con «app_secret» vacío se conserva el ya guardado.
+         */
+        put: operations["saveInstagramApp"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/instagram/oauth/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Empieza «Conectar con Instagram»
+         * @description Genera un «state» aleatorio de un solo uso (10 minutos de vida; protege frente a CSRF) y devuelve la dirección de Meta a la que hay que llevar a Raúl para que dé su permiso. Hace falta haber guardado el App ID y el App Secret.
+         */
+        post: operations["startInstagramOAuth"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/instagram/oauth/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Vuelta de Meta tras el permiso (la «URI de redireccionamiento»)
+         * @description Es la dirección que se da a Meta en «URI de redireccionamiento OAuth válidas» (http://localhost:8686/api/instagram/oauth/callback). Rechaza, sin llamar a Meta, un «state» desconocido, caducado o ya usado. Si es válido, cambia el «code» por una clave, esta por una de larga duración (unos 60 días), guarda su caducidad, lista las páginas con su cuenta de Instagram y asigna sola la de cada marca cuyo @usuario coincide. Responde siempre con una redirección a la interfaz: «/?instagram=ok» o «/?instagram=error», con el texto en «message».
+         */
+        get: operations["instagramOAuthCallback"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/instagram/oauth": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Borra la conexión hecha con «Conectar con Instagram»
+         * @description No toca la clave de usuario del sistema, ni el App ID y el App Secret, ni las cuentas de las marcas.
+         */
+        delete: operations["disconnectInstagramOAuth"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/instagram/accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cuentas de Instagram profesionales de las páginas de Facebook de Raúl
+         * @description Llama a Meta (GET /me/accounts) con la clave activa. Cada cuenta indica la marca a la que ya está asignada, si lo está. Sirve para elegir la cuenta de cada marca sin copiar su identificador.
+         */
+        get: operations["listInstagramAccounts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/brands/{brand_id}/instagram-account": {
         parameters: {
             query?: never;
@@ -1077,10 +1177,10 @@ export interface components {
             /** @description Estable mientras la recomendación siga haciendo falta (por ejemplo, brand-folders:litoques) */
             id: string;
             /**
-             * @description Por orden de prioridad: marca sin forma de publicar (NO_PUBLISHING_ROUTE) y tarea del PC «Publicar con Chrome» sin contestar (PC_TASK_SILENT), que van primero porque bloquean publicaciones reales (también salen como aviso en «Necesita atención»); marca sin cuenta de Publer para una red con publicaciones retenidas (PUBLER_ACCOUNT_MISSING, con botón a la tarjeta «Cuenta en Publer»); propuestas retenidas (por la carpeta de Encargos, Drive cerrado o el límite diario), propuestas por revisar, marca sin todas sus carpetas, encargos sin recoger, marca sin cuenta de Publora, sin carpeta de copias, marca sin promoción activa, propuestas pedidas en camino y, la última, promoción activada sola hoy (PROMOTION_AUTO_STARTED, informativa: solo el día en que se activa). CONTENT_MISSING: publicación en producción sin contenido (sin piezas y fuera de cualquier spec abierto) que sale en menos de 3 días; con «publication_ids» y «promotion_id», el botón «Pedir contenido ya» pide un spec urgente a mano de esas publicaciones (sin target: no navega). SPEC_WAITING ya no se calcula (el spec se pide por lotes, no por semana) y se conserva solo por compatibilidad
+             * @description Por orden de prioridad: marca sin forma de publicar (NO_PUBLISHING_ROUTE) y tarea del PC «Publicar con Chrome» sin contestar (PC_TASK_SILENT), que van primero porque bloquean publicaciones reales (también salen como aviso en «Necesita atención»); marca sin cuenta de Publer para una red con publicaciones retenidas (PUBLER_ACCOUNT_MISSING, con botón a la tarjeta «Cuenta en Publer»); conexión con Instagram que caduca en 7 días o menos, o ya caducada (INSTAGRAM_CONNECTION_EXPIRING, con botón a la tarjeta «Instagram · API oficial», donde está «Renovar conexión»); propuestas retenidas (por la carpeta de Encargos, Drive cerrado o el límite diario), propuestas por revisar, marca sin todas sus carpetas, encargos sin recoger, marca sin cuenta de Publora, sin carpeta de copias, marca sin promoción activa, propuestas pedidas en camino y, la última, promoción activada sola hoy (PROMOTION_AUTO_STARTED, informativa: solo el día en que se activa). CONTENT_MISSING: publicación en producción sin contenido (sin piezas y fuera de cualquier spec abierto) que sale en menos de 3 días; con «publication_ids» y «promotion_id», el botón «Pedir contenido ya» pide un spec urgente a mano de esas publicaciones (sin target: no navega). SPEC_WAITING ya no se calcula (el spec se pide por lotes, no por semana) y se conserva solo por compatibilidad
              * @enum {string}
              */
-            kind: "HELD_PROPOSALS" | "PROPOSALS_TO_REVIEW" | "BRAND_FOLDERS_MISSING" | "ORDERS_NOT_COLLECTED" | "PUBLORA_MISSING" | "BACKUP_FOLDER_MISSING" | "NO_ACTIVE_PROMOTION" | "PROPOSALS_PENDING" | "SPEC_WAITING" | "PC_TASK_SILENT" | "NO_PUBLISHING_ROUTE" | "PUBLER_ACCOUNT_MISSING" | "PROMOTION_AUTO_STARTED" | "CONTENT_MISSING";
+            kind: "HELD_PROPOSALS" | "PROPOSALS_TO_REVIEW" | "BRAND_FOLDERS_MISSING" | "ORDERS_NOT_COLLECTED" | "PUBLORA_MISSING" | "BACKUP_FOLDER_MISSING" | "NO_ACTIVE_PROMOTION" | "PROPOSALS_PENDING" | "SPEC_WAITING" | "PC_TASK_SILENT" | "NO_PUBLISHING_ROUTE" | "PUBLER_ACCOUNT_MISSING" | "INSTAGRAM_CONNECTION_EXPIRING" | "PROMOTION_AUTO_STARTED" | "CONTENT_MISSING";
             /** @description Texto en español */
             title: string;
             /** @description Más información (por ejemplo, el motivo de un encargo retenido) */
@@ -1096,10 +1196,10 @@ export interface components {
         /** @description A qué pantalla lleva el botón. Sin target, la recomendación es solo un texto. */
         RecommendationTarget: {
             /**
-             * @description BRAND_FOLDERS: Marcas → Carpetas de Drive de la marca (brand_id). PROPOSALS: publicaciones en estado Propuesta de la promoción (promotion_id). PUBLORA: tarjeta de Publora de la marca (brand_id). PUBLER: tarjeta «Cuenta en Publer» de la marca (brand_id). BACKUPS: ajuste de la carpeta de copias. NEW_PROMOTION: alta de promoción de la marca (brand_id); con promotion_id, abre esa promoción (planificada o en pausa) para activarla. CLAUDE: pantalla «Claude», donde se cambia el límite diario de encargos (sin brand_id)
+             * @description BRAND_FOLDERS: Marcas → Carpetas de Drive de la marca (brand_id). PROPOSALS: publicaciones en estado Propuesta de la promoción (promotion_id). PUBLORA: tarjeta de Publora de la marca (brand_id). PUBLER: tarjeta «Cuenta en Publer» de la marca (brand_id). BACKUPS: ajuste de la carpeta de copias. NEW_PROMOTION: alta de promoción de la marca (brand_id); con promotion_id, abre esa promoción (planificada o en pausa) para activarla. CLAUDE: pantalla «Claude», donde se cambia el límite diario de encargos (sin brand_id). INSTAGRAM: tarjeta «Instagram · API oficial» de «Agentes y herramientas» (sin brand_id)
              * @enum {string}
              */
-            screen: "BRAND_FOLDERS" | "PROPOSALS" | "PUBLORA" | "PUBLER" | "BACKUPS" | "NEW_PROMOTION" | "CLAUDE";
+            screen: "BRAND_FOLDERS" | "PROPOSALS" | "PUBLORA" | "PUBLER" | "BACKUPS" | "NEW_PROMOTION" | "CLAUDE" | "INSTAGRAM";
             brand_id?: string;
             promotion_id?: string;
         };
@@ -1311,9 +1411,54 @@ export interface components {
             error?: string;
         };
         InstagramStatus: {
+            /** @description Hay con qué llamar a Meta (una conexión vigente o la clave de usuario del sistema) */
             configured: boolean;
-            /** @description Últimos 4 caracteres de la clave */
+            /** @description Últimos 4 caracteres de la clave de usuario del sistema */
             key_hint?: string;
+            /** @description Hay una clave de usuario del sistema pegada a mano (no caduca) */
+            system_key?: boolean;
+            /**
+             * @description La que usa la publicación (la conexión vigente y, si no, la clave de usuario del sistema)
+             * @enum {string}
+             */
+            source?: "OAUTH" | "SYSTEM_USER" | "NONE";
+            /** @description App ID de la app de Meta (no es secreto) */
+            app_id?: string;
+            /** @description Hay un App Secret guardado (nunca sale por la API) */
+            app_secret_saved?: boolean;
+            /** @description La «URI de redireccionamiento OAuth válida» que hay que dar a Meta, tal cual */
+            redirect_uri?: string;
+            connection?: components["schemas"]["InstagramConnection"];
+        };
+        InstagramConnection: {
+            /** @description Nombre de quien se conectó, según Meta */
+            name?: string;
+            /** @description @usuarios de Instagram encontrados al conectar (sin la @) */
+            usernames: string[];
+            /** Format: date-time */
+            expires_at: string;
+            /** @description Días enteros que quedan (0 si caduca hoy o ya caducó) */
+            days_left: number;
+            expired: boolean;
+        };
+        InstagramAppInput: {
+            app_id: string;
+            /** @description Vacío para conservar el ya guardado */
+            app_secret?: string;
+        };
+        InstagramOAuthStart: {
+            authorization_url: string;
+        };
+        InstagramDetectedAccount: {
+            ig_user_id: string;
+            username: string;
+            /** @description Página de Facebook a la que está vinculada */
+            page_name: string;
+            /** @description Marca a la que ya está asignada */
+            brand_id?: string;
+        };
+        InstagramDetectedAccountList: {
+            items: components["schemas"]["InstagramDetectedAccount"][];
         };
         InstagramKeyInput: {
             key: string;
@@ -2042,6 +2187,11 @@ export type ExternalSourceId = components['schemas']['ExternalSourceId'];
 export type ExternalPost = components['schemas']['ExternalPost'];
 export type ExternalSource = components['schemas']['ExternalSource'];
 export type InstagramStatus = components['schemas']['InstagramStatus'];
+export type InstagramConnection = components['schemas']['InstagramConnection'];
+export type InstagramAppInput = components['schemas']['InstagramAppInput'];
+export type InstagramOAuthStart = components['schemas']['InstagramOAuthStart'];
+export type InstagramDetectedAccount = components['schemas']['InstagramDetectedAccount'];
+export type InstagramDetectedAccountList = components['schemas']['InstagramDetectedAccountList'];
 export type InstagramKeyInput = components['schemas']['InstagramKeyInput'];
 export type InstagramAccount = components['schemas']['InstagramAccount'];
 export type InstagramAccountInput = components['schemas']['InstagramAccountInput'];
@@ -2776,6 +2926,128 @@ export interface operations {
                     "application/json": components["schemas"]["InstagramCheck"];
                 };
             };
+            default: components["responses"]["Problem"];
+        };
+    };
+    saveInstagramApp: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InstagramAppInput"];
+            };
+        };
+        responses: {
+            /** @description Datos de la app guardados */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstagramStatus"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    startInstagramOAuth: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Dirección de autorización de Meta */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstagramOAuthStart"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    instagramOAuthCallback: {
+        parameters: {
+            query?: {
+                code?: string;
+                state?: string;
+                error?: string;
+                error_description?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Redirección a la interfaz de SocialHub */
+            302: {
+                headers: {
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    disconnectInstagramOAuth: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Conexión borrada */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listInstagramAccounts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cuentas detectadas */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstagramDetectedAccountList"];
+                };
+            };
+            400: components["responses"]["Problem"];
             default: components["responses"]["Problem"];
         };
     };
