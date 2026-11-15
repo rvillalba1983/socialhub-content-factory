@@ -29,6 +29,7 @@ const META_SYSTEM_USERS: HelpLink = { label: 'Usuarios del sistema (Meta Busines
 const META_SYSTEM_USERS_HELP: HelpLink = { label: 'Ayuda de Meta: añadir usuarios del sistema', url: 'https://www.facebook.com/business/help/503306463479099' };
 const META_APPS: HelpLink = { label: 'Tus apps de Meta para desarrolladores', url: 'https://developers.facebook.com/apps' };
 const META_PUBLISHING: HelpLink = { label: 'Meta: publicar contenido con la API de Instagram', url: 'https://developers.facebook.com/documentation/instagram-platform/content-publishing' };
+const INSTAGRAM_WEB: HelpLink = { label: 'Instagram en la web', url: 'https://www.instagram.com/' };
 const PUBLER_APP: HelpLink = { label: 'Publer (iniciar sesión)', url: 'https://app.publer.com' };
 const PUBLER_PRO: HelpLink = {
   label: 'Ayuda de Publer: pasar Instagram a cuenta profesional',
@@ -81,7 +82,7 @@ const TOPICS = {
     where: 'Tu perfil de Instagram: el @usuario que sale arriba.',
     purpose: 'El nombre de usuario de la marca en la red. SocialHub lo muestra y lo usa para reconocer la marca.',
     steps: [
-      'Abre el perfil de la marca en Instagram.',
+      { text: 'Abre Instagram e inicia sesión con la cuenta de la marca; abre su perfil.', link: INSTAGRAM_WEB },
       'Copia el nombre de usuario que sale arriba, con la @ (por ejemplo, @elde_lito).',
     ],
   },

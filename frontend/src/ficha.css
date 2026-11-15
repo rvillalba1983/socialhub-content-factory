@@ -24,6 +24,6 @@
 .field-help{display:grid;gap:4px;margin-bottom:12px}
 .field-help .field{margin-bottom:0}
 .notice-help{flex-basis:100%}
-.where-warning{color:var(--wait);font-weight:500}
+.where-body .where-warning{color:var(--wait);font-weight:500}
 .where-body .where-links{list-style:none;margin:0;padding:0;display:grid;gap:2px;line-height:1.5}
 .sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
