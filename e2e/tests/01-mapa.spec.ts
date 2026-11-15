@@ -165,7 +165,7 @@ test.describe('Mapa', () => {
     for (let i = 0; i < 8; i++) await page.mouse.wheel(0, -2000);
     await expect.poll(() => scaleOf(page)).toBeGreaterThan(3);
     // El ratón no puede salir de la ventana, así que se arrastra varias veces, de un extremo al otro, hasta el límite
-    const x0 = vp.x + 40, x1 = vp.x + vp.width - 40, y0 = vp.y + 40, y1 = vp.y + vp.height - 40;
+    const x0 = vp.x + 40, x1 = vp.x + vp.width - 40, y0 = vp.y + 120, y1 = vp.y + vp.height - 100; // lejos de las franjas flotantes, donde no se arrastra
     const drag = async (fx: number, fy: number, tx: number, ty: number) => {
       await page.mouse.move(fx, fy);
       await page.mouse.down();
