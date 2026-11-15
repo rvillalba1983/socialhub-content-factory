@@ -7,6 +7,9 @@ on:
   schedule:
     - cron: "0 3 * * 1"
   workflow_dispatch:
+  # Al cambiar este mismo archivo se prueba a sí mismo (sin bloquear: no es un requisito de la PR)
+  pull_request:
+    paths: [".github/workflows/mutacion-semanal.yml"]
 
 permissions:
   contents: read

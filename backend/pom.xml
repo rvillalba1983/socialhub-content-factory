@@ -371,6 +371,10 @@
           </excludedClasses>
           <mutationThreshold>${pit.threshold}</mutationThreshold>
           <threads>2</threads>
+          <jvmArgs>
+            <value>-Xmx3g</value>
+            <value>-XX:+ExitOnOutOfMemoryError</value>
+          </jvmArgs>
           <timeoutConstant>8000</timeoutConstant>
           <outputFormats>
             <param>HTML</param>
