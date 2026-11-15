@@ -278,7 +278,7 @@ test.describe('Mapa', () => {
     await expect(page.locator('main.vp')).toHaveAttribute('data-lod', '1');
     expect(await overlaps()).toEqual([]);
     // Cada promoción sigue abriéndose con un clic en su tarjeta
-    for (const name of names) await expect(page.getByRole('article', { name: `Abrir el centro de control de ${name}` })).toBeVisible();
+    for (const name of names) await expect(page.getByRole('article', { name: `Abrir el centro de control de ${name}`, exact: true })).toBeVisible();
 
     await page.getByRole('group', { name: 'Nivel de detalle' }).getByRole('button', { name: 'Estación', exact: true }).click();
     await expect(page.locator('main.vp')).toHaveAttribute('data-lod', '2');

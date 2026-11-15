@@ -136,6 +136,6 @@ export const brandRow = (page: Page, name: string) =>
 
 /** Abre el centro de control de una promoción haciendo clic en su tarjeta del mapa. */
 export async function openPromotion(page: Page, name: string) {
-  await page.getByRole('article', { name: `Abrir el centro de control de ${name}` }).click();
+  await page.getByRole('article', { name: `Abrir el centro de control de ${name}`, exact: true }).click();
   await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
 }

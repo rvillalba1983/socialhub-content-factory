@@ -69,13 +69,14 @@ test.describe('Agentes y herramientas', () => {
       const a = document.querySelector('.res')!.getBoundingClientRect(), b = document.querySelector('aside.panel')!.getBoundingClientRect();
       return a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
     });
-    expect(await covered(), 'el panel tapa la lista de herramientas').toBe(false);
+    // (el mapa se desplaza con una animación de medio segundo)
+    await expect.poll(covered, { message: 'el panel tapa la lista de herramientas' }).toBe(false);
     await panel.getByRole('button', { name: 'Publora' }).click();
     await expect(side.getByRole('heading', { name: 'Publora' })).toBeVisible();
     await expect(side).toContainText('Sin clave');
     await expect(side.getByText('Servicio', { exact: true })).toBeVisible();
 
-    expect(await covered(), 'el panel tapa la lista de herramientas').toBe(false);
+    await expect.poll(covered, { message: 'el panel tapa la lista de herramientas' }).toBe(false);
     await panel.getByRole('button', { name: 'Claude en la nube' }).click();
     await expect(side.getByRole('heading', { name: 'Claude en la nube' })).toBeVisible();
     await expect(side).toContainText('Encargos de SocialHub');
