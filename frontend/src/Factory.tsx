@@ -38,6 +38,7 @@ export function Factory({ data, live, onRefresh }: {
   // Caja del contenido en cada nivel (1, 2 y 3): limita el desplazamiento con la del nivel que se ve, para poder llegar
   // a todo el contenido (el tamaño de las tarjetas cambia con el detalle). Se rellenan al encuadrar y al cambiar los datos.
   const levelBounds = useRef<LevelBoxes>({});
+  const measuredAt = useRef(0);
   const clampRef = useRef<(v: View) => View>(v => v);
   const [lod, setLod] = useState(1);
   const [zoom, setZoom] = useState(50);
@@ -117,8 +118,14 @@ export function Factory({ data, live, onRefresh }: {
     const b1 = measure(1, CONTENT);
     bounds.current = b1;
     levelBounds.current = { 1: b1, 2: measure(2, CONTENT), 3: measure(3, CONTENT) };
+    measuredAt.current = performance.now();
     return b1;
   }, [measure]);
+
+  /** Vuelve a medir si hace un rato que no se mide (el contenido puede haber cambiado sin que cambien los datos, p. ej. al cargar las fuentes). */
+  const refreshBounds = useCallback(() => {
+    if (fitted.current && world.current && vp.current && performance.now() - measuredAt.current > 400) measureBounds();
+  }, [measureBounds]);
 
   const pads = useCallback(() => {
     const wide = vp.current!.clientWidth > 760;
@@ -198,6 +205,7 @@ export function Factory({ data, live, onRefresh }: {
     const skip = (t: EventTarget | null) => (t as HTMLElement | null)?.closest?.('.panel,.cc,.float,input,select,.results');
     const down = (e: PointerEvent) => {
       if (skip(e.target) || (e.pointerType === 'mouse' && e.button !== 0)) return;
+      refreshBounds();
       ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (ptrs.size === 1) drag = { x: e.clientX, y: e.clientY, tx: view.current.tx, ty: view.current.ty, moved: false };
       if (ptrs.size === 2) {
@@ -229,6 +237,7 @@ export function Factory({ data, live, onRefresh }: {
     const wheel = (e: WheelEvent) => {
       if (skip(e.target)) return;
       e.preventDefault();
+      refreshBounds();
       const r = el.getBoundingClientRect();
       if (!e.ctrlKey && e.deltaMode === 0 && Math.abs(e.deltaX) > Math.abs(e.deltaY) * 0.5 && Math.abs(e.deltaY) < 50) {
         cancelAnimationFrame(anim.current);
@@ -246,7 +255,7 @@ export function Factory({ data, live, onRefresh }: {
       el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up);
       el.removeEventListener('wheel', wheel); document.removeEventListener('click', click, true);
     };
-  }, [apply, zoomAt, clampZoom]);
+  }, [apply, zoomAt, clampZoom, refreshBounds]);
 
   // ---------- navegación ----------
   const goStation = useCallback((id: string) => {
