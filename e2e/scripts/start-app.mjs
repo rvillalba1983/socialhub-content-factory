@@ -27,6 +27,8 @@ fs.chmodSync(dataDir, 0o777);
 fs.mkdirSync(path.join(e2e, '.run'), { recursive: true });
 const logPath = path.join(e2e, '.run', 'app.log');
 const log = fs.openSync(logPath, 'w');
+// Las pruebas leen aquí dónde están los datos (p. ej. para comprobar que al cerrar se apaga PostgreSQL)
+fs.writeFileSync(path.join(e2e, '.run', 'data-dir.txt'), dataDir);
 
 const args = [
   '-jar', jar,
@@ -37,6 +39,7 @@ const args = [
   '--socialhub.demo.simulate=false',
   '--socialhub.ai.initial-delay-millis=1000',
   '--socialhub.ai.dispatch-millis=1500',
+  '--socialhub.ai.read-millis=1500',
 ];
 
 const asRoot = typeof process.getuid === 'function' && process.getuid() === 0;
@@ -75,7 +78,8 @@ function stop() {
 process.on('SIGTERM', stop);
 process.on('SIGINT', stop);
 child.on('exit', code => {
-  if (!stopping) console.error(`SocialHub se ha parado solo (código ${code}). Mira ${logPath}`);
+  // Código 0: lo ha cerrado la propia web (botón «Cerrar»), que es lo que prueba el último recorrido
+  if (!stopping) console.error(code === 0 ? 'SocialHub se ha cerrado desde la web (código 0).' : `SocialHub se ha parado solo (código ${code}). Mira ${logPath}`);
   cleanup();
   process.exit(stopping ? 0 : (code ?? 1));
 });

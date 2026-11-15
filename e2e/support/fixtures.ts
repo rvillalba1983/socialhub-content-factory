@@ -48,6 +48,12 @@ export function daysFromToday(days: number): string {
   return madrid.format(new Date(Date.now() + days * 86_400_000));
 }
 
+let counter = 0;
+/** Nombre único por ejecución (la app puede reutilizarse en local): «Etiqueta ab12». */
+export function unique(label: string): string {
+  return `${label} ${(Date.now() % 1e6).toString(36)}${(counter++).toString(36)}`;
+}
+
 /** Carpeta temporal para las carpetas «de Drive» de las pruebas; el jar puede ir como otro usuario, así que se abre a todos. */
 export function makeTempDir(label: string): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), `socialhub-e2e-${label}-`));
@@ -93,6 +99,12 @@ export async function openMap(page: Page) {
   await page.goto('/');
   await expect(page.locator('.node')).toHaveCount(8);
   await expect(page.locator('.zpct')).not.toHaveText('');
+  // Espera a que el encuadre inicial termine (y no lo repita una actualización de datos, como al aparecer «Qué hacer ahora»)
+  let last = '';
+  await expect.poll(async () => {
+    const now = await page.locator('.world').evaluate(el => getComputedStyle(el).transform);
+    const same = now === last; last = now; return same;
+  }, { intervals: [400, 400, 400], timeout: 15_000 }).toBe(true);
 }
 
 /** Toast de confirmación de la app. */

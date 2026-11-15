@@ -44,7 +44,8 @@ export default defineConfig({
     command: 'node scripts/start-app.mjs',
     url: `${baseURL}/api/app-mode`,
     timeout: 240_000,
-    reuseExistingServer: false,
+    // E2E_REUSE=1 (con E2E_PORT) reutiliza una app ya arrancada: solo para depurar en local
+    reuseExistingServer: !!process.env.E2E_REUSE,
     gracefulShutdown: { signal: 'SIGTERM', timeout: 30_000 },
   },
 });
