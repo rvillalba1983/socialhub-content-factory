@@ -12,6 +12,8 @@ export type HelpTopic = {
   label: string;
   /** Para qué lo usa SocialHub. */
   purpose: string;
+  /** Dónde se saca, en una línea (para las tablas del manual y del tutorial). */
+  where: string;
   steps: HelpStep[];
   /** Enlaces de apoyo que no encajan en un paso concreto. */
   links?: HelpLink[];
@@ -48,6 +50,7 @@ const COPY_PATH =
 const TOPICS = {
   'meta-token': {
     label: 'Clave de la API de Instagram (token de Meta)',
+    where: 'Meta Business › Configuración › Usuarios › Usuarios del sistema › «Generar identificador» (caducidad «Nunca»; permisos instagram_basic e instagram_content_publish).',
     purpose: 'Publicar en Instagram con la API oficial de Meta. Es la clave de un «usuario del sistema»: no caduca y vale para todas las marcas.',
     steps: [
       { text: 'Abre «Usuarios del sistema» de tu porfolio empresarial e inicia sesión.', link: META_SYSTEM_USERS },
@@ -61,6 +64,7 @@ const TOPICS = {
   },
   'instagram-account-id': {
     label: 'Identificador de la cuenta de Instagram (API oficial)',
+    where: 'Meta Business › Configuración › Cuentas › Cuentas de Instagram › la cuenta de la marca › su ID (número largo).',
     purpose: 'Decirle a Meta en qué cuenta publica esta marca. Meta no deja listar las cuentas: hay que pegar el número de cada una.',
     steps: [
       { text: 'Abre la configuración de tu porfolio en Meta Business e inicia sesión.', link: META_BUSINESS },
@@ -74,6 +78,7 @@ const TOPICS = {
   },
   'brand-handle': {
     label: 'Cuenta de la marca',
+    where: 'Tu perfil de Instagram: el @usuario que sale arriba.',
     purpose: 'El nombre de usuario de la marca en la red. SocialHub lo muestra y lo usa para reconocer la marca.',
     steps: [
       'Abre el perfil de la marca en Instagram.',
@@ -82,6 +87,7 @@ const TOPICS = {
   },
   'publer-account-instagram': {
     label: 'Cuenta de Instagram en Publer',
+    where: 'Publer › lista de cuentas sociales: el nombre de la cuenta de Instagram, tal cual.',
     purpose: 'Claude programa en Publer con Chrome y busca la cuenta por este nombre. Sin ella, la publicación queda retenida.',
     steps: [
       { text: 'Abre Publer e inicia sesión con tu cuenta.', link: PUBLER_APP },
@@ -94,6 +100,7 @@ const TOPICS = {
   },
   'publer-account-tiktok': {
     label: 'Cuenta de TikTok en Publer',
+    where: 'Publer › lista de cuentas sociales: el nombre de la cuenta de TikTok (@litoques.eldelito sale como «Lito · Litoques · El DeLito»).',
     purpose: 'Claude programa los TikTok en Publer con Chrome y busca la cuenta por este nombre. Las dos marcas pueden usar la misma.',
     steps: [
       { text: 'Conecta la cuenta de TikTok (@litoques.eldelito, personal y pública) en Publer si aún no lo está.', link: PUBLER_TIKTOK },
@@ -105,6 +112,7 @@ const TOPICS = {
   },
   'publora-key': {
     label: 'Clave de la API de Publora',
+    where: 'Publora › «API» en la barra lateral › «Generate API Key» (se ve una sola vez).',
     purpose: 'Publicar por Publora cuando falla Publer. Vale para todas las marcas y se guarda solo en este ordenador.',
     steps: [
       { text: 'Entra en Publora e inicia sesión.', link: PUBLORA_APP },
@@ -117,6 +125,7 @@ const TOPICS = {
   },
   'publora-account': {
     label: 'Cuenta de Publora de la marca',
+    where: 'Publora › «Channels» › «Add Channel»; después se elige en SocialHub de la lista de cuentas conectadas.',
     purpose: 'Qué cuenta conectada en Publora usa esta marca en cada red. La lista sale de tu cuenta de Publora, una vez puesta la clave.',
     steps: [
       'Pon primero la clave de Publora (arriba).',
@@ -127,6 +136,7 @@ const TOPICS = {
   },
   'drive-root': {
     label: 'Carpeta raíz de Drive de la marca',
+    where: 'Explorador de archivos › unidad G: (Google Drive para escritorio) › «Mi unidad» › la carpeta de la marca › copiar la ruta.',
     purpose: 'La carpeta donde SocialHub crea borradores, generados, aprobados, publicados, informes y encargos. Tiene que estar en el disco que sincroniza Google Drive.',
     steps: [
       { text: 'Instala Google Drive para escritorio e inicia sesión: en el Explorador de archivos aparece la unidad G: con «Mi unidad».', link: DRIVE_DOWNLOAD },
@@ -138,6 +148,7 @@ const TOPICS = {
   },
   'drive-role-paths': {
     label: 'Ruta de cada carpeta de Drive',
+    where: 'Explorador de archivos › la carpeta de ese papel dentro de G: › copiar la ruta.',
     purpose: 'Qué carpeta hace cada papel (material, borradores, encargos…). Con «Crear carpetas» se rellenan solas; cámbialas solo si quieres otra ruta.',
     steps: [
       { text: 'Comprueba que Google Drive para escritorio está abierto (unidad G:).', link: DRIVE_DOWNLOAD },
@@ -148,6 +159,7 @@ const TOPICS = {
   },
   'drive-public': {
     label: 'Carpeta «publico» compartida',
+    where: 'drive.google.com › Mi unidad › la marca › encargos › publico › Compartir › «Cualquier persona con el enlace» (Lector).',
     purpose: 'Meta descarga las imágenes de Instagram de un enlace público. SocialHub deja una copia en «publico» y la borra al terminar. SocialHub no puede comprobar este permiso.',
     steps: [
       { text: 'Abre Google Drive en la web e inicia sesión.', link: DRIVE_WEB },
@@ -160,6 +172,7 @@ const TOPICS = {
   },
   'backups-folder': {
     label: 'Carpeta de copias de seguridad',
+    where: 'Explorador de archivos › una carpeta de Drive en G: › copiar la ruta.',
     purpose: 'Dónde se guardan las copias de SocialHub. Si es una carpeta de Drive, la copia queda fuera de este ordenador.',
     steps: [
       { text: 'Comprueba que Google Drive para escritorio está abierto (unidad G:).', link: DRIVE_DOWNLOAD },
@@ -170,6 +183,7 @@ const TOPICS = {
   },
   'local-path': {
     label: 'Ruta de un archivo o carpeta del ordenador',
+    where: 'Explorador de archivos › seleccionar el archivo o la carpeta › Ctrl + Mayús + C.',
     purpose: 'SocialHub necesita la ruta completa de un archivo (un spec.json, una pieza, un documento) o de una carpeta de Drive.',
     steps: [
       { text: 'Comprueba que Google Drive para escritorio está abierto (unidad G:).', link: DRIVE_DOWNLOAD },
@@ -180,6 +194,7 @@ const TOPICS = {
   },
   'claude-tasks': {
     label: 'Tareas programadas de Claude',
+    where: 'App de Claude › «Scheduled» en la barra izquierda.',
     purpose: 'Claude hace los encargos de SocialHub desde dos tareas programadas: «Encargos de SocialHub» (nube) y «Publicar con Chrome (SocialHub)» (tu PC). SocialHub no llama a Claude.',
     steps: [
       { text: 'Abre la app de Claude e inicia sesión con tu cuenta de pago.', link: CLAUDE_DOWNLOAD },
