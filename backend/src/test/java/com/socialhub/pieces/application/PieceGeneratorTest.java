@@ -1,8 +1,12 @@
-package com.socialhub.pieces;
+package com.socialhub.pieces.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.socialhub.pieces.adapter.out.files.SpecFileLoader;
+import com.socialhub.pieces.domain.LoadedSpec;
+import com.socialhub.pieces.domain.PieceBatch;
+import com.socialhub.pieces.domain.PromoSpec;
 import com.socialhub.platform.AppPaths;
 import com.socialhub.platform.SocialHubProperties;
 import com.socialhub.platform.observability.ExternalCalls;
@@ -39,7 +43,7 @@ class PieceGeneratorTest {
         ffmpeg = new FfmpegTool(new SafeProcess(ExternalCalls.unobserved()),
                 new AppPaths(new SocialHubProperties(data.toString(), null, null, null)));
         generator = new PieceGenerator(new FfmpegService(ffmpeg));
-        reader = new SpecReader(JsonMapper.builder().build(), generator);
+        reader = new SpecReader(new SpecFileLoader(JsonMapper.builder().build()), generator);
         Path media = Files.createDirectories(drive.resolve("DeLito/material"));
         image(media.resolve("page 46.png"), 1600, 1200, new Color(180, 60, 40), new Color(250, 230, 200));
         image(media.resolve("page 04.jpg"), 1000, 1500, new Color(30, 60, 120), new Color(240, 240, 240));
@@ -72,9 +76,9 @@ class PieceGeneratorTest {
 
     @Test
     void generatesEveryPieceLikePromoPy() throws Exception {
-        SpecReader.Loaded loaded = reader.load(drive.resolve("DeLito/spec.json").toString(), List.of(drive.resolve("DeLito").toString()));
+        LoadedSpec loaded = reader.load(drive.resolve("DeLito/spec.json").toString(), List.of(drive.resolve("DeLito").toString()));
         List<String> log = new ArrayList<>();
-        PieceGenerator.Batch batch = generator.generate(loaded.spec(), loaded.files(), log::add, p -> {});
+        PieceBatch batch = generator.generate(loaded.spec(), loaded.files(), log::add, p -> {});
         Path out = drive.resolve("DeLito/Semana 2").toRealPath();
         assertThat(batch.outputDir()).isEqualTo(out);
         assertThat(log).hasSize(5);

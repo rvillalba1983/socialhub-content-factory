@@ -1,5 +1,8 @@
-package com.socialhub.pieces;
+package com.socialhub.pieces.application;
 
+import com.socialhub.pieces.domain.LoadedSpec;
+import com.socialhub.pieces.domain.PieceBatch;
+import com.socialhub.pieces.domain.PieceResult;
 import com.socialhub.production.ResourceUnavailableException;
 import com.socialhub.production.TaskExecutor;
 import java.nio.file.Files;
@@ -36,12 +39,12 @@ class GeneratePiecesExecutor implements TaskExecutor {
         if (run.inputs().isEmpty()) throw new IllegalStateException("La tarea no indica el spec.json");
         List<String> folders = promotions.driveFolders(run.promotionId());
         requireFolderOf(run.inputs().getFirst(), folders);
-        SpecReader.Loaded loaded = reader.load(run.inputs().getFirst(), folders);
+        LoadedSpec loaded = reader.load(run.inputs().getFirst(), folders);
         publications.check(run.promotionId(), loaded.spec());
         run.log("Spec leído: " + loaded.spec().piezas().size() + " piezas");
-        PieceGenerator.Batch batch = generator.generate(loaded.spec(), loaded.files(), run::log, run::progress);
+        PieceBatch batch = generator.generate(loaded.spec(), loaded.files(), run::log, run::progress);
         int files = batch.pieces().stream().mapToInt(p -> p.files().size()).sum();
-        for (PieceGenerator.PieceResult piece : batch.pieces()) {
+        for (PieceResult piece : batch.pieces()) {
             if (piece.publication() == null || piece.files().isEmpty()) continue;
             int added = publishing.attachGenerated(run.promotionId(), piece.publication(), piece.files());
             run.log(piece.name() + ": " + added + " archivos asociados a la publicación " + piece.publication());

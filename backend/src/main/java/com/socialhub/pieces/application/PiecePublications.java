@@ -1,5 +1,6 @@
-package com.socialhub.pieces;
+package com.socialhub.pieces.application;
 
+import com.socialhub.pieces.domain.PromoSpec;
 import com.socialhub.publishing.PublishingQueries;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;

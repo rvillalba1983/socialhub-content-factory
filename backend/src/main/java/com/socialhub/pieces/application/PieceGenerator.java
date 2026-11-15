@@ -1,7 +1,11 @@
-package com.socialhub.pieces;
+package com.socialhub.pieces.application;
 
-import static com.socialhub.pieces.Drawing.*;
+import static com.socialhub.pieces.application.Drawing.*;
 
+import com.socialhub.pieces.domain.PieceBatch;
+import com.socialhub.pieces.domain.PieceFiles;
+import com.socialhub.pieces.domain.PieceResult;
+import com.socialhub.pieces.domain.PromoSpec;
 import com.socialhub.tools.Ffmpeg;
 import java.awt.Color;
 import java.awt.Font;
@@ -39,10 +43,6 @@ class PieceGenerator {
         this.ffmpeg = ffmpeg;
     }
 
-    /** @param publication publicación de SocialHub a la que van sus archivos, si el spec la indica */
-    record PieceResult(String name, String type, @Nullable String publication, List<Path> files) {}
-
-    record Batch(Path outputDir, List<PieceResult> pieces, @Nullable Path readme) {}
 
     /** Comprueba el spec sin generar nada: tipos, nombres, rutas dentro de las carpetas, formatos y tamaños. */
     void validate(PromoSpec spec, PieceFiles files) {
@@ -76,7 +76,7 @@ class PieceGenerator {
         return text == null || text.isBlank() ? null : text.strip();
     }
 
-    Batch generate(PromoSpec spec, PieceFiles files, Consumer<String> log, Consumer<Double> progress)
+    PieceBatch generate(PromoSpec spec, PieceFiles files, Consumer<String> log, Consumer<Double> progress)
             throws IOException, InterruptedException {
         validate(spec, files);
         Path out = files.outputDir(spec.out() == null || spec.out().isBlank() ? "salida" : spec.out());
@@ -97,7 +97,7 @@ class PieceGenerator {
             progress.accept(100.0 * ++i / spec.piezas().size());
         }
         Path readme = spec.leeme() == null || spec.leeme().isBlank() ? null : readme(spec, results, out);
-        return new Batch(out, results, readme);
+        return new PieceBatch(out, results, readme);
     }
 
     // ---------------------------------------------------------------- carrusel

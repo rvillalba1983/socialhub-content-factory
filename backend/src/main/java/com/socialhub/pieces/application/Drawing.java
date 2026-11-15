@@ -1,4 +1,4 @@
-package com.socialhub.pieces;
+package com.socialhub.pieces.application;
 
 import java.awt.AlphaComposite;
 import java.awt.Color;

@@ -1,9 +1,11 @@
-package com.socialhub.pieces;
+package com.socialhub.pieces.application;
 
 import com.socialhub.ai.AiJob;
 import com.socialhub.ai.AiRequestType;
 import com.socialhub.ai.AiTypeHandler;
 import com.socialhub.ai.JsonContracts;
+import com.socialhub.pieces.domain.LoadedSpec;
+import com.socialhub.pieces.PieceOrders;
 import com.socialhub.promotion.PromotionQueries;
 import com.socialhub.production.ProductionService;
 import com.socialhub.publishing.PublishingQueries;
@@ -286,7 +288,7 @@ class WeeklySpecHandler implements AiTypeHandler {
         // Se comprueba aquí, fuera de la transacción del encargo de piezas: un fallo dentro la dejaría marcada para
         // deshacerse y arrastraría la del resultado de Claude
         try {
-            SpecReader.Loaded loaded = reader.load(file.toString(), promotions.driveFolders(job.promotionId()));
+            LoadedSpec loaded = reader.load(file.toString(), promotions.driveFolders(job.promotionId()));
             piecePublications.check(job.promotionId(), loaded.spec());
         } catch (IllegalArgumentException e) {
             reject(file);

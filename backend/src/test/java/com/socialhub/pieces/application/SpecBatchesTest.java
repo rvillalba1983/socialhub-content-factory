@@ -1,4 +1,4 @@
-package com.socialhub.pieces;
+package com.socialhub.pieces.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.socialhub.ai.AiOrders;
 import com.socialhub.ai.AiRequestType;
+import com.socialhub.pieces.ContentGaps;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.FileTime;

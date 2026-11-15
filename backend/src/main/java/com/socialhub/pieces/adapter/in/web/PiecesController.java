@@ -1,10 +1,11 @@
-package com.socialhub.pieces;
+package com.socialhub.pieces.adapter.in.web;
 
 import com.socialhub.api.PiecesApi;
 import com.socialhub.api.model.PieceOrderDto;
 import com.socialhub.api.model.PieceOrderInputDto;
 import com.socialhub.api.model.PieceSpecDto;
 import com.socialhub.api.model.PieceSpecListDto;
+import com.socialhub.pieces.PieceOrders;
 import java.time.ZoneOffset;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;

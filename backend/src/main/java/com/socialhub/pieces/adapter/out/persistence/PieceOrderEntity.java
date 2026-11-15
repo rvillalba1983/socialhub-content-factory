@@ -1,5 +1,6 @@
-package com.socialhub.pieces;
+package com.socialhub.pieces.adapter.out.persistence;
 
+import com.socialhub.pieces.domain.PieceOrder;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -27,11 +28,13 @@ class PieceOrderEntity {
     private @Nullable String taskId;
     private Instant createdAt;
 
-    PieceOrderEntity(String promotionId, String specPath, Instant specModifiedAt, String taskId, Instant createdAt) {
-        this.promotionId = promotionId;
-        this.specPath = specPath;
-        this.specModifiedAt = specModifiedAt;
-        this.taskId = taskId;
-        this.createdAt = createdAt;
+    PieceOrderEntity(PieceOrder order) {
+        this.promotionId = order.promotionId();
+        this.specPath = order.specPath();
+        this.specModifiedAt = order.specModifiedAt();
+        this.taskId = order.taskId();
+        this.createdAt = order.createdAt();
     }
+
+    PieceOrder toDomain() { return new PieceOrder(promotionId, specPath, specModifiedAt, taskId, createdAt); }
 }

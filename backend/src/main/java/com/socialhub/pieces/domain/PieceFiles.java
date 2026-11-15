@@ -1,4 +1,4 @@
-package com.socialhub.pieces;
+package com.socialhub.pieces.domain;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -19,11 +19,11 @@ import java.util.regex.Pattern;
  *   <li>Nunca sobrescribe: si el archivo existe, prueba {@code nombre_2}, {@code nombre_3}…</li>
  * </ul>
  */
-final class PieceFiles {
+public final class PieceFiles {
 
-    static final Set<String> IMAGES = Set.of("jpg", "jpeg", "png");
-    static final Set<String> AUDIO = Set.of("mp3", "m4a", "wav", "aac", "ogg");
-    static final Set<String> VIDEO = Set.of("mp4", "mov", "m4v", "mkv", "webm");
+    public static final Set<String> IMAGES = Set.of("jpg", "jpeg", "png");
+    public static final Set<String> AUDIO = Set.of("mp3", "m4a", "wav", "aac", "ogg");
+    public static final Set<String> VIDEO = Set.of("mp4", "mov", "m4v", "mkv", "webm");
     private static final long MB = 1024L * 1024;
     private static final Pattern SAFE_NAME = Pattern.compile("^[\\p{L}\\p{N} _.-]{1,80}$");
 
@@ -34,7 +34,7 @@ final class PieceFiles {
      * @param folders carpetas de la promoción
      * @param base carpeta del spec: las rutas relativas parten de aquí
      */
-    PieceFiles(List<String> folders, Path base) {
+    public PieceFiles(List<String> folders, Path base) {
         List<Path> real = new ArrayList<>();
         for (String folder : folders) {
             try {
@@ -51,10 +51,10 @@ final class PieceFiles {
         this.base = inside(base, true);
     }
 
-    List<Path> roots() { return roots; }
+    public List<Path> roots() { return roots; }
 
     /** Archivo de entrada existente, del tipo indicado y con tamaño máximo. */
-    Path input(String path, Set<String> types, long maxMb) {
+    public Path input(String path, Set<String> types, long maxMb) {
         Path resolved = inside(resolve(path), true);
         if (!Files.isRegularFile(resolved)) throw new IllegalArgumentException("No es un archivo: " + path);
         String ext = extension(resolved);
@@ -70,7 +70,7 @@ final class PieceFiles {
     }
 
     /** Comprueba, sin crear nada, que la carpeta de salida queda dentro de las carpetas de la promoción. */
-    void checkOutputDir(String path) {
+    public void checkOutputDir(String path) {
         insideLexically(canonical(resolve(path)));
     }
 
@@ -78,7 +78,7 @@ final class PieceFiles {
      * Ruta comparable aunque no exista: la parte que existe se pasa a su ruta real y se le añade el resto. Así,
      * en Windows, nombres cortos y largos («RUNNER~1» y «runneradmin») acaban igual.
      */
-    static Path canonical(Path path) {
+    public static Path canonical(Path path) {
         Path absolute = path.toAbsolutePath().normalize();
         Path existing = absolute;
         while (existing != null && !Files.exists(existing)) existing = existing.getParent();
@@ -91,7 +91,7 @@ final class PieceFiles {
     }
 
     /** Carpeta de salida, que se crea si no existe. */
-    Path outputDir(String path) throws IOException {
+    public Path outputDir(String path) throws IOException {
         Path dir = canonical(resolve(path));
         insideLexically(dir);
         Files.createDirectories(dir);
@@ -99,7 +99,7 @@ final class PieceFiles {
     }
 
     /** Archivo nuevo en la carpeta de salida. Si ya existe uno con ese nombre, se numera. */
-    static Path fresh(Path dir, String name, String extension) {
+    public static Path fresh(Path dir, String name, String extension) {
         Path candidate = dir.resolve(name + "." + extension);
         for (int n = 2; Files.exists(candidate, LinkOption.NOFOLLOW_LINKS); n++) {
             candidate = dir.resolve(name + "_" + n + "." + extension);
@@ -107,7 +107,7 @@ final class PieceFiles {
         return candidate;
     }
 
-    static String safeName(String name) {
+    public static String safeName(String name) {
         if (!SAFE_NAME.matcher(name).matches()) {
             throw new IllegalArgumentException("Nombre de pieza no válido: «" + name + "». Solo letras, números, espacios, _ . -");
         }
@@ -136,7 +136,7 @@ final class PieceFiles {
         }
     }
 
-    static String extension(Path path) {
+    public static String extension(Path path) {
         String name = path.getFileName().toString();
         int dot = name.lastIndexOf('.');
         return dot < 0 ? "" : name.substring(dot + 1).toLowerCase(Locale.ROOT);
