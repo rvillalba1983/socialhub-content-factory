@@ -16,6 +16,7 @@ function aliveWith(dataDir: string): string[] {
 test.describe('Cierre de la app', () => {
   test('el botón «Cerrar» pide confirmación, para el servidor y apaga PostgreSQL', async ({ page, request, allowConsole }) => {
     // Al cerrarse el servidor, las peticiones que la web aún lanza fallan: es lo esperado
+
     test.setTimeout(150_000);
     allowConsole(/ERR_CONNECTION_REFUSED|Failed to load resource|Failed to fetch/);
     const dataDir = fs.readFileSync(path.join(here, '..', '.run', 'data-dir.txt'), 'utf8').trim();

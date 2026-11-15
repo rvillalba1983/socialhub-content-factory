@@ -74,6 +74,7 @@ test.describe('Claude: ajustes, encargos y ritmo', () => {
   });
 
   test('un encargo a mano sale urgente hacia Drive, Claude contesta y el registro lo refleja', async ({ page, api, allowConsole }) => {
+    test.setTimeout(180_000);
     // Al contestar «failed» la tarea falla, y no hay más que mirar en la consola: no se declara nada
     const root = path.join(makeTempDir('claude-encargos'), 'raiz');
     const brand = await api.createBrandWithFolders(unique('Marca Claude encargos'), `@${unique('encargos').toLowerCase()}`, root);
@@ -144,6 +145,9 @@ test.describe('Claude: ajustes, encargos y ritmo', () => {
     await expect(failed.getByRole('button', { name: 'Ver tarea' })).toBeVisible();
 
     // La tarjeta «Claude en la nube» de Agentes y herramientas ya no espera el primer resultado
+    // La tarjeta se recalcula en una ronda propia de la app (no al instante): se espera a que la API lo refleje
+    await expect.poll(async () => (await api.get<{ armory_items: { id: string; note: string }[] }>('/api/factory'))
+      .armory_items.find(i => i.id === 'claude-cloud')?.note, { timeout: 90_000, intervals: [2000] }).not.toContain('Esperando el primer resultado');
     await openMap(page); // recarga la web: la tarjeta sale de datos nuevos
     await page.getByRole('region', { name: 'Agentes y herramientas' }).getByRole('button', { name: 'Claude en la nube' }).click();
     await expect(page.locator('aside.panel')).not.toContainText('Esperando el primer resultado');
