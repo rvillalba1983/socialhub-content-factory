@@ -572,7 +572,6 @@ paths:
           description: Redirección a la interfaz de SocialHub
           headers:
             Location: { schema: { type: string } }
-        default: { $ref: "#/components/responses/Problem" }
 
   /api/instagram/oauth:
     delete:
@@ -1950,7 +1949,7 @@ components:
           type: boolean
           description: Hay con qué llamar a Meta (una conexión vigente o la clave de usuario del sistema)
         key_hint: { type: string, description: "Últimos 4 caracteres de la clave de usuario del sistema" }
-        system_key: { type: boolean, description: Hay una clave de usuario del sistema pegada a mano (no caduca) }
+        system_key: { type: boolean, description: "Hay una clave de usuario del sistema pegada a mano (no caduca)" }
         source:
           type: string
           enum: [OAUTH, SYSTEM_USER, NONE]
@@ -1966,13 +1965,13 @@ components:
       type: object
       required: [usernames, expires_at, days_left, expired]
       properties:
-        name: { type: string, description: Nombre de quien se conectó, según Meta }
+        name: { type: string, description: "Nombre de quien se conectó, según Meta" }
         usernames:
           type: array
           items: { type: string }
           description: "@usuarios de Instagram encontrados al conectar (sin la @)"
         expires_at: { type: string, format: date-time }
-        days_left: { type: integer, description: Días enteros que quedan (0 si caduca hoy o ya caducó) }
+        days_left: { type: integer, description: "Días enteros que quedan (0 si caduca hoy o ya caducó)" }
         expired: { type: boolean }
 
     InstagramAppInput:
@@ -1980,7 +1979,7 @@ components:
       required: [app_id]
       properties:
         app_id: { type: string, maxLength: 40 }
-        app_secret: { type: string, maxLength: 200, description: Vacío para conservar el ya guardado }
+        app_secret: { type: string, maxLength: 200, description: "Vacío para conservar el ya guardado" }
 
     InstagramOAuthStart:
       type: object
@@ -1995,7 +1994,7 @@ components:
         ig_user_id: { type: string }
         username: { type: string }
         page_name: { type: string, description: Página de Facebook a la que está vinculada }
-        brand_id: { type: string, description: Marca a la que ya está asignada }
+        brand_id: { type: string, description: "Marca a la que ya está asignada" }
 
     InstagramDetectedAccountList:
       type: object
