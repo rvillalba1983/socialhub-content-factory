@@ -602,3 +602,10 @@ Decisiones técnicas (la numeración la propuso Raúl; el resto es técnico):
 - **API:** `GET /api/system/version` (etiqueta `App`) devuelve `version`, `commit` y `build_time`; solo lectura. Sin `build-info.properties` (IDE) devuelve «desconocida».
 - **Web:** `1.2.57 · a1b2c3d` en pequeño junto al nombre, con la fecha en el recuadro del ratón y el detalle (versión, commit, fecha de compilación, modo Real/Demo) al pulsar.
 - **Workflow de instaladores:** un trabajo `version` calcula la versión y el commit una sola vez y lo usan Windows y macOS. La prueba de actualización exige que la versión nueva sea mayor que la instalada, instala encima de la release anterior, abre SocialHub y comprueba que la web devuelve la versión y el commit nuevos. La instalación limpia de Windows y el `.dmg` comprueban lo mismo. En macOS no hay actualización real: se arrastra la app y solo se comprueba la versión.
+
+## Fase 12 · Claridad (15 nov 2026)
+
+Hallazgos de Raúl al usar SocialHub de verdad. Decisiones (técnicas, a partir de lo que pidió Raúl):
+- **Editar y «Nueva publicación»:** la página baja suavemente al formulario y pone el foco en su primer campo editable; al «Cerrar» o «Guardar» vuelve a la fila. Con «reducir movimiento» en el sistema el salto es directo.
+- **Control de calidad:** explicación dentro del bloque («¿Qué es esto?», qué hace Aceptar, «Comprobar de nuevo» y «Revisar con Claude») y una frase de «qué hacer» por cada comprobación. El cuadro «Archivos» ya no habla de spec.json.
+- **Avisos nuevos** (solo en «Qué hacer ahora» y «Te falta por completar»): identidad de la marca incompleta (tono, público o temas que no se tocan; en la ficha, con botón «Importar desde .txt») y publicaciones de camino a publicar sin 6 horas de margen o con la hora ya pasada. Ya existían y no se duplican: cuenta de Publer, cuenta de Instagram para la API oficial y publicaciones en producción sin contenido a menos de 3 días. «Temas que no se tocan» vacío cuenta como identidad incompleta: si una marca de verdad no tiene ninguno, el aviso no se va hasta que se escriba algo.
