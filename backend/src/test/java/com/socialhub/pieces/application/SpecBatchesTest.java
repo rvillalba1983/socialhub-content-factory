@@ -8,7 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.socialhub.ai.AiOrders;
-import com.socialhub.ai.AiRequestType;
+import com.socialhub.ai.domain.AiRequestType;
 import com.socialhub.pieces.ContentGaps;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -291,8 +291,8 @@ class SpecBatchesTest {
         command(manual, "CANCEL");
     }
 
-    private com.socialhub.ai.AiJob job(String promotion, List<String> inputs) {
-        return new com.socialhub.ai.AiJob("t", AiRequestType.WEEKLY_SPEC, promotion, "el-delito", "Spec", "Spec", inputs, Instant.now());
+    private com.socialhub.ai.domain.AiJob job(String promotion, List<String> inputs) {
+        return new com.socialhub.ai.domain.AiJob("t", AiRequestType.WEEKLY_SPEC, promotion, "el-delito", "Spec", "Spec", inputs, Instant.now());
     }
 
     // ---------------------------------------------------------------- utilidades

@@ -8,7 +8,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.socialhub.ai.AiHeldOrders;
-import com.socialhub.ai.AiRequestType;
+import com.socialhub.ai.domain.AiRequestType;
 import com.socialhub.api.model.FactoryDto;
 import com.socialhub.api.model.RecommendationDto;
 import com.socialhub.armory.ArmoryQueries;

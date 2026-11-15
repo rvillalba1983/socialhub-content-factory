@@ -2,7 +2,7 @@ package com.socialhub.publishing;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.socialhub.ai.PcSchedule;
+import com.socialhub.ai.domain.PcSchedule;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;

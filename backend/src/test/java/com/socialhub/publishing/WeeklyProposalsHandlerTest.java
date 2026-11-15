@@ -10,8 +10,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.socialhub.ai.AiJob;
-import com.socialhub.ai.AiRequestType;
+import com.socialhub.ai.domain.AiJob;
+import com.socialhub.ai.domain.AiRequestType;
 import com.socialhub.promotion.PromotionQueries;
 import com.socialhub.publishing.domain.PublicationStatus;
 import java.time.Clock;

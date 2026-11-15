@@ -1,7 +1,7 @@
 package com.socialhub.pieces.application;
 
-import com.socialhub.ai.AiJob;
-import com.socialhub.ai.AiRequestType;
+import com.socialhub.ai.domain.AiJob;
+import com.socialhub.ai.domain.AiRequestType;
 import com.socialhub.ai.AiTypeHandler;
 import com.socialhub.ai.JsonContracts;
 import com.socialhub.pieces.domain.LoadedSpec;

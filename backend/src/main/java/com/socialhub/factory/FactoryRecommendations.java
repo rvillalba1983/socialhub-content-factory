@@ -2,10 +2,10 @@ package com.socialhub.factory;
 
 import com.socialhub.ai.AiHeldOrders;
 import com.socialhub.ai.AiAutoStarted;
-import com.socialhub.ai.AiRequestType;
+import com.socialhub.ai.domain.AiRequestType;
 import com.socialhub.ai.AiSentOrders;
 import com.socialhub.ai.ClaudeActivity;
-import com.socialhub.ai.ClaudePickups;
+import com.socialhub.ai.domain.ClaudePickups;
 import com.socialhub.api.model.RecommendationDto;
 import com.socialhub.api.model.RecommendationTargetDto;
 import com.socialhub.backup.BackupService;
