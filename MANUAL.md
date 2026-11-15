@@ -40,7 +40,15 @@ SocialHub **no llama a la API de Claude**. Deja los encargos en una carpeta de G
   - Pide permiso de administrador y crea un acceso directo en el escritorio y en el menú Inicio.
 - **Abrir:** con el acceso directo. SocialHub arranca y se abre en el navegador (`http://localhost:8686`). Si ya estaba abierto, solo se abre el navegador.
 - **Cerrar:** botón **Cerrar** en la barra de arriba, y confirma. Se paran el motor, la base de datos y el servidor. Lo que quedó a medias sigue al volver a abrirlo.
-- **Actualizar:** instala el `.msi` de la versión nueva encima. Tus datos están en `%LOCALAPPDATA%\SocialHub` y no se tocan al instalar, actualizar ni desinstalar.
+- **Ver qué versión tienes:** junto al nombre «SocialHub», arriba a la izquierda, sale en pequeño la versión y el commit (por ejemplo `1.2.57 · a1b2c3d`). Púlsala y verás el detalle: versión, commit, fecha y hora de compilación y el modo (Real o Demo). Si pasas el ratón por encima, sale la versión y la fecha en un recuadro.
+- **Actualizar:**
+  1. Cierra SocialHub con el botón **Cerrar**.
+  2. Instala el `.msi` de la versión nueva encima, sin desinstalar nada.
+  3. Ábrelo con su acceso directo y comprueba arriba que la versión es la nueva. Tus datos están en `%LOCALAPPDATA%\SocialHub` y no se tocan al instalar, actualizar ni desinstalar.
+- **Cómo se numeran las versiones:**
+  - Las versiones publicadas (releases) llevan el número de la release, por ejemplo `1.2.0`.
+  - Los instaladores que genera GitHub (Actions › Instaladores) llevan `1.2.<número de ejecución>`, por ejemplo `1.2.57`: cada instalador nuevo tiene un número mayor que el anterior, y por eso Windows lo trata como actualización.
+  - Si un instalador no cambia nada, mira la versión de arriba: si es la misma que ya tenías, Windows no habría actualizado.
 
 ## 2. Ideas básicas
 
