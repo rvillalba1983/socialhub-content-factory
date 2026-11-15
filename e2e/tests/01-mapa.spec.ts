@@ -164,13 +164,22 @@ test.describe('Mapa', () => {
     await page.mouse.move(vp.x + vp.width / 2, vp.y + vp.height / 2);
     for (let i = 0; i < 8; i++) await page.mouse.wheel(0, -2000);
     await expect.poll(() => scaleOf(page)).toBeGreaterThan(3);
-    const cx = vp.x + vp.width / 2, cy = vp.y + vp.height - 40;
-    // Arrastre brutal hacia cada lado: el borde del contenido de ese lado debe quedar dentro de la ventana
-    for (const [dx, dy, side] of [[-6000, 0, 'r'], [6000, 0, 'l'], [0, -6000, 'b'], [0, 6000, 't']] as const) {
-      await page.mouse.move(cx, cy);
+    // El ratón no puede salir de la ventana, así que se arrastra varias veces, de un extremo al otro, hasta el límite
+    const x0 = vp.x + 40, x1 = vp.x + vp.width - 40, y0 = vp.y + 40, y1 = vp.y + vp.height - 40;
+    const drag = async (fx: number, fy: number, tx: number, ty: number) => {
+      await page.mouse.move(fx, fy);
       await page.mouse.down();
-      for (let i = 1; i <= 8; i++) await page.mouse.move(cx + (dx * i) / 8, cy + (dy * i) / 8);
+      for (let i = 1; i <= 4; i++) await page.mouse.move(fx + ((tx - fx) * i) / 4, fy + ((ty - fy) * i) / 4);
       await page.mouse.up();
+    };
+    // Arrastre hasta el límite hacia cada lado: el borde del contenido de ese lado debe quedar dentro de la ventana
+    for (const side of ['r', 'l', 'b', 't'] as const) {
+      for (let i = 0; i < 30; i++) {
+        if (side === 'r') await drag(x1, y1, x0, y1);
+        else if (side === 'l') await drag(x0, y1, x1, y1);
+        else if (side === 'b') await drag(x0, y1, x0, y0);
+        else await drag(x0, y0, x0, y1);
+      }
       await page.waitForTimeout(800);
       const info = await page.evaluate((sd) => {
         const v = document.querySelector('main.vp')!.getBoundingClientRect();
@@ -184,7 +193,7 @@ test.describe('Mapa', () => {
           b = Math.max(b, q.bottom);
         });
         return { ok: sd === 'r' ? r <= v.right + 2 : sd === 'l' ? l >= v.left - 2 : sd === 'b' ? b <= v.bottom + 2 : t >= v.top - 2,
-          detail: `${sd}: l=${Math.round(l)} t=${Math.round(t)} r=${Math.round(r)} b=${Math.round(b)} vp=${Math.round(v.right)}x${Math.round(v.bottom)} ${who} tf=${getComputedStyle(w).transform} lod=${document.querySelector('main.vp')!.getAttribute('data-lod')} dbg=${document.querySelector('main.vp')!.getAttribute('data-dbg')}` };
+          detail: `${sd}: l=${Math.round(l)} t=${Math.round(t)} r=${Math.round(r)} b=${Math.round(b)} vp=${Math.round(v.right)}x${Math.round(v.bottom)} ${who} tf=${getComputedStyle(w).transform} lod=${document.querySelector('main.vp')!.getAttribute('data-lod')}` };
       }, side);
       expect(info.ok, info.detail).toBe(true);
     }
