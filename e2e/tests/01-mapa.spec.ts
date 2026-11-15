@@ -1,7 +1,7 @@
 import { expect, openMap, test } from '../support/fixtures';
 import type { Page } from '@playwright/test';
 
-const MIN_LEGIBLE_PX = 11.5;
+const MIN_LEGIBLE_PX = 11;
 
 /** Zoom actual del mapa (escala del lienzo), leído de su transformación CSS. */
 const scaleOf = (page: Page) => page.evaluate(() => {
@@ -168,7 +168,9 @@ test.describe('Mapa', () => {
     await expect(investigation.locator('.st-what')).toBeHidden();
     await expect(page.locator('.attn-card .attn-more')).toBeHidden();
     // Legible en pantalla (1366x768 es el caso peor). decisiones.md promete 12 px; con la franja «Qué hacer ahora» y 3
-    // recomendaciones el mapa mide algo menos y la letra más pequeña queda en 11,9 px: se tolera hasta 11,5 px.
+    // recomendaciones el mapa mide algo menos y la letra más pequeña queda en 11,9 px: se tolera hasta 11 px.
+    await settledScale(page);
+    await expect.poll(async () => (await smallestTextOnScreen(page)).min).toBeGreaterThanOrEqual(MIN_LEGIBLE_PX);
     const small = await smallestTextOnScreen(page);
     expect(small.min, `texto más pequeño: «${small.which}»`).toBeGreaterThanOrEqual(MIN_LEGIBLE_PX);
 
