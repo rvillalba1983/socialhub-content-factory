@@ -23,6 +23,8 @@ export class Api {
   }
 
   get = <T = any>(url: string) => this.send<T>('get', url);
+  put = <T = any>(url: string, data: unknown) => this.send<T>('put', url, data);
+  post = <T = any>(url: string, data: unknown) => this.send<T>('post', url, data);
   factory = () => this.get<FactoryState>('/api/factory');
 
   createBrand(name: string, handle: string, color = '#3366CC') {
