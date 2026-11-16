@@ -2,12 +2,14 @@ import { useEffect, useState } from 'react';
 import { ApiError, api } from './api';
 import { Icon } from './icons';
 import {
-  PUBLICATION_NEXT, PUBLICATION_STATUS, PUBLISH_ROUTES, REJECTION_REASONS, dateTime, type RejectionReason, type Publication, type PublicationMetrics, type PublishJob, type QualityReport, type PublicationFile, type PublicationInput,
+  PUBLICATION_NEXT, PUBLICATION_STATUS, PUBLICATION_TYPES, REJECTION_REASONS, routesFor, dateTime, type RejectionReason, type Publication, type PublicationMetrics, type PublishJob, type QualityReport, type PublicationFile, type PublicationInput,
   type PublicationStatus, type StatusCode,
 } from './model';
 import { Pill } from './ui';
 import { WhereHelp } from './WhereHelp';
+import { HowItLooks, MediaItem, ViewOnNetwork } from './PublicationPreview';
 
+const OTHER = '__other';
 const INITIAL: PublicationStatus[] = ['IDEA', 'PROPOSAL', 'IN_PRODUCTION', 'DRAFT'];
 type Initial = NonNullable<PublicationInput['initial_status']>;
 
@@ -26,6 +28,8 @@ export function PublicationEditor({ promotionId, publication, onClose, onSaved }
   const [initial, setInitial] = useState<Initial>('IDEA');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** «Otro…» en el tipo: se escribe a mano (por ejemplo, un tipo que propone Claude). */
+  const [otherType, setOtherType] = useState(!!publication && !PUBLICATION_TYPES.includes(publication.type));
   const [asked, setAsked] = useState<string | null>(null);
   const [textsTouched, setTextsTouched] = useState(false);
   /** Pide el motivo antes de cancelar la publicación o descartar el texto (memoria editorial). */
@@ -36,6 +40,16 @@ export function PublicationEditor({ promotionId, publication, onClose, onSaved }
   }, [publication?.caption, publication?.hashtags, textsTouched]);
   /** Programada, publicándose o publicada: la vía ya tiene esta versión y no se cambia. */
   const locked = publication?.status === 'SCHEDULED' || publication?.status === 'PUBLISHING' || publication?.status === 'PUBLISHED';
+  const [files, setFiles] = useState<PublicationFile[] | null>(null);
+  const [filesError, setFilesError] = useState<string | null>(null);
+  const publicationId = publication?.id;
+  const loadFiles = () => {
+    if (!publicationId) return Promise.resolve();
+    return api.publicationFiles(publicationId).then(r => { setFiles(r.items); setFilesError(null); })
+      .catch(e => setFilesError(String(e.message ?? e)));
+  };
+  // También cuando la publicación cambia (Claude puede dejar piezas nuevas mientras el editor está abierto)
+  useEffect(() => { void loadFiles(); }, [publicationId, publication?.status]);
   const set = <K extends keyof PublicationInput>(k: K, v: PublicationInput[K]) => setForm({ ...form, [k]: v });
 
   const run = async (action: () => Promise<Publication>, message: string) => {
@@ -75,11 +89,23 @@ export function PublicationEditor({ promotionId, publication, onClose, onSaved }
       <form onSubmit={submit}>
         <div className="form-grid">
           <label className="field"><span>Plataforma</span>
-            <select disabled={locked} value={form.platform} onChange={e => set('platform', e.target.value as PublicationInput['platform'])}>
+            <select disabled={locked} value={form.platform} onChange={e => { const platform = e.target.value as PublicationInput['platform']; setForm({ ...form, platform, route: routesFor(platform).includes(form.route) ? form.route : 'Publer' }); }}>
               <option value="INSTAGRAM">Instagram</option><option value="TIKTOK">TikTok</option></select></label>
           <label className="field"><span>Tipo</span>
-            <input required disabled={locked} maxLength={40} list="pub-types" placeholder="Carrusel" value={form.type} onChange={e => set('type', e.target.value)} />
-            <datalist id="pub-types"><option value="Carrusel" /><option value="Historia" /><option value="Reel" /><option value="Clip" /></datalist></label>
+            <select required disabled={locked} value={otherType ? OTHER : form.type}
+              onChange={e => {
+                if (e.target.value === OTHER) { setOtherType(true); set('type', PUBLICATION_TYPES.includes(form.type) ? '' : form.type); }
+                else { setOtherType(false); set('type', e.target.value); }
+              }}>
+              <option value="" disabled>Elige un tipo</option>
+              {PUBLICATION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+              <option value={OTHER}>Otro…</option>
+            </select></label>
+          {otherType && (
+            <label className="field"><span>Otro tipo</span>
+              <input required disabled={locked} maxLength={40} placeholder="Por ejemplo, Directo" value={form.type}
+                onChange={e => set('type', e.target.value)} /></label>
+          )}
           <label className="field"><span>Título</span>
             <input required disabled={locked} maxLength={200} value={form.title} onChange={e => set('title', e.target.value)} /></label>
           <label className="field"><span>Día</span>
@@ -88,7 +114,7 @@ export function PublicationEditor({ promotionId, publication, onClose, onSaved }
             <input required disabled={locked} type="time" value={form.scheduled_time} onChange={e => set('scheduled_time', e.target.value)} /></label>
           <label className="field"><span>Vía</span>
             <select required disabled={locked} value={form.route} onChange={e => set('route', e.target.value)}>
-              {(PUBLISH_ROUTES.includes(form.route) ? PUBLISH_ROUTES : [...PUBLISH_ROUTES, form.route]).map(r => <option key={r} value={r}>{r}</option>)}
+              {(routesFor(form.platform).includes(form.route) ? routesFor(form.platform) : [...routesFor(form.platform), form.route]).map(r => <option key={r} value={r}>{r}</option>)}
             </select></label>
           {!publication && (
             <label className="field"><span>Empieza como</span>
@@ -156,41 +182,60 @@ export function PublicationEditor({ promotionId, publication, onClose, onSaved }
           <PublishPanel publication={publication} />
           <MetricsPanel publication={publication} />
           <QualityPanel publication={publication} promotionId={promotionId} />
-          <PublicationFiles id={publication.id} locked={locked} />
+          <fieldset className="rows" aria-label="Vista previa">
+            <legend>Vista previa</legend>
+            <HowItLooks publication={publication} files={files} />
+            <ViewOnNetwork publication={publication} />
+          </fieldset>
+          <PublicationFiles id={publication.id} title={publication.title} locked={locked} files={files} error={filesError} reload={loadFiles} />
         </>
       )}
     </div>
   );
 }
 
-function PublicationFiles({ id, locked }: { id: string; locked: boolean }) {
-  const [files, setFiles] = useState<PublicationFile[] | null>(null);
+function PublicationFiles({ id, title, locked, files, error: loadError, reload }: {
+  id: string; title: string; locked: boolean; files: PublicationFile[] | null; error: string | null; reload: () => Promise<unknown>;
+}) {
   const [path, setPath] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const load = () => api.publicationFiles(id).then(r => setFiles(r.items)).catch(e => setError(String(e.message ?? e)));
-  useEffect(() => { void load(); }, [id]);
+  /** Archivo abierto (por su identificador): imagen ampliada o vídeo con reproductor. */
+  const [open, setOpen] = useState<string | null>(null);
 
   const act = async (action: () => Promise<unknown>) => {
     setError(null);
-    try { await action(); await load(); return true; } catch (e) { setError(e instanceof Error ? e.message : String(e)); return false; }
+    try { await action(); await reload(); return true; } catch (e) { setError(e instanceof Error ? e.message : String(e)); return false; }
   };
 
   return (
     <fieldset className="rows">
       <legend>Archivos</legend>
       {files?.length === 0 && (
-        <p className="src">Esta publicación todavía no tiene imágenes ni vídeos. Normalmente llegan solos cuando Claude prepara las piezas.
+        <p className="src">Aún no hay archivos. Claude todavía no ha generado las piezas de esta publicación: normalmente llegan solas cuando las prepara.
           Si no han llegado, pega abajo la ruta del archivo en tu ordenador (por ejemplo, en tu Google Drive) y pulsa «Añadir archivo».</p>
       )}
-      {files?.map(f => (
-        <div key={f.path} className="file-row">
-          <span className="mono file-path" title={f.path}>{f.path}</span>
-          <small className="src nowrap">{f.origin === 'SPEC' ? 'Del spec' : 'A mano'} · {dateTime(f.added_at)}</small>
-          {!f.available && <Pill s="BLOCKED" label="No disponible" />}
-          {!locked && <button type="button" className="ibtn" aria-label="Quitar archivo" title="Quitar de la publicación (no se borra)"
-            onClick={() => void act(() => api.detachPublicationFile(id, f.path))}><Icon name="x" /></button>}
-        </div>
-      ))}
+      {files?.map((f, n) => {
+        const name = f.path.split(/[\\/]/).pop() ?? f.path;
+        const label = `${f.kind === 'VIDEO' ? 'Vídeo' : 'Imagen'} ${n + 1} de «${title}» (${name})`;
+        const shown = open === f.id;
+        return (
+          <div key={f.path}>
+            <div className="file-row">
+              <span className="mono file-path" title={f.path}>{f.path}</span>
+              <small className="src nowrap">{f.origin === 'SPEC' ? 'Del spec' : 'A mano'} · {dateTime(f.added_at)}</small>
+              {!f.available && <Pill s="BLOCKED" label="No disponible" />}
+              {f.available && f.kind !== 'OTHER' && (
+                <button type="button" className="btn" aria-expanded={shown} aria-controls={`pv-${f.id}`}
+                  onClick={() => setOpen(shown ? null : f.id)}>{shown ? 'Cerrar' : f.kind === 'VIDEO' ? 'Ver vídeo' : 'Ver imagen'}</button>
+              )}
+              {f.available && f.kind === 'OTHER' && <small className="src nowrap">Sin vista previa</small>}
+              {!locked && <button type="button" className="ibtn" aria-label="Quitar archivo" title="Quitar de la publicación (no se borra)"
+                onClick={() => void act(() => api.detachPublicationFile(id, f.path))}><Icon name="x" /></button>}
+            </div>
+            {shown && <div id={`pv-${f.id}`} className="pv-open"><MediaItem publicationId={id} file={f} label={label} large /></div>}
+          </div>
+        );
+      })}
       {!locked && (
         <form className="file-add" onSubmit={e => { e.preventDefault(); void act(() => api.attachPublicationFile(id, path.trim())).then(ok => { if (ok) setPath(''); }); }}>
           <input aria-label="Ruta del archivo" placeholder="G:\Mi unidad\…\pieza.jpg" value={path} onChange={e => setPath(e.target.value)} />
@@ -198,7 +243,7 @@ function PublicationFiles({ id, locked }: { id: string; locked: boolean }) {
         </form>
       )}
       {!locked && <WhereHelp topic="local-path" />}
-      {error && <p className="error" role="alert">{error}</p>}
+      {(error ?? loadError) && <p className="error" role="alert">{error ?? loadError}</p>}
     </fieldset>
   );
 }

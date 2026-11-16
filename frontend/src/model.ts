@@ -126,3 +126,13 @@ export const normalize = (s: string) => s.toLowerCase().normalize('NFD').replace
 
 /** Vías de publicación, con el nombre que guarda el backend (PublishRoute.Id): API oficial, Publer y Publora. */
 export const PUBLISH_ROUTES: string[] = ['API oficial', 'Publer', 'Publora'];
+
+/**
+ * Vías válidas para cada red: la API oficial solo existe para Instagram (en TikTok el motor la salta) y Publora no se
+ * usa en TikTok, así que allí solo queda Publer.
+ */
+export const routesFor = (platform: 'INSTAGRAM' | 'TIKTOK'): string[] =>
+  platform === 'INSTAGRAM' ? PUBLISH_ROUTES : PUBLISH_ROUTES.filter(r => r === 'Publer');
+
+/** Tipos de publicación habituales (los del spec de piezas y los que comprueba el control de calidad). */
+export const PUBLICATION_TYPES: string[] = ['Carrusel', 'Historia', 'Reel', 'Clip'];

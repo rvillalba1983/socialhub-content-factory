@@ -372,7 +372,7 @@ describe('Publicaciones', () => {
 
   it('solo ofrece los cambios de estado permitidos y nunca «Publicada»', async () => {
     vi.spyOn(api, 'publicationFiles').mockResolvedValue({ items: [
-      { path: 'G:/DeLito/Semana 2/poema_1.jpg', origin: 'SPEC', added_at: '2026-11-02T09:00:00Z', available: true },
+      { id: 'aaaaaaaaaaaaaaaa', path: 'G:/DeLito/Semana 2/poema_1.jpg', kind: 'IMAGE', mime_type: 'image/jpeg', origin: 'SPEC', added_at: '2026-11-02T09:00:00Z', available: true },
     ] });
     const change = vi.spyOn(api, 'changePublicationStatus').mockRejectedValue(new Error('al menos a 6 horas de ahora'));
     render(<PublicationEditor promotionId="p" publication={publication} onClose={() => {}} onSaved={() => {}} />);
@@ -912,7 +912,7 @@ describe('Control de calidad', () => {
     expect(screen.getByText('¿Qué es esto?')).toBeInTheDocument();
     expect(screen.getByText(/lo doy por bueno aunque falle/)).toBeInTheDocument();
     expect(screen.queryByText(/spec\.json/)).not.toBeInTheDocument();
-    expect(screen.getByText(/todavía no tiene imágenes ni vídeos/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Aún no hay archivos/).length).toBeGreaterThan(0);
   });
 });
 
@@ -1549,5 +1549,99 @@ describe('Mensajes al guardar', () => {
     const two = { ...snapshot, brands: [...snapshot.brands, { id: 'l', name: 'Litoques', handle: '@l', color: '#C98A1B', demo: false }] };
     render(<Registration data={two} initial={{ kind: 'promotion', id: null, brandId: 'l' }} onClose={() => {}} onSaved={() => {}} />);
     expect(screen.getByLabelText('Marca')).toHaveValue('l');
+  });
+});
+
+
+describe('Vista previa de la publicación', () => {
+  const base: Publication = {
+    id: 'pv-1', promotion_id: 'p', platform: 'INSTAGRAM', type: 'Carrusel', title: 'Poema 1', scheduled_on: '2026-11-10',
+    scheduled_time: '19:00', timezone: 'Europe/Madrid', status: 'DRAFT', route: 'Publer', demo: false, caption: 'Un verso', hashtags: '#poesia',
+  };
+  const img = (n: number) => ({ id: `${n}`.repeat(16), path: `G:/DeLito/p${n}.jpg`, kind: 'IMAGE' as const, mime_type: 'image/jpeg',
+    origin: 'SPEC' as const, added_at: '2026-11-02T09:00:00Z', available: true });
+  const video = { id: 'bbbbbbbbbbbbbbbb', path: 'G:/DeLito/clip.mp4', kind: 'VIDEO' as const, mime_type: 'video/mp4',
+    origin: 'SPEC' as const, added_at: '2026-11-02T09:00:00Z', available: true };
+  const open = (p: Publication) => render(<PublicationEditor promotionId="p" publication={p} onClose={() => {}} onSaved={() => {}} />);
+
+  it('enseña el carrusel con su texto y hashtags, y se recorre con las flechas', async () => {
+    vi.spyOn(api, 'publicationFiles').mockResolvedValue({ items: [img(1), img(2)] });
+    open(base);
+    const first = await screen.findByAltText('Pieza 1 de 2 de «Poema 1»');
+    expect(first).toHaveAttribute('src', '/api/publications/pv-1/files/1111111111111111/content');
+    expect(screen.getAllByText('Un verso').length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole('button', { name: 'Pieza siguiente' }));
+    expect(await screen.findByAltText('Pieza 2 de 2 de «Poema 1»')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Pieza siguiente' })).toBeDisabled();
+  });
+
+  it('un reel va en vertical y su vídeo no se descarga hasta darle al play', async () => {
+    vi.spyOn(api, 'publicationFiles').mockResolvedValue({ items: [video] });
+    const { container } = open({ ...base, type: 'Reel', platform: 'TIKTOK', route: 'Publer' });
+    await waitFor(() => expect(container.querySelector('video')).not.toBeNull());
+    expect(container.querySelector('video')).toHaveAttribute('preload', 'none');
+    expect(container.querySelector('.pv-stage')).toHaveStyle({ aspectRatio: '9 / 16' });
+  });
+
+  it('sin archivos dice «Aún no hay archivos» y el motivo', async () => {
+    vi.spyOn(api, 'publicationFiles').mockResolvedValue({ items: [] });
+    open({ ...base, status: 'IN_PRODUCTION' });
+    expect(await screen.findByText(/Claude todavía no ha generado las piezas de esta publicación\. Cuando/)).toBeInTheDocument();
+  });
+
+  it('abre un archivo de la lista: imagen ampliada y vídeo con reproductor', async () => {
+    vi.spyOn(api, 'publicationFiles').mockResolvedValue({ items: [img(1), video] });
+    const { container } = open(base);
+    fireEvent.click(await screen.findByRole('button', { name: 'Ver imagen' }));
+    expect(container.querySelector('.pv-open img.large')).not.toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Ver vídeo' }));
+    expect(container.querySelector('.pv-open video[controls]')).not.toBeNull();
+    expect(container.querySelector('.pv-open img')).toBeNull();
+  });
+
+  it('publicada con enlace: botón «Ver en Instagram»; sin enlace: sin botón y con el motivo', async () => {
+    vi.spyOn(api, 'publicationFiles').mockResolvedValue({ items: [] });
+    vi.spyOn(api, 'publicationQuality').mockResolvedValue({ open: 0, issues: [] });
+    vi.spyOn(api, 'publicationMetrics').mockRejectedValue(new Error('x'));
+    const job = { publication_id: 'pv-1', status: 'PUBLISHED' as const, status_label: 'Publicada', attempts: 1, routes: [], log: [] };
+    vi.spyOn(api, 'publishJob').mockResolvedValue({ ...job, url: 'https://www.instagram.com/p/abc/' });
+    const { unmount } = open({ ...base, status: 'PUBLISHED' });
+    expect(await screen.findByRole('link', { name: 'Ver en Instagram' })).toHaveAttribute('href', 'https://www.instagram.com/p/abc/');
+    unmount();
+    vi.spyOn(api, 'publishJob').mockResolvedValue(job);
+    open({ ...base, status: 'PUBLISHED' });
+    expect(await screen.findByText(/no guardó el enlace/)).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Ver en Instagram' })).not.toBeInTheDocument();
+  });
+});
+
+describe('Tipo y vía de la publicación', () => {
+  const base: Publication = {
+    id: 'tv-1', promotion_id: 'p', platform: 'INSTAGRAM', type: 'Carrusel', title: 'T', scheduled_on: '2026-11-10',
+    scheduled_time: '19:00', timezone: 'Europe/Madrid', status: 'DRAFT', route: 'Publer', demo: false,
+  };
+
+  it('«Otro…» deja escribir un tipo y conserva el que propone Claude', async () => {
+    vi.spyOn(api, 'publicationFiles').mockResolvedValue({ items: [] });
+    const update = vi.spyOn(api, 'updatePublication').mockResolvedValue(base);
+    render(<PublicationEditor promotionId="p" publication={{ ...base, type: 'Directo' }} onClose={() => {}} onSaved={() => {}} />);
+    const tipo = screen.getByLabelText('Tipo') as HTMLSelectElement;
+    expect(Array.from(tipo.options).map(o => o.text)).toEqual(['Elige un tipo', 'Carrusel', 'Historia', 'Reel', 'Clip', 'Otro…']);
+    expect(tipo.selectedOptions[0].text).toBe('Otro…');
+    expect(screen.getByLabelText('Otro tipo')).toHaveValue('Directo');
+    fireEvent.change(screen.getByLabelText('Otro tipo'), { target: { value: 'Encuesta' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+    await waitFor(() => expect(update).toHaveBeenCalledWith('tv-1', expect.objectContaining({ type: 'Encuesta' })));
+  });
+
+  it('en TikTok solo ofrece Publer; en Instagram, las tres vías', async () => {
+    vi.spyOn(api, 'publicationFiles').mockResolvedValue({ items: [] });
+    render(<PublicationEditor promotionId="p" publication={base} onClose={() => {}} onSaved={() => {}} />);
+    const names = () => Array.from((screen.getByLabelText('Vía') as HTMLSelectElement).options).map(o => o.text);
+    expect(names()).toEqual(['API oficial', 'Publer', 'Publora']);
+    fireEvent.change(screen.getByLabelText('Vía'), { target: { value: 'Publora' } });
+    fireEvent.change(screen.getByLabelText('Plataforma'), { target: { value: 'TIKTOK' } });
+    expect(names()).toEqual(['Publer']);
+    expect((screen.getByLabelText('Vía') as HTMLSelectElement).value).toBe('Publer');
   });
 });
