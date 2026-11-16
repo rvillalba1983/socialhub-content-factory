@@ -30,7 +30,8 @@ class LogFileRedactionTest {
         Path file = dir.resolve("logs").resolve("socialhub.log");
         try (ConfigurableApplicationContext ctx = new SpringApplicationBuilder(Empty.class)
                 .web(WebApplicationType.NONE)
-                .properties("logging.file.name=" + file, "spring.main.banner-mode=off", "spring.main.log-startup-info=false")
+                .properties(java.util.Map.<String, Object>of("logging.file.name", file.toString(),
+                        "spring.main.banner-mode", "off", "spring.main.log-startup-info", "false"))
                 .run()) {
             Logger log = LoggerFactory.getLogger("com.socialhub.prueba");
             for (Secrets.Sample s : Secrets.SAMPLES) log.warn("mensaje: {}", s.text());

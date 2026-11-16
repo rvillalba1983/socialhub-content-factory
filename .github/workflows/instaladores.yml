@@ -75,8 +75,6 @@ jobs:
     env:
       VERSION: ${{ needs.version.outputs.version }}
       COMMIT: ${{ needs.version.outputs.commit }}
-      # Registros de msiexec (/l*v) de todas las pruebas; se suben como artefacto aunque algo falle
-      REGISTROS: ${{ runner.temp }}\registros
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -123,6 +121,9 @@ jobs:
       - name: Lanzadores con registro
         shell: bash
         run: |
+          # Registros de msiexec (/l*v) de todas las pruebas; se suben como artefacto aunque algo falle
+          echo "REGISTROS=$RUNNER_TEMP\\registros" >> "$GITHUB_ENV"
+          REGISTROS="$RUNNER_TEMP\\registros"
           copiar() { sed -e 's/\r$//' -e 's/$/\r/' "$1" > "salida/$2"; }
           copiar scripts/windows/instalador/instalar-con-registro.cmd "Instalar SocialHub (con registro).cmd"
           copiar scripts/windows/instalador/desinstalar-con-registro.cmd "Desinstalar SocialHub (con registro).cmd"
