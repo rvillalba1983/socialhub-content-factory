@@ -7,9 +7,15 @@ import org.jspecify.annotations.Nullable;
 /**
  * Un encargo a Claude tal como lo ven los manejadores de cada tipo. {@code createdAt}: cuándo se creó la tarea.
  * {@code requestPath}: el último archivo de «para-claude» que se envió para este encargo, si ya se envió alguno.
+ * {@code manual}: lo pidió (o reintentó) Raúl desde la interfaz; si no, lo pidió SocialHub solo.
  */
 public record AiJob(String taskId, AiRequestType type, String promotionId, String brandId, String title, String goal,
-                    List<String> inputs, Instant createdAt, @Nullable String requestPath) {
+                    List<String> inputs, Instant createdAt, @Nullable String requestPath, boolean manual) {
+
+    public AiJob(String taskId, AiRequestType type, String promotionId, String brandId, String title, String goal,
+                 List<String> inputs, Instant createdAt, @Nullable String requestPath) {
+        this(taskId, type, promotionId, brandId, title, goal, inputs, createdAt, requestPath, false);
+    }
 
     public AiJob(String taskId, AiRequestType type, String promotionId, String brandId, String title, String goal,
                  List<String> inputs, Instant createdAt) {

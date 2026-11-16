@@ -941,6 +941,14 @@ describe('Memoria editorial', () => {
     await waitFor(() => expect(discard).toHaveBeenCalledWith('p-2', 'TONE', 'Muy serio'));
   });
 
+  it('recupera el texto anterior de Raúl si Claude lo sustituyó', async () => {
+    vi.spyOn(api, 'publicationFiles').mockResolvedValue({ items: [] });
+    const restore = vi.spyOn(api, 'restorePublicationText').mockResolvedValue({ ...publication, caption: 'Mi texto' });
+    render(<PublicationEditor promotionId="p" publication={{ ...publication, previous_caption: 'Mi texto' }} onClose={() => {}} onSaved={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Recuperar mi texto anterior' }));
+    await waitFor(() => expect(restore).toHaveBeenCalledWith('p-2'));
+  });
+
   it('muestra la memoria de la marca y añade decisiones', async () => {
     const memory = {
       decisions: [{ id: 1, text: 'Nada de precios', created_at: '2026-11-03T09:00:00Z' }],

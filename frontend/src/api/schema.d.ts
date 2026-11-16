@@ -990,6 +990,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/publications/{publication_id}/previous-text-restorations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Recupera el texto anterior de Raúl, el que sustituyó un texto pedido a mano a Claude
+         * @description Cuando Raúl pide los textos a mano sobre una publicación que ya tenía texto suyo, el de Claude lo sustituye y el suyo queda guardado (previous_caption, previous_hashtags). Aquí lo recupera: el de Claude se descarta.
+         */
+        post: operations["restorePublicationText"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/publications/{publication_id}/status-changes": {
         parameters: {
             query?: never;
@@ -2105,6 +2125,9 @@ export interface components {
             /** @description Texto de la publicación */
             caption?: string;
             hashtags?: string;
+            /** @description Texto de Raúl que sustituyó Claude al pedirlo a mano; se recupera con previous-text-restorations */
+            previous_caption?: string;
+            previous_hashtags?: string;
             /** @description Prueba de que se ha publicado de verdad */
             confirmation?: string;
             demo: boolean;
@@ -4211,6 +4234,34 @@ export interface operations {
         };
         responses: {
             /** @description Publicación sin texto */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Publication"];
+                };
+            };
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    restorePublicationText: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path: {
+                publication_id: components["parameters"]["PublicationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Publicación con su texto anterior */
             200: {
                 headers: {
                     [name: string]: unknown;

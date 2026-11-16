@@ -52,6 +52,8 @@ export const api = {
     post<Publication>(`/api/publications/${encodeURIComponent(id)}/status-changes`, { status, reason, note }),
   rejectPublicationText: (id: string, reason: RejectionReason, note?: string) =>
     post<Publication>(`/api/publications/${encodeURIComponent(id)}/text-rejections`, { reason, note }),
+  restorePublicationText: (id: string) =>
+    post<Publication>(`/api/publications/${encodeURIComponent(id)}/previous-text-restorations`, {}),
   editorialMemory: (brandId: string) => call<EditorialMemory>(`/api/brands/${encodeURIComponent(brandId)}/editorial-memory`),
   addDecision: (brandId: string, text: string) =>
     post<EditorialDecision>(`/api/brands/${encodeURIComponent(brandId)}/decisions`, { text }),

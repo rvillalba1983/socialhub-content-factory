@@ -1360,6 +1360,27 @@ paths:
         "409": { $ref: "#/components/responses/Problem" }
         default: { $ref: "#/components/responses/Problem" }
 
+  /api/publications/{publication_id}/previous-text-restorations:
+    post:
+      tags: [Publications]
+      operationId: restorePublicationText
+      summary: Recupera el texto anterior de Raúl, el que sustituyó un texto pedido a mano a Claude
+      description: >
+        Cuando Raúl pide los textos a mano sobre una publicación que ya tenía texto suyo, el de Claude lo sustituye y el
+        suyo queda guardado (previous_caption, previous_hashtags). Aquí lo recupera: el de Claude se descarta.
+      parameters:
+        - $ref: "#/components/parameters/PublicationId"
+        - $ref: "#/components/parameters/RequestGuard"
+      responses:
+        "200":
+          description: Publicación con su texto anterior
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Publication" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
   /api/publications/{publication_id}/status-changes:
     post:
       tags: [Publications]
@@ -2796,6 +2817,8 @@ components:
         note: { type: string }
         caption: { type: string, description: Texto de la publicación }
         hashtags: { type: string }
+        previous_caption: { type: string, description: "Texto de Raúl que sustituyó Claude al pedirlo a mano; se recupera con previous-text-restorations" }
+        previous_hashtags: { type: string }
         confirmation: { type: string, description: Prueba de que se ha publicado de verdad }
         demo: { type: boolean }
 

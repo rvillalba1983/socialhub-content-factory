@@ -799,3 +799,9 @@ Decisiones técnicas:
 - Adaptador web fino (`PublicationsController` solo usa el puerto); sin librerías nuevas ni excepciones nuevas en `ModularityTest`.
 - Los archivos del editor se cargan una sola vez y los comparten la vista previa y el panel «Archivos».
 - Pruebas: `PublicationFileTest`, `PublicationPreviewFlowTest` (200 con MIME, 206 con Range, 416, otra publicación 404, id inventado 404, intentos de path traversal rechazados, archivo que no es imagen ni vídeo 404, archivo fuera de las carpetas 404), pruebas del frontal y el recorrido e2e `08-vista-previa` (el de cierre pasa a `09-cierre`, que tiene que ir el último).
+
+## Fase 12 · Funciones finales (16 nov 2026, decididas por Raúl el 16 nov)
+
+Rama `fase-12-funciones-finales` y las que salen de ella (una PR por bloque).
+
+- **«Textos» pedidos a mano sustituyen el texto de Raúl** (decidido por Raúl el 16 nov). Pedirlos a mano es una orden explícita. El encargo lleva ahora `origin` (`manual` o `auto`; campo opcional de `task-request` v1, sin cambiar de versión; sale de la marca `manual` de la tarea). Solo con `origin = manual`, `CaptionsHandler` aplica el texto de Claude aunque haya texto propio (`Publication.hasOwnText`) y guarda el texto previo en la publicación (migración V27: `previous_caption`, `previous_hashtags`). La publicación ofrece «Recuperar mi texto anterior» (`POST /api/publications/{id}/previous-text-restorations`). Con `origin = auto` no cambia nada: no se pisa y el texto de Claude va a la incidencia.
