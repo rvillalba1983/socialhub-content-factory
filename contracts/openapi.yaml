@@ -313,6 +313,35 @@ paths:
         "202": { description: SocialHub se está cerrando }
         default: { $ref: "#/components/responses/Problem" }
 
+  /api/app/logs:
+    get:
+      tags: [App]
+      operationId: getLogsFolder
+      summary: Carpeta donde SocialHub deja sus registros
+      description: >
+        Ruta de la carpeta de registros (socialhub.log, arranque.log, postgres.log…). Solo lectura.
+      responses:
+        "200":
+          description: Carpeta de registros
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LogsFolder" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/app/logs/open:
+    post:
+      tags: [App]
+      operationId: openLogsFolder
+      summary: Abre la carpeta de registros en el explorador de archivos
+      description: >
+        Abre en el ordenador donde corre SocialHub la carpeta de registros. No recibe ninguna ruta: siempre es la de
+        SocialHub.
+      parameters:
+        - $ref: "#/components/parameters/RequestGuard"
+      responses:
+        "204": { description: Carpeta abierta }
+        default: { $ref: "#/components/responses/Problem" }
+
   /api/system/version:
     get:
       tags: [App]
@@ -2408,6 +2437,12 @@ components:
         version: { type: string, description: "Versión de tres números (por ejemplo 1.2.7)", example: 1.2.7 }
         commit: { type: string, description: "Commit con el que se compiló, de 7 caracteres (o «local» si se compiló a mano)", example: a1b2c3d }
         build_time: { type: string, format: date-time, description: Fecha y hora de compilación }
+
+    LogsFolder:
+      type: object
+      required: [path]
+      properties:
+        path: { type: string, description: "Ruta completa de la carpeta de registros", example: "C:\\Users\\Raul\\AppData\\Local\\SocialHub\\logs" }
 
     AppModeChange:
       type: object

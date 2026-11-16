@@ -227,6 +227,27 @@ describe('ExternalOperations', () => {
   });
 });
 
+describe('Carpeta de registros', () => {
+  it('enseña la ruta y abre la carpeta con el botón', async () => {
+    vi.spyOn(api, 'externalOperations').mockResolvedValue({ offset: 0, limit: 50, total: 0, items: [] });
+    vi.spyOn(api, 'logsFolder').mockResolvedValue({ path: 'C:\\Users\\Raul\\AppData\\Local\\SocialHub\\logs' });
+    const open = vi.spyOn(api, 'openLogsFolder').mockResolvedValue(undefined);
+    render(<ExternalOperations onClose={() => {}} />);
+    expect(await screen.findByText(/SocialHub\\logs/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir carpeta de registros' }));
+    await waitFor(() => expect(open).toHaveBeenCalledTimes(1));
+  });
+
+  it('si no se puede abrir, lo dice', async () => {
+    vi.spyOn(api, 'externalOperations').mockResolvedValue({ offset: 0, limit: 50, total: 0, items: [] });
+    vi.spyOn(api, 'logsFolder').mockResolvedValue({ path: '/datos/logs' });
+    vi.spyOn(api, 'openLogsFolder').mockRejectedValue(new Error('Sin explorador'));
+    render(<ExternalOperations onClose={() => {}} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Abrir carpeta de registros' }));
+    expect(await screen.findByText(/Sin explorador/)).toBeInTheDocument();
+  });
+});
+
 describe('Modo real vacío', () => {
   it('invita a dar de alta la primera marca', () => {
     const onRegister = vi.fn();

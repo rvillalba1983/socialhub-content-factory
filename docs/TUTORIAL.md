@@ -104,12 +104,15 @@ Toda esta sección es 👤 **Tú**: crear cuentas e iniciar sesión no lo puede 
 ## 3. Descargar e instalar SocialHub
 
 1. 👤 Entra en <https://github.com/rvillalba1983/socialhub-content-factory/releases>.
-2. 👤 Descarga el archivo `SocialHub-<versión>.msi` de la última versión (**Assets**). En Mac, el `.dmg`.
-3. 👤 Ábrelo. Windows avisa con «Windows protegió tu PC» porque el instalador no está firmado:
+2. 👤 Descarga el archivo `SocialHub-<versión>.msi` de la última versión (**Assets**) **y, junto a él, `Instalar SocialHub (con registro).cmd`** (y, si algún día lo necesitas, `Desinstalar SocialHub (con registro).cmd`). En Mac, el `.dmg`. Déjalos en la misma carpeta.
+3. 👤 **Cierra SocialHub y Chrome** (si estuvieran abiertos) y abre `Instalar SocialHub (con registro).cmd` con doble clic; instala el `.msi` y deja un registro de la instalación. Windows avisa con «Windows protegió tu PC» porque el instalador no está firmado:
    1. Pulsa **Más información**.
    2. Pulsa **Ejecutar de todas formas**.
 4. 👤 Pide permiso de **administrador**: acéptalo.
-5. Al terminar tienes un acceso directo en el escritorio y en el menú Inicio.
+5. Al terminar, la ventana negra dice **dónde está el registro** (`%LOCALAPPDATA%\SocialHub\logs\instalacion-<fecha-hora>.log`) y el **código de salida**: `0` es correcto; `3010` es «instalado, pero hay que reiniciar». **Si Windows pide reiniciar, primero cierra SocialHub y Chrome** y reinicia después.
+6. Tienes un acceso directo en el escritorio y en el menú Inicio.
+
+Si SocialHub no abre después de instalar, mira `arranque.log` y `instalacion-….log` en esa carpeta: dicen hasta dónde llegó. Qué contiene cada registro: [manual](../MANUAL.md#registros-y-qué-mirar-si-algo-falla).
 
 **Abrir:** con el acceso directo. Se abre el navegador en `http://localhost:8686`. Si ya estaba abierto, solo se abre el navegador.
 
@@ -117,7 +120,7 @@ Toda esta sección es 👤 **Tú**: crear cuentas e iniciar sesión no lo puede 
 
 **Actualizar:** instala el `.msi` nuevo encima. Tus datos no se tocan. **Qué versión tienes:** arriba, junto al nombre «SocialHub» (por ejemplo `1.2.57 · a1b2c3d`); pulsa para ver el detalle.
 
-**Dónde quedan tus datos y registros:** `%LOCALAPPDATA%\SocialHub` (pega eso en la barra del Explorador). Los registros están en la subcarpeta `logs` (`socialhub.log` y `pg_ctl.log`).
+**Dónde quedan tus datos y registros:** `%LOCALAPPDATA%\SocialHub` (pega eso en la barra del Explorador). Los registros están en la subcarpeta `logs` (`arranque.log`, `socialhub.log`, `instalacion-….log`, `pg_ctl.log`…); también los abres con el botón **Abrir carpeta de registros** de **Operaciones**.
 
 **Copias de seguridad:** botón **Copias** en la barra de arriba.
 - Hace una copia al abrir cada día (o a mano con **Hacer copia ahora**).

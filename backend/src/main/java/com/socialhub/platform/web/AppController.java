@@ -2,6 +2,10 @@ package com.socialhub.platform.web;
 
 import com.socialhub.api.AppApi;
 import com.socialhub.api.model.AppVersionDto;
+import com.socialhub.api.model.LogsFolderDto;
+import com.socialhub.platform.AppPaths;
+import com.socialhub.platform.diagnostics.LogsFolder;
+import java.io.IOException;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +26,7 @@ class AppController implements AppApi {
     private final ConfigurableApplicationContext context;
     /** Vacío si se ejecuta sin compilar con Maven (por ejemplo, desde el IDE): no existe build-info.properties. */
     private final ObjectProvider<BuildProperties> build;
+    private final AppPaths paths;
 
     @Override
     public ResponseEntity<AppVersionDto> getAppVersion() {
@@ -34,6 +39,21 @@ class AppController implements AppApi {
                 info.getVersion(),
                 commit == null || commit.isBlank() ? "local" : commit,
                 info.getTime().atOffset(ZoneOffset.UTC)));
+    }
+
+    @Override
+    public ResponseEntity<LogsFolderDto> getLogsFolder() {
+        return ResponseEntity.ok(new LogsFolderDto(paths.logs().toString()));
+    }
+
+    @Override
+    public ResponseEntity<Void> openLogsFolder(String requestGuard) {
+        try {
+            LogsFolder.open(paths.logs());
+        } catch (IOException e) {
+            throw new IllegalStateException("No se pudo abrir la carpeta de registros " + paths.logs() + ": " + e.getMessage(), e);
+        }
+        return ResponseEntity.noContent().build();
     }
 
     @Override

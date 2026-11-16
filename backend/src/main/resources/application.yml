@@ -36,6 +36,10 @@ server:
     include-message: always
 
 socialhub:
+  logging:
+    # Qué se tapa en los registros; es la misma expresión que SecretRedactor (una prueba lo comprueba)
+    redaction-regex: '(?i)(?:\b([\w.-]*(?:token|secret|passw(?:or)?d|pwd|api[_-]?key|apikey|authorization|credentials?|private[_-]?key)[\x22\x27]?\s*[:=]\s*[\x22\x27]?(?:(?:bearer|basic)\s+)?)[^\s&,;\x22\x27)\]]+|([?&](?:key|sig|signature|code|auth|apikey|api_key)=)[^&\s\x22\x27]+|\b((?:bearer|basic)\s+)[A-Za-z0-9._~+/=-]+|\b(?:AIza[\w-][\w-][\w-][\w-][\w-][\w-][\w-][\w-][\w-][\w-][\w-][\w-][\w-][\w-][\w-][\w-][\w-][\w-][\w-][\w-][\w-]*|ya29\.[\w.-]+|1//[\w.-][\w.-][\w.-][\w.-][\w.-][\w.-][\w.-][\w.-][\w.-][\w.-][\w.-][\w.-][\w.-][\w.-][\w.-][\w.-][\w.-][\w.-][\w.-][\w.-][\w.-]*|sk-[\w-][\w-][\w-][\w-][\w-][\w-][\w-][\w-][\w-][\w-][\w-][\w-][\w-][\w-][\w-][\w-][\w-][\w-][\w-][\w-][\w-]*|gh[pousr]_\w\w\w\w\w\w\w\w\w\w\w\w\w\w\w\w\w\w\w\w\w*|xox[abprs]-[\w-][\w-][\w-][\w-][\w-][\w-][\w-][\w-][\w-][\w-][\w-]*|EAA\w\w\w\w\w\w\w\w\w\w\w\w\w\w\w\w\w\w\w\w\w\w\w\w\w\w\w\w\w\w\w*|eyJ[\w-][\w-][\w-][\w-][\w-][\w-][\w-][\w-][\w-]*\.[\w-][\w-][\w-][\w-][\w-][\w-][\w-][\w-][\w-]*\.[\w-]*))'
+    redaction-replacement: '$1$2$3***'
   # Modo con el que arranca la primera vez; después se recuerda el último elegido (archivo «mode»)
   default-mode: REAL
   # Vacío = carpeta estándar del usuario (%LOCALAPPDATA%\SocialHub, ~/Library/Application Support/SocialHub…)
@@ -77,5 +81,15 @@ management:
 logging:
   pattern:
     correlation: "[%X{traceId:-},%X{spanId:-}] "
+    # Registro en archivo (socialhub.log, solo con SocialHub instalado): igual que el de Spring pero con las claves,
+    # tokens y contraseñas tapados, también en las trazas de error. La expresión está en una sola propiedad
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} %5p [%t] ${logging.pattern.correlation}%-40.40logger{39} : %replace(%m){'${socialhub.logging.redaction-regex}','${socialhub.logging.redaction-replacement}'}%n%replace(%wEx){'${socialhub.logging.redaction-regex}','${socialhub.logging.redaction-replacement}'}"
+  logback:
+    rollingpolicy:
+      # Para que no llene el disco: 10 MB por archivo, 30 días y un tope de 300 MB entre todos (los viejos, comprimidos)
+      max-file-size: 10MB
+      max-history: 30
+      total-size-cap: 300MB
+      clean-history-on-start: true
   level:
     root: INFO

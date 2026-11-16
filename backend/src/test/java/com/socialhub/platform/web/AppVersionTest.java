@@ -18,7 +18,7 @@ class AppVersionTest {
     private static AppController controller(BuildProperties info) {
         ObjectProvider<BuildProperties> provider = mock(ObjectProvider.class);
         when(provider.getIfAvailable()).thenReturn(info);
-        return new AppController(mock(ConfigurableApplicationContext.class), provider);
+        return new AppController(mock(ConfigurableApplicationContext.class), provider, mock(com.socialhub.platform.AppPaths.class));
     }
 
     @Test

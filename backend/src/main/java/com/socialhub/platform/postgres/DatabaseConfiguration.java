@@ -4,6 +4,7 @@ import com.socialhub.platform.AppMode;
 import com.socialhub.platform.AppModeHolder;
 import com.socialhub.platform.AppPaths;
 import com.socialhub.platform.SocialHubProperties;
+import com.socialhub.platform.diagnostics.StartupLog;
 import com.socialhub.platform.observability.ExternalCalls;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
@@ -43,11 +44,13 @@ class DatabaseConfiguration {
             config.setMaximumPoolSize(mode == AppMode.REAL ? 8 : 4);
             config.setPoolName("socialhub-" + mode.name().toLowerCase());
             HikariDataSource pool = new HikariDataSource(config);
+            StartupLog.phase("Flyway: migrando la base de datos " + mode.database());
             calls.run("postgres", "migrate", mode.database(), () -> Flyway.configure()
                     .dataSource(pool)
                     .locations("classpath:db/migration")
                     .load()
                     .migrate());
+            StartupLog.phase("Flyway: base de datos " + mode.database() + " al día");
             pools.put(mode, pool);
         }
         return new ModeDataSources(pools);
