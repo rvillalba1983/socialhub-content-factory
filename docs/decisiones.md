@@ -585,10 +585,43 @@ Decisiones técnicas (sin cambios de comportamiento ni de contrato HTTP):
 - **Generación de piezas en `application`:** un adaptador de salida no puede usar el puerto primario de otro módulo (`Ffmpeg`), así que `PieceGenerator` y `Drawing` viven en `pieces.application`; el acceso a ficheros del spec va por el puerto `SpecLoader`.
 - **Reglas nuevas en `ModularityTest`:** `aplicacionSinTecnologia`, `entradaSinSalida`, `salidaSinEntrada`, `entidadesSoloEnPersistencia`, `repositoriosJpaSoloEnPersistencia`, `puertosSecundariosFueraDeLaAplicacion`, `puertosPrimariosEnLaRaiz`, `transaccionesFueraDeDominioYEntrada` y `programacionSoloEnAdaptadoresDeEntrada`. `ArchitectureProbesTest` las prueba con clases que las incumplen a propósito (`src/test/java/archprobes`, fuera de `com.socialhub` para que Spring no las recoja): cada regla tiene que fallar nombrando a su sonda.
 
-Excepciones heredadas (módulos antiguos, no convertidos aún). Las dos últimas reglas se aplican por ahora solo a `ai`, `pieces`, `tools` y `operations`; fallan en:
-- **Relojes en la raíz del módulo** (pasar a `adapter.in.scheduling` llamando a un método público del servicio): `backup.DailyBackup.run`, `demo.DemoSimulator.tick`, `drive.DriveCheck.check`, `factory.ServicesWatch.check`, `production.TaskEngine.poll` y `requeueWhenFoldersAppear`, `publishing.AutoRequests.run`, `publishing.ExternalCalendar.run`, `publishing.PublicationMetrics.run`, `publishing.PublishingEngine.run`.
-- **Transacciones en adaptadores de entrada:** `production.adapter.in.web.ProductionView` y `promotion.adapter.in.web.PromotionView` (`@Transactional(readOnly)` para montar las vistas). Hace falta mover el montaje de la vista a la aplicación, pero la aplicación no puede depender de `api`; hay que decidir cómo (pregunta pendiente para Raúl).
-- **Pendiente de decidir:** convertir `promotion`, `production` y `publishing` de servicios concretos `@PrimaryPort` en la raíz a interfaz más `application`, como los cuatro de esta PR.
+Excepciones heredadas de esta PR: ninguna sigue viva, las resuelve la PR3 (siguiente sección).
+
+## Fase 12 · Arquitectura · PR3: todos los módulos a hexagonal, sin excepciones (16 nov 2026)
+
+Petición de Raúl: ser muy exigente con la arquitectura. Convierte `promotion`, `production` y `publishing`, y revisa `armory`, `backup`, `demo`, `drive`, `factory` y `platform`. Sin cambios de comportamiento ni de contrato OpenAPI.
+
+Estructura final (igual en todos los módulos):
+- **Raíz del módulo = API pública:** solo interfaces `@PrimaryPort`, los SPI que implementan otros módulos (`TaskExecutor`, `PromotionSavedHook`, `AiTypeHandler`…) y tipos de valor públicos (`AiTask`, `TaskRequest`, `ProductionAlert`, `PublishRouteId`, `ResourceUnavailableException`). Ninguna clase concreta con lógica.
+- `domain` (sin Spring, JPA ni web), `application` (implementa los puertos primarios; paquete `@Application`), `adapter.in` (web, scheduling, startup, observation) y `adapter.out` (persistencia, ficheros, HTTP, JDBC).
+- Las pruebas de cada clase de `application` viven en su paquete (acceden a lo que no es público).
+
+Puertos primarios nuevos (el nombre del puerto es el rol; la clase de `application` conserva el nombre del servicio):
+- `production`: `ProductionOrders` (órdenes de la interfaz), `ProductionQueries`, `ProductionTasks` (crear tareas locales), `ProductionAiTasks` (encargos a Claude como tareas) y `TaskRounds` (relojes del motor).
+- `promotion`: `PromotionQueries`, `PromotionCommands`, `PromotionActivation`, `PromotionSaveNotes`.
+- `publishing`: `PublishingQueries`, `PublishingCommands`, `PublicationQuality`, `EditorialMemory`, `ExternalCalendar`, `InstagramConnection`, `InstagramOAuth`, `PubloraConnection`, `PublerAccounts` y `PublishingRounds` (los cuatro relojes). `PublishRoute.Id` pasa a `PublishRouteId` (la raíz lo expone en `RouteState`).
+- `armory`: `ArmoryQueries`, `ArmoryRegistry`. `backup`: `Backups`. `drive`: `DriveCheck`. `demo`: `DemoSeeding`, `DemoSimulation`. `factory`: `FactoryAttention`, `ServicesCheck`.
+- `demo` ya no tiene JDBC en la raíz: `DemoData` y los puertos `DemoDatabase` y `DemoDataSource` en `domain`, JDBC y fichero del jar en `adapter.out`, arranque en `adapter.in.startup`.
+
+Relojes: los 10 `@Scheduled` de la raíz pasan a `adapter.in.scheduling` con las mismas propiedades y valores por defecto (`DailyBackup`, `DemoSimulator`, `DriveSchedule`, `ServicesWatchSchedule`, `TaskSchedules` con `poll` y `requeueWhenFoldersAppear`, y `PublishingSchedules` con las rondas de `AutoRequests`, `ExternalCalendar`, `PublicationMetrics` y `PublishingEngine`). La lógica queda en `application`; los relojes que dependen de una propiedad (`socialhub.engine.enabled`, `socialhub.demo.simulate`) llevan la misma condición que su servicio. `platform.live.LiveUpdates` (canal SSE y su latido) es un adaptador de entrada: pasa a `platform.live.adapter.in.web`.
+
+Transacciones solo en `application`:
+- `ProductionView` y `PromotionView` ya no abren transacción. El recuento de tareas por estación y los avisos de producción (antes en el adaptador web) pasan a `ProductionQueries.overview()`, `station()` y `alerts()`: la aplicación devuelve vistas de dominio (`ProductionOverview`, `StationSummary`, `TaskCounts`) y el tipo público `ProductionAlert`, y el adaptador solo los traduce a los DTO. La aplicación no depende de `api`.
+- `FactoryController` tampoco abre transacción. La composición de «Necesita atención» y «Qué hacer ahora» sale a `factory.application` (`FactoryAttentionService`, `FactoryRecommendations`), con `FactoryAlert` y `Recommendation` en `factory.domain`; el controlador solo compone las vistas de los módulos y traduce a DTO (`FactoryWebMapper`). Se pierde que `/api/factory` leyera todo en una sola transacción de lectura; con READ COMMITTED no daba una foto coherente de todos modos, y cada consulta sigue siendo de solo lectura.
+- `ArmoryQueries.blockedServices()` (servicios reales bloqueados) y las vistas `ArmoryView` y `PublicationView` evitan que otros módulos usen los mapeadores y tipos de dominio.
+
+Reglas (`ModularityTest`, todas valen para TODOS los módulos y la lista `CONVERTED_MODULES` ha desaparecido; cada una tiene su sonda en `ArchitectureProbesTest`, con clases que la incumplen a propósito en `src/test/java/archprobes`):
+- Dominio: `dominioSinFrameworks`, `dominioSoloMiraAlDominio`; jMolecules `ensureHexagonal`; las reglas DDD van dentro de `verify()`.
+- Capas: `aplicacionSinTecnologia`, `entradaSinSalida`, `salidaSinEntrada`, `entidadesSoloEnPersistencia`, `repositoriosJpaSoloEnPersistencia`, `puertosSecundariosFueraDeLaAplicacion`, `puertosPrimariosEnLaRaiz`.
+- `transaccionesFueraDeDominioYEntrada`: ni el dominio ni un adaptador de entrada abren transacciones (`@Transactional`, `TransactionTemplate`, `jakarta.transaction`). Precisión: escuchar un evento tras la confirmación (`@TransactionalEventListener`, como hace `LiveUpdates`) no abre ninguna y está permitido.
+- `programacionSoloEnAdaptadoresDeEntrada`: todo `@Scheduled` está en `adapter.in`.
+- **Nuevas:** `controladoresFinos` (un adaptador de entrada no depende de puertos secundarios, repositorios, entidades, Spring Data ni de `application`: solo de puertos primarios y del dominio de su módulo); `modulosSoloUsanLaApiPublicaDeOtros` (de otro módulo solo la raíz, `domain.events`, `ai.domain` y, desde un adaptador web, las vistas `adapter.in.web`; `platform` y `api` son compartidos); `sinCiclosEntreModulos` (ArchUnit, además de Modulith); `everyModuleDeclaresItsDependencies` (todos los módulos, también `api`, declaran un `@ApplicationModule` real con `allowedDependencies`, nunca abierto).
+- La sonda de cada regla debe fallar nombrando su clase; la de módulos nombra `Intruder`, la de ciclos `archprobes.cycle`.
+
+Excepciones: ninguna regla tiene lista de excepciones. Notas honestas, que no incumplen ninguna regla:
+- La vista completa del anillo (`/api/factory`) compone, desde `factory.adapter.in.web`, las vistas web de otros módulos (`ProductionView`, `PromotionView`, `ArmoryView`, `PublicationView`, interfaces con nombre `web`). Es lo que permite la regla `modulosSoloUsanLaApiPublicaDeOtros`; ningún otro adaptador puede hacerlo.
+- Quedan tipos de valor anidados en puertos secundarios que asoman en puertos primarios (`InstagramAccountRepository.Account`, `PubloraAccountRepository.Account`, `MetricsRepository.Metrics`…). Convendría sacarlos a tipos del dominio; no cambia el comportamiento.
+- Los SPI `@SecondaryPort` que implementan otros módulos viven en la raíz del módulo que los llama (`TaskExecutor`, `PromotionSavedHook`, `AiTypeHandler`, `AiContextProvider`), como en la PR2.
 
 ## Fase 12 · Pruebas e2e con Playwright (`fase-12-playwright`)
 

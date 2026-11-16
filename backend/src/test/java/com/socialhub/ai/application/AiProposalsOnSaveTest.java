@@ -1,12 +1,5 @@
 package com.socialhub.ai.application;
 
-import com.socialhub.ai.domain.AiAutoOrder;
-
-import com.socialhub.ai.AiOrders;
-import com.socialhub.ai.AiSettings;
-import com.socialhub.ai.domain.AiAutoOrderRepository;
-import com.socialhub.ai.domain.AiRequestType;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -17,9 +10,14 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.socialhub.ai.AiOrders;
+import com.socialhub.ai.AiSettings;
+import com.socialhub.ai.domain.AiAutoOrder;
+import com.socialhub.ai.domain.AiAutoOrderRepository;
+import com.socialhub.ai.domain.AiRequestType;
 import com.socialhub.platform.AppModeHolder;
+import com.socialhub.promotion.PromotionActivation;
 import com.socialhub.promotion.PromotionQueries;
-import com.socialhub.promotion.PromotionService;
 import com.socialhub.promotion.PromotionSavedHook;
 import java.nio.file.Path;
 import java.time.Clock;
@@ -44,7 +42,7 @@ class AiProposalsOnSaveTest {
     @TempDir Path ordersFolder;
 
     private final PromotionQueries promotions = mock(PromotionQueries.class);
-    private final PromotionService promotionService = mock(PromotionService.class);
+    private final PromotionActivation promotionService = mock(PromotionActivation.class);
     private final AiOrders orders = mock(AiOrders.class);
     private final AiHandlers handlers = mock(AiHandlers.class);
     private final AiAutoOrderRepository done = mock(AiAutoOrderRepository.class);

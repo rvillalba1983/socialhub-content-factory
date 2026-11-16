@@ -11,6 +11,12 @@ public interface PromotionRepository {
 
     List<Promotion> promotions();
 
+    /** Marcas sin sus colecciones: una sola consulta. */
+    List<BrandSummary> brandSummaries();
+
+    /** Promociones sin sus colecciones: una sola consulta. */
+    List<PromotionSummary> promotionSummaries();
+
     Optional<Promotion> promotion(String id);
 
     Optional<Brand> brand(String id);
@@ -27,4 +33,9 @@ public interface PromotionRepository {
 
     /** Crea o actualiza. Las nuevas van al final de la lista. */
     Promotion save(Promotion promotion);
+
+    record BrandSummary(String id, String name) {}
+
+    record PromotionSummary(String id, String brandId, String name, String status, java.time.LocalDate startsOn,
+                            java.time.LocalDate endsOn) {}
 }

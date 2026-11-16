@@ -5,7 +5,7 @@ import com.socialhub.ai.AiSettings;
 import com.socialhub.ai.domain.AiRequest;
 import com.socialhub.ai.domain.AiRequestRepository;
 import com.socialhub.ai.domain.AiRequestType;
-import com.socialhub.production.ProductionService;
+import com.socialhub.production.ProductionAiTasks;
 import com.socialhub.production.TaskRequest;
 import com.socialhub.promotion.PromotionQueries;
 import java.util.List;
@@ -18,7 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 class AiOrdersService implements AiOrders {
 
-    private final ProductionService production;
+    private final ProductionAiTasks production;
     private final PromotionQueries promotions;
     private final AiSettings settings;
     private final AiHandlers handlers;

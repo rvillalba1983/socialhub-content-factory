@@ -52,7 +52,7 @@ Matriz de los flujos del `MANUAL.md` y de la prueba que cubre cada uno. Se hizo 
 | Publicar con Publora (clave, cuentas por marca, subida de archivos, comprobación por API, quitar de Publora) (§6) | `PubloraRouteTest` | ✅ |
 | Publer: cuenta por marca y red, límite de 10 del plan Free, mover a Publora (§6, §8) | `PublerAccountTest`, `PublerAccountServiceTest`, `PublerRouteTest` | ✅ |
 | Publer con Chrome: encargo, resultado, comprobación, posible duplicado, cancelar (§6) | `PublishingEngineTest` | ✅ |
-| Necesita atención y Qué hacer ahora (§3) | `FactoryRecommendationsTest`, `FactoryControllerTest`, y las alertas de `PublishingEngineTest` | ✅ |
+| Necesita atención y Qué hacer ahora (§3) | `FactoryRecommendationsTest`, `FactoryAttentionServiceTest`, y las alertas de `PublishingEngineTest` | ✅ |
 | Operaciones externas registradas (§9) | `ApiIntegrationTest.externalOperationsAreRecorded` | ✅ |
 
 ## Fallos de la aplicación encontrados al escribir las pruebas

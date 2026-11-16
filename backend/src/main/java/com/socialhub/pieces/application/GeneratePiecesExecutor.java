@@ -5,13 +5,13 @@ import com.socialhub.pieces.domain.PieceBatch;
 import com.socialhub.pieces.domain.PieceResult;
 import com.socialhub.production.ResourceUnavailableException;
 import com.socialhub.production.TaskExecutor;
+import com.socialhub.promotion.PromotionQueries;
+import com.socialhub.publishing.PublishingCommands;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
-import java.util.List;
-import com.socialhub.promotion.PromotionQueries;
-import com.socialhub.publishing.PublishingService;
 import java.time.Duration;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -27,7 +27,7 @@ class GeneratePiecesExecutor implements TaskExecutor {
     private final PieceGenerator generator;
     private final PromotionQueries promotions;
     private final PiecePublications publications;
-    private final PublishingService publishing;
+    private final PublishingCommands publishing;
 
     @Override public String type() { return TYPE; }
     @Override public String agentName() { return AGENT; }

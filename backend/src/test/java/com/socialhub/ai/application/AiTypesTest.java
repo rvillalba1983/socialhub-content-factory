@@ -1,8 +1,5 @@
 package com.socialhub.ai.application;
 
-import com.socialhub.ai.domain.AiRequestRepository;
-import com.socialhub.ai.domain.AiRequestType;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -10,6 +7,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.socialhub.ai.domain.AiRequestRepository;
+import com.socialhub.ai.domain.AiRequestType;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
@@ -62,7 +61,8 @@ class AiTypesTest {
     @Autowired MockMvc mvc;
     @Autowired AiRequestRepository requests;
     @Autowired AiAutoOrders autoOrders;
-    @Autowired com.socialhub.production.ProductionService production;
+    @Autowired com.socialhub.production.ProductionAiTasks production;
+    @Autowired com.socialhub.production.ProductionOrders taskOrders;
     @Autowired com.socialhub.publishing.PublishingQueries publishing;
     private final JsonMapper json = JsonMapper.builder().build();
 
@@ -384,7 +384,7 @@ class AiTypesTest {
     void aRetryPressedByRaulIsUrgentButTheOneSocialHubDoesAloneIsNot() throws Exception {
         String byHand = automatic("Textos a mano");
         production.aiFailed(byHand, "falló");
-        production.execute(byHand, com.socialhub.production.domain.TaskCommandType.RETRY, null);
+        taskOrders.execute(byHand, com.socialhub.production.domain.TaskCommandType.RETRY, null);
         waitFor(() -> "WAITING".equals(task(byHand).get("status").asString()) && task(byHand).get("attempts").asInt() == 2, "reintento enviado");
         assertThat(request(byHand).get("urgent").asBoolean()).isTrue();
 

@@ -1,6 +1,6 @@
 package com.socialhub.tools.application;
 
-import com.socialhub.armory.ArmoryService;
+import com.socialhub.armory.ArmoryRegistry;
 import com.socialhub.tools.LocalTools;
 import com.socialhub.tools.domain.LocalTool;
 import com.socialhub.tools.domain.ToolResult;
@@ -16,7 +16,7 @@ import org.springframework.stereotype.Service;
 class LocalToolRegistry implements LocalTools {
 
     private final List<LocalTool> tools;
-    private final ArmoryService armory;
+    private final ArmoryRegistry armory;
 
     @Override
     public List<ToolResult> checkAll(Consumer<String> log) throws InterruptedException {

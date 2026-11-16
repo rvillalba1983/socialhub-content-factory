@@ -2,22 +2,22 @@ package com.socialhub.promotion.adapter.in.web;
 
 import com.socialhub.api.BrandsApi;
 import com.socialhub.api.model.BrandDto;
+import com.socialhub.api.model.BrandIdentityDto;
 import com.socialhub.api.model.BrandInputDto;
 import com.socialhub.api.model.BrandListDto;
-import com.socialhub.api.model.FolderCreationInputDto;
-import com.socialhub.api.model.FolderListDto;
-import com.socialhub.api.model.PublicShareDto;
-import com.socialhub.api.model.PublicShareInputDto;
-import com.socialhub.api.model.FolderListInputDto;
-import com.socialhub.api.model.BrandIdentityDto;
 import com.socialhub.api.model.EditorialDecisionDto;
 import com.socialhub.api.model.EditorialDecisionInputDto;
 import com.socialhub.api.model.EditorialDecisionListDto;
+import com.socialhub.api.model.FolderCreationInputDto;
+import com.socialhub.api.model.FolderListDto;
+import com.socialhub.api.model.FolderListInputDto;
+import com.socialhub.api.model.PublicShareDto;
+import com.socialhub.api.model.PublicShareInputDto;
+import com.socialhub.promotion.PromotionCommands;
+import com.socialhub.promotion.PromotionQueries;
+import com.socialhub.promotion.domain.BrandIdentity;
 import com.socialhub.promotion.domain.EditorialDecision;
 import java.time.ZoneOffset;
-import com.socialhub.promotion.domain.BrandIdentity;
-import com.socialhub.promotion.PromotionQueries;
-import com.socialhub.promotion.PromotionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -28,7 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 class BrandsController implements BrandsApi {
 
     private final PromotionQueries queries;
-    private final PromotionService service;
+    private final PromotionCommands service;
     private final PromotionWebMapper mapper;
 
     @Override

@@ -22,13 +22,18 @@ Cada módulo de negocio sigue la misma estructura:
 
 ```
 production/
-├── domain/                      Agregados (Task, Station), objetos valor y puertos. Sin Spring ni JPA
-├── ProductionService.java       Casos de uso (puerto primario)
-├── ProductionEvents.java        Eventos de dominio que escuchan otros módulos
+├── ProductionOrders.java        Puertos primarios (interfaces): lo que ven los demás módulos y los adaptadores de entrada
+├── ProductionQueries.java       (también ProductionTasks, ProductionAiTasks, TaskRounds y los tipos públicos de la API)
+├── domain/                      Agregados (Task, Station), objetos valor y puertos de salida. Sin Spring ni JPA
+│   └── events/                  Eventos de dominio que escuchan otros módulos
+├── application/                 Implementa los puertos primarios (casos de uso, motor de tareas). Sin JPA, web ni adaptadores
 └── adapter/
     ├── in/web/                  Controladores que implementan las interfaces generadas + MapStruct
+    ├── in/scheduling/           Relojes (@Scheduled): solo llaman a un puerto primario
     └── out/persistence/         Entidades JPA, Spring Data, Envers + MapStruct
 ```
+
+`ModularityTest` vigila esta estructura en todos los módulos (reglas y excepciones: `docs/decisiones.md`, «Fase 12 · Arquitectura · PR3»).
 
 ## Librerías
 

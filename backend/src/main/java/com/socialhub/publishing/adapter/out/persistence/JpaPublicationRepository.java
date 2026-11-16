@@ -44,6 +44,11 @@ class JpaPublicationRepository implements PublicationRepository {
     }
 
     @Override
+    public List<Publication> findFlagged() {
+        return jpa.findByFlagIsNotNull(PublicationJpaRepository.CALENDAR).stream().map(mapper::toDomain).toList();
+    }
+
+    @Override
     public List<Publication> findAll() {
         return jpa.findAll(PublicationJpaRepository.CALENDAR).stream().map(mapper::toDomain).toList();
     }
