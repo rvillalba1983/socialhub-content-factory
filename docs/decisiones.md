@@ -575,6 +575,21 @@ Decisiones técnicas:
 - **`verify()` ya ejecuta las reglas DDD de jMolecules** (sonda: un agregado que referencia a otro rompe `modulesRespectTheirBoundaries`), así que se quita el `@ArchTest` de DDD duplicado; el hexagonal se deja.
 - Ninguna regla nueva falla solo por `ai`, `pieces`, `tools` u `operations`: no ha hecho falta limitar ninguna a los módulos hexagonales.
 
+## Fase 12 · Arquitectura · PR2: ai, pieces, tools y operations a hexagonal (16 nov 2026)
+
+Decisiones técnicas (sin cambios de comportamiento ni de contrato HTTP):
+- **Estructura:** `domain` (modelo y puertos secundarios `@SecondaryPort`), `application` (`@Application`, implementa los puertos primarios), `adapter.in` (web, programación, arranque, observación) y `adapter.out` (persistencia, ficheros, ffmpeg, imágenes). La raíz del módulo es su API pública: interfaces `@PrimaryPort` y los SPI (`AiTypeHandler`, `AiContextProvider`).
+- **Los `@ApplicationModule` estaban dentro de comentarios javadoc** en `ai`, `pieces`, `tools`, `operations` y `factory`, así que no se aplicaban. Ahora son reales y `allowedDependencies` declara lo que de verdad se usa (`ai::domain` es interfaz con nombre para `pieces`, `publishing` y `factory`).
+- **Identificador tipado** `AiRequestId` en el agregado `AiRequest`. El resto se queda como `String` donde el identificador viene del contrato o de otro módulo.
+- **Los relojes (`@Scheduled`) de `ai`, `pieces` y `operations` son adaptadores de entrada** (`adapter.in.scheduling`) que llaman a un puerto primario (`AiRounds`, etc.), con las mismas propiedades y valores por defecto.
+- **Generación de piezas en `application`:** un adaptador de salida no puede usar el puerto primario de otro módulo (`Ffmpeg`), así que `PieceGenerator` y `Drawing` viven en `pieces.application`; el acceso a ficheros del spec va por el puerto `SpecLoader`.
+- **Reglas nuevas en `ModularityTest`:** `aplicacionSinTecnologia`, `entradaSinSalida`, `salidaSinEntrada`, `entidadesSoloEnPersistencia`, `repositoriosJpaSoloEnPersistencia`, `puertosSecundariosFueraDeLaAplicacion`, `puertosPrimariosEnLaRaiz`, `transaccionesFueraDeDominioYEntrada` y `programacionSoloEnAdaptadoresDeEntrada`. `ArchitectureProbesTest` las prueba con clases que las incumplen a propósito (`src/test/java/archprobes`, fuera de `com.socialhub` para que Spring no las recoja): cada regla tiene que fallar nombrando a su sonda.
+
+Excepciones heredadas (módulos antiguos, no convertidos aún). Las dos últimas reglas se aplican por ahora solo a `ai`, `pieces`, `tools` y `operations`; fallan en:
+- **Relojes en la raíz del módulo** (pasar a `adapter.in.scheduling` llamando a un método público del servicio): `backup.DailyBackup.run`, `demo.DemoSimulator.tick`, `drive.DriveCheck.check`, `factory.ServicesWatch.check`, `production.TaskEngine.poll` y `requeueWhenFoldersAppear`, `publishing.AutoRequests.run`, `publishing.ExternalCalendar.run`, `publishing.PublicationMetrics.run`, `publishing.PublishingEngine.run`.
+- **Transacciones en adaptadores de entrada:** `production.adapter.in.web.ProductionView` y `promotion.adapter.in.web.PromotionView` (`@Transactional(readOnly)` para montar las vistas). Hace falta mover el montaje de la vista a la aplicación, pero la aplicación no puede depender de `api`; hay que decidir cómo (pregunta pendiente para Raúl).
+- **Pendiente de decidir:** convertir `promotion`, `production` y `publishing` de servicios concretos `@PrimaryPort` en la raíz a interfaz más `application`, como los cuatro de esta PR.
+
 ## Fase 12 · Pruebas e2e con Playwright (`fase-12-playwright`)
 
 - **Las pidió Raúl:** calidad antes que cobertura. 8 recorridos reales (técnica; carpeta `e2e/`): mapa, alta de marca con carpetas, identidad desde .txt, avisos, promoción y propuestas, Agentes y herramientas, Claude y cierre de la app.
