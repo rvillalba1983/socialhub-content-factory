@@ -64,14 +64,19 @@ test.describe('Agentes y herramientas', () => {
     await expect(side).toContainText('GPL (incluido con la aplicación)');
     await expect(side).toContainText('reel, clip, comprimir');
 
-    // El panel lateral tapa la lista de herramientas (a 1366 px de ancho): hay que cerrarlo para elegir otra
-    await side.getByRole('button', { name: 'Cerrar panel' }).click();
+    // El panel lateral no tapa la lista de herramientas (a 1366 px de ancho): se puede elegir otra sin cerrarlo
+    const covered = () => page.evaluate(() => {
+      const a = document.querySelector('.res')!.getBoundingClientRect(), b = document.querySelector('aside.panel')!.getBoundingClientRect();
+      return a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+    });
+    // (el mapa se desplaza con una animación de medio segundo)
+    await expect.poll(covered, { message: 'el panel tapa la lista de herramientas' }).toBe(false);
     await panel.getByRole('button', { name: 'Publora' }).click();
     await expect(side.getByRole('heading', { name: 'Publora' })).toBeVisible();
     await expect(side).toContainText('Sin clave');
     await expect(side.getByText('Servicio', { exact: true })).toBeVisible();
 
-    await side.getByRole('button', { name: 'Cerrar panel' }).click();
+    await expect.poll(covered, { message: 'el panel tapa la lista de herramientas' }).toBe(false);
     await panel.getByRole('button', { name: 'Claude en la nube' }).click();
     await expect(side.getByRole('heading', { name: 'Claude en la nube' })).toBeVisible();
     await expect(side).toContainText('Encargos de SocialHub');

@@ -64,6 +64,10 @@ export function World({ data, sel, onStation, onTask, onTaskAction, onArmory, on
     const p = data.promotions.find(x => x.id === pid);
     return p ? brands.get(p.brand_id) : undefined;
   };
+  // Con 3 o más promociones no caben en una fila del centro del anillo: «Necesita atención» pasa a la tercera columna,
+  // las promociones se reparten en las otras dos y sus tarjetas se compactan para caber en su fila (ver styles.css)
+  const dense = data.promotions.length >= 3;
+  const rows = Math.ceil(data.promotions.length / 2);
   return (
     <>
       <Track data={data} brandOf={brandOfPromotion} />
@@ -77,7 +81,9 @@ export function World({ data, sel, onStation, onTask, onTaskAction, onArmory, on
       {(() => { const [x, y] = segMid(7); return (
         <div className="seglabel fbl" style={{ left: x, top: y }}><Icon name="back" /><span className="min-2">Resultados → Investigación</span><span className="only-1">Resultados</span></div>
       ); })()}
-      <div className="hub" style={{ left: TR.x0 + 175, top: TR.y0 + 85, width: TR.x1 - TR.x0 - 350, height: HUB_H }}>
+      <div className={`hub${dense ? ` dense dense-${rows >= 3 ? 3 : 2}` : ''}`}
+        style={{ left: TR.x0 + 175, top: TR.y0 + 85, width: TR.x1 - TR.x0 - 350, height: HUB_H,
+          ...(dense ? { gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`, ['--rows' as string]: rows } : {}) }}>
         {data.promotions.map(p => (
           <PromotionCard key={p.id} p={p} brand={brands.get(p.brand_id)} data={data} onOpen={() => onPromotion(p.id)} />
         ))}
@@ -173,7 +179,7 @@ function PromotionCard({ p, brand, data, onOpen }: { p: Promotion; brand?: Brand
     <article className="promo" style={{ ['--pc' as string]: brand?.color }} tabIndex={0} onClick={onOpen}
       onKeyDown={e => e.key === 'Enter' && onOpen()} aria-label={`Abrir el centro de control de ${p.name}`}>
       <div className="p-top"><span className="eyebrow">{brand?.name}<span className="min-2"> · {brand?.handle}</span></span><Pill s={PROMOTION_STATUS[p.status].s} label={PROMOTION_STATUS[p.status].label} /></div>
-      <h2>{p.name}</h2>
+      <h2 title={p.name}>{p.name}</h2>
       <div className="sub">{phase}<span className="min-2"> · {shortDate(p.starts_on)} – {shortDate(p.ends_on)}</span></div>
       <div className="timeline min-2" aria-hidden="true">
         <i className="rail" /><i className="done" style={{ width: `${done * 100}%` }} />

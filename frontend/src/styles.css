@@ -208,6 +208,15 @@ button:disabled{opacity:.4;cursor:default}
 .aitem b{display:block;color:var(--ink);font-weight:600;font-size:13.5px}
 .aitem.s-err{border-color:color-mix(in srgb,var(--err) 40%,var(--line))}
 
+/* Con 3 o más promociones (clase «dense»): «Necesita atención» ocupa la tercera columna, en todas las filas, y las promociones
+   se reparten en las otras dos. Cada tarjeta se queda en su fila: solo marca, estado y nombre (el resto está en su centro de
+   control, al que se entra con un clic o con Intro). Con 5 o más (3 filas) se quita también el estado. */
+.hub.dense .attn-card{grid-column:3;grid-row:1 / span var(--rows)}
+.hub.dense .promo{overflow:hidden;min-height:0;align-self:stretch;align-content:start}
+.hub.dense .promo h2{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hub.dense .promo .min-2,.hub.dense .promo .open-cc{display:none}
+.vp[data-lod="1"] .world .hub.dense .promo .sub,.hub.dense-3 .promo .sub,.hub.dense-3 .promo .pill{display:none}
+
 /* Herramientas */
 .res{position:absolute;background:var(--surface);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);padding:22px 22px 12px;display:grid;gap:4px;align-content:start}
 .res h2{font-size:18px}
@@ -460,34 +469,35 @@ tr.op-detail td{background:var(--surface-2)}
 .brand-id{margin:-8px 0 0}
 
 /* Zoom semántico, nivel 1 (alejado): menos detalle y letra grande. Al encuadrar en un portátil (zoom ~32 %) cada texto
-   mide al menos ~12 px en pantalla, así que aquí nada baja de 38 px del lienzo. */
-.vp[data-lod="1"]{--t1:44px}
+   mide al menos ~12 px en pantalla (con el zoom más bajo que se ve en la práctica, ~0,27), así que aquí nada baja de 46 px del lienzo. */
+.vp[data-lod="1"]{--t1:48px}
 .vp[data-lod="1"] .world .st{width:410px;margin-left:-35px;border-radius:24px}
 .vp[data-lod="1"] .world .st-h{padding:22px 16px 14px;gap:10px}
 .vp[data-lod="1"] .world .st-h h3{font-size:var(--t1);line-height:1.15;letter-spacing:-.02em;overflow-wrap:anywhere}
-.vp[data-lod="1"] .world .st .pill{font-size:42px;padding:6px 16px;gap:8px}
+.vp[data-lod="1"] .world .st .pill{font-size:46px;padding:6px 16px;gap:8px}
 .vp[data-lod="1"] .world .st .pill .ic{width:36px;height:36px}
-.vp[data-lod="1"] .world .st-sum{display:flex;flex-wrap:wrap;gap:6px 20px;padding:0 16px 22px;font-size:42px;line-height:1.2;color:var(--ink-2)}
+.vp[data-lod="1"] .world .st-sum{display:flex;flex-wrap:wrap;gap:6px 20px;padding:0 16px 22px;font-size:46px;line-height:1.2;color:var(--ink-2)}
 .vp[data-lod="1"] .world .st-sum .bad{color:var(--err);font-weight:600}
-.vp[data-lod="1"] .world .seglabel{font-size:42px;padding:8px 20px}
-.vp[data-lod="1"] .world .node .badge{min-width:44px;height:44px;border-radius:22px;font-size:26px;top:-14px;right:-14px}
+.vp[data-lod="1"] .world .seglabel{font-size:46px;padding:8px 20px}
+.vp[data-lod="1"] .world .node .badge{min-width:64px;height:64px;border-radius:32px;font-size:46px;top:-22px;right:-22px}
 .vp[data-lod="1"] .world .hub{gap:30px}
+.vp[data-lod="1"] .world .hub.dense-3 .promo{padding:14px 24px;gap:8px}
 .vp[data-lod="1"] .world .promo,.vp[data-lod="1"] .world .attn-card{padding:28px 30px;gap:18px}
-.vp[data-lod="1"] .world .promo h2{font-size:44px;line-height:1.15}
+.vp[data-lod="1"] .world .promo h2{font-size:48px;line-height:1.15}
 .vp[data-lod="1"] .world .eyebrow{font-size:var(--t1)}
 .vp[data-lod="1"] .world .promo .sub{font-size:var(--t1);margin-top:0}
 .vp[data-lod="1"] .world .p-top{flex-wrap:wrap}
-.vp[data-lod="1"] .world .promo .pill{font-size:42px;padding:6px 16px}
-.vp[data-lod="1"] .world .open-cc{font-size:42px;padding:14px 22px}
-.vp[data-lod="1"] .world .attn-card h2{font-size:44px;line-height:1.15;flex-wrap:wrap}
-.vp[data-lod="1"] .world .attn-card .count{font-size:42px;padding:2px 18px}
+.vp[data-lod="1"] .world .promo .pill{font-size:46px;padding:6px 16px}
+.vp[data-lod="1"] .world .open-cc{font-size:46px;padding:14px 22px}
+.vp[data-lod="1"] .world .attn-card h2{font-size:48px;line-height:1.15;flex-wrap:wrap}
+.vp[data-lod="1"] .world .attn-card .count{font-size:46px;padding:2px 18px}
 .vp[data-lod="1"] .world .attn-card .attn-row:nth-child(n+2),.vp[data-lod="1"] .world .attn-action{display:none}
 .vp[data-lod="1"] .world .attn-card .aitem{padding:14px 18px}
 .vp[data-lod="1"] .world .aitem b{font-size:var(--t1);-webkit-line-clamp:3;line-height:1.2}
 .vp[data-lod="1"] .world .aitem .dot{width:34px;height:34px}
 .vp[data-lod="1"] .world .attn-card .src{font-size:var(--t1)}
 .vp[data-lod="1"] .world .res{width:520px!important;padding:28px 28px 16px}
-.vp[data-lod="1"] .world .res h2{font-size:44px;line-height:1.15}
+.vp[data-lod="1"] .world .res h2{font-size:48px;line-height:1.15}
 .vp[data-lod="1"] .world .rc{padding:14px 4px;gap:4px 16px}
 .vp[data-lod="1"] .world .rc b{font-size:var(--t1);line-height:1.2}
 .vp[data-lod="1"] .world .rc .dot{width:34px;height:34px}

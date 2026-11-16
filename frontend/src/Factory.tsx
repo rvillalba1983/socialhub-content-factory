@@ -162,6 +162,26 @@ export function Factory({ data, live, onRefresh }: {
     animateTo({ s, tx: a.w / 2 - (b.x0 + b.x1) / 2 * s, ty });
   }, [avail, measure, animateTo]);
 
+  /**
+   * Con el panel lateral abierto, mueve el mapa (sin cambiar el zoom) lo justo para que la lista de «Agentes y herramientas»
+   * quede entera a la vista y el panel no la tape: así se puede pasar de una herramienta a otra sin cerrarlo.
+   */
+  const flyToTools = useCallback(() => {
+    const el = vp.current;
+    if (!el || !world.current) return;
+    const v = view.current, narrow = el.clientWidth <= 760;
+    const aw = el.clientWidth - (narrow ? 0 : 450), ah = narrow ? el.clientHeight * 0.38 : el.clientHeight;
+    const b = measure(lodFor(v.s), '.res');
+    if (!validBox(b)) return;
+    const { pt, pb } = pads(), m = 16;
+    const l = b.x0 * v.s + v.tx, r = b.x1 * v.s + v.tx, t = b.y0 * v.s + v.ty, bt = b.y1 * v.s + v.ty;
+    let dx = r > aw - m ? aw - m - r : 0;
+    if (l + dx < m) dx = m - l;
+    let dy = bt > ah - pb ? ah - pb - bt : 0;
+    if (t + dy < pt) dy = pt - t;
+    if (Math.abs(dx) > 1 || Math.abs(dy) > 1) animateTo({ s: v.s, tx: v.tx + dx, ty: v.ty + dy });
+  }, [measure, pads, animateTo]);
+
   const zoomAt = useCallback((cx: number, cy: number, f: number) => {
     cancelAnimationFrame(anim.current);
     const v = view.current, s = clampZoom(v.s * f), k = s / v.s;
@@ -270,6 +290,11 @@ export function Factory({ data, live, onRefresh }: {
     requestAnimationFrame(() => flyToStation(t.station_id, Math.max(1.7, view.current.s)));
   }, [data.tasks, flyToStation]);
 
+  const goArmory = useCallback((id: string) => {
+    setCc(null); setSel({ type: 'armory', id });
+    requestAnimationFrame(flyToTools);
+  }, [flyToTools]);
+
   const goPublication = useCallback((id: string) => {
     const pub = data.publications.find(x => x.id === id);
     if (!pub) return;
@@ -290,8 +315,8 @@ export function Factory({ data, live, onRefresh }: {
     }
     else if (t.screen === 'BACKUPS') setCopias(true);
     else if (t.screen === 'CLAUDE') setClaude(true);
-    else if (t.screen === 'INSTAGRAM') setSel({ type: 'armory', id: 'instagram-api' });
-  }, []);
+    else if (t.screen === 'INSTAGRAM') goArmory('instagram-api');
+  }, [goArmory]);
   const home = useCallback(() => { setCc(null); setSel({ type: null, id: null }); requestAnimationFrame(fit); }, [fit]);
 
   const setLevel = (l: number) => {
@@ -427,7 +452,7 @@ export function Factory({ data, live, onRefresh }: {
       && out.push({ kind: `Publicación · ${brandOf(x.promotion_id)?.name} · ${shortDate(x.scheduled_on)}`, label: x.title,
         go: () => { setSel({ type: null, id: null }); setCc({ promo: x.promotion_id, tab: 'publicaciones', hl: x.id }); } }));
     data.armory_items.forEach(r => normalize(`${r.name} ${r.description}`).includes(k)
-      && out.push({ kind: 'Herramienta', label: r.name, s: r.status, go: () => { setCc(null); setSel({ type: 'armory', id: r.id }); } }));
+      && out.push({ kind: 'Herramienta', label: r.name, s: r.status, go: () => goArmory(r.id) }));
     return out.slice(0, 10);
   }, [query, data, brands, brandOf, goStation, goTask]);
   const pick = (h?: Hit) => { setQuery(''); h?.go(); };
@@ -508,7 +533,7 @@ export function Factory({ data, live, onRefresh }: {
         <div className="world" ref={world}>
           <World data={data} sel={sel} onStation={goStation} onTask={goTask}
             onTaskAction={(t, a) => (t.available_commands.find(x => x.type === a)?.needs_confirmation ? goTask(t.id) : runTask(t, a))}
-            onArmory={id => { setCc(null); setSel({ type: 'armory', id }); }}
+            onArmory={goArmory}
             onPublication={goPublication}
             onAlertAction={alertAction}
             onPromotion={id => { setSel({ type: null, id: null }); setCc({ promo: id, tab: 'resumen', hl: null }); }}
@@ -520,7 +545,7 @@ export function Factory({ data, live, onRefresh }: {
             <h4>Atención</h4>
             {byPriority(data.alerts).slice(0, 3).map(a => (
               <button key={`${a.kind}|${a.target_id}|${a.title}`} className={`aviso s-${alertTone(a.kind)}`} title={a.detail}
-                onClick={() => openAlert(a, { onTask: goTask, onStation: goStation, onPublication: goPublication, onArmory: id => { setCc(null); setSel({ type: 'armory', id }); } })}>
+                onClick={() => openAlert(a, { onTask: goTask, onStation: goStation, onPublication: goPublication, onArmory: goArmory })}>
                 <Dot s={a.kind} /><span><b>{a.title}</b> · {a.detail}</span>
               </button>
             ))}
