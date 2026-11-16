@@ -57,7 +57,7 @@ test.describe('Avisos: «Qué hacer ahora» y «Te falta por completar»', () =>
     const notices = page.getByRole('region', { name: 'Avisos de la marca' });
     await expect(notices.getByRole('heading', { name: 'Te falta por completar' })).toBeVisible();
     await expect(notices.getByRole('listitem')).toHaveCount(4);
-    await expect(notices).toContainText('Falta rellenar la identidad de la marca: el tono, el público, los temas que no se tocan.');
+    await expect(notices).toContainText('Falta rellenar la identidad de la marca: el tono, el público.');
     await expect(notices).toContainText('Carpetas sin configurar: Material, Borradores, Generados, Aprobados, Publicados, Informes, Encargos.');
     await expect(notices).toContainText('Falta indicar la cuenta de Publer de Instagram.');
     await expect(notices).toContainText('Falta indicar la cuenta de Publer de TikTok.');

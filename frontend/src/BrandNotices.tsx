@@ -36,11 +36,10 @@ export async function loadBrandNotices(brandId: string): Promise<BrandNotice[]> 
   if (identity) {
     const missing = [
       identity.tone.trim() === '' && 'el tono', identity.audience.trim() === '' && 'el público',
-      identity.forbidden_topics.length === 0 && 'los temas que no se tocan',
     ].filter(Boolean) as string[];
     if (missing.length) {
       out.push({ id: 'identity', card: 'identity', action: 'Ir a la identidad',
-        text: `Falta rellenar la identidad de la marca: ${missing.join(', ')}. Sin ella, Claude propone sin conocer su voz ni lo que no se toca.`,
+        text: `Falta rellenar la identidad de la marca: ${missing.join(', ')}. Sin ella, Claude propone sin conocer su voz ni su público.`,
         extra: { label: 'Importar desde .txt', run: () => { goToCard('identity'); window.dispatchEvent(new Event(IDENTITY_IMPORT_EVENT)); } } });
     }
   }
