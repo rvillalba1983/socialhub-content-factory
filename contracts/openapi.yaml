@@ -49,6 +49,8 @@ tags:
     description: Copias de seguridad de la base de datos real, en la carpeta de copias (ajuste general)
   - name: App
     description: La aplicación en sí (cerrarla desde la web y ver qué versión es)
+  - name: Updates
+    description: Aviso de versión nueva publicada en GitHub Releases
 
 paths:
   /api/factory:
@@ -340,6 +342,24 @@ paths:
         - $ref: "#/components/parameters/RequestGuard"
       responses:
         "204": { description: Carpeta abierta }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/system/updates:
+    get:
+      tags: [Updates]
+      operationId: getUpdateStatus
+      summary: ¿Hay una versión nueva publicada?
+      description: >
+        Compara la versión instalada con la última release publicada en GitHub (rvillalba1983/socialhub-content-factory).
+        Mira GitHub como mucho una vez al día (y una hora después de un fallo), sin enviar datos del usuario. Sin red o sin
+        releases no falla: devuelve state UNKNOWN con «No hay información de versiones nuevas». Instalar sigue siendo
+        manual.
+      responses:
+        "200":
+          description: Estado de las versiones
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UpdateStatus" }
         default: { $ref: "#/components/responses/Problem" }
 
   /api/system/version:
@@ -2472,6 +2492,18 @@ components:
         version: { type: string, description: "Versión de tres números (por ejemplo 1.2.7)", example: 1.2.7 }
         commit: { type: string, description: "Commit con el que se compiló, de 7 caracteres (o «local» si se compiló a mano)", example: a1b2c3d }
         build_time: { type: string, format: date-time, description: Fecha y hora de compilación }
+
+    UpdateStatus:
+      type: object
+      required: [installed_version, state, message]
+      properties:
+        installed_version: { type: string, example: 1.2.7 }
+        state: { type: string, enum: [UP_TO_DATE, UPDATE_AVAILABLE, UNKNOWN] }
+        latest_version: { type: string, description: "La última versión publicada, si se sabe" }
+        installer_url: { type: string, description: "Enlace directo al instalador de este sistema (si la release lo trae)" }
+        release_url: { type: string, description: "Página de la release en GitHub" }
+        checked_at: { type: string, format: date-time, description: "Última comprobación con éxito" }
+        message: { type: string }
 
     LogsFolder:
       type: object

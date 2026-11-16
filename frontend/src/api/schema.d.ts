@@ -241,6 +241,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/system/updates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * ¿Hay una versión nueva publicada?
+         * @description Compara la versión instalada con la última release publicada en GitHub (rvillalba1983/socialhub-content-factory). Mira GitHub como mucho una vez al día (y una hora después de un fallo), sin enviar datos del usuario. Sin red o sin releases no falla: devuelve state UNKNOWN con «No hay información de versiones nuevas». Instalar sigue siendo manual.
+         */
+        get: operations["getUpdateStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/system/version": {
         parameters: {
             query?: never;
@@ -1842,6 +1862,24 @@ export interface components {
              */
             build_time: string;
         };
+        UpdateStatus: {
+            /** @example 1.2.7 */
+            installed_version: string;
+            /** @enum {string} */
+            state: "UP_TO_DATE" | "UPDATE_AVAILABLE" | "UNKNOWN";
+            /** @description La última versión publicada, si se sabe */
+            latest_version?: string;
+            /** @description Enlace directo al instalador de este sistema (si la release lo trae) */
+            installer_url?: string;
+            /** @description Página de la release en GitHub */
+            release_url?: string;
+            /**
+             * Format: date-time
+             * @description Última comprobación con éxito
+             */
+            checked_at?: string;
+            message: string;
+        };
         LogsFolder: {
             /**
              * @description Ruta completa de la carpeta de registros
@@ -2347,6 +2385,7 @@ export type Brand = components['schemas']['Brand'];
 export type AppMode = components['schemas']['AppMode'];
 export type AppModeState = components['schemas']['AppModeState'];
 export type AppVersion = components['schemas']['AppVersion'];
+export type UpdateStatus = components['schemas']['UpdateStatus'];
 export type LogsFolder = components['schemas']['LogsFolder'];
 export type AppModeChange = components['schemas']['AppModeChange'];
 export type BrandList = components['schemas']['BrandList'];
@@ -2811,6 +2850,27 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getUpdateStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Estado de las versiones */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateStatus"];
+                };
             };
             default: components["responses"]["Problem"];
         };
