@@ -102,10 +102,27 @@ class ModularityTest {
             .should().resideInAnyPackage("..domain..", "..application..", "..adapter..")
             .because("el puerto primario es lo que otros módulos y los adaptadores de entrada ven; se implementa en application");
 
-    /** Los relojes ({@code @Scheduled}) son adaptadores de entrada: solo llaman a un puerto primario. */
+    /** Módulos ya convertidos a hexagonal (y las sondas): las reglas de capas más estrictas valen para ellos. */
+    private static final String[] CONVERTED_MODULES = {"com.socialhub.ai..", "com.socialhub.pieces..", "com.socialhub.tools..",
+            "com.socialhub.operations..", "archprobes.."};
+
+    /** Las transacciones las abre la aplicación: ni el dominio ni los adaptadores de entrada. */
+    @ArchTest
+    static final ArchRule transaccionesFueraDeDominioYEntrada = noClasses()
+            .that().resideInAnyPackage("..domain..", "..adapter.in..").and().doNotHaveSimpleName("package-info")
+            .and().resideInAnyPackage(CONVERTED_MODULES)
+            .should().dependOnClassesThat().resideInAPackage("org.springframework.transaction..")
+            .because("la unidad de trabajo es de la aplicación; un controlador o un reloj que abre transacciones lleva lógica que no es suya");
+
+    /**
+     * Los relojes ({@code @Scheduled}) son adaptadores de entrada: solo llaman a un puerto primario. Se exige en los módulos
+     * ya convertidos; los relojes de los módulos antiguos (ver docs/decisiones.md, «Fase 12 · Arquitectura · PR2») se
+     * mueven a {@code adapter.in.scheduling} cuando se conviertan, y entonces esta regla pasa a valer para todos.
+     */
     @ArchTest
     static final ArchRule programacionSoloEnAdaptadoresDeEntrada = methods().that().areAnnotatedWith(Scheduled.class)
-            .should().beDeclaredInClassesThat().resideInAnyPackage("..adapter.in..", "com.socialhub.platform..")
+            .and().areDeclaredInClassesThat().resideInAnyPackage(CONVERTED_MODULES)
+            .should().beDeclaredInClassesThat().resideInAnyPackage("..adapter.in..")
             .because("quien decide cuándo toca una ronda no es la aplicación ni el dominio");
 
     // Reglas generales de código
