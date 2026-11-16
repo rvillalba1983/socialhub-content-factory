@@ -684,3 +684,16 @@ Cambios en la interfaz:
 ## Fase 12 · Identidad: «temas que no se tocan» vacío es válido (rama `fase-12-identidad-vetados`, decisión de Raúl, 16 nov 2026)
 - Un campo «temas que no se tocan» (`forbiddenTopics`) vacío significa que no hay temas vetados y **no cuenta como identidad incompleta**. Los huecos de la identidad son solo el tono y el público (`PromotionQueries.identityGaps`, aviso de la ficha en `BrandNotices` y recomendación `IDENTITY_MISSING`).
 - Si no queda ningún hueco, el aviso «identidad incompleta» no sale. Textos, contrato, MANUAL y TUTORIAL ajustados; pruebas del backend, del frontal y e2e actualizadas.
+
+## Fase 12 · Pruebas de mutación con PIT (15 nov 2026)
+
+Decisión de Raúl:
+- **Calidad de pruebas, no cobertura:** pitest-maven con el plugin JUnit 5 (gratuitos, autorizados). Pendiente de su OK: imponer el umbral del 75 %.
+
+Decisiones técnicas:
+- **No va en `verify`:** `mvn -Ppit-unitarias test-compile org.pitest:pitest-maven:mutationCoverage`. Informe HTML y XML en `backend/target/pit-reports`. Se excluyen la API generada (`com.socialhub.api.*`), los `*MapperImpl` y la clase de arranque; `lombok.config` marca el código generado.
+- **Solo pruebas unitarias (`-Ppit-unitarias`):** medido con datos, con las pruebas de Spring y PostgreSQL cada mutante que sobrevive a las unitarias reinicia contexto y base de datos. En GitHub (Linux) la pasada completa murió dos veces a los ~47 min (`The runner has received a shutdown signal`) con decenas de minions en `TIMED_OUT` y procesos `postgres` huérfanos. Con el perfil, la pasada completa tarda 12 min en un portátil de 2 CPU. Consecuencia: el código que solo cubren las pruebas de integración cuenta como «sin cobertura», así que el porcentaje es un suelo.
+- **Linux, no Windows:** PostgreSQL incluido arranca sin root en el runner de Ubuntu (las pruebas pasan en Linux). Hace falta instalar las bibliotecas del FFmpeg incluido (`libxcb1 libxcb-shm0 libasound2t64 libpulse0 libva2 libva-drm2`); sin ellas fallaban `PieceGeneratorTest` y `TaskEngineTest`.
+- **Por PR (`mutacion.yml`):** solo las clases de producción añadidas o modificadas respecto a main (`targetClasses` calculadas del diff, con `*` para las internas). **Informativo:** el umbral sale de la variable del repositorio `PIT_UMBRAL` (vacía = 0). Para imponer el 75 %, Raúl pone `PIT_UMBRAL=75`.
+- **Semanal (`mutacion-semanal.yml`):** lunes 03:00 UTC, o a mano; pasada completa sin umbral, informe como artefacto y tabla por módulo en el resumen del trabajo (`.github/scripts/resumen-mutacion.py`). Se prueba también al cambiar su propio archivo.
+- **Primera medición (solo unitarias, 4089 mutantes):** ver «Estado» en `docs/estado.md` / PR #51. Total 26 %. Lejos del 75 %: por eso el umbral no se impone de momento.
