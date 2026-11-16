@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import com.socialhub.platform.diagnostics.StartupLog;
 import com.socialhub.platform.observability.ExternalCalls;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,6 +51,7 @@ public class EmbeddedPostgres {
 
     public synchronized void start() {
         if (running) return;
+        StartupLog.phase("PostgreSQL: arrancando (datos en " + dataDir + ")");
         calls.run("postgres", "start", dataDir.toString(), this::doStart);
     }
 
@@ -73,6 +75,7 @@ public class EmbeddedPostgres {
             running = true;
             createDatabaseIfMissing();
             log.info("PostgreSQL incluido en marcha en 127.0.0.1:{} (datos: {})", port, dataDir);
+            StartupLog.phase("PostgreSQL: en marcha en el puerto " + port);
         } catch (IOException e) {
             throw new UncheckedIOException("No se pudo arrancar PostgreSQL", e);
         }
