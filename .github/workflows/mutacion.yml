@@ -1,7 +1,8 @@
 name: Mutación
 
 # Pruebas de mutación (PIT) solo sobre las clases que cambia la PR respecto a main.
-# Mide si las pruebas detectan cambios en el código (calidad, no cobertura). Falla si se matan menos del 75 % de los mutantes.
+# Mide si las pruebas detectan cambios en el código (calidad, no cobertura). Informativo: el umbral (75 %) NO se impone hasta que Raúl lo apruebe.
+# Para activarlo: variable del repositorio PIT_UMBRAL = 75 (Settings > Secrets and variables > Actions > Variables).
 # Va en Linux: PostgreSQL incluido arranca sin root en el runner (ver docs/decisiones.md).
 
 on:
@@ -55,11 +56,11 @@ jobs:
       - name: Bibliotecas del sistema para el FFmpeg incluido (Linux)
         if: steps.clases.outputs.classes != ''
         run: sudo apt-get update -qq && sudo apt-get install -y -qq libxcb1 libxcb-shm0 libasound2t64 libpulse0 libva2 libva-drm2
-      - name: Mutación (umbral 75 %)
+      - name: Mutación (umbral ${{ vars.PIT_UMBRAL || 0 }} %)
         if: steps.clases.outputs.classes != ''
         run: |
-          mvn -B test-compile org.pitest:pitest-maven:mutationCoverage \
-            -Dpit.targetClasses='${{ steps.clases.outputs.classes }}' -Dpit.threshold=75
+          mvn -B -Ppit-unitarias test-compile org.pitest:pitest-maven:mutationCoverage \
+            -Dpit.targetClasses='${{ steps.clases.outputs.classes }}' -Dpit.threshold=${{ vars.PIT_UMBRAL || 0 }}
       - name: Resumen por módulo
         if: always() && steps.clases.outputs.classes != ''
         run: python3 ../.github/scripts/resumen-mutacion.py target/pit-reports/mutations.xml
