@@ -17,6 +17,9 @@ public interface QualityRepository {
 
     void accept(String publicationId, String key, String reason, Instant at);
 
+    /** Quita todas las aceptaciones de la publicación. */
+    void clearAcceptances(String publicationId);
+
     List<ReviewIssue> reviewIssues(String publicationId);
 
     /** Sustituye los avisos de Claude de la publicación por los de su última revisión. */

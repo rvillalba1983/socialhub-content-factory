@@ -29,6 +29,14 @@ const META_SYSTEM_USERS: HelpLink = { label: 'Usuarios del sistema (Meta Busines
 const META_SYSTEM_USERS_HELP: HelpLink = { label: 'Ayuda de Meta: añadir usuarios del sistema', url: 'https://www.facebook.com/business/help/503306463479099' };
 const META_APPS: HelpLink = { label: 'Tus apps de Meta para desarrolladores', url: 'https://developers.facebook.com/apps' };
 const META_PUBLISHING: HelpLink = { label: 'Meta: publicar contenido con la API de Instagram', url: 'https://developers.facebook.com/documentation/instagram-platform/content-publishing' };
+const META_LOGIN_FLOW: HelpLink = {
+  label: 'Meta: crear el inicio de sesión a mano (OAuth)',
+  url: 'https://developers.facebook.com/docs/facebook-login/guides/advanced/manual-flow',
+};
+const META_IG_LOGIN: HelpLink = {
+  label: 'Meta: API de Instagram con inicio de sesión de Facebook',
+  url: 'https://developers.facebook.com/docs/instagram-platform/instagram-api-with-facebook-login',
+};
 const INSTAGRAM_WEB: HelpLink = { label: 'Instagram en la web', url: 'https://www.instagram.com/' };
 const PUBLER_APP: HelpLink = { label: 'Publer (iniciar sesión)', url: 'https://app.publer.com' };
 const PUBLER_PRO: HelpLink = {
@@ -49,10 +57,39 @@ const COPY_PATH =
   'Copia la ruta: en el Explorador de archivos, con la carpeta o el archivo seleccionado, pulsa Ctrl + Mayús + C (o clic derecho › Copiar como ruta de acceso). En Mac: Opción + clic derecho › Copiar como nombre de ruta. Quita las comillas del principio y del final.';
 
 const TOPICS = {
+  'meta-app': {
+    label: 'App ID y App Secret de la app de Meta',
+    where: 'Meta for Developers › tu app › Configuración de la app › Básica («Identificador de la app» y «Clave secreta de la app»).',
+    purpose: 'Para «Conectar con Instagram»: SocialHub los usa para pedir permiso a Meta en tu nombre y detectar la cuenta de cada marca. Se pegan una sola vez.',
+    steps: [
+      { text: 'Abre tus apps de Meta for Developers e inicia sesión.', link: META_APPS },
+      'Entra en la app de SocialHub. En modo desarrollo vale: tú eres administrador y no hace falta la revisión de Meta.',
+      'En el menú de la izquierda, pulsa Configuración de la app › Básica.',
+      'Copia el «Identificador de la app» (App ID) y pégalo en el primer campo de arriba.',
+      'En «Clave secreta de la app» (App Secret) pulsa «Mostrar» (te pide tu contraseña), cópiala y pégala en el segundo campo.',
+      'Pulsa «Guardar la app»: SocialHub los comprueba con Meta antes de guardarlos.',
+    ],
+    links: [META_IG_LOGIN],
+    warning: 'El App Secret es un secreto: no lo pegues en chats ni lo guardes en Drive. SocialHub lo guarda solo en este ordenador y no vuelve a enseñarlo.',
+  },
+  'meta-redirect-uri': {
+    label: 'Dirección de redireccionamiento OAuth (para Meta)',
+    where: 'Meta for Developers › tu app › Inicio de sesión con Facebook › Configuración › «URI de redireccionamiento OAuth válidas».',
+    purpose: 'Meta solo devuelve a SocialHub a una dirección que tú hayas autorizado. Es la que sale en el campo de arriba: cópiala tal cual en tu app.',
+    steps: [
+      'Pulsa «Copiar» en el campo de arriba (es http://localhost:8686/api/instagram/oauth/callback).',
+      { text: 'Abre tus apps de Meta for Developers y entra en la de SocialHub.', link: META_APPS },
+      'En el menú de la izquierda, pulsa Inicio de sesión con Facebook › Configuración.',
+      'Pega la dirección en «URI de redireccionamiento OAuth válidas» y pulsa «Guardar cambios».',
+      'Comprueba que «Inicio de sesión de OAuth de cliente» y «Inicio de sesión de OAuth web» están activados.',
+    ],
+    links: [META_LOGIN_FLOW],
+    warning: 'Tiene que ser idéntica, letra por letra (http, localhost y el puerto 8686). Si no, Meta responde que la dirección no coincide.',
+  },
   'meta-token': {
     label: 'Clave de la API de Instagram (token de Meta)',
     where: 'Meta Business › Configuración › Usuarios › Usuarios del sistema › «Generar identificador» (caducidad «Nunca»; permisos instagram_basic e instagram_content_publish).',
-    purpose: 'Publicar en Instagram con la API oficial de Meta. Es la clave de un «usuario del sistema»: no caduca y vale para todas las marcas.',
+    purpose: 'Alternativa a «Conectar con Instagram»: la clave de un «usuario del sistema» no caduca y vale para todas las marcas. Se usa cuando no hay una conexión vigente.',
     steps: [
       { text: 'Abre «Usuarios del sistema» de tu porfolio empresarial e inicia sesión.', link: META_SYSTEM_USERS },
       'Elige el usuario del sistema de SocialHub (rol Administrador). Si no existe, pulsa «Añadir».',
@@ -66,7 +103,7 @@ const TOPICS = {
   'instagram-account-id': {
     label: 'Identificador de la cuenta de Instagram (API oficial)',
     where: 'Meta Business › Configuración › Cuentas › Cuentas de Instagram › la cuenta de la marca › su ID (número largo).',
-    purpose: 'Decirle a Meta en qué cuenta publica esta marca. Meta no deja listar las cuentas: hay que pegar el número de cada una.',
+    purpose: 'Decirle a Meta en qué cuenta publica esta marca. «Conectar con Instagram» lo rellena solo si el @usuario coincide; si no, elige la cuenta de la lista o pega aquí su número.',
     steps: [
       { text: 'Abre la configuración de tu porfolio en Meta Business e inicia sesión.', link: META_BUSINESS },
       'Entra en Cuentas › Cuentas de Instagram.',
@@ -185,7 +222,7 @@ const TOPICS = {
   'local-path': {
     label: 'Ruta de un archivo o carpeta del ordenador',
     where: 'Explorador de archivos › seleccionar el archivo o la carpeta › Ctrl + Mayús + C.',
-    purpose: 'SocialHub necesita la ruta completa de un archivo (un spec.json, una pieza, un documento) o de una carpeta de Drive.',
+    purpose: 'SocialHub necesita la ruta completa de un archivo (una pieza, una imagen, un vídeo, un documento) o de una carpeta de Drive.',
     steps: [
       { text: 'Comprueba que Google Drive para escritorio está abierto (unidad G:).', link: DRIVE_DOWNLOAD },
       'Busca el archivo o la carpeta en el Explorador de archivos.',

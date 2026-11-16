@@ -65,6 +65,19 @@ class PublishingModuleTest {
     }
 
     @Test
+    void publicationsOnTheirWayWithoutSixHoursOfMarginAreListed() {
+        String promotion = promotion();
+        String id = publication(promotion, PublicationStatus.IN_PRODUCTION).getId();
+        publication(promotion, PublicationStatus.IDEA);
+        assertThat(queries.withoutMargin(java.time.Instant.now())).extracting(PublishingQueries.WithoutMargin::publicationId)
+                .doesNotContain(id);
+        // Cinco días después (a las 12:00 en España) ya no quedan 6 horas: solo sale la que va camino de publicarse
+        var later = java.time.Instant.now().plus(java.time.Duration.ofDays(6));
+        assertThat(queries.withoutMargin(later)).extracting(PublishingQueries.WithoutMargin::publicationId).contains(id);
+        assertThat(queries.withoutMargin(later).stream().filter(w -> w.promotionId().equals(promotion))).hasSize(1);
+    }
+
+    @Test
     void anApprovedReviewApprovesThePublicationsInReview(Scenario scenario) {
         String promotionId = promotion();
         String id = inReview(promotionId);

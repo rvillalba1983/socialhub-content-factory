@@ -115,6 +115,11 @@ public class PromotionQueries {
                 .toList();
     }
 
+    /** La cadencia de la promoción, en el texto que escribió Raúl; nulo si no hay promoción o no la tiene. */
+    public @org.jspecify.annotations.Nullable String cadenceOf(String promotionId) {
+        return repository.promotion(promotionId).map(Promotion::cadence).orElse(null);
+    }
+
     /** Usuario de la marca en las redes («@elde_lito»); vacío si no existe. */
     public String handleOf(String brandId) {
         return repository.brand(brandId).map(b -> b.handle()).orElse("");
@@ -134,6 +139,19 @@ public class PromotionQueries {
     public BrandIdentity identity(String brandId) {
         if (repository.brand(brandId).isEmpty()) throw new NotFoundException("No existe la marca " + brandId);
         return identities.identity(brandId).orElse(BrandIdentity.EMPTY);
+    }
+
+    /**
+     * Lo que falta en la identidad de la marca para que Claude no proponga a ciegas, en español y con artículo
+     * («el tono», «el público»). Vacío si está completa. Los temas que no se tocan vacíos son válidos (no hay temas
+     * vetados) y no cuentan como hueco.
+     */
+    public List<String> identityGaps(String brandId) {
+        BrandIdentity identity = identity(brandId);
+        List<String> gaps = new ArrayList<>();
+        if (identity.tone().isBlank()) gaps.add("el tono");
+        if (identity.audience().isBlank()) gaps.add("el público");
+        return gaps;
     }
 
     /** Identidad de la marca de la promoción, con los nombres que entiende Claude (solo los campos rellenos). */

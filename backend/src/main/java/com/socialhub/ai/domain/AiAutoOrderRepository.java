@@ -12,5 +12,7 @@ public interface AiAutoOrderRepository {
 
     void save(AiAutoOrder order);
 
+    List<AiAutoOrder> ofPromotionAndType(String promotionId, String type);
+
     List<AiAutoOrder> ofTypeAndWeek(String type, LocalDate weekStart);
 }

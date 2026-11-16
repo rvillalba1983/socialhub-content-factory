@@ -9,7 +9,7 @@ import type { BrandIdentity } from './model';
 afterEach(() => vi.restoreAllMocks());
 
 const identity = (o: Partial<BrandIdentity> = {}): BrandIdentity => ({
-  tone: 'Cercano', audience: 'Lectores', forbidden_topics: [], preferred_expressions: [], forbidden_expressions: [],
+  tone: 'Cercano', audience: 'Lectores', forbidden_topics: ['política'], preferred_expressions: [], forbidden_expressions: [],
   colors: [], font: '', logo: '', visual_style: '', photo_style: '', call_to_action: '', fixed_hashtags: '', ...o,
 });
 const folders = (available = true) => ({
@@ -46,13 +46,31 @@ describe('Avisos de la ficha de la marca', () => {
     target.scrollIntoView = vi.fn();
     document.body.appendChild(target);
     render(<BrandNotices brandId="b" version={0} />);
-    expect(await screen.findByText(/Falta rellenar la identidad de la marca: el tono\./)).toBeInTheDocument();
+    expect(await screen.findByText(/Falta rellenar la identidad de la marca: el tono\. Sin ella/)).toBeInTheDocument();
     expect(screen.getByText(/Carpetas sin configurar/)).toBeInTheDocument();
     expect(screen.getByText('Falta indicar la cuenta de Publer de TikTok.')).toBeInTheDocument();
     expect(screen.queryByText(/de Instagram\./)).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Ir a Publer' }));
     expect(target.scrollIntoView).toHaveBeenCalled();
     target.remove();
+  });
+
+  it('si falta la identidad, «Importar desde .txt» baja a su tarjeta y abre la importación', async () => {
+    mockAll({ identity: identity({ tone: '' }) });
+    const listener = vi.fn();
+    window.addEventListener('socialhub:identity-import', listener);
+    render(<BrandNotices brandId="b" version={0} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Importar desde .txt' }));
+    expect(listener).toHaveBeenCalled();
+    window.removeEventListener('socialhub:identity-import', listener);
+  });
+
+  it('sin temas que no se tocan la identidad es válida: no hay aviso si lo demás está relleno', async () => {
+    mockAll({ identity: identity({ forbidden_topics: [] }) });
+    render(<BrandNotices brandId="b" version={0} />);
+    await waitFor(() => expect(api.brandIdentity).toHaveBeenCalled());
+    await new Promise(r => setTimeout(r, 20));
+    expect(screen.queryByText(/identidad de la marca/)).toBeNull();
   });
 
   it('carpetas no disponibles', async () => {

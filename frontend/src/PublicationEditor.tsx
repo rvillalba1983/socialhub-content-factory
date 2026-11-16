@@ -67,7 +67,7 @@ export function PublicationEditor({ promotionId, publication, onClose, onSaved }
   };
 
   return (
-    <div className="card form" aria-label={publication ? 'Editar publicación' : 'Nueva publicación'}>
+    <div id="publication-editor" tabIndex={-1} className="card form" aria-label={publication ? 'Editar publicación' : 'Nueva publicación'}>
       <div className="row-between">
         <h3>{publication ? `Publicación · ${publication.title}` : 'Nueva publicación'}</h3>
         <button type="button" className="ibtn" aria-label="Cerrar" title="Cerrar" onClick={onClose}><Icon name="x" /></button>
@@ -176,7 +176,10 @@ function PublicationFiles({ id, locked }: { id: string; locked: boolean }) {
   return (
     <fieldset className="rows">
       <legend>Archivos</legend>
-      {files?.length === 0 && <p className="src">Sin archivos. Llegan solos si el spec.json indica esta publicación en «publicacion», o añádelos aquí.</p>}
+      {files?.length === 0 && (
+        <p className="src">Esta publicación todavía no tiene imágenes ni vídeos. Normalmente llegan solos cuando Claude prepara las piezas.
+          Si no han llegado, pega abajo la ruta del archivo en tu ordenador (por ejemplo, en tu Google Drive) y pulsa «Añadir archivo».</p>
+      )}
       {files?.map(f => (
         <div key={f.path} className="file-row">
           <span className="mono file-path" title={f.path}>{f.path}</span>
@@ -274,6 +277,31 @@ function MetricsPanel({ publication }: { publication: Publication }) {
   );
 }
 
+/** Una frase de «qué hacer» para cada comprobación, a partir de la clave estable del aviso. */
+export function whatToDo(key: string, source: string): string {
+  const kind = key.split(':')[0];
+  switch (kind) {
+    case 'TEXT_MISSING': return 'escribe el texto arriba, o pídeselo a Claude con «Pedir textos a Claude».';
+    case 'TEXT_TOO_LONG': return 'acorta el texto o quita hashtags hasta que quepa.';
+    case 'HASHTAGS_TOO_MANY': return 'quita hashtags hasta dejar los que admite la red.';
+    case 'CTA_MISSING': return 'añade al texto la llamada a la acción que has fijado en la identidad de la marca.';
+    case 'HASHTAG_MISSING': return 'añade ese hashtag fijo de la marca a los hashtags.';
+    case 'FORBIDDEN': return 'cambia esa expresión en el texto o el título; la marca no quiere usarla.';
+    case 'DUPLICATE': return 'reescribe el texto para que no sea idéntico al de otra publicación.';
+    case 'FILES_MISSING': return 'añade abajo, en «Archivos», las imágenes o vídeos de la publicación.';
+    case 'FILE_MISSING': return 'comprueba que el archivo existe y que Google Drive está abierto y sincronizado; si no, quítalo y añade otro.';
+    case 'FILE_FORMAT': return 'cambia el archivo por uno del tipo que admite la red (JPEG o MP4, por ejemplo).';
+    case 'FILE_SIZE': return 'usa una versión más ligera del archivo.';
+    case 'IMAGE_RATIO': return 'recorta la imagen con otra proporción; si te da igual cómo se recorte, acéptalo.';
+    case 'CAROUSEL_COUNT': return 'ajusta el número de imágenes del carrusel a lo que admite la red.';
+    case 'CAROUSEL_MIX': return 'usa solo fotos o solo vídeos en esta publicación.';
+    case 'VIDEO_MISSING': return 'añade el archivo de vídeo en «Archivos».';
+    default: return source === 'CLAUDE'
+      ? 'léelo y corrige lo que señala; si no estás de acuerdo, acéptalo con tu motivo.'
+      : 'corrígelo o, si lo das por bueno así, acéptalo con tu motivo.';
+  }
+}
+
 /** Control de calidad: avisos del código y de Claude. Cada uno se corrige o se acepta con su motivo. */
 function QualityPanel({ publication, promotionId }: { publication: Publication; promotionId: string }) {
   const [report, setReport] = useState<QualityReport | null>(null);
@@ -306,11 +334,27 @@ function QualityPanel({ publication, promotionId }: { publication: Publication; 
   return (
     <fieldset className="rows" aria-label="Control de calidad">
       <legend>Control de calidad</legend>
+      <p className="src">Antes de aprobar una publicación, SocialHub la repasa sola y te avisa de lo que no encaja.</p>
+      <details className="quality-help">
+        <summary>¿Qué es esto?</summary>
+        <p>Son comprobaciones automáticas de SocialHub, antes de aprobar y programar. Miran los archivos (que existan, que sean del tipo
+          y el tamaño que admite la red y que se vean bien), el texto (que no falte ni se pase de largo), los hashtags y lo que has fijado
+          en la identidad de la marca (llamada a la acción, hashtags fijos y expresiones prohibidas).</p>
+        <ul>
+          <li><b>Aceptar</b> significa «lo doy por bueno aunque falle». Escribes el motivo, el aviso deja de bloquear y queda anotado.
+            Solo vale mientras no cambie la publicación: si cambias el texto, los hashtags o los archivos, las aceptaciones se anulan y los avisos se comprueban de nuevo (reaparecen si siguen fallando).</li>
+          <li><b>Comprobar de nuevo</b> vuelve a pasar las comprobaciones. Úsalo después de corregir algo (añadir un archivo, cambiar el texto…).</li>
+          <li><b>Revisar con Claude</b> le pide a Claude una segunda lectura: coherencia, tono de la marca, ortografía y datos sin fuente.
+            Sus avisos llegan aquí en la siguiente recogida.</li>
+        </ul>
+        <p>Aparte, para programar hacen falta al menos 6 horas de margen antes de la hora de publicación.</p>
+      </details>
       {report && report.issues.length === 0 && <p className="src">Sin avisos.</p>}
       {report?.issues.map(i => (
         <div key={i.key} className="quality-row">
           <span className={`pill ${i.accepted ? 's-ok' : 's-block'}`}>{i.source === 'CLAUDE' ? 'Claude' : 'Comprobación'}</span>
-          <span>{i.message}{i.accepted && <small className="src"> · Aceptado: {i.accepted_reason}</small>}</span>
+          <span>{i.message}{i.accepted && <small className="src"> · Aceptado: {i.accepted_reason} (vale mientras no cambie la publicación)</small>}
+            {!i.accepted && <small className="quality-todo">Qué hacer: {whatToDo(i.key, i.source)}</small>}</span>
           {!i.accepted && accepting !== i.key && (
             <button type="button" className="btn" onClick={() => { setAccepting(i.key); setReason(''); }}>Aceptar</button>
           )}

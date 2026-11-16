@@ -20,6 +20,11 @@ class JpaAiAutoOrderRepository implements AiAutoOrderRepository {
     public void save(AiAutoOrder order) { jpa.save(AiAutoOrderEntity.of(order)); }
 
     @Override
+    public List<AiAutoOrder> ofPromotionAndType(String promotionId, String type) {
+        return jpa.findByPromotionIdAndType(promotionId, type).stream().map(AiAutoOrderEntity::toDomain).toList();
+    }
+
+    @Override
     public List<AiAutoOrder> ofTypeAndWeek(String type, LocalDate weekStart) {
         return jpa.findByTypeAndWeekStart(type, weekStart).stream().map(AiAutoOrderEntity::toDomain).toList();
     }

@@ -315,6 +315,30 @@ class AiTypesTest {
     }
 
     @Test
+    @Order(8)
+    void emptyProposalsAreAValidAnswerButMissingOrNonListAreErrors() throws Exception {
+        String task = order("WEEKLY_PROPOSALS", "Propón la semana", "2030-11-25");
+        result(task, completed(task, "{\"summary\":\"Sin lista\"}"));
+        waitFor(() -> "FAILED".equals(task(task).get("status").asString()), "propuestas ausentes");
+        assertThat(task(task).get("error").asString()).contains("Faltan las propuestas");
+        retry(task);
+        result(task, completed(task, "{\"proposals\":\"nada\",\"summary\":\"x\"}"));
+        waitFor(() -> "FAILED".equals(task(task).get("status").asString()), "propuestas que no son lista");
+        assertThat(task(task).get("error").asString()).contains("Faltan las propuestas");
+        retry(task);
+        result(task, completed(task, "{\"proposals\":[],\"summary\":\"El domingo no toca publicar\"}"));
+        waitFor(() -> "COMPLETED".equals(task(task).get("status").asString()), "propuestas vacías");
+        assertThat(task(task).get("result").asString()).isEqualTo("Sin propuestas: El domingo no toca publicar");
+        assertThat(publishing.proposalCounts()).doesNotContainKey("2030-11-25");
+    }
+
+    private void retry(String task) throws Exception {
+        mvc.perform(post("/api/tasks/{id}/commands", task).header("X-SocialHub-Request", "1")
+                .contentType(MediaType.APPLICATION_JSON).content("{\"type\":\"RETRY\"}")).andExpect(status().isOk());
+        waitFor(() -> "WAITING".equals(task(task).get("status").asString()), "reintento");
+    }
+
+    @Test
     @Order(20)
     void theRoundOrdersTheSpecOfABatchOfThreeAndDoesNotRepeatIt() throws Exception {
         for (int day : new int[] {10, 11, 12}) {

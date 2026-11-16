@@ -47,6 +47,7 @@ public class InstagramService {
     public record Health(String status, String note) {}
 
     private final SecretStore secrets;
+    private final InstagramCredentials credentials;
     private final InstagramGateway instagram;
     private final InstagramAccountRepository accounts;
     private final PromotionQueries promotions;
@@ -59,7 +60,11 @@ public class InstagramService {
         return new Status(key != null, key == null ? null : hint(key));
     }
 
-    public boolean hasKey() { return secrets.get(InstagramRoute.KEY).isPresent(); }
+    /** Ya hay un resultado de {@link #check()} vigente (se pierde al guardar la clave o una cuenta y al reiniciar). */
+    public boolean hasCheck() { return last != null; }
+
+    /** Hay con qué llamar a Meta: una conexión vigente o la clave de usuario del sistema. */
+    public boolean hasKey() { return credentials.activeToken().isPresent(); }
 
     /** Comprueba la clave con Meta (GET /me) y, si vale, la guarda. */
     public Status saveKey(String key) {
@@ -86,14 +91,15 @@ public class InstagramService {
 
     /** GET /me y, de cada marca con cuenta, GET /{ig-id} y el límite de publicación. Los fallos de Meta van en el resultado. */
     public Check check() {
-        String key = secrets.get(InstagramRoute.KEY).orElse(null);
-        if (key == null) throw new IllegalArgumentException("Primero pega la clave de usuario del sistema de Meta");
+        String key = credentials.activeToken().orElse(null);
+        if (key == null) throw new IllegalArgumentException("Primero conecta con Instagram o pega la clave de usuario del sistema de Meta");
         String name = null;
         String error = null;
         try {
             name = instagram.me(key).name();
-        } catch (InstagramException e) {
-            error = e.getMessage();
+        } catch (RuntimeException e) {
+            // Cualquier fallo queda en el resultado: así «last» siempre se pone y nadie vuelve a comprobar en bucle
+            error = e.getMessage() == null ? e.toString() : e.getMessage();
         }
         List<BrandCheck> brands = new ArrayList<>();
         for (var brand : promotions.brandRefs()) {
@@ -107,8 +113,9 @@ public class InstagramService {
                 String username = instagram.account(key, account.igUserId()).username();
                 var quota = instagram.publishingLimit(key, account.igUserId());
                 brands.add(new BrandCheck(brand.id(), brand.name(), username, quota.used(), quota.total(), null));
-            } catch (InstagramException e) {
-                brands.add(new BrandCheck(brand.id(), brand.name(), account.username(), null, null, e.getMessage()));
+            } catch (RuntimeException e) {
+                brands.add(new BrandCheck(brand.id(), brand.name(), account.username(), null, null,
+                        e.getMessage() == null ? e.toString() : e.getMessage()));
             }
         }
         boolean ok = error == null && brands.stream().noneMatch(b -> b.error() != null);
@@ -120,14 +127,42 @@ public class InstagramService {
 
     /** Qué enseña «Agentes y herramientas» (sin llamadas a Meta). */
     public Health health() {
-        if (!hasKey()) return new Health("IDLE", "Sin clave: pégala en esta tarjeta");
+        var connection = credentials.connection().orElse(null);
+        boolean oauth = credentials.validConnection().isPresent();
+        if (!hasKey()) {
+            if (connection != null) {
+                return new Health("FAILED", "La conexión con Meta caducó el " + date(connection) + ": pulsa «Renovar conexión»");
+            }
+            return new Health("IDLE", "Sin conexión: pulsa «Conectar con Instagram» o pega la clave en esta tarjeta");
+        }
+        String source = oauth ? "Conectado con Meta · caduca el " + date(connection) : "Clave de usuario del sistema";
         Check c = last;
-        if (c == null) return new Health("WAITING", "Clave guardada, sin comprobar todavía");
+        if (c == null) return new Health("WAITING", source + ", sin comprobar todavía");
         if (c.error() != null) return new Health("FAILED", "Meta no acepta la clave: " + c.error());
         String brands = c.brands().isEmpty() ? "ninguna marca tiene aún su cuenta"
                 : String.join(" · ", c.brands().stream().map(b -> (b.username() == null ? b.brandName() : "@" + b.username())
                         + (b.error() != null ? " (" + b.error() + ")" : b.used() == null ? "" : " " + b.used() + "/" + b.total())).toList());
-        return new Health(c.ok() ? "OK" : "FAILED", "Clave válida · " + brands);
+        return new Health(c.ok() ? "OK" : "FAILED", source + " · " + brands);
+    }
+
+    private String date(InstagramCredentials.Connection connection) {
+        return connection.expiresAt().atZone(java.time.ZoneId.of("Europe/Madrid"))
+                .format(java.time.format.DateTimeFormatter.ofPattern("d/M/yyyy"));
+    }
+
+    /** Guarda la cuenta de una marca sin llamar a Meta: el @usuario ya lo devolvió Meta al listar las páginas. */
+    @Transactional
+    public void assignDetected(String brandId, String igUserId, String username) {
+        promotions.requireBrand(brandId);
+        accounts.save(brandId, new InstagramAccountRepository.Account(igUserId, username));
+        last = null;
+        changed(brandId);
+    }
+
+    /** Vuelve a calcular el estado de la tarjeta (tras conectar o desconectar). */
+    public void refresh() {
+        last = null;
+        refreshArmory();
     }
 
     @Transactional(readOnly = true)
@@ -149,8 +184,8 @@ public class InstagramService {
         if (!id.matches("\\d{5,30}")) {
             throw new IllegalArgumentException("El identificador de la cuenta de Instagram es un número largo (solo cifras)");
         }
-        String key = secrets.get(InstagramRoute.KEY)
-                .orElseThrow(() -> new IllegalArgumentException("Primero pega la clave de Meta en «Agentes y herramientas» › Instagram · API oficial"));
+        String key = credentials.activeToken()
+                .orElseThrow(() -> new IllegalArgumentException("Primero conecta con Instagram o pega la clave de Meta en «Agentes y herramientas» › Instagram · API oficial"));
         InstagramGateway.Account found;
         try {
             found = instagram.account(key, id);

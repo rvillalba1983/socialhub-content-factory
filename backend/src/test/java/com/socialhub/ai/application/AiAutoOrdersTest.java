@@ -131,6 +131,36 @@ class AiAutoOrdersTest {
     }
 
     @Test
+    void theCadenceIsReadFromFreeText() {
+        assertThat(AiAutoOrders.cadenceSlots("x/v a las 19:00")).containsExactlyInAnyOrder(
+                java.util.Map.entry(java.time.DayOfWeek.WEDNESDAY, java.time.LocalTime.of(19, 0)),
+                java.util.Map.entry(java.time.DayOfWeek.FRIDAY, java.time.LocalTime.of(19, 0)));
+        assertThat(AiAutoOrders.cadenceSlots("Posts L/X/V 19:00 · historias M/J 13:00")).hasSize(5);
+        assertThat(AiAutoOrders.cadenceSlots("dos veces por semana")).isEmpty();
+        assertThat(AiAutoOrders.cadenceSlots(null)).isEmpty();
+    }
+
+    @Test
+    void aFirstWindowThatStartsOnADayWithoutCadenceIsExtendedToTheFirstCadenceDateWithMargin() {
+        LocalDate week = LocalDate.of(2026, 11, 9), end = LocalDate.of(2026, 12, 31);
+        // Empieza el domingo 15 (x/v 19:00) y se pide ese mismo día: del 15 al miércoles 18
+        assertThat(AiAutoOrders.firstWeek(at(15, 10), LocalDate.of(2026, 11, 15), end, "x/v a las 19:00"))
+                .contains(new AiAutoOrders.FirstWeek(week, LocalDate.of(2026, 11, 15), LocalDate.of(2026, 11, 18)));
+        // Empieza en día de cadencia (viernes 13) y con margen (a las 2:00 la recogida es a las 5:30): no se extiende
+        assertThat(AiAutoOrders.firstWeek(at(13, 2), LocalDate.of(2026, 11, 13), end, "x/v a las 19:00"))
+                .contains(new AiAutoOrders.FirstWeek(week, LocalDate.of(2026, 11, 13), LocalDate.of(2026, 11, 15)));
+        // Empieza el viernes 13 pero sin margen (a las 10:00 la recogida es a las 20:30): hasta el miércoles 18
+        assertThat(AiAutoOrders.firstWeek(at(13, 10), LocalDate.of(2026, 11, 13), end, "x/v a las 19:00"))
+                .contains(new AiAutoOrders.FirstWeek(week, LocalDate.of(2026, 11, 13), LocalDate.of(2026, 11, 18)));
+        // Termina antes de su primera fecha de cadencia: la ventana no cambia (y Claude contestará sin propuestas)
+        assertThat(AiAutoOrders.firstWeek(at(15, 10), LocalDate.of(2026, 11, 15), LocalDate.of(2026, 11, 17), "x/v a las 19:00"))
+                .contains(new AiAutoOrders.FirstWeek(week, LocalDate.of(2026, 11, 15), LocalDate.of(2026, 11, 15)));
+        // Sin cadencia legible: la ventana de siempre
+        assertThat(AiAutoOrders.firstWeek(at(15, 10), LocalDate.of(2026, 11, 15), end, "a menudo"))
+                .contains(new AiAutoOrders.FirstWeek(week, LocalDate.of(2026, 11, 15), LocalDate.of(2026, 11, 15)));
+    }
+
+    @Test
     void aNewPromotionAsksForItsFirstWeekIfTheUsualMondayHasPassed() {
         // Empieza el lunes 9 y se da de alta el domingo 8: el lunes 2 a las 18:00 ya pasó, así que se pide ya
         assertThat(AiAutoOrders.firstWeek(at(8, 19), LocalDate.of(2026, 11, 9), LocalDate.of(2026, 12, 31)))

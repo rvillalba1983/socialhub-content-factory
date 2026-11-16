@@ -234,7 +234,7 @@ class PublishingEngine {
         Instant now = clock.instant();
         String result;
         if (published) {
-            p.confirmPublished(externalId, url, now);
+            confirmPublished(p, externalId, url, now);
             job.published(externalId, url, now);
             cleanup(p);
             result = "Publicada" + (url == null ? "" : ": " + url);
@@ -446,7 +446,7 @@ class PublishingEngine {
             switch (direct.get()) {
                 case PublishRoute.Outcome.Published pub -> {
                     job.checking(null, now);
-                    p.confirmPublished(pub.externalId(), pub.url(), now);
+                    confirmPublished(p, pub.externalId(), pub.url(), now);
                     job.published(pub.externalId(), pub.url(), now);
                     cleanup(p);
                 }
@@ -499,6 +499,12 @@ class PublishingEngine {
     private enum Begin { NOT_DUE, HANDLED, PREFLIGHT, STARTED }
 
     private static boolean isOfficial(@Nullable String routeLabel) { return PublishRoute.Id.OFFICIAL.label().equals(routeLabel); }
+
+    /** Confirma la publicación y quita la incidencia «Publicación manual con LEEME»: ya se publicó, no hay nada que hacer a mano. */
+    private static void confirmPublished(Publication p, @Nullable String externalId, @Nullable String url, Instant at) {
+        p.confirmPublished(externalId, url, at);
+        if (p.getFlag() != null && p.getFlag().startsWith(PublishingService.MANUAL_FLAG)) p.flag(null);
+    }
 
     private void cleanup(Publication p) {
         for (PublishRoute r : routes) {
@@ -609,7 +615,7 @@ class PublishingEngine {
                     // Meta dio el identificador pero no el enlace: «Publicada» solo con la confirmación
                     job.awaitingConfirmation(pub.externalId() == null ? "" : pub.externalId(), now);
                 } else {
-                    p.confirmPublished(pub.externalId(), pub.url(), now);
+                    confirmPublished(p, pub.externalId(), pub.url(), now);
                     job.published(pub.externalId(), pub.url(), now);
                 }
                 noteDelay(job, p);
