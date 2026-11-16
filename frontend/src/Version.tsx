@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from './api';
-import type { AppVersion, Autostart } from './api/types';
+import type { AppVersion, Autostart, UpdateStatus } from './api/types';
 
 /** Fecha y hora de compilación en la zona del PC («15 nov 2026, 11:30»). */
 export function buildDate(iso: string): string {
@@ -17,9 +17,13 @@ export function VersionBadge({ demo }: { demo: boolean }) {
   const [info, setInfo] = useState<AppVersion | null>(null);
   const [autostart, setAutostart] = useState<Autostart | null>(null);
   const [autostartError, setAutostartError] = useState<string | null>(null);
+  const [update, setUpdate] = useState<UpdateStatus | null>(null);
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLSpanElement>(null);
   useEffect(() => { api.appVersion().then(setInfo).catch(() => {}); }, []);
+  // Al abrir: el servidor mira GitHub como mucho una vez al día. Sin red o sin releases no pasa nada
+  useEffect(() => { api.autostart().then(setAutostart).catch(() => {}); }, []);
+  useEffect(() => { api.updateStatus().then(setUpdate).catch(() => {}); }, []);
   useEffect(() => {
     if (!open) return;
     const close = (e: Event) => {
@@ -35,6 +39,10 @@ export function VersionBadge({ demo }: { demo: boolean }) {
       <button className="ver-btn mono" aria-expanded={open} aria-haspopup="dialog"
         title={`SocialHub ${info.version}, compilado el ${buildDate(info.build_time)}. Pulsa para ver el detalle.`}
         onClick={() => setOpen(!open)}>{info.version} · {info.commit}</button>
+      {update?.state === 'UPDATE_AVAILABLE' && (
+        <button type="button" className="ver-new" aria-haspopup="dialog" onClick={() => setOpen(true)}
+          title={update.message}>Nueva versión {update.latest_version}</button>
+      )}
       {open && (
         <div className="ver-pop" role="dialog" aria-label="Versión de SocialHub">
           <dl>
@@ -42,7 +50,11 @@ export function VersionBadge({ demo }: { demo: boolean }) {
             <dt>Commit</dt><dd className="mono">{info.commit}</dd>
             <dt>Compilada el</dt><dd>{buildDate(info.build_time)}</dd>
             <dt>Modo</dt><dd>{demo ? 'Demo (datos de ejemplo)' : 'Real'}</dd>
+            <dt>Instalada</dt><dd className="mono">{update?.installed_version ?? info.version}</dd>
+            <dt>Disponible</dt>
+            <dd className="mono">{update?.latest_version ?? '—'}</dd>
           </dl>
+          {update?.state === 'UPDATE_AVAILABLE' ? (<p className="src" role="status">{update.message}.{' '}{update.installer_url && <><a href={update.installer_url} rel="noreferrer">Descargar el instalador</a>{' · '}</>}{update.release_url && <a href={update.release_url} target="_blank" rel="noreferrer">Ver la versión en GitHub</a>}<br />Instalar sigue siendo a mano: cierra SocialHub con «Cerrar» y ejecuta «Instalar SocialHub (con registro)».</p>) : (<p className="src">{update ? update.message : 'No hay información de versiones nuevas'}</p>)}
           {autostart?.available && (
             <p className="src">
               <label>

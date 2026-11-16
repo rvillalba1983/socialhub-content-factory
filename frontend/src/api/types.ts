@@ -4,7 +4,7 @@ export type {
   Agent, Alert, ArmoryItem, AvailableCommand, Brand, ExternalOperation, ExternalOperationPage, Factory,
   OperationOutcome, Platform, Promotion, Publication, PublicationPage, PublicationStatus, Station,
   StationCommandType, StatusLevel, Task, TaskCommand, TaskCommandType, TaskCounts, TaskStatus, TaskStep,
-  AiModel, AppMode, AppModeState, AppVersion, Autostart, LogsFolder, BrandInput, PromotionInput, Milestone, PromotionResource, Automation,
+  AiModel, AppMode, AppModeState, AppVersion, Autostart, UpdateStatus, LogsFolder, BrandInput, PromotionInput, Milestone, PromotionResource, Automation,
   PublishingRoute, Setting, PieceSpecList, PieceSpec, PieceOrder, Folder, FolderList, FolderInput, FolderRole,
   PublicationInput, PublicationFile, PublicationFileList, AiRequestType, AiSettings, AiSettingsInput, AiRequest,
   AiRequestPage, AiOrderInput, AiOrder, BrandIdentity, QualityIssue, QualityReport,

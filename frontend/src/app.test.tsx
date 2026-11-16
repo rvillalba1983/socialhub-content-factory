@@ -1049,6 +1049,29 @@ describe('Versión de SocialHub', () => {
     expect(screen.queryByRole('dialog', { name: 'Versión de SocialHub' })).toBeNull();
   });
 
+  it('avisa de una versión nueva con el enlace al instalador y el recordatorio de instalar con registro', async () => {
+    vi.spyOn(api, 'appVersion').mockResolvedValue({ version: '1.2.7', commit: 'a1b2c3d', build_time: '2026-11-15T10:30:00Z' });
+    vi.spyOn(api, 'updateStatus').mockResolvedValue({ installed_version: '1.2.7', state: 'UPDATE_AVAILABLE', latest_version: '1.3.0',
+      installer_url: 'https://github.com/x/y/releases/download/v1.3.0/SocialHub-1.3.0.msi',
+      release_url: 'https://github.com/x/y/releases/tag/v1.3.0', message: 'Hay una versión nueva: 1.3.0 (tienes la 1.2.7)' });
+    render(<VersionBadge demo={false} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Nueva versión 1.3.0' }));
+    const pop = screen.getByRole('dialog', { name: 'Versión de SocialHub' });
+    expect(pop).toHaveTextContent('Instalada');
+    expect(pop).toHaveTextContent('1.3.0');
+    expect(within(pop).getByRole('link', { name: 'Descargar el instalador' })).toHaveAttribute('href', expect.stringContaining('.msi'));
+    expect(pop).toHaveTextContent('Instalar SocialHub (con registro)');
+  });
+
+  it('sin información de versiones nuevas lo dice sin error', async () => {
+    vi.spyOn(api, 'appVersion').mockResolvedValue({ version: '1.2.7', commit: 'a1b2c3d', build_time: '2026-11-15T10:30:00Z' });
+    vi.spyOn(api, 'updateStatus').mockResolvedValue({ installed_version: '1.2.7', state: 'UNKNOWN', message: 'No hay información de versiones nuevas' });
+    render(<VersionBadge demo={false} />);
+    fireEvent.click(await screen.findByRole('button', { name: '1.2.7 · a1b2c3d' }));
+    expect(screen.queryByRole('button', { name: /Nueva versión/ })).toBeNull();
+    expect(screen.getByRole('dialog', { name: 'Versión de SocialHub' })).toHaveTextContent('No hay información de versiones nuevas');
+  });
+
   it('en modo demo lo dice en el detalle y, si falla la consulta, no enseña nada', async () => {
     const spy = vi.spyOn(api, 'appVersion').mockResolvedValue({ version: '1.2.0', commit: 'local', build_time: '2026-11-15T10:30:00Z' });
     const { unmount } = render(<VersionBadge demo />);

@@ -51,6 +51,8 @@ tags:
     description: La aplicación en sí (cerrarla desde la web y ver qué versión es)
   - name: Launcher
     description: SocialHub como programa de escritorio (abrirlo al iniciar sesión en Windows)
+  - name: Updates
+    description: Aviso de versión nueva publicada en GitHub Releases
 
 paths:
   /api/factory:
@@ -377,6 +379,24 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Autostart" }
         "400": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/system/updates:
+    get:
+      tags: [Updates]
+      operationId: getUpdateStatus
+      summary: ¿Hay una versión nueva publicada?
+      description: >
+        Compara la versión instalada con la última release publicada en GitHub (rvillalba1983/socialhub-content-factory).
+        Mira GitHub como mucho una vez al día (y una hora después de un fallo), sin enviar datos del usuario. Sin red o sin
+        releases no falla: devuelve state UNKNOWN con «No hay información de versiones nuevas». Instalar sigue siendo
+        manual.
+      responses:
+        "200":
+          description: Estado de las versiones
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UpdateStatus" }
         default: { $ref: "#/components/responses/Problem" }
 
   /api/system/version:
@@ -2543,6 +2563,18 @@ components:
       required: [enabled]
       properties:
         enabled: { type: boolean }
+
+    UpdateStatus:
+      type: object
+      required: [installed_version, state, message]
+      properties:
+        installed_version: { type: string, example: 1.2.7 }
+        state: { type: string, enum: [UP_TO_DATE, UPDATE_AVAILABLE, UNKNOWN] }
+        latest_version: { type: string, description: "La última versión publicada, si se sabe" }
+        installer_url: { type: string, description: "Enlace directo al instalador de este sistema (si la release lo trae)" }
+        release_url: { type: string, description: "Página de la release en GitHub" }
+        checked_at: { type: string, format: date-time, description: "Última comprobación con éxito" }
+        message: { type: string }
 
     LogsFolder:
       type: object
