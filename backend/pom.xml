@@ -409,6 +409,48 @@
 
   <!-- Binarios de PostgreSQL según el sistema en el que se compila -->
   <profiles>
+    <!-- Mutación solo con las pruebas unitarias (-Ppit-unitarias): sin las que arrancan Spring y PostgreSQL.
+         Cada mutante que sobrevive a las unitarias volvería a arrancar contexto y base de datos (minutos por mutante) -->
+    <profile>
+      <id>pit-unitarias</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.pitest</groupId>
+            <artifactId>pitest-maven</artifactId>
+            <configuration>
+              <excludedTestClasses>
+              <param>*.StartUpTest</param>
+              <param>*.AiAutoRetryTest</param>
+              <param>*.AiTypesTest</param>
+              <param>*.AiExchangeTest</param>
+              <param>*.ApiIntegrationTest</param>
+              <param>*.EmbeddedPostgresTest</param>
+              <param>*.BrandFolderRootTest</param>
+              <param>*.SpecBatchesTest</param>
+              <param>*FlowTest</param>
+              <param>*.FlowClockConfig</param>
+              <param>*.ModesAndRegistrationTest</param>
+              <param>*.PublishingEngineTest</param>
+              <param>*.PublishingModuleTest</param>
+              <param>*.PromotionMetricsApiTest</param>
+              <param>*.AutoRequestsTest</param>
+              <param>*.PublerAccountTest</param>
+              <param>*.InstagramOAuthTest</param>
+              <param>*.InstagramRouteTest</param>
+              <param>*.RouteOrderMigrationTest</param>
+              <param>*.PubloraRouteTest</param>
+              <param>*.ProductionModuleTest</param>
+              <param>*.BackupIntegrationTest</param>
+              <param>*.TaskEngineTest</param>
+              <param>*.PiecesApiTest</param>
+              <param>*.ModularityTest</param>
+              </excludedTestClasses>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
     <profile>
       <id>pg-windows</id>
       <activation><os><family>windows</family></os></activation>
