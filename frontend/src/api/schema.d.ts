@@ -856,6 +856,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/publications/{publication_id}/files/{file_id}/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Contenido de un archivo de la publicación (vista previa)
+         * @description Solo lectura. Entrega una imagen o un vídeo de los asociados a la publicación; la ruta sale de la base de datos a partir de file_id (el identificador que devuelve listPublicationFiles), nunca de un parámetro libre. Admite el encabezado Range (206) para que el vídeo se pida a trozos. Un archivo de otra publicación, que no exista, que esté fuera de las carpetas de la promoción o que no sea imagen ni vídeo da 404.
+         */
+        get: operations["getPublicationFileContent"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/publications/{publication_id}/quality": {
         parameters: {
             query?: never;
@@ -2113,7 +2133,16 @@ export interface components {
             initial_status?: "IDEA" | "PROPOSAL" | "IN_PRODUCTION" | "DRAFT";
         };
         PublicationFile: {
+            /** @description Identificador opaco para pedir su contenido */
+            id: string;
             path: string;
+            /**
+             * @description Qué se puede enseñar; OTHER no tiene vista previa
+             * @enum {string}
+             */
+            kind: "IMAGE" | "VIDEO" | "OTHER";
+            /** @description Tipo MIME con el que se sirve (ausente si es OTHER) */
+            mime_type?: string;
             /**
              * @description Lo asoció el spec.json al generar las piezas o Raúl a mano
              * @enum {string}
@@ -3990,6 +4019,47 @@ export interface operations {
                 content?: never;
             };
             404: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    getPublicationFileContent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publication_id: components["parameters"]["PublicationId"];
+                file_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description El archivo */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": string;
+                    "image/png": string;
+                    "image/webp": string;
+                    "image/gif": string;
+                    "video/mp4": string;
+                    "video/quicktime": string;
+                    "video/webm": string;
+                };
+            };
+            /** @description Parte del archivo (petición con Range) */
+            206: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "video/mp4": string;
+                };
+            };
+            404: components["responses"]["Problem"];
+            416: components["responses"]["Problem"];
             default: components["responses"]["Problem"];
         };
     };

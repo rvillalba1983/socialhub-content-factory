@@ -39,6 +39,18 @@ class PublicationsController implements PublicationsApi {
     private final com.socialhub.publishing.EditorialMemory memory;
     private final PublicationWebMapper mapper;
     private final com.socialhub.publishing.ExternalCalendar externalCalendar;
+    private final com.socialhub.publishing.PublicationMedia media;
+
+    @Override
+    public ResponseEntity<org.springframework.core.io.Resource> getPublicationFileContent(String publicationId, String fileId) {
+        var file = media.open(publicationId, fileId);
+        // Con Range, Spring responde 206 a trozos; sin Range, 200 con todo el archivo
+        return ResponseEntity.ok()
+                .contentType(org.springframework.http.MediaType.parseMediaType(file.mimeType()))
+                .header("X-Content-Type-Options", "nosniff")
+                .header("Cache-Control", "private, no-cache")
+                .body(new org.springframework.core.io.FileSystemResource(file.path()));
+    }
 
     @Override
     public ResponseEntity<PublicationPageDto> listPublications(String promotionId,

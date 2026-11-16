@@ -1210,6 +1210,41 @@ paths:
         "404": { $ref: "#/components/responses/Problem" }
         default: { $ref: "#/components/responses/Problem" }
 
+  /api/publications/{publication_id}/files/{file_id}/content:
+    get:
+      tags: [Publications]
+      operationId: getPublicationFileContent
+      summary: Contenido de un archivo de la publicación (vista previa)
+      description: >
+        Solo lectura. Entrega una imagen o un vídeo de los asociados a la publicación; la ruta sale de la base de datos
+        a partir de file_id (el identificador que devuelve listPublicationFiles), nunca de un parámetro libre. Admite
+        el encabezado Range (206) para que el vídeo se pida a trozos. Un archivo de otra publicación, que no exista, que
+        esté fuera de las carpetas de la promoción o que no sea imagen ni vídeo da 404.
+      parameters:
+        - $ref: "#/components/parameters/PublicationId"
+        - name: file_id
+          in: path
+          required: true
+          schema: { type: string, pattern: "^[0-9a-f]{16}$" }
+      responses:
+        "200":
+          description: El archivo
+          content:
+            image/jpeg: { schema: { type: string, format: binary } }
+            image/png: { schema: { type: string, format: binary } }
+            image/webp: { schema: { type: string, format: binary } }
+            image/gif: { schema: { type: string, format: binary } }
+            video/mp4: { schema: { type: string, format: binary } }
+            video/quicktime: { schema: { type: string, format: binary } }
+            video/webm: { schema: { type: string, format: binary } }
+        "206":
+          description: Parte del archivo (petición con Range)
+          content:
+            video/mp4: { schema: { type: string, format: binary } }
+        "404": { $ref: "#/components/responses/Problem" }
+        "416": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
   /api/publications/{publication_id}/quality:
     get:
       tags: [Publications]
@@ -2785,9 +2820,15 @@ components:
 
     PublicationFile:
       type: object
-      required: [path, origin, added_at, available]
+      required: [id, path, origin, added_at, available, kind]
       properties:
+        id: { type: string, description: Identificador opaco para pedir su contenido }
         path: { type: string }
+        kind:
+          type: string
+          enum: [IMAGE, VIDEO, OTHER]
+          description: Qué se puede enseñar; OTHER no tiene vista previa
+        mime_type: { type: string, description: Tipo MIME con el que se sirve (ausente si es OTHER) }
         origin:
           type: string
           enum: [SPEC, MANUAL]

@@ -58,6 +58,9 @@ export const api = {
   deleteDecision: (brandId: string, id: number) =>
     call<void>(`/api/brands/${encodeURIComponent(brandId)}/decisions/${id}`, { method: 'DELETE' }),
   publicationFiles: (id: string) => call<PublicationFileList>(`/api/publications/${encodeURIComponent(id)}/files`),
+  /** Dirección del contenido de un archivo de la publicación (imagen o vídeo; el vídeo se pide a trozos). */
+  publicationFileUrl: (id: string, fileId: string) =>
+    `/api/publications/${encodeURIComponent(id)}/files/${encodeURIComponent(fileId)}/content`,
   attachPublicationFile: (id: string, path: string) =>
     post<PublicationFile>(`/api/publications/${encodeURIComponent(id)}/files`, { path }),
   detachPublicationFile: (id: string, path: string) =>
