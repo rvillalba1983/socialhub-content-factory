@@ -9,6 +9,7 @@ import com.socialhub.ai.domain.ClaudePickups;
 import com.socialhub.backup.Backups;
 import com.socialhub.factory.domain.Recommendation;
 import com.socialhub.pieces.ContentGaps;
+import com.socialhub.pieces.MissingMaterial;
 import com.socialhub.promotion.PromotionQueries;
 import com.socialhub.publishing.InstagramOAuth;
 import com.socialhub.publishing.PublerAccounts;
@@ -80,6 +81,7 @@ class FactoryRecommendations {
     private final Backups backups;
     private final AiAutoStarted autoStarted;
     private final ContentGaps contentGaps;
+    private final MissingMaterial missingMaterial;
     private final InstagramOAuth instagramOAuth;
     private final Clock clock;
 
@@ -183,6 +185,12 @@ class FactoryRecommendations {
             all.add(dto);
         }
 
+        // 2c. Publicaciones que van a producirse sin imagen ni vídeo propio (informativo: no bloquea)
+        for (var promotion : allPromotions) {
+            if (!promotion.active() && !promotion.plannedAhead(today)) continue;
+            materialNotice(promotion, missingMaterial.of(promotion.id())).ifPresent(all::add);
+        }
+
         // 3. Marca sin todas sus carpetas
         for (var brand : brands) {
             if (promotions.hasAllBrandFolders(brand.id())) continue;
@@ -269,6 +277,35 @@ class FactoryRecommendations {
                         .promotionId(id)));
 
         return List.copyOf(all);
+    }
+
+    /** Cuántos títulos se nombran en el aviso de material; el resto va como «y N más». */
+    static final int MAX_TITLES = 5;
+
+    static java.util.Optional<Recommendation> materialNotice(PromotionQueries.PromotionRef promotion,
+                                                             MissingMaterial.Report report) {
+        if (report.pending() == 0 || (report.accessible() && report.missing().isEmpty())) return java.util.Optional.empty();
+        String style = report.visualStyle() == null || report.visualStyle().isBlank() ? ""
+                : " Claude diseñará los fondos con el estilo visual de la promoción: «" + report.visualStyle().strip() + "».";
+        String fallback = report.cover() != null ? "la portada de la marca («" + report.cover() + "»)"
+                : "un fondo con el color de la marca (o la portada de la marca si pones un archivo «portada.jpg», «portada.jpeg» o "
+                        + "«portada.png» en la raíz de su carpeta Material)";
+        String id = "material-missing:" + promotion.id();
+        if (!report.accessible()) {
+            return java.util.Optional.of(recommendation(id, Recommendation.Kind.MATERIAL_MISSING,
+                    "No se puede comprobar el material de «" + promotion.name() + "»",
+                    "La carpeta de Material no está disponible en este ordenador (¿está abierto Google Drive?). Es solo un aviso: "
+                            + "lo que no tenga imagen ni vídeo usará, en este orden, el fondo SVG de Claude, " + fallback
+                            + " o un fondo de SocialHub." + style,
+                    Recommendation.Screen.BRAND_FOLDERS, promotion.brandId(), null).promotionId(promotion.id()));
+        }
+        var titles = report.missing();
+        String names = String.join(", ", titles.stream().limit(MAX_TITLES).toList())
+                + (titles.size() > MAX_TITLES ? " y " + (titles.size() - MAX_TITLES) + " más" : "");
+        return java.util.Optional.of(recommendation(id, Recommendation.Kind.MATERIAL_MISSING,
+                "Faltan imágenes o vídeos para: " + names,
+                "Si Claude no entrega un fondo SVG, SocialHub usará " + fallback + ". No bloquea nada." + style,
+                Recommendation.Screen.BRAND_FOLDERS, promotion.brandId(), null).promotionId(promotion.id()));
     }
 
     private static Recommendation noMargin(PromotionQueries.PromotionRef promotion,

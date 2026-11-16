@@ -40,6 +40,7 @@ class FactoryRecommendationsTest {
     private final com.socialhub.ai.AiAutoStarted autoStarted = mock(com.socialhub.ai.AiAutoStarted.class);
     private final Backups backups = mock(Backups.class);
     private final com.socialhub.pieces.ContentGaps contentGaps = mock(com.socialhub.pieces.ContentGaps.class);
+    private final com.socialhub.pieces.MissingMaterial missingMaterial = mock(com.socialhub.pieces.MissingMaterial.class);
     private final com.socialhub.publishing.InstagramOAuth instagramOAuth = mock(com.socialhub.publishing.InstagramOAuth.class);
 
     /** Lunes 9 de noviembre de 2026, 11:00 en España. */
@@ -55,7 +56,7 @@ class FactoryRecommendationsTest {
 
     private FactoryRecommendations subject() {
         return new FactoryRecommendations(held, sent, promotions, publishing, publora, publer, backups, autoStarted,
-                contentGaps, instagramOAuth, Clock.fixed(now, ClaudePickups.ZONE));
+                contentGaps, missingMaterial, instagramOAuth, Clock.fixed(now, ClaudePickups.ZONE));
     }
 
     /** Una marca «Litoques» con una promoción activa, todo en orden. */
@@ -69,6 +70,7 @@ class FactoryRecommendationsTest {
         when(publishing.proposalCounts()).thenReturn(Map.of());
         when(held.current()).thenReturn(List.of());
         when(sent.waiting()).thenReturn(List.of());
+        when(missingMaterial.of(any())).thenReturn(new com.socialhub.pieces.MissingMaterial.Report(true, 0, List.of(), null, ""));
     }
 
     private List<Kind> kinds() { return subject().compute().stream().map(Recommendation::kind).toList(); }
@@ -651,5 +653,39 @@ class FactoryRecommendationsTest {
     @Test
     void withoutAConnectionOrWithEnoughDaysThereIsNoInstagramNotice() {
         assertThat(kinds()).doesNotContain(Kind.INSTAGRAM_CONNECTION_EXPIRING);
+    }
+
+    @Test
+    void missingMaterialIsOnlyANoticeThatNamesWhatFallbackWillBeUsed() {
+        var report = new com.socialhub.pieces.MissingMaterial.Report(true, 3, List.of("Con púa", "Pregunta grande"), null, "");
+        when(missingMaterial.of("lit-1")).thenReturn(report);
+        var r = subject().compute().stream().filter(x -> x.kind() == Kind.MATERIAL_MISSING).findFirst().orElseThrow();
+        assertThat(r.title()).isEqualTo("Faltan imágenes o vídeos para: Con púa, Pregunta grande");
+        assertThat(r.detail()).contains("fondo con el color de la marca").contains("portada.jpg").contains("No bloquea nada");
+        assertThat(r.target().screen()).isEqualTo(Screen.BRAND_FOLDERS);
+        // Con portada, dice cuál usará; con estilo visual, lo menciona
+        when(missingMaterial.of("lit-1")).thenReturn(
+                new com.socialhub.pieces.MissingMaterial.Report(true, 1, List.of("Con púa"), "portada.png", "Navidad: rojo y oro"));
+        var withCover = subject().compute().stream().filter(x -> x.kind() == Kind.MATERIAL_MISSING).findFirst().orElseThrow();
+        assertThat(withCover.detail()).contains("la portada de la marca («portada.png»)").contains("Navidad: rojo y oro");
+        // Nada que avisar: sin publicaciones pendientes o con todo el material
+        when(missingMaterial.of("lit-1")).thenReturn(new com.socialhub.pieces.MissingMaterial.Report(true, 2, List.of(), null, ""));
+        assertThat(kinds()).doesNotContain(Kind.MATERIAL_MISSING);
+    }
+
+    @Test
+    void missingMaterialNamesAtMostFiveTitlesAndSaysWhenTheFolderIsNotAvailable() {
+        var titles = List.of("A uno", "B dos", "C tres", "D cuatro", "E cinco", "F seis", "G siete");
+        when(missingMaterial.of("lit-1")).thenReturn(new com.socialhub.pieces.MissingMaterial.Report(true, 7, titles, null, ""));
+        var many = subject().compute().stream().filter(x -> x.kind() == Kind.MATERIAL_MISSING).findFirst().orElseThrow();
+        assertThat(many.title()).endsWith("E cinco y 2 más").doesNotContain("F seis");
+        // Carpeta no accesible: aviso claro, sin fallar
+        when(missingMaterial.of("lit-1")).thenReturn(new com.socialhub.pieces.MissingMaterial.Report(false, 2, List.of(), null, ""));
+        var offline = subject().compute().stream().filter(x -> x.kind() == Kind.MATERIAL_MISSING).findFirst().orElseThrow();
+        assertThat(offline.title()).startsWith("No se puede comprobar el material");
+        assertThat(offline.detail()).contains("Google Drive").contains("solo un aviso");
+        // Una promoción pausada no avisa
+        when(promotions.promotionRefs()).thenReturn(List.of(ref("PAUSED", LocalDate.of(2026, 11, 1), LocalDate.of(2026, 12, 31))));
+        assertThat(kinds()).doesNotContain(Kind.MATERIAL_MISSING);
     }
 }

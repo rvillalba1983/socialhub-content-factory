@@ -1759,6 +1759,7 @@ components:
             - CONTENT_MISSING
             - IDENTITY_MISSING
             - PUBLICATION_TOO_SOON
+            - MATERIAL_MISSING
           description: >
             Por orden de prioridad: marca sin forma de publicar (NO_PUBLISHING_ROUTE) y tarea del PC «Publicar con
             Chrome» sin contestar (PC_TASK_SILENT), que van primero porque bloquean publicaciones reales (también salen
@@ -1773,7 +1774,10 @@ components:
             le falta el tono o el público (botón a su identidad; los temas que no se tocan vacíos son válidos). PUBLICATION_TOO_SOON: publicaciones
             de camino a publicar a las que ya no quedan 6 horas de margen, o cuya hora ya pasó, y aún no están programadas
             (botón a las pendientes de la promoción). SPEC_WAITING ya no se calcula (el spec se pide por lotes, no por semana) y se conserva
-            solo por compatibilidad
+            solo por compatibilidad. MATERIAL_MISSING: aviso informativo (no bloquea) de las publicaciones de una promoción
+            a las que les falta imagen o vídeo en las carpetas de Material; dice qué fondo se usará (la portada de la marca, o un fondo
+            con su color) y, si la promoción tiene «Estilo visual», que Claude lo usará; si la carpeta no está disponible, avisa de que no se
+            ha podido comprobar (botón a las carpetas de la marca)
         title: { type: string, description: "Texto en español" }
         detail: { type: string, description: "Más información (por ejemplo, el motivo de un encargo retenido)" }
         promotion_id:
@@ -2509,6 +2513,12 @@ components:
         description: { type: string, maxLength: 2000 }
         scope: { type: string, maxLength: 2000 }
         cadence: { type: string, maxLength: 500 }
+        visual_style:
+          type: string
+          maxLength: 300
+          description: >
+            Estilo visual de la promoción, en texto libre corto (por ejemplo «Navidad: rojo, dorado, nieve y estrellas»).
+            Opcional. Claude lo usa para diseñar los fondos de las piezas que no tienen imagen ni vídeo.
         starts_on: { type: string, format: date }
         ends_on: { type: string, format: date }
         status: { type: string, enum: [PLANNED, ACTIVE, PAUSED, FINISHED] }
@@ -2570,6 +2580,7 @@ components:
         description: { type: string }
         scope: { type: string }
         cadence: { type: string }
+        visual_style: { type: string, description: Estilo visual de la promoción; vacío si no lo tiene }
         starts_on: { type: string, format: date }
         ends_on: { type: string, format: date }
         status: { type: string, enum: [PLANNED, ACTIVE, PAUSED, FINISHED] }

@@ -54,6 +54,7 @@ class WeeklySpecHandler implements AiTypeHandler {
     static final java.time.Duration SOON = java.time.Duration.ofDays(3);
 
     private final PromotionQueries promotions;
+    private final BrandLooks looks;
     private final PublishingQueries publications;
     private final ProductionTasks production;
     private final ProductionAiTasks aiTasks;
@@ -245,13 +246,30 @@ class WeeklySpecHandler implements AiTypeHandler {
         Map<String, Object> inputs = new LinkedHashMap<>();
         inputs.put("folders", promotions.folderMap(job.promotionId()));
         inputs.put("publications", list);
+        // Solo si existe de verdad: una ruta que no está en este ordenador no sirve de nada a Claude
+        looks.cover(job.promotionId()).ifPresent(cover -> inputs.put("brand_cover", cover.toString()));
+        String style = promotions.visualStyleOf(job.promotionId());
+        if (!style.isBlank()) inputs.put("visual_style", style);
         inputs.put("expected_outputs", "spec (objeto con el formato de contracts/promo-spec.v1.schema.json) y summary. "
                 + "El spec lleva solo las publicaciones de «publications» (cada una con su fecha «scheduled_on» y su hora "
                 + "«scheduled_time»), sin depender de ninguna semana. "
                 + "Usa rutas completas de este ordenador, dentro de las carpetas de «folders». Cada pieza que corresponda "
                 + "a una publicación lleva «publicacion» con su id.");
+        inputs.put("missing_material_note", MISSING_MATERIAL_NOTE);
         return inputs;
     }
+
+    /** Lo que Claude debe saber cuando falta una imagen o un vídeo (no pararse a preguntar). */
+    static final String MISSING_MATERIAL_NOTE = "Si falta la imagen o el vídeo de una canción o tema, NO te pares a preguntar: "
+            + "SocialHub nunca deja una pieza sin fondo. Deja «img» sin poner (en esa pieza o slide) y, si quieres, entrega un fondo "
+            + "dibujado por ti en «fondo_svg» (SVG en línea de hasta 64 KB, con xmlns=\"http://www.w3.org/2000/svg\" y viewBox "
+            + "\"0 0 1080 1350\" para carrusel o \"0 0 1080 1920\" para historia y reel; en los carruseles cada slide enseña la parte "
+            + "de arriba, 1080x900). Solo formas de dibujo: svg, g, defs, rect, circle, ellipse, path, polygon, polyline, line, "
+            + "linearGradient, radialGradient, stop, text, tspan, title y desc. Sin script, foreignObject, image, use, style ni "
+            + "@import, sin href que no sea interno (#id) y sin entidades ni DOCTYPE: un SVG que no cumpla se ignora. No escribas el "
+            + "título en el SVG: SocialHub lo pone encima. Si hay «visual_style», úsalo para diseñar los fondos (paleta, motivos, "
+            + "temporada) y respeta los colores de la marca salvo que ese estilo los cambie. El orden de fondo de cada pieza es: su "
+            + "«img» > tu «fondo_svg» > la portada de la marca («brand_cover», si viene) > un fondo con el color de la marca.";
 
     @Override
     public String apply(AiJob job, JsonNode outputs, JsonNode result) {

@@ -2,10 +2,12 @@ package com.socialhub.pieces.application;
 
 import static com.socialhub.pieces.application.Drawing.*;
 
+import com.socialhub.pieces.domain.BrandLook;
 import com.socialhub.pieces.domain.PieceBatch;
 import com.socialhub.pieces.domain.PieceFiles;
 import com.socialhub.pieces.domain.PieceResult;
 import com.socialhub.pieces.domain.PromoSpec;
+import com.socialhub.pieces.domain.SvgRasterizer;
 import com.socialhub.tools.Ffmpeg;
 import java.awt.Color;
 import java.awt.Font;
@@ -38,9 +40,52 @@ class PieceGenerator {
     private static final Duration VIDEO_TIMEOUT = Duration.ofMinutes(15);
 
     private final Ffmpeg ffmpeg;
+    private final SvgRasterizer svg;
 
-    PieceGenerator(Ffmpeg ffmpeg) {
+    PieceGenerator(Ffmpeg ffmpeg, SvgRasterizer svg) {
         this.ffmpeg = ffmpeg;
+        this.svg = svg;
+    }
+
+    /** Lo que necesitan las piezas al dibujarse: los archivos de la promoción, la marca y dónde anotar lo que pasa. */
+    private record Ctx(PieceFiles files, BrandLook look, Consumer<String> log) {}
+
+    /**
+     * La imagen base de una pieza o slide, por orden: su imagen propia, el {@code fondo_svg} de Claude, la portada de la
+     * marca y, si no hay nada de eso, un fondo de SocialHub con el color de la marca. Un SVG que no vale o una portada que
+     * no se puede leer no dan error: se pasa al siguiente.
+     *
+     * @param generated true si es el fondo de SocialHub (ya lleva el título, si se pidió)
+     */
+    private record Base(BufferedImage image, boolean generated) {}
+
+    private Base base(Ctx ctx, @Nullable String img, @Nullable String fondoSvg, int svgW, int svgH, int genW, int genH,
+                      String seed, @Nullable String drawTitle, double titleAt, String label) throws IOException {
+        if (notBlank(img)) return new Base(read(ctx.files().input(img, PieceFiles.IMAGES, 60)), false);
+        if (notBlank(fondoSvg)) {
+            var drawn = svg.rasterize(fondoSvg, svgW, svgH);
+            if (drawn.isPresent()) {
+                ctx.log().accept(label + ": sin imagen, se usa el fondo SVG de Claude");
+                return new Base(drawn.get(), false);
+            }
+            ctx.log().accept(label + ": el fondo SVG no es válido o no se pudo pintar; se usa el siguiente fondo");
+        }
+        if (ctx.look().cover() != null) {
+            try {
+                BufferedImage cover = read(ctx.files().input(ctx.look().cover().toString(), PieceFiles.IMAGES, 60));
+                ctx.log().accept(label + ": sin imagen, se usa la portada de la marca (" + ctx.look().cover().getFileName() + ")");
+                return new Base(cover, false);
+            } catch (IllegalArgumentException | IOException e) {
+                ctx.log().accept(label + ": no se pudo usar la portada de la marca (" + e.getMessage() + ")");
+            }
+        }
+        ctx.log().accept(label + ": sin imagen, se usa un fondo con el color de la marca");
+        return new Base(FallbackBackground.render(genW, genH, ctx.look().color(), seed, drawTitle, titleAt), true);
+    }
+
+    /** El título de una pieza: el suyo o, si no lo tiene, su nombre sin guiones bajos. */
+    private static String pieceTitle(PromoSpec.Piece p) {
+        return notBlank(p.titulo()) ? p.titulo().strip() : p.nombre().replace('_', ' ').strip();
     }
 
 
@@ -54,15 +99,20 @@ class PieceGenerator {
             switch (p.tipo()) {
                 case "carrusel" -> {
                     if (p.slides() == null || p.slides().isEmpty()) throw bad(p, "no tiene slides");
-                    p.slides().forEach(s -> files.input(s.img(), PieceFiles.IMAGES, 60));
-                    if (p.cierre() != null) files.input(p.cierre().img(), PieceFiles.IMAGES, 60);
+                    int n = 0;
+                    for (PromoSpec.Slide s : p.slides()) {
+                        n++;
+                        if (notBlank(s.img())) files.input(s.img(), PieceFiles.IMAGES, 60);
+                        else if (!notBlank(s.texto()) && !notBlank(s.titulo())) throw bad(p, "la slide " + n + " no tiene texto ni título");
+                    }
+                    if (p.cierre() != null && notBlank(p.cierre().img())) files.input(p.cierre().img(), PieceFiles.IMAGES, 60);
                 }
                 case "historia" -> {
-                    files.input(required(p, p.img(), "img"), PieceFiles.IMAGES, 60);
+                    if (notBlank(p.img())) files.input(p.img(), PieceFiles.IMAGES, 60);
                     required(p, p.titulo(), "titulo");
                 }
                 case "reel" -> {
-                    files.input(required(p, p.img(), "img"), PieceFiles.IMAGES, 60);
+                    if (notBlank(p.img())) files.input(p.img(), PieceFiles.IMAGES, 60);
                     if (p.versos() == null || p.versos().isEmpty()) throw bad(p, "no tiene versos");
                     if (p.audio() != null) files.input(p.audio(), PieceFiles.AUDIO, 300);
                 }
@@ -78,16 +128,22 @@ class PieceGenerator {
 
     PieceBatch generate(PromoSpec spec, PieceFiles files, Consumer<String> log, Consumer<Double> progress)
             throws IOException, InterruptedException {
+        return generate(spec, files, BrandLook.DEFAULT, log, progress);
+    }
+
+    PieceBatch generate(PromoSpec spec, PieceFiles files, BrandLook look, Consumer<String> log, Consumer<Double> progress)
+            throws IOException, InterruptedException {
         validate(spec, files);
+        Ctx ctx = new Ctx(files, look, log);
         Path out = files.outputDir(spec.out() == null || spec.out().isBlank() ? "salida" : spec.out());
         List<PieceResult> results = new ArrayList<>();
         int i = 0;
         for (PromoSpec.Piece p : spec.piezas()) {
             checkInterrupted();
             List<Path> made = switch (p.tipo()) {
-                case "carrusel" -> carousel(p, files, out);
-                case "historia" -> story(p, files, out);
-                case "reel" -> reel(p, files, out);
+                case "carrusel" -> carousel(p, ctx, out);
+                case "historia" -> story(p, ctx, out);
+                case "reel" -> reel(p, ctx, out);
                 case "clip" -> clip(p, files, out);
                 case "comprimir" -> compress(p, files, out);
                 default -> throw bad(p, "tipo desconocido");
@@ -102,29 +158,36 @@ class PieceGenerator {
 
     // ---------------------------------------------------------------- carrusel
 
-    private List<Path> carousel(PromoSpec.Piece p, PieceFiles files, Path out) throws IOException, InterruptedException {
+    private List<Path> carousel(PromoSpec.Piece p, Ctx ctx, Path out) throws IOException, InterruptedException {
         List<Path> made = new ArrayList<>();
         int i = 0;
         for (PromoSpec.Slide s : p.slides()) {
             checkInterrupted();
             double[] crop = crop(s.crop(), 0.5, 0.4);
+            boolean ownTitle = notBlank(s.titulo());
+            String title = ownTitle ? s.titulo().strip() : pieceTitle(p);
+            Base base = base(ctx, s.img(), notBlank(s.fondoSvg()) ? s.fondoSvg() : p.fondoSvg(), W, H_POST, W, 900,
+                    title + (ownTitle ? "" : " " + (i + 1)), title, 0.5, p.nombre() + " (slide " + (i + 1) + ")");
             BufferedImage img = canvas(W, H_POST, CREAM);
             Graphics2D g = graphics(img);
-            g.drawImage(cover(read(files.input(s.img(), PieceFiles.IMAGES, 60)), W, 900, crop[0], crop[1]), 0, 0, null);
+            g.drawImage(cover(base.image(), W, 900, crop[0], crop[1]), 0, 0, null);
             int y = 960;
-            if (s.titulo() != null && !s.titulo().isBlank()) {
+            // El fondo de SocialHub ya lleva el título de la slide: no se repite debajo
+            if (ownTitle && !base.generated()) {
                 centered(g, y, s.titulo(), bold(40), RED, W);
                 y += 70;
             }
-            block(g, y, s.texto(), italic(46), INK, W);
+            if (notBlank(s.texto())) block(g, y, s.texto(), italic(46), INK, W);
             g.dispose();
             made.add(saveJpg(img, out, p.nombre() + "_" + ++i, 92));
         }
         PromoSpec.Closing c = p.cierre();
         if (c != null) {
+            Base base = base(ctx, c.img(), p.fondoSvg(), W, H_POST, 900, 800, pieceTitle(p) + " cierre", pieceTitle(p), 0.5,
+                    p.nombre() + " (cierre)");
             BufferedImage img = canvas(W, H_POST, CREAM);
             Graphics2D g = graphics(img);
-            g.drawImage(cover(read(files.input(c.img(), PieceFiles.IMAGES, 60)), 900, 800, 0.5, 0.5), 90, 60, null);
+            g.drawImage(cover(base.image(), 900, 800, 0.5, 0.5), 90, 60, null);
             int y = 900;
             for (int j = 0; j < c.lineas().size(); j++) {
                 Font font = j == 0 ? bold(64) : italic(40);
@@ -151,13 +214,15 @@ class PieceGenerator {
         return s;
     }
 
-    private List<Path> story(PromoSpec.Piece p, PieceFiles files, Path out) throws IOException {
+    private List<Path> story(PromoSpec.Piece p, Ctx ctx, Path out) throws IOException {
         double[] crop = crop(p.crop(), 0.5, 0.5);
         List<Line> lines = new ArrayList<>();
         lines.add(new Line(p.titulo(), bold(84), LIGHT));
         if (notBlank(p.texto())) lines.add(new Line(p.texto(), italic(46), WARM));
         if (notBlank(p.cta())) lines.add(new Line(p.cta(), bold(44), ACCENT));
-        BufferedImage card = verticalCard(read(files.input(p.img(), PieceFiles.IMAGES, 60)), lines, crop[0], crop[1], 160);
+        // Sin texto en el fondo propio de SocialHub: el título de la historia ya se dibuja encima
+        Base base = base(ctx, p.img(), p.fondoSvg(), W, H_STORY, W, H_STORY, pieceTitle(p), null, 0.5, p.nombre());
+        BufferedImage card = verticalCard(base.image(), lines, crop[0], crop[1], 160);
         return List.of(saveJpg(card, out, p.nombre(), 92));
     }
 
@@ -165,8 +230,13 @@ class PieceGenerator {
 
     private record Segment(String text, double seconds, Font font) {}
 
-    private List<Path> reel(PromoSpec.Piece p, PieceFiles files, Path out) throws IOException, InterruptedException {
-        BufferedImage src = read(files.input(p.img(), PieceFiles.IMAGES, 60));
+    private List<Path> reel(PromoSpec.Piece p, Ctx ctx, Path out) throws IOException, InterruptedException {
+        PieceFiles files = ctx.files();
+        Base base = base(ctx, p.img(), p.fondoSvg(), W, H_STORY, W, H_STORY, pieceTitle(p), pieceTitle(p), 0.36, p.nombre());
+        BufferedImage src = base.image();
+        // La tarjeta final escribe sus propias líneas: sobre el fondo de SocialHub, la versión sin título
+        BufferedImage endSrc = base.generated()
+                ? FallbackBackground.render(W, H_STORY, ctx.look().color(), pieceTitle(p), null, 0.5) : src;
         double sc = (H_STORY * 1.18) / src.getHeight();
         BufferedImage big = scale(src, (int) (src.getWidth() * sc), (int) (src.getHeight() * sc));
         int mx = Math.max(big.getWidth() - W, 0), my = Math.max(big.getHeight() - H_STORY, 0);
@@ -209,7 +279,7 @@ class PieceGenerator {
                     Color color = j == 0 ? LIGHT : j < fin.size() - 1 ? WARM : ACCENT;
                     lines.add(new Line(fin.get(j), font, color));
                 }
-                endImg = verticalCard(src, lines, 0.5, 0.5, 185);
+                endImg = verticalCard(endSrc, lines, 0.5, 0.5, 185);
             } else {
                 endImg = background(big, mx, my, 1.0);
             }

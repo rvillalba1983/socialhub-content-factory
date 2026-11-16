@@ -55,6 +55,21 @@ public interface PromotionQueries {
     /** La cadencia de la promoción, en el texto que escribió Raúl; nulo si no hay promoción o no la tiene. */
     @org.jspecify.annotations.Nullable String cadenceOf(String promotionId);
 
+    /** Color de la marca (#RRGGBB); vacío si la marca no existe. */
+    String colorOf(String brandId);
+
+    /** Carpeta con el papel «Material» de la marca (su raíz, sin las excepciones de sus promociones). */
+    Optional<String> brandMaterialFolder(String brandId);
+
+    /**
+     * Carpetas donde buscar el material (imágenes y vídeos) de una promoción: sus recursos de tipo Drive y la carpeta
+     * «Material» en vigor (la suya o la de la marca), sin repetir.
+     */
+    List<String> materialFolders(String promotionId);
+
+    /** Estilo visual de la promoción («Navidad: rojo, dorado, nieve y estrellas»); vacío si no lo tiene. */
+    String visualStyleOf(String promotionId);
+
     /** Usuario de la marca en las redes («@elde_lito»); vacío si no existe. */
     String handleOf(String brandId);
 

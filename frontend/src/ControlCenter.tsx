@@ -96,6 +96,7 @@ export function ControlCenter({ p, brand, data, initialTab, initialFilter = 'all
             <h1>{p.name}</h1>
             <p>{shortDate(p.starts_on)} – {shortDate(p.ends_on)} · {p.cadence}</p>
             <p>{p.description}</p>
+            {p.visual_style ? <p className="src">Estilo visual: {p.visual_style}</p> : null}
           </div>
           <div className="promo-row"><Pill s={PROMOTION_STATUS[p.status].s} label={PROMOTION_STATUS[p.status].label} /><span className="pill s-wait"><Icon name="human" /><span>Supervisada</span></span>
             <button className="btn" onClick={onEdit}>Editar</button></div>

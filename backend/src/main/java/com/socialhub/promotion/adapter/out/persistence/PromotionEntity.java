@@ -31,6 +31,7 @@ class PromotionEntity {
     private String description;
     private String scope;
     private String cadence;
+    private String visualStyle;
     private LocalDate startsOn;
     private LocalDate endsOn;
     private String status;
