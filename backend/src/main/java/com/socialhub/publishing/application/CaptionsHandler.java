@@ -3,6 +3,7 @@ package com.socialhub.publishing.application;
 import com.socialhub.ai.AiTypeHandler;
 import com.socialhub.ai.domain.AiJob;
 import com.socialhub.ai.domain.AiRequestType;
+import com.socialhub.publishing.PublishingCommands;
 import com.socialhub.publishing.domain.Publication;
 import com.socialhub.publishing.domain.PublicationStatus;
 import java.util.ArrayList;
@@ -76,10 +77,14 @@ class CaptionsHandler implements AiTypeHandler {
         }
         // Se comprueba antes de guardar, para no fallar dentro de la transacción del servicio
         validateOrder(job.promotionId(), texts.stream().map(PublishingService.Texts::publicationId).toList());
-        int kept = service.applyTexts(job.promotionId(), texts).size();
+        PublishingCommands.TextsOutcome outcome = service.applyTexts(job.promotionId(), texts, job.manual());
+        int kept = outcome.kept().size();
+        int replaced = outcome.replaced().size();
         int saved = texts.size() - kept;
         String summary = outputs.path("summary").isString() ? outputs.path("summary").asString().strip() : "";
         return (saved == 0 ? "Ningún texto guardado" : saved + (saved == 1 ? " texto guardado" : " textos guardados") + " para revisar")
+                + (replaced == 0 ? "" : " · " + replaced + (replaced == 1 ? " sustituye" : " sustituyen")
+                        + " un texto tuyo (lo recuperas desde la publicación con «Recuperar mi texto anterior»)")
                 + (kept == 0 ? "" : " · " + kept + (kept == 1 ? " no se aplicó" : " no se aplicaron")
                         + " porque ya tenían texto tuyo (queda en la incidencia de la publicación)")
                 + (summary.isEmpty() ? "" : " · " + summary);

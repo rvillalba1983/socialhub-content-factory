@@ -241,6 +241,11 @@ class PublicationsController implements PublicationsApi {
     }
 
     @Override
+    public ResponseEntity<PublicationDto> restorePublicationText(String publicationId, String requestGuard) {
+        return ResponseEntity.ok(mapper.toDto(service.restorePreviousText(publicationId)));
+    }
+
+    @Override
     public ResponseEntity<com.socialhub.api.model.EditorialMemoryDto> getEditorialMemory(String brandId) {
         var s = memory.snapshot(brandId);
         var decisions = s.decisions().stream().map(d -> new com.socialhub.api.model.EditorialDecisionDto(d.id(), d.text(),
