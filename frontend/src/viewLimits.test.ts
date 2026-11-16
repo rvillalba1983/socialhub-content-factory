@@ -12,6 +12,14 @@ describe('límites del mapa', () => {
     expect(clampView({ s: 99, tx: 0, ty: 0 }, box, area, min).s).toBe(3.5);
   });
 
+  it('el zoom mínimo sigue al alto disponible: con la franja de recomendaciones es el del encuadre más bajo, sin ella el más alto', () => {
+    const tall = fitScale(box, { w: 3000, h: 900 }, 58, 52);
+    const short = fitScale(box, { w: 3000, h: 800 }, 58, 52);
+    expect(short).toBeLessThan(tall);
+    // con el alto nuevo, el encuadre y el límite son exactamente el mismo número
+    expect(clampView({ s: 0.01, tx: 0, ty: 0 }, box, { w: 3000, h: 800 }, short).s).toBe(short);
+  });
+
   it('arrastrar a la derecha o abajo deja el borde del contenido en el centro como mucho', () => {
     const v = clampView({ s: 0.5, tx: 99999, ty: 99999 }, box, area, 0.3);
     expect(v.tx + box.x0 * 0.5).toBeCloseTo(area.w / 2, 5);
