@@ -39,6 +39,16 @@ class LogFileRedactionTest {
             log.error("fallo", new IllegalStateException("excepción con " + Secrets.SAMPLES.get(1).text(),
                     new RuntimeException("causa con " + withTrace.text())));
         } finally {
+            // Windows no deja borrar la carpeta temporal con el archivo abierto: se cierra el registro en archivo
+            ch.qos.logback.classic.Logger root = (ch.qos.logback.classic.Logger) LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);
+            java.util.List<ch.qos.logback.core.Appender<ch.qos.logback.classic.spi.ILoggingEvent>> all = new java.util.ArrayList<>();
+            root.iteratorForAppenders().forEachRemaining(all::add);
+            for (var appender : all) {
+                if (appender instanceof ch.qos.logback.core.FileAppender<?>) {
+                    appender.stop();
+                    root.detachAppender(appender);
+                }
+            }
             LoggingSystem.get(getClass().getClassLoader()).cleanUp();
         }
 
