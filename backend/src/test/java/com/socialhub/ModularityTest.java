@@ -11,9 +11,11 @@ import java.util.Set;
 import org.jmolecules.archunit.JMoleculesArchitectureRules;
 import org.junit.jupiter.api.Test;
 import org.springframework.modulith.core.ApplicationModules;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.modulith.docs.Documenter;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 /**
@@ -51,6 +53,77 @@ class ModularityTest {
                     "..domain..", "com.socialhub.platform..", "java..", "javax..", "org.jmolecules..", "org.jspecify..",
                     "lombok..")
             .because("el dominio no depende de la raíz de su módulo ni de otros módulos");
+
+    // Reglas de capas de la hexagonal en todos los módulos (domain / application / adapter.in / adapter.out). Cada una tiene
+    // su sonda en ArchitectureProbesTest: una clase que la incumple a propósito y comprueba que la regla falla.
+
+    /** La aplicación orquesta con puertos: no sabe de persistencia, de la web ni de los adaptadores. */
+    @ArchTest
+    static final ArchRule aplicacionSinTecnologia = noClasses().that().resideInAPackage("..application..").and().doNotHaveSimpleName("package-info")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "jakarta.persistence..", "org.hibernate..", "org.springframework.data..", "org.springframework.web..",
+                    "jakarta.servlet..", "com.socialhub.api..", "com.socialhub..adapter..")
+            .because("la aplicación habla con el dominio y con los puertos, no con JPA, la web ni los adaptadores");
+
+    /** Los adaptadores de entrada (web, programación, arranque) no llaman a los de salida: pasan por la aplicación. */
+    @ArchTest
+    static final ArchRule entradaSinSalida = noClasses().that().resideInAPackage("..adapter.in..")
+            .should().dependOnClassesThat().resideInAPackage("..adapter.out..")
+            .because("un adaptador de entrada llama a un puerto primario, nunca directamente a la persistencia o a los ficheros");
+
+    /** Los adaptadores de salida no conocen a los de entrada. */
+    @ArchTest
+    static final ArchRule salidaSinEntrada = noClasses().that().resideInAPackage("..adapter.out..")
+            .should().dependOnClassesThat().resideInAPackage("..adapter.in..")
+            .because("la dependencia va de fuera hacia dentro, nunca entre adaptadores");
+
+    /** Las entidades JPA viven solo en la persistencia (y en la revisión de auditoría de la plataforma). */
+    @ArchTest
+    static final ArchRule entidadesSoloEnPersistencia = classes().that().areAnnotatedWith("jakarta.persistence.Entity")
+            .or().areAnnotatedWith("jakarta.persistence.Embeddable").or().areAnnotatedWith("jakarta.persistence.MappedSuperclass")
+            .should().resideInAnyPackage("..adapter.out.persistence..", "com.socialhub.platform")
+            .because("el modelo de tablas es un detalle del adaptador de salida; el dominio tiene su propio modelo");
+
+    /** Los repositorios de Spring Data solo en la persistencia. */
+    @ArchTest
+    static final ArchRule repositoriosJpaSoloEnPersistencia = classes().that().areAssignableTo(org.springframework.data.repository.Repository.class)
+            .should().resideInAPackage("..adapter.out.persistence..")
+            .because("el resto del código usa los puertos del dominio, no Spring Data");
+
+    /** Los puertos secundarios los define el dominio; los adaptadores de salida los implementan. */
+    @ArchTest
+    static final ArchRule puertosSecundariosFueraDeLaAplicacion = noClasses().that().areAnnotatedWith(org.jmolecules.architecture.hexagonal.SecondaryPort.class)
+            .should().resideInAnyPackage("..application..", "..adapter..")
+            .because("un puerto de salida que vive en la aplicación o en un adaptador invierte la dependencia: va en el dominio");
+
+    /** Los puertos primarios son la cara pública del módulo: ni en el dominio, ni en la aplicación, ni en un adaptador. */
+    @ArchTest
+    static final ArchRule puertosPrimariosEnLaRaiz = noClasses().that().areAnnotatedWith(org.jmolecules.architecture.hexagonal.PrimaryPort.class)
+            .should().resideInAnyPackage("..domain..", "..application..", "..adapter..")
+            .because("el puerto primario es lo que otros módulos y los adaptadores de entrada ven; se implementa en application");
+
+    /** Módulos ya convertidos a hexagonal (y las sondas): las reglas de capas más estrictas valen para ellos. */
+    private static final String[] CONVERTED_MODULES = {"com.socialhub.ai..", "com.socialhub.pieces..", "com.socialhub.tools..",
+            "com.socialhub.operations..", "archprobes.."};
+
+    /** Las transacciones las abre la aplicación: ni el dominio ni los adaptadores de entrada. */
+    @ArchTest
+    static final ArchRule transaccionesFueraDeDominioYEntrada = noClasses()
+            .that().resideInAnyPackage("..domain..", "..adapter.in..").and().doNotHaveSimpleName("package-info")
+            .and().resideInAnyPackage(CONVERTED_MODULES)
+            .should().dependOnClassesThat().resideInAPackage("org.springframework.transaction..")
+            .because("la unidad de trabajo es de la aplicación; un controlador o un reloj que abre transacciones lleva lógica que no es suya");
+
+    /**
+     * Los relojes ({@code @Scheduled}) son adaptadores de entrada: solo llaman a un puerto primario. Se exige en los módulos
+     * ya convertidos; los relojes de los módulos antiguos (ver docs/decisiones.md, «Fase 12 · Arquitectura · PR2») se
+     * mueven a {@code adapter.in.scheduling} cuando se conviertan, y entonces esta regla pasa a valer para todos.
+     */
+    @ArchTest
+    static final ArchRule programacionSoloEnAdaptadoresDeEntrada = methods().that().areAnnotatedWith(Scheduled.class)
+            .and().areDeclaredInClassesThat().resideInAnyPackage(CONVERTED_MODULES)
+            .should().beDeclaredInClassesThat().resideInAnyPackage("..adapter.in..")
+            .because("quien decide cuándo toca una ronda no es la aplicación ni el dominio");
 
     // Reglas generales de código
 

@@ -7,9 +7,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.socialhub.ai.AiHeldOrders;
-import com.socialhub.ai.AiRequestType;
+import com.socialhub.ai.domain.AiRequestType;
 import com.socialhub.ai.AiSentOrders;
-import com.socialhub.ai.ClaudePickups;
+import com.socialhub.ai.domain.ClaudePickups;
 import com.socialhub.api.model.RecommendationDto;
 import com.socialhub.api.model.RecommendationDto.KindEnum;
 import com.socialhub.api.model.RecommendationTargetDto.ScreenEnum;

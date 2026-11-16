@@ -1,9 +1,9 @@
 package com.socialhub.publishing;
 
 import com.socialhub.ai.AiOrders;
-import com.socialhub.ai.AiRequestType;
+import com.socialhub.ai.domain.AiRequestType;
 import com.socialhub.promotion.PromotionQueries;
-import com.socialhub.ai.PcSchedule;
+import com.socialhub.ai.domain.PcSchedule;
 import com.socialhub.publishing.domain.Publication;
 import com.socialhub.publishing.domain.PublerAccountRepository;
 import com.socialhub.publishing.domain.PublishJob;
@@ -51,7 +51,7 @@ class PublerRoute implements PublishRoute {
     static Instant deadline(Instant scheduledAt) { return scheduledAt.minus(DEADLINE); }
 
     /** Cuánto antes de su límite tiene que ser la última pasada de Claude con Chrome que cuente: le deja tiempo de programarla. */
-    static final Duration PASS_MARGIN = com.socialhub.ai.ClaudePasses.PASS_MARGIN;
+    static final Duration PASS_MARGIN = com.socialhub.ai.domain.ClaudePasses.PASS_MARGIN;
     /** Cuánto antes de esa pasada hay que haber cedido el encargo, para que lo vea (lo que tarda en sincronizar Drive y algo más). */
     static final Duration HANDOVER_LEAD = Duration.ofMinutes(30);
 

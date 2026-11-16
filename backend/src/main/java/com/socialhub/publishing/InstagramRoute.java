@@ -1,7 +1,7 @@
 package com.socialhub.publishing;
 
 import com.socialhub.ai.AiOrders;
-import com.socialhub.ai.AiRequestType;
+import com.socialhub.ai.domain.AiRequestType;
 import com.socialhub.promotion.PromotionQueries;
 import com.socialhub.publishing.domain.InstagramAccountRepository;
 import com.socialhub.publishing.domain.InstagramGateway;
@@ -130,8 +130,8 @@ class InstagramRoute implements PublishRoute {
             return new Outcome.Failed("las imágenes necesitan la carpeta pública «publico» de Drive y no está disponible");
         }
         // Las pasadas de Claude en la nube son cada 5 h: si ninguna llega a hacer el encargo antes del corte, ni se pide
-        if (!com.socialhub.ai.ClaudePasses.canMeet(false, cutoff(p.scheduledAt()),
-                now.plus(com.socialhub.ai.ClaudePickups.DISPATCH_MAX).plus(com.socialhub.ai.ClaudePickups.SYNC_MARGIN))) {
+        if (!com.socialhub.ai.domain.ClaudePasses.canMeet(false, cutoff(p.scheduledAt()),
+                now.plus(com.socialhub.ai.domain.ClaudePickups.DISPATCH_MAX).plus(com.socialhub.ai.domain.ClaudePickups.SYNC_MARGIN))) {
             return new Outcome.Failed("ninguna pasada de Claude llega a dar los enlaces públicos antes del corte");
         }
         cleanup(p);

@@ -1,7 +1,7 @@
 package com.socialhub.publishing;
 
 import com.socialhub.ai.AiOrders;
-import com.socialhub.ai.AiRequestType;
+import com.socialhub.ai.domain.AiRequestType;
 import com.socialhub.platform.AppMode;
 import com.socialhub.platform.AppModeHolder;
 import com.socialhub.publishing.domain.AutoRequestRepository;

@@ -1,5 +1,8 @@
 package com.socialhub.ai;
 
+import com.socialhub.ai.domain.AiJob;
+import com.socialhub.ai.domain.AiRequestType;
+
 import java.util.Map;
 import org.jmolecules.architecture.hexagonal.SecondaryPort;
 import tools.jackson.databind.JsonNode;

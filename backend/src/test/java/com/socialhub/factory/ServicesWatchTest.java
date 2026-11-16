@@ -2,9 +2,9 @@ package com.socialhub.factory;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.socialhub.ai.AiRequestType;
+import com.socialhub.ai.domain.AiRequestType;
 import com.socialhub.ai.AiSentOrders.Sent;
-import com.socialhub.ai.PcSchedule;
+import com.socialhub.ai.domain.PcSchedule;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;

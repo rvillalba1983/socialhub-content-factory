@@ -549,8 +549,8 @@ class InstagramRouteTest {
         assertThat(request.get("inputs").get("files").get(0).asString()).isEqualTo(staged.getFirst().getFileName().toString());
         assertThat(Instant.parse(request.get("deadline").asString())).isEqualTo(PublerRoute.handoverBy(at));
         // «urgent» sale calculado con el límite del encargo y el momento en que Claude puede verlo
-        assertThat(request.get("urgent").asBoolean()).isEqualTo(com.socialhub.ai.ClaudePasses.urgent(false,
-                PublerRoute.handoverBy(at), com.socialhub.ai.ClaudePickups.visibleAt(CLOCK.instant())));
+        assertThat(request.get("urgent").asBoolean()).isEqualTo(com.socialhub.ai.domain.ClaudePasses.urgent(false,
+                PublerRoute.handoverBy(at), com.socialhub.ai.domain.ClaudePickups.visibleAt(CLOCK.instant())));
 
         // y la base de datos guarda la misma marca que el archivo
         assertThat(aiOrders.urgentOf(request.get("taskId").asString())).contains(request.get("urgent").asBoolean());
