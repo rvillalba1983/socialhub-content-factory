@@ -49,6 +49,8 @@ tags:
     description: Copias de seguridad de la base de datos real, en la carpeta de copias (ajuste general)
   - name: App
     description: La aplicación en sí (cerrarla desde la web y ver qué versión es)
+  - name: Launcher
+    description: SocialHub como programa de escritorio (abrirlo al iniciar sesión en Windows)
 
 paths:
   /api/factory:
@@ -340,6 +342,41 @@ paths:
         - $ref: "#/components/parameters/RequestGuard"
       responses:
         "204": { description: Carpeta abierta }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/system/autostart:
+    get:
+      tags: [Launcher]
+      operationId: getAutostart
+      summary: ¿Se abre SocialHub al iniciar sesión?
+      description: >
+        Solo en Windows con SocialHub instalado (available). Es una entrada del usuario en HKCU Run: no pide
+        administrador. Se abre en segundo plano, sin abrir el navegador; el icono de la bandeja indica que está corriendo.
+      responses:
+        "200":
+          description: Estado del arranque con el sistema
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Autostart" }
+        default: { $ref: "#/components/responses/Problem" }
+    put:
+      tags: [Launcher]
+      operationId: setAutostart
+      summary: Activa o desactiva abrir SocialHub al iniciar sesión (por defecto, activado)
+      parameters:
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AutostartInput" }
+      responses:
+        "200":
+          description: Estado nuevo
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Autostart" }
+        "400": { $ref: "#/components/responses/Problem" }
         default: { $ref: "#/components/responses/Problem" }
 
   /api/system/version:
@@ -2493,6 +2530,19 @@ components:
         version: { type: string, description: "Versión de tres números (por ejemplo 1.2.7)", example: 1.2.7 }
         commit: { type: string, description: "Commit con el que se compiló, de 7 caracteres (o «local» si se compiló a mano)", example: a1b2c3d }
         build_time: { type: string, format: date-time, description: Fecha y hora de compilación }
+
+    Autostart:
+      type: object
+      required: [available, enabled]
+      properties:
+        available: { type: boolean, description: "Este sistema lo permite (Windows con SocialHub instalado)" }
+        enabled: { type: boolean }
+
+    AutostartInput:
+      type: object
+      required: [enabled]
+      properties:
+        enabled: { type: boolean }
 
     LogsFolder:
       type: object
