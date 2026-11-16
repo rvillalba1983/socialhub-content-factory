@@ -744,3 +744,11 @@ Problema: a Raúl se le quedó SocialHub sin arrancar tras una instalación a me
 **Pantalla (C):** en «Operaciones externas» (ya existía), la ruta de la carpeta de registros y el botón «Abrir carpeta de registros». API: `GET /api/app/logs` (ruta) y `POST /api/app/logs/open` (con la cabecera de protección; no recibe ninguna ruta y lanza el explorador sin intérprete de órdenes). Nada más: sin pantalla nueva.
 
 **Límites conocidos:** si falta `socialhub.jar` o el lanzador no puede crear la JVM, el `.exe` de jpackage solo enseña su propio aviso y no hay Java en marcha que registre nada: ahí vale el registro de la instalación. El mensaje nativo de la JVM (avisos de HotSpot) sigue yendo al descriptor nativo, que Java no puede redirigir sin `-Xlog`.
+
+## Fase 12 · Desplegables en lugar de texto libre (16 nov 2026)
+
+Petición de Raúl: los campos que son una elección entre opciones cerradas deben ser desplegables. Auditados todos los formularios del frontal (decisión técnica salvo lo marcado como duda):
+- **Convertido:** publicación (editor) · «Vía» pasa de texto a desplegable con `API oficial`, `Publer`, `Publora` (los nombres de `PublishRoute.Id` del backend, constante `PUBLISH_ROUTES` en `model.ts`). Si la publicación trae otro valor (p. ej. antiguo), se conserva como opción para no perderlo.
+- **Ya eran desplegables:** plataforma, «Empieza como», motivo de rechazo, marca y estado de la promoción, tipo/modelo/dónde/origen de las filas de promoción, modelo y tipo de encargo de Claude, promoción en encargos, sistema en operaciones, cuenta de Instagram detectada, cuenta de Publora por red, agente de la estación.
+- **Se dejan como texto (valor libre legítimo):** cuenta de Publer (nombre tal como sale en Publer), ID de cuenta de Instagram (alternativa a la detectada), cadencia, «Cuándo» de automatizaciones, rutas de carpetas, nombres, hitos, parámetros, «Vía» de las vías de la promoción (nombres libres como «Publer por Chrome»), situación y notas.
+- **Duda para Raúl:** «Tipo» de publicación (Carrusel, Historia, Reel, Clip…): hoy es texto con sugerencias y el backend no lo valida; Claude puede proponer otros tipos. No se ha cambiado.

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { ApiError, api } from './api';
 import { Icon } from './icons';
 import {
-  PUBLICATION_NEXT, PUBLICATION_STATUS, REJECTION_REASONS, dateTime, type RejectionReason, type Publication, type PublicationMetrics, type PublishJob, type QualityReport, type PublicationFile, type PublicationInput,
+  PUBLICATION_NEXT, PUBLICATION_STATUS, PUBLISH_ROUTES, REJECTION_REASONS, dateTime, type RejectionReason, type Publication, type PublicationMetrics, type PublishJob, type QualityReport, type PublicationFile, type PublicationInput,
   type PublicationStatus, type StatusCode,
 } from './model';
 import { Pill } from './ui';
@@ -87,7 +87,9 @@ export function PublicationEditor({ promotionId, publication, onClose, onSaved }
           <label className="field"><span>Hora (España)</span>
             <input required disabled={locked} type="time" value={form.scheduled_time} onChange={e => set('scheduled_time', e.target.value)} /></label>
           <label className="field"><span>Vía</span>
-            <input required disabled={locked} maxLength={40} value={form.route} onChange={e => set('route', e.target.value)} /></label>
+            <select required disabled={locked} value={form.route} onChange={e => set('route', e.target.value)}>
+              {(PUBLISH_ROUTES.includes(form.route) ? PUBLISH_ROUTES : [...PUBLISH_ROUTES, form.route]).map(r => <option key={r} value={r}>{r}</option>)}
+            </select></label>
           {!publication && (
             <label className="field"><span>Empieza como</span>
               <select value={initial} onChange={e => setInitial(e.target.value as Initial)}>
