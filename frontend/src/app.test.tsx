@@ -1080,6 +1080,30 @@ describe('Versión de SocialHub', () => {
     expect(screen.getByRole('dialog', { name: 'Versión de SocialHub' })).toHaveTextContent('No hay información de versiones nuevas');
   });
 
+  it('el interruptor de abrir con Windows aparece si está disponible, se apaga y se enciende', async () => {
+    vi.spyOn(api, 'appVersion').mockResolvedValue({ version: '1.2.7', commit: 'a1b2c3d', build_time: '2026-11-15T10:30:00Z' });
+    vi.spyOn(api, 'updateStatus').mockResolvedValue({ installed_version: '1.2.7', state: 'UNKNOWN', message: 'No hay información de versiones nuevas' });
+    vi.spyOn(api, 'autostart').mockResolvedValue({ available: true, enabled: true });
+    const set = vi.spyOn(api, 'setAutostart').mockResolvedValue({ available: true, enabled: false });
+    render(<VersionBadge demo={false} />);
+    fireEvent.click(await screen.findByRole('button', { name: '1.2.7 · a1b2c3d' }));
+    const box = await screen.findByRole('checkbox', { name: /Abrir SocialHub al iniciar sesión/ });
+    expect(box).toBeChecked();
+    fireEvent.click(box);
+    await waitFor(() => expect(set).toHaveBeenCalledWith(false));
+    await waitFor(() => expect(box).not.toBeChecked());
+  });
+
+  it('si el sistema no permite abrir con Windows no enseña el interruptor', async () => {
+    vi.spyOn(api, 'appVersion').mockResolvedValue({ version: '1.2.7', commit: 'a1b2c3d', build_time: '2026-11-15T10:30:00Z' });
+    vi.spyOn(api, 'updateStatus').mockResolvedValue({ installed_version: '1.2.7', state: 'UNKNOWN', message: 'No hay información de versiones nuevas' });
+    vi.spyOn(api, 'autostart').mockResolvedValue({ available: false, enabled: false });
+    render(<VersionBadge demo={false} />);
+    fireEvent.click(await screen.findByRole('button', { name: '1.2.7 · a1b2c3d' }));
+    await screen.findByRole('dialog', { name: 'Versión de SocialHub' });
+    expect(screen.queryByRole('checkbox')).toBeNull();
+  });
+
   it('en modo demo lo dice en el detalle y, si falla la consulta, no enseña nada', async () => {
     const spy = vi.spyOn(api, 'appVersion').mockResolvedValue({ version: '1.2.0', commit: 'local', build_time: '2026-11-15T10:30:00Z' });
     const { unmount } = render(<VersionBadge demo />);

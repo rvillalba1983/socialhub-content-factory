@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from './api';
-import type { AppVersion, Autostart, UpdateStatus } from './api/types';
+import type { AppVersion, UpdateStatus } from './api/types';
+import { AutostartSwitch } from './AutostartSwitch';
 
 /** Fecha y hora de compilación en la zona del PC («15 nov 2026, 11:30»). */
 export function buildDate(iso: string): string {
@@ -15,14 +16,11 @@ export function buildDate(iso: string): string {
  */
 export function VersionBadge({ demo }: { demo: boolean }) {
   const [info, setInfo] = useState<AppVersion | null>(null);
-  const [autostart, setAutostart] = useState<Autostart | null>(null);
-  const [autostartError, setAutostartError] = useState<string | null>(null);
   const [update, setUpdate] = useState<UpdateStatus | null>(null);
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLSpanElement>(null);
   useEffect(() => { api.appVersion().then(setInfo).catch(() => {}); }, []);
   // Al abrir: el servidor mira GitHub como mucho una vez al día. Sin red o sin releases no pasa nada
-  useEffect(() => { api.autostart().then(setAutostart).catch(() => {}); }, []);
   useEffect(() => { api.updateStatus().then(setUpdate).catch(() => {}); }, []);
   useEffect(() => {
     if (!open) return;
@@ -55,19 +53,7 @@ export function VersionBadge({ demo }: { demo: boolean }) {
             <dd className="mono">{update?.latest_version ?? '—'}</dd>
           </dl>
           {update?.state === 'UPDATE_AVAILABLE' ? (<p className="src" role="status">{update.message}.{' '}{update.installer_url && <><a href={update.installer_url} rel="noreferrer">Descargar el instalador</a>{' · '}</>}{update.release_url && <a href={update.release_url} target="_blank" rel="noreferrer">Ver la versión en GitHub</a>}<br />Instalar sigue siendo a mano: cierra SocialHub con «Cerrar» y ejecuta «Instalar SocialHub (con registro)».</p>) : (<p className="src">{update ? update.message : 'No hay información de versiones nuevas'}</p>)}
-          {autostart?.available && (
-            <p className="src">
-              <label>
-                <input type="checkbox" checked={autostart.enabled} onChange={e => {
-                  setAutostartError(null);
-                  api.setAutostart(e.target.checked).then(setAutostart)
-                    .catch(err => setAutostartError(err instanceof Error ? err.message : String(err)));
-                }} /> Abrir SocialHub al iniciar sesión en Windows
-              </label>
-              <br />Se abre en segundo plano, sin abrir el navegador: el icono junto al reloj indica que está corriendo.
-              {autostartError && <span className="error" role="alert"> {autostartError}</span>}
-            </p>
-          )}
+          <AutostartSwitch />
           <p className="src">Si tras instalar una versión nueva sigue saliendo la de antes, ciérrala con «Cerrar» y ábrela de nuevo.</p>
         </div>
       )}
