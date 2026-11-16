@@ -397,7 +397,8 @@ jobs:
           curl -fsS --noproxy '*' http://127.0.0.1:8686/api/system/version > "$RUNNER_TEMP/version.json"
           echo "Versión: $(cat "$RUNNER_TEMP/version.json")"
           python3 -c "import sys,json; d=json.load(open('$RUNNER_TEMP/version.json')); sys.exit(0 if d['version']=='$VERSION' and d['commit']=='$COMMIT' else 1)" || { echo "::error::La web no dice $VERSION · $COMMIT"; exit 1; }
-          curl -fsS --noproxy '*' http://127.0.0.1:8686/ | grep -q '<div id="root">' || { echo "::error::La web no se sirve"; exit 1; }
+          curl -fsS -m 30 --noproxy '*' http://127.0.0.1:8686/ > "$RUNNER_TEMP/raiz.html" || { mostrar_registro; cat "$HOME/Library/Application Support/SocialHub/logs/arranque.log"; echo "::error::La web no responde en /"; exit 1; }
+          grep -q '<div id="root">' "$RUNNER_TEMP/raiz.html" || { echo "::error::La web no se sirve"; exit 1; }
           [ -f "$logs" ] || { echo "::error::No hay registro en $logs"; exit 1; }
           arranque="$HOME/Library/Application Support/SocialHub/logs/arranque.log"
           [ -f "$arranque" ] || { echo "::error::No hay registro de arranque en $arranque"; exit 1; }
