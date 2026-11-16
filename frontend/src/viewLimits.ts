@@ -14,6 +14,19 @@ export const HARD_MIN_SCALE = 0.08;
 export const validBox = (b: Box | null | undefined): b is Box =>
   !!b && Number.isFinite(b.x0 + b.y0 + b.x1 + b.y1) && b.x1 - b.x0 > 0 && b.y1 - b.y0 > 0;
 
+/** Cajas del contenido medidas en cada nivel de detalle (1, 2 y 3). */
+export type LevelBoxes = Partial<Record<1 | 2 | 3, Box | null>>;
+
+/**
+ * Caja que limita el desplazamiento al nivel de detalle que se ve. Cada nivel tiene su propio tamaño de tarjetas (con
+ * más detalle pueden ser más grandes o más pequeñas que al nivel 1), así que se usa la del nivel actual: se llega a
+ * todos los bordes de lo que se ve y no se puede dejar la pantalla vacía. Si ese nivel no se ha medido, la de reserva.
+ */
+export function boxForLevel(level: number, boxes: LevelBoxes, fallback: Box | null): Box | null {
+  const b = boxes[level as 1 | 2 | 3];
+  return validBox(b) ? b : fallback;
+}
+
 /** Zoom con el que «Encuadrar todo» deja el contenido: lo más pequeño que se permite. */
 export function fitScale(b: Box, a: Area, padTop: number, padBottom: number, pad = 16, cap = 0.7): number {
   const w = b.x1 - b.x0, h = b.y1 - b.y0, ah = a.h - padTop - padBottom;

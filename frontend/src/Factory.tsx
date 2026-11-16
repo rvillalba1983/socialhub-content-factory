@@ -16,7 +16,7 @@ import {
 import { ArmoryPanel, StationPanel, TaskPanel } from './Panel';
 import { Dot, Pill, prefersReducedMotion } from './ui';
 import { World, openAlert, type Selection } from './World';
-import { clampView, fitScale, validBox, type Box } from './viewLimits';
+import { boxForLevel, clampView, fitScale, validBox, type Box, type LevelBoxes } from './viewLimits';
 
 interface View { s: number; tx: number; ty: number }
 const clampS = (s: number) => Math.max(0.08, Math.min(3.5, s));
@@ -33,8 +33,12 @@ export function Factory({ data, live, onRefresh }: {
   const world = useRef<HTMLDivElement>(null);
   const view = useRef<View>({ s: 0.5, tx: 0, ty: 0 });
   const anim = useRef<number>(0);
-  // Caja del contenido (nivel de detalle 1) y límites de la vista; se rellenan al encuadrar y al cambiar los datos
+  // Caja del contenido al nivel de detalle 1 (el más compacto): sirve para el encuadre y el zoom mínimo
   const bounds = useRef<Box | null>(null);
+  // Caja del contenido en cada nivel (1, 2 y 3): limita el desplazamiento con la del nivel que se ve, para poder llegar
+  // a todo el contenido (el tamaño de las tarjetas cambia con el detalle). Se rellenan al encuadrar y al cambiar los datos.
+  const levelBounds = useRef<LevelBoxes>({});
+  const measuredAt = useRef(0);
   const clampRef = useRef<(v: View) => View>(v => v);
   const [lod, setLod] = useState(1);
   const [zoom, setZoom] = useState(50);
@@ -101,12 +105,27 @@ export function Factory({ data, live, onRefresh }: {
     const b = { x0: 1e9, y0: 1e9, x1: -1e9, y1: -1e9 };
     w.querySelectorAll(selector).forEach(e => {
       const q = e.getBoundingClientRect();
+      if (!q.width && !q.height) return; // oculto en este nivel de detalle
       b.x0 = Math.min(b.x0, (q.left - wr.left) / s); b.y0 = Math.min(b.y0, (q.top - wr.top) / s);
       b.x1 = Math.max(b.x1, (q.right - wr.left) / s); b.y1 = Math.max(b.y1, (q.bottom - wr.top) / s);
     });
     el.dataset.lod = prev;
     return b;
   }, []);
+
+  /** Mide el contenido en el nivel 1 (encuadre y zoom mínimo) y en cada nivel (límite del desplazamiento). */
+  const measureBounds = useCallback(() => {
+    const b1 = measure(1, CONTENT);
+    bounds.current = b1;
+    levelBounds.current = { 1: b1, 2: measure(2, CONTENT), 3: measure(3, CONTENT) };
+    measuredAt.current = performance.now();
+    return b1;
+  }, [measure]);
+
+  /** Vuelve a medir si hace un rato que no se mide (el contenido puede haber cambiado sin que cambien los datos, p. ej. al cargar las fuentes). */
+  const refreshBounds = useCallback(() => {
+    if (fitted.current && world.current && vp.current && performance.now() - measuredAt.current > 400) measureBounds();
+  }, [measureBounds]);
 
   const pads = useCallback(() => {
     const wide = vp.current!.clientWidth > 760;
@@ -122,19 +141,18 @@ export function Factory({ data, live, onRefresh }: {
   }, [avail, pads]);
   const clampZoom = useCallback((s: number) => Math.max(minScale(), Math.min(3.5, s)), [minScale]);
   clampRef.current = v => {
-    const b = bounds.current;
+    const b = boxForLevel(lodFor(clampS(v.s)), levelBounds.current, bounds.current);
     return vp.current && validBox(b) ? clampView(v, b, avail(), minScale()) : v;
   };
 
   const fit = useCallback(() => {
     if (!vp.current || !world.current) return;
     const a = avail(), { pt, pb } = pads();
-    const b = measure(1, CONTENT);
-    bounds.current = b;
+    const b = measureBounds();
     const w = b.x1 - b.x0, h = b.y1 - b.y0, ah = a.h - pt - pb;
     const s = validBox(b) ? fitScale(b, a, pt, pb) : clampS(0.7);
     animateTo({ s, tx: (a.w - w * s) / 2 - b.x0 * s, ty: pt + (ah - h * s) / 2 - b.y0 * s });
-  }, [avail, measure, animateTo]);
+  }, [avail, measureBounds, animateTo]);
 
   const flyToStation = useCallback((id: string, scale = 1.15) => {
     if (!vp.current) return;
@@ -143,6 +161,26 @@ export function Factory({ data, live, onRefresh }: {
     const ty = (b.y1 - b.y0) * s <= a.h - 60 ? a.h / 2 - (b.y0 + b.y1) / 2 * s : 50 - b.y0 * s;
     animateTo({ s, tx: a.w / 2 - (b.x0 + b.x1) / 2 * s, ty });
   }, [avail, measure, animateTo]);
+
+  /**
+   * Con el panel lateral abierto, mueve el mapa (sin cambiar el zoom) lo justo para que la lista de «Agentes y herramientas»
+   * quede entera a la vista y el panel no la tape: así se puede pasar de una herramienta a otra sin cerrarlo.
+   */
+  const flyToTools = useCallback(() => {
+    const el = vp.current;
+    if (!el || !world.current) return;
+    const v = view.current, narrow = el.clientWidth <= 760;
+    const aw = el.clientWidth - (narrow ? 0 : 450), ah = narrow ? el.clientHeight * 0.38 : el.clientHeight;
+    const b = measure(lodFor(v.s), '.res');
+    if (!validBox(b)) return;
+    const { pt, pb } = pads(), m = 16;
+    const l = b.x0 * v.s + v.tx, r = b.x1 * v.s + v.tx, t = b.y0 * v.s + v.ty, bt = b.y1 * v.s + v.ty;
+    let dx = r > aw - m ? aw - m - r : 0;
+    if (l + dx < m) dx = m - l;
+    let dy = bt > ah - pb ? ah - pb - bt : 0;
+    if (t + dy < pt) dy = pt - t;
+    if (Math.abs(dx) > 1 || Math.abs(dy) > 1) animateTo({ s: v.s, tx: v.tx + dx, ty: v.ty + dy });
+  }, [measure, pads, animateTo]);
 
   const zoomAt = useCallback((cx: number, cy: number, f: number) => {
     cancelAnimationFrame(anim.current);
@@ -157,8 +195,8 @@ export function Factory({ data, live, onRefresh }: {
 
   // El contenido cambia con los datos (promociones, tarjetas): se vuelve a medir para los límites
   useLayoutEffect(() => {
-    if (fitted.current && world.current && vp.current) bounds.current = measure(1, CONTENT);
-  }, [data, measure]);
+    if (fitted.current && world.current && vp.current) measureBounds();
+  }, [data, measureBounds]);
 
   // La franja de «Qué hacer ahora» cambia el alto del mapa: se vuelve a encuadrar al aparecer o desaparecer
   const hasNext = data.recommendations.length > 0;
@@ -187,6 +225,7 @@ export function Factory({ data, live, onRefresh }: {
     const skip = (t: EventTarget | null) => (t as HTMLElement | null)?.closest?.('.panel,.cc,.float,input,select,.results');
     const down = (e: PointerEvent) => {
       if (skip(e.target) || (e.pointerType === 'mouse' && e.button !== 0)) return;
+      refreshBounds();
       ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (ptrs.size === 1) drag = { x: e.clientX, y: e.clientY, tx: view.current.tx, ty: view.current.ty, moved: false };
       if (ptrs.size === 2) {
@@ -218,6 +257,7 @@ export function Factory({ data, live, onRefresh }: {
     const wheel = (e: WheelEvent) => {
       if (skip(e.target)) return;
       e.preventDefault();
+      refreshBounds();
       const r = el.getBoundingClientRect();
       if (!e.ctrlKey && e.deltaMode === 0 && Math.abs(e.deltaX) > Math.abs(e.deltaY) * 0.5 && Math.abs(e.deltaY) < 50) {
         cancelAnimationFrame(anim.current);
@@ -235,7 +275,7 @@ export function Factory({ data, live, onRefresh }: {
       el.removeEventListener('pointerup', up); el.removeEventListener('pointercancel', up);
       el.removeEventListener('wheel', wheel); document.removeEventListener('click', click, true);
     };
-  }, [apply, zoomAt, clampZoom]);
+  }, [apply, zoomAt, clampZoom, refreshBounds]);
 
   // ---------- navegación ----------
   const goStation = useCallback((id: string) => {
@@ -249,6 +289,11 @@ export function Factory({ data, live, onRefresh }: {
     setCc(null); setSel({ type: 'task', id });
     requestAnimationFrame(() => flyToStation(t.station_id, Math.max(1.7, view.current.s)));
   }, [data.tasks, flyToStation]);
+
+  const goArmory = useCallback((id: string) => {
+    setCc(null); setSel({ type: 'armory', id });
+    requestAnimationFrame(flyToTools);
+  }, [flyToTools]);
 
   const goPublication = useCallback((id: string) => {
     const pub = data.publications.find(x => x.id === id);
@@ -270,8 +315,8 @@ export function Factory({ data, live, onRefresh }: {
     }
     else if (t.screen === 'BACKUPS') setCopias(true);
     else if (t.screen === 'CLAUDE') setClaude(true);
-    else if (t.screen === 'INSTAGRAM') setSel({ type: 'armory', id: 'instagram-api' });
-  }, []);
+    else if (t.screen === 'INSTAGRAM') goArmory('instagram-api');
+  }, [goArmory]);
   const home = useCallback(() => { setCc(null); setSel({ type: null, id: null }); requestAnimationFrame(fit); }, [fit]);
 
   const setLevel = (l: number) => {
@@ -407,7 +452,7 @@ export function Factory({ data, live, onRefresh }: {
       && out.push({ kind: `Publicación · ${brandOf(x.promotion_id)?.name} · ${shortDate(x.scheduled_on)}`, label: x.title,
         go: () => { setSel({ type: null, id: null }); setCc({ promo: x.promotion_id, tab: 'publicaciones', hl: x.id }); } }));
     data.armory_items.forEach(r => normalize(`${r.name} ${r.description}`).includes(k)
-      && out.push({ kind: 'Herramienta', label: r.name, s: r.status, go: () => { setCc(null); setSel({ type: 'armory', id: r.id }); } }));
+      && out.push({ kind: 'Herramienta', label: r.name, s: r.status, go: () => goArmory(r.id) }));
     return out.slice(0, 10);
   }, [query, data, brands, brandOf, goStation, goTask]);
   const pick = (h?: Hit) => { setQuery(''); h?.go(); };
@@ -488,7 +533,7 @@ export function Factory({ data, live, onRefresh }: {
         <div className="world" ref={world}>
           <World data={data} sel={sel} onStation={goStation} onTask={goTask}
             onTaskAction={(t, a) => (t.available_commands.find(x => x.type === a)?.needs_confirmation ? goTask(t.id) : runTask(t, a))}
-            onArmory={id => { setCc(null); setSel({ type: 'armory', id }); }}
+            onArmory={goArmory}
             onPublication={goPublication}
             onAlertAction={alertAction}
             onPromotion={id => { setSel({ type: null, id: null }); setCc({ promo: id, tab: 'resumen', hl: null }); }}
@@ -500,7 +545,7 @@ export function Factory({ data, live, onRefresh }: {
             <h4>Atención</h4>
             {byPriority(data.alerts).slice(0, 3).map(a => (
               <button key={`${a.kind}|${a.target_id}|${a.title}`} className={`aviso s-${alertTone(a.kind)}`} title={a.detail}
-                onClick={() => openAlert(a, { onTask: goTask, onStation: goStation, onPublication: goPublication, onArmory: id => { setCc(null); setSel({ type: 'armory', id }); } })}>
+                onClick={() => openAlert(a, { onTask: goTask, onStation: goStation, onPublication: goPublication, onArmory: goArmory })}>
                 <Dot s={a.kind} /><span><b>{a.title}</b> · {a.detail}</span>
               </button>
             ))}

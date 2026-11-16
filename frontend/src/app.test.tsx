@@ -679,8 +679,20 @@ describe('Instagram · API oficial', () => {
     expect(screen.getByRole('button', { name: 'Renovar conexión' })).toBeEnabled();
   });
 
+  it('la ficha de la marca sin conexión ni clave no pide la lista de cuentas (la API contestaría 400)', async () => {
+    vi.spyOn(api, 'brandInstagramAccount').mockResolvedValue({});
+    vi.spyOn(api, 'instagram').mockResolvedValue({ configured: false, source: 'NONE' });
+    const accounts = vi.spyOn(api, 'instagramAccounts').mockResolvedValue({ items: [] });
+    render(<InstagramAccountCard brandId="el-delito" />);
+    expect(await screen.findByLabelText('Cuenta de Instagram (API oficial)')).toBeInTheDocument();
+    await waitFor(() => expect(api.instagram).toHaveBeenCalled());
+    expect(accounts).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText('Elegir de tus cuentas de Instagram')).not.toBeInTheDocument();
+  });
+
   it('la ficha de la marca ofrece elegir entre las cuentas detectadas', async () => {
     vi.spyOn(api, 'brandInstagramAccount').mockResolvedValue({});
+    vi.spyOn(api, 'instagram').mockResolvedValue({ configured: true, source: 'OAUTH' });
     vi.spyOn(api, 'instagramAccounts').mockResolvedValue({ items: [
       { ig_user_id: '17841400000000001', username: 'elde_lito', page_name: 'Página El DeLito' }] });
     const save = vi.spyOn(api, 'saveBrandInstagramAccount').mockResolvedValue({ ig_user_id: '17841400000000001', username: 'elde_lito' });

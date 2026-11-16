@@ -183,10 +183,14 @@ export function InstagramAccountCard({ brandId, onSaved }: { brandId: string; on
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Con una conexión (o la clave del sistema), las cuentas de tus páginas de Facebook se pueden elegir de una lista
+  // Con una conexión (o la clave del sistema), las cuentas de tus páginas de Facebook se pueden elegir de una lista.
+  // Sin ellas no se pide la lista: la API contestaría 400 y el navegador lo anotaría como error en la consola.
   useEffect(() => {
     let cancelled = false;
-    api.instagramAccounts().then(l => { if (!cancelled) setDetected(l.items); }).catch(() => { if (!cancelled) setDetected([]); });
+    api.instagram()
+      .then(s => (s.configured ? api.instagramAccounts().then(l => l.items) : []))
+      .then(items => { if (!cancelled) setDetected(items); })
+      .catch(() => { if (!cancelled) setDetected([]); });
     return () => { cancelled = true; };
   }, [brandId]);
 

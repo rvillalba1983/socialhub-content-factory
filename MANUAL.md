@@ -290,7 +290,7 @@ Recoge:
 - Colores, tipografía, logotipo, estilo visual y fotográfico.
 - Llamada a la acción y hashtags fijos.
 
-Va en cada encargo a Claude y la usa el control de calidad.
+Va en cada encargo a Claude y la usa el control de calidad. «Temas que no se tocan» puede quedar vacío: significa que no hay temas vetados y no cuenta como identidad incompleta (el aviso «Falta rellenar la identidad» solo salta si faltan el tono o el público).
 
 *Importar desde un .txt.* Con **Importar desde .txt** subes un archivo o pegas el texto. Antes de guardar, SocialHub enseña qué campos cambian (antes y después): los que vienen en el archivo sustituyen a los de la ficha y los que no vienen se quedan como estaban. Si algo está mal (campo desconocido, un límite superado), te lo dice y no guarda nada. **Copiar plantilla** copia al portapapeles una instrucción y la plantilla del formato (con los valores actuales si la marca ya tiene identidad) para pegarla en cualquier IA y pedirle que la rellene; lo que te devuelva lo importas aquí.
 

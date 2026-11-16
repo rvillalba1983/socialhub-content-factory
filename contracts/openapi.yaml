@@ -1706,7 +1706,7 @@ components:
             en que se activa). CONTENT_MISSING: publicación en producción sin contenido (sin piezas y fuera de cualquier spec abierto) que
             sale en menos de 3 días; con «publication_ids» y «promotion_id», el botón «Pedir contenido ya» pide un spec urgente
             a mano de esas publicaciones (sin target: no navega). IDENTITY_MISSING: marca con promoción en marcha a la que
-            le falta el tono, el público o los temas que no se tocan (botón a su identidad). PUBLICATION_TOO_SOON: publicaciones
+            le falta el tono o el público (botón a su identidad; los temas que no se tocan vacíos son válidos). PUBLICATION_TOO_SOON: publicaciones
             de camino a publicar a las que ya no quedan 6 horas de margen, o cuya hora ya pasó, y aún no están programadas
             (botón a las pendientes de la promoción). SPEC_WAITING ya no se calcula (el spec se pide por lotes, no por semana) y se conserva
             solo por compatibilidad

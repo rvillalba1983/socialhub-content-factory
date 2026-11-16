@@ -364,11 +364,11 @@ class FactoryRecommendationsTest {
 
     @Test
     void aBrandWithAnActivePromotionAndAnIncompleteIdentityAsksForIt() {
-        when(promotions.identityGaps("litoques")).thenReturn(List.of("el tono", "los temas que no se tocan"));
+        when(promotions.identityGaps("litoques")).thenReturn(List.of("el tono", "el público"));
         var r = subject().compute().getFirst();
         assertThat(r.getKind()).isEqualTo(KindEnum.IDENTITY_MISSING);
         assertThat(r.getTitle()).isEqualTo("Cuéntale a Claude cómo es Litoques");
-        assertThat(r.getDetail()).contains("Falta el tono, los temas que no se tocan").contains("importarlo desde un .txt");
+        assertThat(r.getDetail()).contains("Falta el tono, el público").contains("importarlo desde un .txt");
         assertThat(r.getTarget().getScreen()).isEqualTo(ScreenEnum.BRAND_IDENTITY);
         assertThat(r.getTarget().getBrandId()).isEqualTo("litoques");
         // Sin promoción en marcha no hace falta todavía

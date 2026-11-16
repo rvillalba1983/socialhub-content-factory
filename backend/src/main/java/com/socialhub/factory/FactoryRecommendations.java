@@ -192,14 +192,14 @@ class FactoryRecommendations {
                     RecommendationTargetDto.ScreenEnum.BRAND_FOLDERS, brand.id(), null));
         }
 
-        // 3b. Marca con promoción en marcha y sin tono, público o temas que no se tocan: Claude propondría a ciegas
+        // 3b. Marca con promoción en marcha y sin tono o público: Claude propondría a ciegas
         for (var brand : brands) {
             if (allPromotions.stream().noneMatch(p -> p.brandId().equals(brand.id()) && (p.active() || p.plannedAhead(today)))) continue;
             var gaps = promotions.identityGaps(brand.id());
             if (gaps == null || gaps.isEmpty()) continue;
             all.add(recommendation("brand-identity:" + brand.id(), RecommendationDto.KindEnum.IDENTITY_MISSING,
                     "Cuéntale a Claude cómo es " + brand.name(),
-                    "Falta " + String.join(", ", gaps) + ". Sin eso, Claude propone sin conocer la voz de la marca ni lo que no se toca. "
+                    "Falta " + String.join(", ", gaps) + ". Sin eso, Claude propone sin conocer la voz de la marca ni a quién se dirige. "
                             + "Puedes rellenarlo o importarlo desde un .txt",
                     RecommendationTargetDto.ScreenEnum.BRAND_IDENTITY, brand.id(), null));
         }

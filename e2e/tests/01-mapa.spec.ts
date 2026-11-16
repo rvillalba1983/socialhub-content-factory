@@ -1,7 +1,8 @@
 import { expect, openMap, test } from '../support/fixtures';
 import type { Page } from '@playwright/test';
 
-const MIN_LEGIBLE_PX = 11;
+/** decisiones.md promete 12 px como mínimo con el mapa alejado (1366x768 es el caso peor). */
+const MIN_LEGIBLE_PX = 12;
 
 /** Zoom actual del mapa (escala del lienzo), leído de su transformación CSS. */
 const scaleOf = (page: Page) => page.evaluate(() => {
@@ -50,8 +51,6 @@ const smallestTextOnScreen = (page: Page) => page.evaluate(() => {
     const text = node.textContent?.trim();
     const el = node.parentElement;
     if (!text || !el || !el.getClientRects().length) continue; // oculto (display:none)
-    // Fallo conocido: el número de los avisos de cada estación (`.badge`) mide 26 px de lienzo, unos 7 px en pantalla al encuadrar
-    if (el.closest('.badge')) continue;
     const style = getComputedStyle(el);
     if (style.visibility === 'hidden' || style.opacity === '0') continue;
     const px = parseFloat(style.fontSize) * scale;
@@ -106,9 +105,11 @@ test.describe('Mapa', () => {
     await page.mouse.up();
 
     await page.getByRole('button', { name: 'Encuadrar todo' }).click();
-    await expect.poll(async () => Math.abs((await scaleOf(page)) - fitted)).toBeLessThan(0.005);
-    await expect.poll(async () => Math.abs(((await page.locator('.node').first().boundingBox())!.x) - before!.x)).toBeLessThan(2);
-    await expect(page.locator('.zpct')).toHaveText(`${Math.round(fitted * 100)}%`);
+    // El encuadre puede variar un poco entre dos medidas (la franja «Qué hacer ahora» cambia el alto del mapa y las
+    // recomendaciones se actualizan solas): se admite un 5 % de zoom y 25 px de posición, no una igualdad exacta
+    await expect.poll(async () => Math.abs((await scaleOf(page)) - fitted)).toBeLessThan(fitted * 0.05);
+    await expect.poll(async () => Math.abs(((await page.locator('.node').first().boundingBox())!.x) - before!.x)).toBeLessThan(25);
+    await expect.poll(async () => Math.abs(parseInt((await page.locator('.zpct').innerText()), 10) - Math.round(fitted * 100))).toBeLessThanOrEqual(2);
   });
 
   test('límites de arrastre y de zoom: el mapa nunca queda vacío', async ({ page }) => {
@@ -131,7 +132,7 @@ test.describe('Mapa', () => {
     // Alejar con la rueda hasta el límite: no baja del encuadre
     await page.mouse.move(vp.x + vp.width / 2, vp.y + vp.height / 2);
     for (let i = 0; i < 6; i++) await page.mouse.wheel(0, 2000);
-    await expect.poll(() => scaleOf(page)).toBeGreaterThanOrEqual(fitted * 0.95);
+    await expect.poll(() => scaleOf(page)).toBeGreaterThanOrEqual(fitted * 0.999);
     await expect.poll(() => stationsInView(page)).toBe(8);
 
     // Acercar con la rueda hasta el límite: no pasa del 350 %
@@ -140,12 +141,9 @@ test.describe('Mapa', () => {
     await expect.poll(() => scaleOf(page)).toBeGreaterThan(3);
   });
 
-  // FALLO CONOCIDO DE LA APP (no se arregla aquí; está en el resumen de la PR): los límites del arrastre se calculan con
-  // la caja del contenido al nivel de detalle 1, donde las tarjetas son más grandes que al nivel 3. Si el mapa está
-  // arrastrado hasta el borde y se acerca al máximo, el contenido queda hasta ~490 px más allá del centro y la pantalla
-  // puede quedarse vacía. Cuando se arregle, esta prueba pasará y Playwright avisará de que quite `test.fail`.
+  // Los límites del arrastre usan la caja del contenido del nivel de detalle que se ve (cada nivel tiene tarjetas de otro
+  // tamaño): con el zoom al máximo el centro no sale del contenido y la pantalla no queda vacía.
   test('acercar al máximo con el mapa arrastrado al borde no deja la pantalla vacía', async ({ page }) => {
-    test.fail(true, 'Fallo conocido: límites medidos al nivel de detalle 1 (ver comentario)');
     await openMap(page);
     await settledScale(page);
     const vp = (await page.locator('main.vp').boundingBox())!;
@@ -160,6 +158,53 @@ test.describe('Mapa', () => {
     await expect.poll(() => centerInsideContent(page), { timeout: 3000 }).toBe(true);
   });
 
+  test('con el zoom al máximo se llega a ver entero el borde del contenido en cada lado', async ({ page }) => {
+    await openMap(page);
+    await settledScale(page);
+    const vp = (await page.locator('main.vp').boundingBox())!;
+    await page.mouse.move(vp.x + vp.width / 2, vp.y + vp.height / 2);
+    for (let i = 0; i < 8; i++) await page.mouse.wheel(0, -2000);
+    await expect.poll(() => scaleOf(page)).toBeGreaterThan(3);
+    // El ratón no puede salir de la ventana, así que se arrastra varias veces, de un extremo al otro, hasta el límite
+    const x0 = vp.x + 40, x1 = vp.x + vp.width - 40, y0 = vp.y + 120, y1 = vp.y + vp.height - 100; // lejos de las franjas flotantes, donde no se arrastra
+    const drag = async (fx: number, fy: number, tx: number, ty: number) => {
+      await page.mouse.move(fx, fy);
+      await page.mouse.down();
+      await page.mouse.move(tx, ty, { steps: 2 });
+      await page.mouse.up();
+    };
+    // Arrastre hasta el límite hacia cada lado: el borde del contenido de ese lado debe quedar dentro de la ventana
+    for (const side of ['r', 'l', 'b', 't'] as const) {
+      const series: string[] = [];
+      let last = '', same = 0;
+      for (let i = 0; i < 60 && same < 2; i++) {
+        if (side === 'r') await drag(x1, y1, x0, y1);
+        else if (side === 'l') await drag(x0, y1, x1, y1);
+        else if (side === 'b') await drag(x0, y1, x0, y0);
+        else await drag(x0, y0, x0, y1);
+        const tf = await page.evaluate(() => getComputedStyle(document.querySelector('.world')!).transform);
+        series.push(tf.replace('matrix(3.5, 0, 0, 3.5, ', '').replace(')', ''));
+        same = tf === last ? same + 1 : 0; last = tf;
+      }
+      await page.waitForTimeout(800);
+      const info = await page.evaluate((sd) => {
+        const v = document.querySelector('main.vp')!.getBoundingClientRect();
+        const w = document.querySelector('.world') as HTMLElement;
+        let l = Infinity, t = Infinity, r = -Infinity, b = -Infinity, who = '';
+        document.querySelectorAll('.st,.hub,.res,.node,.seglabel').forEach(el => {
+          const q = el.getBoundingClientRect();
+          if (!q.width || !q.height) return;
+          l = Math.min(l, q.left); t = Math.min(t, q.top);
+          if (q.right > r) { r = q.right; if (sd === 'r') who = `${el.className} ${Math.round(q.left)}-${Math.round(q.right)}`; }
+          b = Math.max(b, q.bottom);
+        });
+        return { ok: sd === 'r' ? r <= v.right + 2 : sd === 'l' ? l >= v.left - 2 : sd === 'b' ? b <= v.bottom + 2 : t >= v.top - 2,
+          detail: `${sd}: l=${Math.round(l)} t=${Math.round(t)} r=${Math.round(r)} b=${Math.round(b)} vp=${Math.round(v.right)}x${Math.round(v.bottom)} ${who} tf=${getComputedStyle(w).transform} lod=${document.querySelector('main.vp')!.getAttribute('data-lod')}` };
+      }, side);
+      expect(info.ok, info.detail + ' | ' + series.join(' ; ')).toBe(true);
+    }
+  });
+
   test('zoom semántico: al alejar solo hay texto legible, al acercar sale el detalle', async ({ page }) => {
     await openMap(page);
     const vp = page.locator('main.vp');
@@ -171,12 +216,16 @@ test.describe('Mapa', () => {
     await expect(investigation.locator('.st-sum')).toContainText(/tareas?/);
     await expect(investigation.locator('.st-what')).toBeHidden();
     await expect(page.locator('.attn-card .attn-more')).toBeHidden();
-    // Legible en pantalla (1366x768 es el caso peor). decisiones.md promete 12 px; con la franja «Qué hacer ahora» y 3
-    // recomendaciones el mapa mide algo menos y la letra más pequeña queda en 11,9 px: se tolera hasta 11 px.
+    // Legible en pantalla, también el número de avisos de una estación (`.badge`), que solo sale si hay avisos: se añade uno
+    // de prueba a la primera estación (React no lo toca) y se quita al acabar de medir
+    await page.locator('.node').first().evaluate(node => {
+      const badge = document.createElement('span'); badge.className = 'badge'; badge.id = 'badge-de-prueba'; badge.textContent = '3'; node.append(badge);
+    });
     await settledScale(page);
     await expect.poll(async () => (await smallestTextOnScreen(page)).min).toBeGreaterThanOrEqual(MIN_LEGIBLE_PX);
     const small = await smallestTextOnScreen(page);
     expect(small.min, `texto más pequeño: «${small.which}»`).toBeGreaterThanOrEqual(MIN_LEGIBLE_PX);
+    await page.locator('#badge-de-prueba').evaluate(badge => badge.remove());
 
     // Acercado (nivel «Estación»): aparece la descripción de la estación
     await page.getByRole('group', { name: 'Nivel de detalle' }).getByRole('button', { name: 'Estación', exact: true }).click();
@@ -196,5 +245,44 @@ test.describe('Mapa', () => {
     await openMap(page);
     await expect.poll(async () => (await smallestTextOnScreen(page)).min).toBeGreaterThanOrEqual(MIN_LEGIBLE_PX);
     await expect(page.locator('main.vp')).toHaveAttribute('data-lod', '1');
+  });
+
+  // Va el último del recorrido: deja 4 promociones en la app, y los recorridos siguientes (que abren promociones con un
+  // clic en su tarjeta) ya trabajan con el centro del anillo lleno
+  test('con 4 promociones las tarjetas caben en el anillo y no tapan estaciones', async ({ page, api }) => {
+    const names = ['Promoción del mapa', 'Promoción del mapa B', 'Promoción del mapa C', 'Promoción del mapa D'];
+    const brand = (await api.factory()).brands.find(b => b.name === 'Marca del mapa')!;
+    for (const name of names.slice(1)) {
+      if (!(await api.factory()).promotions.some(p => p.name === name)) await api.createPromotion(brand.id, name);
+    }
+    await openMap(page);
+    await expect(page.locator('.promo')).toHaveCount(names.length);
+
+    // Las tarjetas (promociones y «Necesita atención») quedan dentro del centro del anillo, sin pisarse entre sí ni pisar
+    // las estaciones, a nivel «Fábrica» y a nivel «Estación»
+    const overlaps = () => page.evaluate(() => {
+      const box = (e: Element) => e.getBoundingClientRect();
+      const cards = [...document.querySelectorAll('.promo,.attn-card')];
+      const hub = box(document.querySelector('.hub')!);
+      const others = [...document.querySelectorAll('.node,article.st')];
+      const problems: string[] = [];
+      const hit = (a: DOMRect, b: DOMRect) => a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1;
+      cards.forEach((c, i) => {
+        const r = box(c), name = (c.querySelector('h2')?.textContent ?? c.className).trim();
+        if (r.left < hub.left - 2 || r.right > hub.right + 2 || r.top < hub.top - 36 || r.bottom > hub.bottom + 2) problems.push(`${name} se sale del centro`);
+        cards.slice(i + 1).forEach(d => { if (hit(r, box(d))) problems.push(`${name} pisa a ${(d.querySelector('h2')?.textContent ?? d.className).trim()}`); });
+        others.forEach(o => { if (hit(r, box(o))) problems.push(`${name} pisa a ${o.getAttribute('aria-label') ?? o.className}`); });
+      });
+      return problems;
+    });
+    await expect(page.locator('main.vp')).toHaveAttribute('data-lod', '1');
+    expect(await overlaps()).toEqual([]);
+    // Cada promoción sigue abriéndose con un clic en su tarjeta
+    for (const name of names) await expect(page.getByRole('article', { name: `Abrir el centro de control de ${name}`, exact: true })).toBeVisible();
+
+    await page.getByRole('group', { name: 'Nivel de detalle' }).getByRole('button', { name: 'Estación', exact: true }).click();
+    await expect(page.locator('main.vp')).toHaveAttribute('data-lod', '2');
+    await settledScale(page);
+    expect(await overlaps()).toEqual([]);
   });
 });
