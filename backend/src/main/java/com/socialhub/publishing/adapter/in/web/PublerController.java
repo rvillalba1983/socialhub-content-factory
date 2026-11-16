@@ -7,7 +7,7 @@ import com.socialhub.api.model.PublerAccountListDto;
 import com.socialhub.api.model.PublerAccountListInputDto;
 import com.socialhub.api.model.PublerMoveInputDto;
 import com.socialhub.api.model.PublerMoveResultDto;
-import com.socialhub.publishing.PublerAccountService;
+import com.socialhub.publishing.PublerAccounts;
 import com.socialhub.publishing.domain.Platform;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 class PublerController implements PublerApi {
 
-    private final PublerAccountService publer;
+    private final PublerAccounts publer;
 
     @Override
     public ResponseEntity<PublerAccountListDto> getBrandPublerAccounts(String brandId) {
@@ -29,7 +29,7 @@ class PublerController implements PublerApi {
     public ResponseEntity<PublerAccountListDto> saveBrandPublerAccounts(String brandId, String requestGuard,
                                                                        PublerAccountListInputDto input) {
         var choices = input.getItems().stream()
-                .map(i -> new PublerAccountService.Choice(Platform.valueOf(i.getPlatform().name()), i.getAccountName()))
+                .map(i -> new PublerAccounts.Choice(Platform.valueOf(i.getPlatform().name()), i.getAccountName()))
                 .toList();
         return ResponseEntity.ok(toDto(publer.save(brandId, choices)));
     }

@@ -17,4 +17,12 @@ class ArmoryQueriesService implements ArmoryQueries {
 
     @Override
     public List<ArmoryItem> items() { return repository.findAll(); }
+
+    @Override
+    public List<BlockedService> blockedServices() {
+        return repository.findAll().stream()
+                .filter(i -> !i.demo() && "SERVICE".equals(i.kind()) && "BLOCKED".equals(i.status()))
+                .map(i -> new BlockedService(i.id(), i.name(), i.note()))
+                .toList();
+    }
 }

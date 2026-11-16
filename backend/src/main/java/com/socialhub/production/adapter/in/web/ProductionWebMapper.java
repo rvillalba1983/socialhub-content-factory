@@ -1,14 +1,12 @@
 package com.socialhub.production.adapter.in.web;
 
 import com.socialhub.api.model.AiModelDto;
-import com.socialhub.api.model.AlertDto;
 import com.socialhub.api.model.AvailableCommandDto;
 import com.socialhub.api.model.StationCommandTypeDto;
 import com.socialhub.api.model.StationDto;
 import com.socialhub.api.model.TaskCountsDto;
 import com.socialhub.api.model.TaskDto;
 import com.socialhub.api.model.TaskEventDto;
-import com.socialhub.production.ProductionAlert;
 import com.socialhub.production.domain.AiModel;
 import com.socialhub.production.domain.AvailableCommand;
 import com.socialhub.production.domain.Station;
@@ -40,11 +38,6 @@ interface ProductionWebMapper {
     default StationDto toDto(StationSummary summary) { return toDto(summary.station(), toDto(summary.counts())); }
 
     TaskCountsDto toDto(TaskCounts counts);
-
-    default AlertDto toDto(ProductionAlert alert) {
-        return new AlertDto(AlertDto.KindEnum.valueOf(alert.kind().name()), AlertDto.TargetTypeEnum.valueOf(alert.target().name()),
-                alert.targetId(), alert.stationId(), alert.title(), alert.detail());
-    }
 
     TaskEventDto toDto(TaskHistoryEntry entry);
 

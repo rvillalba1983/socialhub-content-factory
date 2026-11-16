@@ -20,7 +20,7 @@ import org.jspecify.annotations.Nullable;
 import org.mapstruct.Mapper;
 
 @Mapper
-public interface PublicationWebMapper {
+interface PublicationWebMapper {
 
     DateTimeFormatter HH_MM = DateTimeFormatter.ofPattern("HH:mm");
 

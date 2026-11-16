@@ -9,4 +9,10 @@ import org.jmolecules.architecture.hexagonal.PrimaryPort;
 public interface ArmoryQueries {
 
     List<ArmoryItem> items();
+
+    /** Un servicio real (no de ejemplo) que no está disponible, por ejemplo Google Drive sin montar. */
+    record BlockedService(String id, String name, String note) {}
+
+    /** Los servicios reales bloqueados: salen en «Necesita atención». */
+    List<BlockedService> blockedServices();
 }

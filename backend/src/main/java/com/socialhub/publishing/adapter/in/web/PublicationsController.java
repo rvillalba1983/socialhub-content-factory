@@ -11,8 +11,8 @@ import com.socialhub.api.model.PublicationStatusChangeDto;
 import com.socialhub.api.model.PublicationPageDto;
 import com.socialhub.api.model.PublicationStatusDto;
 import com.socialhub.publishing.PublishingQueries;
-import com.socialhub.publishing.PublishingService;
-import com.socialhub.publishing.QualityService;
+import com.socialhub.publishing.PublishingCommands;
+import com.socialhub.publishing.PublicationQuality;
 import com.socialhub.publishing.domain.QualityIssue;
 import com.socialhub.api.model.QualityAcceptanceDto;
 import com.socialhub.api.model.QualityIssueDto;
@@ -34,8 +34,8 @@ import org.springframework.web.bind.annotation.RestController;
 class PublicationsController implements PublicationsApi {
 
     private final PublishingQueries queries;
-    private final PublishingService service;
-    private final QualityService quality;
+    private final PublishingCommands service;
+    private final PublicationQuality quality;
     private final com.socialhub.publishing.EditorialMemory memory;
     private final PublicationWebMapper mapper;
     private final com.socialhub.publishing.ExternalCalendar externalCalendar;
