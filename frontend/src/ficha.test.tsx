@@ -65,10 +65,12 @@ describe('Avisos de la ficha de la marca', () => {
     window.removeEventListener('socialhub:identity-import', listener);
   });
 
-  it('sin temas que no se tocan, la identidad también se da por incompleta', async () => {
+  it('sin temas que no se tocan la identidad es válida: no hay aviso si lo demás está relleno', async () => {
     mockAll({ identity: identity({ forbidden_topics: [] }) });
     render(<BrandNotices brandId="b" version={0} />);
-    expect(await screen.findByText(/identidad de la marca: los temas que no se tocan\./)).toBeInTheDocument();
+    await waitFor(() => expect(api.brandIdentity).toHaveBeenCalled());
+    await new Promise(r => setTimeout(r, 20));
+    expect(screen.queryByText(/identidad de la marca/)).toBeNull();
   });
 
   it('carpetas no disponibles', async () => {

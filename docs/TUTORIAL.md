@@ -174,7 +174,7 @@ Es el tono, el público, las expresiones y el estilo. Va en cada encargo a Claud
 
 - **Importar desde .txt:** subes un archivo o pegas el texto. Antes de guardar, enseña qué campos cambian (antes y después). Si hay un error, no guarda nada y te dice qué.
 - **Copiar plantilla:** copia al portapapeles una instrucción y la plantilla (con tus valores actuales si ya hay identidad), para pegarla en una IA.
-- Los campos: tono, público, temas que no se tocan, expresiones preferidas y prohibidas, colores, tipografía, logotipo, estilo visual y fotográfico, llamada a la acción y hashtags fijos.
+- Los campos: tono, público, temas que no se tocan, expresiones preferidas y prohibidas, colores, tipografía, logotipo, estilo visual y fotográfico, llamada a la acción y hashtags fijos. Los temas que no se tocan pueden quedar vacíos (no hay temas vetados): solo el tono y el público cuentan para el aviso de identidad incompleta.
 
 Pasos:
 1. 👤 Pulsa **Copiar plantilla**.

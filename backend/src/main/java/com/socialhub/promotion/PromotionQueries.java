@@ -143,14 +143,14 @@ public class PromotionQueries {
 
     /**
      * Lo que falta en la identidad de la marca para que Claude no proponga a ciegas, en español y con artículo
-     * («el tono», «el público», «los temas que no se tocan»). Vacío si está completa.
+     * («el tono», «el público»). Vacío si está completa. Los temas que no se tocan vacíos son válidos (no hay temas
+     * vetados) y no cuentan como hueco.
      */
     public List<String> identityGaps(String brandId) {
         BrandIdentity identity = identity(brandId);
         List<String> gaps = new ArrayList<>();
         if (identity.tone().isBlank()) gaps.add("el tono");
         if (identity.audience().isBlank()) gaps.add("el público");
-        if (identity.forbiddenTopics().isEmpty()) gaps.add("los temas que no se tocan");
         return gaps;
     }
 
