@@ -39,6 +39,8 @@ export function Factory({ data, live, onRefresh }: {
   // a todo el contenido (el tamaño de las tarjetas cambia con el detalle). Se rellenan al encuadrar y al cambiar los datos.
   const levelBounds = useRef<LevelBoxes>({});
   const measuredAt = useRef(0);
+  // Zoom del último encuadre: si la vista estaba ahí, al cambiar el tamaño del mapa se vuelve a encuadrar
+  const lastFit = useRef(0);
   const clampRef = useRef<(v: View) => View>(v => v);
   const [lod, setLod] = useState(1);
   const [zoom, setZoom] = useState(50);
@@ -151,6 +153,7 @@ export function Factory({ data, live, onRefresh }: {
     const b = measureBounds();
     const w = b.x1 - b.x0, h = b.y1 - b.y0, ah = a.h - pt - pb;
     const s = validBox(b) ? fitScale(b, a, pt, pb) : clampS(0.7);
+    lastFit.current = s;
     animateTo({ s, tx: (a.w - w * s) / 2 - b.x0 * s, ty: pt + (ah - h * s) / 2 - b.y0 * s });
   }, [avail, measureBounds, animateTo]);
 
@@ -198,22 +201,27 @@ export function Factory({ data, live, onRefresh }: {
     if (fitted.current && world.current && vp.current) measureBounds();
   }, [data, measureBounds]);
 
-  // La franja de «Qué hacer ahora» cambia el alto del mapa: se vuelve a encuadrar al aparecer o desaparecer
-  const hasNext = data.recommendations.length > 0;
-  const hadNext = useRef(hasNext);
+  // El alto o el ancho del mapa cambian por muchas causas (la franja «Qué hacer ahora» aparece, desaparece o se despliega,
+  // se redimensiona la ventana...). Se observa el propio mapa, no cada causa: se vuelve a medir y, si la vista estaba en el
+  // encuadre (el zoom mínimo), se vuelve a encuadrar; si no, solo se acota. Así el zoom mínimo es siempre el del encuadre vigente.
   useEffect(() => {
-    if (hadNext.current === hasNext) return;
-    hadNext.current = hasNext;
-    const id = requestAnimationFrame(fit);
-    return () => cancelAnimationFrame(id);
-  }, [hasNext, fit]);
-
-  useEffect(() => {
-    let t: number;
-    const onResize = () => { clearTimeout(t); t = window.setTimeout(fit, 150); };
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, [fit]);
+    const el = vp.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    let id = 0, w = el.clientWidth, h = el.clientHeight;
+    const ro = new ResizeObserver(() => {
+      if (el.clientWidth === w && el.clientHeight === h) return;
+      w = el.clientWidth; h = el.clientHeight;
+      cancelAnimationFrame(id);
+      id = requestAnimationFrame(() => {
+        if (!fitted.current || !world.current) return;
+        const atFit = view.current.s <= lastFit.current * 1.02;
+        if (atFit) fit();
+        else { measureBounds(); lastFit.current = minScale(); apply(); }
+      });
+    });
+    ro.observe(el);
+    return () => { cancelAnimationFrame(id); ro.disconnect(); };
+  }, [fit, apply, measureBounds, minScale]);
 
   // Rueda, arrastre y pellizco
   useEffect(() => {

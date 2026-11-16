@@ -132,8 +132,15 @@ test.describe('Mapa', () => {
     // Alejar con la rueda hasta el límite: no baja del encuadre
     await page.mouse.move(vp.x + vp.width / 2, vp.y + vp.height / 2);
     for (let i = 0; i < 6; i++) await page.mouse.wheel(0, 2000);
-    await expect.poll(() => scaleOf(page)).toBeGreaterThanOrEqual(fitted * 0.999);
+    // El límite es exactamente el encuadre vigente (aunque la franja «Qué hacer ahora» haya cambiado el alto del mapa
+    // mientras tanto): se compara con lo que da «Encuadrar todo» ahora, con una tolerancia de 0,1 %
+    await page.waitForTimeout(700);
+    const minNow = await settledScale(page);
+    await page.getByRole('button', { name: 'Encuadrar todo' }).click();
+    const fitNow = await settledScale(page);
+    expect(Math.abs(minNow - fitNow)).toBeLessThanOrEqual(fitNow * 0.001);
     await expect.poll(() => stationsInView(page)).toBe(8);
+    await page.mouse.move(vp.x + vp.width / 2, vp.y + vp.height / 2);
 
     // Acercar con la rueda hasta el límite: no pasa del 350 %
     for (let i = 0; i < 8; i++) await page.mouse.wheel(0, -2000);
