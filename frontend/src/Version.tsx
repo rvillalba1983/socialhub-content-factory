@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from './api';
-import type { AppVersion } from './api/types';
+import type { AppVersion, Autostart } from './api/types';
 
 /** Fecha y hora de compilación en la zona del PC («15 nov 2026, 11:30»). */
 export function buildDate(iso: string): string {
@@ -15,6 +15,8 @@ export function buildDate(iso: string): string {
  */
 export function VersionBadge({ demo }: { demo: boolean }) {
   const [info, setInfo] = useState<AppVersion | null>(null);
+  const [autostart, setAutostart] = useState<Autostart | null>(null);
+  const [autostartError, setAutostartError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLSpanElement>(null);
   useEffect(() => { api.appVersion().then(setInfo).catch(() => {}); }, []);
@@ -41,6 +43,19 @@ export function VersionBadge({ demo }: { demo: boolean }) {
             <dt>Compilada el</dt><dd>{buildDate(info.build_time)}</dd>
             <dt>Modo</dt><dd>{demo ? 'Demo (datos de ejemplo)' : 'Real'}</dd>
           </dl>
+          {autostart?.available && (
+            <p className="src">
+              <label>
+                <input type="checkbox" checked={autostart.enabled} onChange={e => {
+                  setAutostartError(null);
+                  api.setAutostart(e.target.checked).then(setAutostart)
+                    .catch(err => setAutostartError(err instanceof Error ? err.message : String(err)));
+                }} /> Abrir SocialHub al iniciar sesión en Windows
+              </label>
+              <br />Se abre en segundo plano, sin abrir el navegador: el icono junto al reloj indica que está corriendo.
+              {autostartError && <span className="error" role="alert"> {autostartError}</span>}
+            </p>
+          )}
           <p className="src">Si tras instalar una versión nueva sigue saliendo la de antes, ciérrala con «Cerrar» y ábrela de nuevo.</p>
         </div>
       )}

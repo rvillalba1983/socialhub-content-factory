@@ -39,6 +39,22 @@ public final class Desktop {
     }
 
     /**
+     * Arranque en segundo plano (el de abrirse al iniciar sesión en Windows, con {@code --background}): el servidor sigue en
+     * localhost:8686 pero no se abre el navegador ni solo ni aunque ya estuviera arrancado; solo el icono de la bandeja
+     * avisa. El arranque a mano (acceso directo) sí abre el navegador.
+     */
+    public static boolean background() {
+        return Boolean.getBoolean("socialhub.background");
+    }
+
+    /** Marca el arranque en segundo plano si los argumentos llevan {@code --background}. */
+    public static void readArguments(String[] args) {
+        for (String arg : args) {
+            if ("--background".equals(arg)) System.setProperty("socialhub.background", "true");
+        }
+    }
+
+    /**
      * Antes de arrancar: el registro va a {@code <datos>/logs/socialhub.log} (no hay consola). Devuelve true si
      * SocialHub ya estaba abierto; en ese caso solo se abre el navegador.
      */
@@ -61,12 +77,14 @@ public final class Desktop {
         } catch (RuntimeException | LinkageError e) {
             StartupLog.phase("No se pudieron leer las opciones de la JVM: " + e);
         }
+        if (background()) StartupLog.phase("Arranque en segundo plano: no se abre el navegador");
         JvmCrashReports.collect(logs, List.of(Path.of(System.getProperty("user.dir", ".")),
                 Path.of(System.getProperty("java.io.tmpdir", "."))));
         rotateExternalLogs(logs);
         if (alreadyRunning()) {
-            StartupLog.phase("SocialHub ya estaba abierto: solo se abre el navegador");
-            openBrowser();
+            StartupLog.phase(background() ? "SocialHub ya estaba abierto: no se hace nada (arranque en segundo plano)"
+                    : "SocialHub ya estaba abierto: solo se abre el navegador");
+            if (!background()) openBrowser();
             return true;
         }
         if (!lockInstance()) {
@@ -75,7 +93,7 @@ public final class Desktop {
             log.info("SocialHub ya está arrancando; se espera a que esté listo");
             for (int i = 0; i < 90 && !alreadyRunning(); i++) sleep(2000);
             StartupLog.phase("El otro SocialHub ya responde: solo se abre el navegador");
-            openBrowser();
+            if (!background()) openBrowser();
             return true;
         }
         return false;
