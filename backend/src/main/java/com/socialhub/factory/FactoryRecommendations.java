@@ -362,3 +362,5 @@ class FactoryRecommendations {
         return dto;
     }
 }
+
+// PIT prueba temporal
