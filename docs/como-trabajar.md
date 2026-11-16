@@ -52,6 +52,8 @@ Reglas:
 | `e2e.yml` | Cada PR con cambios en `e2e/`, `frontend/`, `backend/` o `contracts/` | Recorridos con navegador real (Playwright) sobre SocialHub arrancado de verdad, en Linux. Si falla, capturas y trazas como artefacto |
 | `mapa-codigo.yml` | Cada PR | Mapa 3D del código, enlazado en un comentario de la PR |
 | `diagramas.yml` | PR que cambia un `.d2` | Genera los SVG con D2 y los sube a la rama: no hace falta instalar D2 |
+| `mutacion.yml` | Cada PR con cambios en `backend/src` | PIT (pruebas de mutación) solo sobre las clases cambiadas, en Linux; informe HTML como artefacto. Informativo hasta que Raúl apruebe el umbral (variable `PIT_UMBRAL`) |
+| `mutacion-semanal.yml` | Lunes 03:00 UTC o a mano | PIT sobre todo el backend; informe como artefacto, sin bloquear |
 | `instaladores.yml` | A mano, o PR que lo cambia | `.msi` (y `.dmg` si se pide), instalado y probado en Windows |
 
 - **Batería completa de pruebas:** la pasa GitHub. En local, solo las pruebas afectadas.
@@ -66,6 +68,7 @@ Se pierde al reiniciar el contenedor; `scripts/entorno/preparar.sh` lo deja list
 - `/opt/jdk/mvnu`: Maven como usuario `claude`, con el proxy de la sesión. Las pruebas que arrancan PostgreSQL no pueden ir como root. Antes de compilar: `chown -R claude .`.
 - `/opt/jdk/npmp`: npm con el proxy de la sesión.
 - **Pruebas del backend:** `bash scripts/entorno/pruebas.sh 'ClaseTest,OtraTest'`. Imprime el resumen; el registro completo queda en `/tmp/socialhub-pruebas.txt`.
+- **Mutación (PIT), en local:** `cd backend && /opt/jdk/mvnu -Ppit-unitarias test-compile org.pitest:pitest-maven:mutationCoverage -Dpit.targetClasses='com.socialhub.production.domain.Task*'` y el informe en `backend/target/pit-reports/index.html`. Resumen por módulo: `python3 .github/scripts/resumen-mutacion.py backend/target/pit-reports/mutations.xml`. Si el entorno va justo de memoria, un minion puede morir (otros procesos en la máquina).
 - **Frontal:** en `frontend/`, `npm test` y `npm run build`. Nunca `npx tsc -b`, que deja `.js` dentro de `src/`.
 - **Tipos de la API:** `cd frontend/tools/openapi && /opt/jdk/npmp run generate`.
 - **Arranque real:**

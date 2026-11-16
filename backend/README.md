@@ -113,6 +113,10 @@ Incluyen:
   - Que la vista del anillo no hace más de 20 consultas.
 - Los límites entre módulos (Spring Modulith) y las reglas de DDD y arquitectura hexagonal (jMolecules).
 
+### Pruebas de mutación (PIT)
+
+`mvn -Ppit-unitarias test-compile org.pitest:pitest-maven:mutationCoverage` mide cuántos cambios en el código detectan las pruebas unitarias (informe en `target/pit-reports`). Con `-Dpit.targetClasses='com.socialhub.x.Clase*'` se limita a unas clases y con `-Dpit.threshold=N` falla por debajo del N %. No forma parte de `verify`. Ver `docs/decisiones.md`.
+
 En Linux y macOS no se pueden ejecutar como `root`, porque `initdb` se niega a funcionar con ese usuario.
 
 En Linux, el FFmpeg incluido necesita algunas bibliotecas del sistema: `libxcb1 libxcb-shm0 libasound2t64 libpulse0 libva2 libva-drm2`. En Windows y macOS no hace falta instalar nada.

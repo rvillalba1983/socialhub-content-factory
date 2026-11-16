@@ -1,0 +1,45 @@
+name: Mutación semanal
+
+# Pasada completa de PIT sobre todo el backend, una vez a la semana (lunes, 03:00 UTC) o a mano.
+# No bloquea nada: sube el informe HTML como artefacto y el resumen por módulo al resumen del trabajo.
+
+on:
+  schedule:
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+  # Al cambiar este mismo archivo se prueba a sí mismo (sin bloquear: no es un requisito de la PR)
+  pull_request:
+    paths: [".github/workflows/mutacion-semanal.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  mutacion-completa:
+    name: Mutación de todo el backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+      - name: Bibliotecas del sistema para el FFmpeg incluido (Linux)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq libxcb1 libxcb-shm0 libasound2t64 libpulse0 libva2 libva-drm2
+      - name: Mutación completa (sin umbral)
+        run: mvn -B -Ppit-unitarias test-compile org.pitest:pitest-maven:mutationCoverage
+      - name: Resumen por módulo
+        if: always()
+        run: python3 ../.github/scripts/resumen-mutacion.py target/pit-reports/mutations.xml
+      - name: Informe HTML de mutación
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: informe-mutacion-semanal
+          path: backend/target/pit-reports
+          if-no-files-found: ignore

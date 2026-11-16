@@ -35,6 +35,12 @@
     <javacpp.version>1.5.14</javacpp.version>
     <ffmpeg.version>8.1.2-${javacpp.version}</ffmpeg.version>
     <javacpp.platform>linux-x86_64</javacpp.platform>
+    <!-- Pruebas de mutación (PIT): `mvn test-compile org.pitest:pitest-maven:mutationCoverage`. No va en `verify`.
+         Umbral de mutantes matados: 0 por defecto; la PR lo sube con -Dpit.threshold=75 (ver .github/workflows/mutacion.yml) -->
+    <pitest.version>1.30.2</pitest.version>
+    <pitest-junit5.version>1.2.3</pitest-junit5.version>
+    <pit.threshold>0</pit.threshold>
+    <pit.targetClasses>com.socialhub.*</pit.targetClasses>
   </properties>
 
   <dependencyManagement>
@@ -354,11 +360,97 @@
           </execution>
         </executions>
       </plugin>
+      <!-- Pruebas de mutación: mide si las pruebas detectan cambios en el código (calidad, no cobertura) -->
+      <plugin>
+        <groupId>org.pitest</groupId>
+        <artifactId>pitest-maven</artifactId>
+        <version>${pitest.version}</version>
+        <dependencies>
+          <dependency>
+            <groupId>org.pitest</groupId>
+            <artifactId>pitest-junit5-plugin</artifactId>
+            <version>${pitest-junit5.version}</version>
+          </dependency>
+        </dependencies>
+        <configuration>
+          <targetClasses>
+            <param>${pit.targetClasses}</param>
+          </targetClasses>
+          <targetTests>
+            <param>com.socialhub.*</param>
+          </targetTests>
+          <excludedClasses>
+            <!-- API generada desde el contrato, mapeadores generados y arranque -->
+            <param>com.socialhub.api.*</param>
+            <param>*MapperImpl</param>
+            <param>com.socialhub.SocialHubApplication</param>
+          </excludedClasses>
+          <mutationThreshold>${pit.threshold}</mutationThreshold>
+          <threads>2</threads>
+          <jvmArgs>
+            <value>-Xmx3g</value>
+            <value>-XX:+ExitOnOutOfMemoryError</value>
+          </jvmArgs>
+          <timeoutConstant>8000</timeoutConstant>
+          <outputFormats>
+            <param>HTML</param>
+            <param>XML</param>
+          </outputFormats>
+          <timestampedReports>false</timestampedReports>
+          <failWhenNoMutations>false</failWhenNoMutations>
+          <avoidCallsTo>
+            <param>org.slf4j</param>
+            <param>java.util.logging</param>
+          </avoidCallsTo>
+        </configuration>
+      </plugin>
     </plugins>
   </build>
 
   <!-- Binarios de PostgreSQL según el sistema en el que se compila -->
   <profiles>
+    <!-- Mutación solo con las pruebas unitarias (-Ppit-unitarias): sin las que arrancan Spring y PostgreSQL.
+         Cada mutante que sobrevive a las unitarias volvería a arrancar contexto y base de datos (minutos por mutante) -->
+    <profile>
+      <id>pit-unitarias</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.pitest</groupId>
+            <artifactId>pitest-maven</artifactId>
+            <configuration>
+              <excludedTestClasses>
+              <param>*.StartUpTest</param>
+              <param>*.AiAutoRetryTest</param>
+              <param>*.AiTypesTest</param>
+              <param>*.AiExchangeTest</param>
+              <param>*.ApiIntegrationTest</param>
+              <param>*.EmbeddedPostgresTest</param>
+              <param>*.BrandFolderRootTest</param>
+              <param>*.SpecBatchesTest</param>
+              <param>*FlowTest</param>
+              <param>*.FlowClockConfig</param>
+              <param>*.ModesAndRegistrationTest</param>
+              <param>*.PublishingEngineTest</param>
+              <param>*.PublishingModuleTest</param>
+              <param>*.PromotionMetricsApiTest</param>
+              <param>*.AutoRequestsTest</param>
+              <param>*.PublerAccountTest</param>
+              <param>*.InstagramOAuthTest</param>
+              <param>*.InstagramRouteTest</param>
+              <param>*.RouteOrderMigrationTest</param>
+              <param>*.PubloraRouteTest</param>
+              <param>*.ProductionModuleTest</param>
+              <param>*.BackupIntegrationTest</param>
+              <param>*.TaskEngineTest</param>
+              <param>*.PiecesApiTest</param>
+              <param>*.ModularityTest</param>
+              </excludedTestClasses>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
     <profile>
       <id>pg-windows</id>
       <activation><os><family>windows</family></os></activation>
