@@ -28,6 +28,9 @@ class LogFileRedactionTest {
     @Test
     void socialhubLogNoLlevaSecretos(@TempDir Path dir) throws IOException {
         Path file = dir.resolve("logs").resolve("socialhub.log");
+        // Si otra prueba de este mismo proceso ya inició el registro, Spring Boot no lo reconfigura: se le hace olvidarlo
+        LoggingSystem.get(getClass().getClassLoader()).cleanUp();
+        ((ch.qos.logback.classic.LoggerContext) LoggerFactory.getILoggerFactory()).removeObject(LoggingSystem.class.getName());
         try (ConfigurableApplicationContext ctx = new SpringApplicationBuilder(Empty.class)
                 .web(WebApplicationType.NONE)
                 .properties(java.util.Map.<String, Object>of("logging.file.name", file.toString(),
