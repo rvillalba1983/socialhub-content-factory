@@ -19,7 +19,11 @@ public class SocialHubApplication {
         UncaughtExceptionLogger.install();
         try {
             // Instalado: si ya está abierto, solo se abre el navegador
-            if (Desktop.enabled() && Desktop.prepare()) return;
+            if (Desktop.enabled() && Desktop.prepare()) {
+                // Segundo clic: ya se abrió el navegador. Se sale sin esperar a hilos que pudieran quedar vivos
+                StartupLog.phase("Segundo arranque: termina");
+                System.exit(0);
+            }
             SpringApplication app = new SpringApplication(SocialHubApplication.class);
             app.addListeners(new StartupPhases());
             app.run(args);

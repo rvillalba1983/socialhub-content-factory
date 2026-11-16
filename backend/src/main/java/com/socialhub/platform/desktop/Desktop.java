@@ -74,6 +74,7 @@ public final class Desktop {
             StartupLog.phase("SocialHub ya está arrancando; se espera a que esté listo");
             log.info("SocialHub ya está arrancando; se espera a que esté listo");
             for (int i = 0; i < 90 && !alreadyRunning(); i++) sleep(2000);
+            StartupLog.phase("El otro SocialHub ya responde: solo se abre el navegador");
             openBrowser();
             return true;
         }
