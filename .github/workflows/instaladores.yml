@@ -360,14 +360,14 @@ jobs:
           echo "El jar lleva PostgreSQL y FFmpeg de macOS ($arch)"
       - name: Crear el .dmg
         run: |
+          # Sin -XX:ErrorFile: la ruta de macOS lleva un espacio («Application Support») y el lanzador parte las opciones ahí.
+          # El informe de fallo fatal queda en la carpeta temporal y SocialHub lo recoge al abrir (JvmCrashReports).
           mkdir -p entrada salida
           cp backend/target/socialhub.jar entrada/
           jpackage --type dmg --name SocialHub --app-version "$VERSION" \
             --vendor "$FABRICANTE" --description "$DESCRIPCION" \
             --input entrada --main-jar socialhub.jar --dest salida \
             --java-options "-Dsocialhub.desktop=true" \
-            --java-options '-Dsocialhub.jvm.logs=$HOME/Library/Application Support/SocialHub/logs' \
-            --java-options '-XX:ErrorFile=$HOME/Library/Application Support/SocialHub/logs/hs_err_pid%p.log' \
             --mac-package-identifier com.socialhub.app --verbose
           ls -la salida
       # Prueba real: se monta el .dmg, se copia la app (como al arrastrarla a Aplicaciones), se abre y se cierra desde la web
@@ -403,7 +403,6 @@ jobs:
           [ -f "$arranque" ] || { echo "::error::No hay registro de arranque en $arranque"; exit 1; }
           cat "$arranque"
           for fase in "Arranque de SocialHub" "PostgreSQL: en marcha" "SocialHub listo"; do grep -qF "$fase" "$arranque" || { echo "::error::arranque.log no tiene «$fase»"; exit 1; }; done
-          grep -q 'no expandió' "$arranque" && { echo "::error::El lanzador no expandió \$HOME en las opciones de la JVM"; exit 1; }
           # PostgreSQL arrancó: hay proceso suyo, su carpeta de datos tiene postmaster.pid y el registro no habla de fallos
           pgrep -f "SocialHub/runtime/.*/bin/postgres" > /dev/null || { ps aux | grep -i postgres | head; mostrar_registro; echo "::error::No hay proceso de PostgreSQL"; exit 1; }
           [ -f "$HOME/Library/Application Support/SocialHub/pgdata/postmaster.pid" ] || { echo "::error::No existe postmaster.pid"; exit 1; }
