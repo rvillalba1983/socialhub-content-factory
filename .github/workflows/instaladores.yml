@@ -191,6 +191,25 @@ jobs:
           $logs = Join-Path $env:LOCALAPPDATA "SocialHub\logs\socialhub.log"
           if (-not $ok) { if (Test-Path $logs) { Get-Content $logs -Tail 60 }; throw "SocialHub instalado no respondió en localhost:8686" }
           Write-Host "Responde: $($r.Content)"
+          # Arranque con Windows (por defecto activado): entrada del USUARIO en HKCU\...\Run, sin administrador, en segundo plano
+          $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+          $run = $null
+          for ($i = 0; $i -lt 30; $i++) {
+            $run = (Get-ItemProperty $runKey -Name SocialHub -ErrorAction SilentlyContinue).SocialHub
+            if ($run) { break }
+            Start-Sleep 1
+          }
+          if ($run -ne "`"$exe`" --background") { throw "La entrada de arranque con Windows es «$run» y tendría que ser «`"$exe`" --background»" }
+          Write-Host "Arranque con Windows: $run"
+          $a = Invoke-RestMethod http://localhost:8686/api/system/autostart
+          if (-not $a.available -or -not $a.enabled) { throw "La web dice que el arranque con Windows no está disponible o no está activado" }
+          # Desde la app se puede desactivar y volver a activar
+          $put = @{ Method = 'Put'; Headers = @{ 'X-SocialHub-Request' = '1' }; ContentType = 'application/json' }
+          Invoke-RestMethod http://localhost:8686/api/system/autostart @put -Body '{"enabled":false}' | Out-Null
+          if (Get-ItemProperty $runKey -Name SocialHub -ErrorAction SilentlyContinue) { throw "Al desactivarlo, la entrada de arranque sigue en el registro" }
+          Invoke-RestMethod http://localhost:8686/api/system/autostart @put -Body '{"enabled":true}' | Out-Null
+          if ((Get-ItemProperty $runKey -Name SocialHub -ErrorAction SilentlyContinue).SocialHub -ne "`"$exe`" --background") { throw "Al activarlo otra vez, la entrada de arranque no vuelve" }
+          Write-Host "El arranque con Windows se activa y se desactiva desde la app"
           # Registro de arranque (arranque.log): fases del arranque y opciones de la JVM con la carpeta de registros YA expandida
           $dirLogs = Join-Path $env:LOCALAPPDATA "SocialHub\logs"
           $arranque = Join-Path $dirLogs "arranque.log"
@@ -230,7 +249,8 @@ jobs:
           Write-Host "Se cierra desde la web y para PostgreSQL"
           # PostgreSQL descomprimido a medias (le falta un archivo): al abrir se descomprime de nuevo y arranca
           Remove-Item (Join-Path $pgbin "zlib1.dll")
-          $again = Start-Process $exe -PassThru
+          # Como al iniciar sesión: en segundo plano (sin abrir el navegador)
+          $again = Start-Process $exe -ArgumentList '--background' -PassThru
           $ok = $false
           for ($i = 0; $i -lt 90; $i++) {
             try { $r = Invoke-WebRequest http://localhost:8686/api/app-mode -UseBasicParsing -TimeoutSec 3; if ($r.StatusCode -eq 200) { $ok = $true; break } } catch {}
@@ -238,6 +258,7 @@ jobs:
           }
           if (-not $ok) { Get-Content $logs -Tail 60; throw "Con PostgreSQL a medias no se recuperó" }
           if (-not (Test-Path (Join-Path $pgbin "zlib1.dll"))) { throw "No se volvió a descomprimir PostgreSQL" }
+          if ((Get-Content $arranque -Raw) -notmatch 'Arranque en segundo plano') { throw "arranque.log no dice que arrancó en segundo plano" }
           Invoke-WebRequest http://localhost:8686/api/app/shutdown -Method Post -Headers @{ 'X-SocialHub-Request' = '1' } -UseBasicParsing | Out-Null
           if (-not $again.WaitForExit(60000)) { throw "SocialHub no se cerró la segunda vez" }
           Write-Host "Con PostgreSQL a medias, lo descomprime de nuevo y arranca"
@@ -267,8 +288,13 @@ jobs:
           if ((Get-Content $logIns[0].FullName -Raw) -notmatch 'Installation (completed|operation completed) successfully') { throw "El registro de instalación no dice que terminara bien" }
           if (-not (Test-Path (Join-Path $env:ProgramFiles "SocialHub\SocialHub.exe"))) { throw "El lanzador no dejó SocialHub instalado" }
           Write-Host "Instalado con registro: $($logIns[0].Name) ($($logIns[0].Length) bytes)"
+          # El .msi no puede limpiar la entrada del usuario; el lanzador de desinstalación sí
+          $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+          Set-ItemProperty -Path $runKey -Name SocialHub -Value '"C:\Program Files\SocialHub\SocialHub.exe" --background'
           $p = Start-Process -FilePath $des.FullName -ArgumentList '/silencioso' -Wait -PassThru
           if ($p.ExitCode -ne 0) { throw "El lanzador de desinstalación terminó con $($p.ExitCode)" }
+          if (Get-ItemProperty $runKey -Name SocialHub -ErrorAction SilentlyContinue) { throw "El lanzador de desinstalación no quitó el arranque con Windows" }
+          Write-Host "El lanzador de desinstalación deja limpio el arranque con Windows"
           $logDes = @(Get-ChildItem $dirLogs -Filter 'desinstalacion-*.log')
           if ($logDes.Count -ne 1 -or $logDes[0].Length -lt 1000) { Get-ChildItem $dirLogs; throw "No hay un registro de desinstalación con contenido" }
           if (Test-Path (Join-Path $env:ProgramFiles "SocialHub\SocialHub.exe")) { throw "El lanzador no desinstaló SocialHub" }

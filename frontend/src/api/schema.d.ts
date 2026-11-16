@@ -241,6 +241,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/system/autostart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * ¿Se abre SocialHub al iniciar sesión?
+         * @description Solo en Windows con SocialHub instalado (available). Es una entrada del usuario en HKCU Run: no pide administrador. Se abre en segundo plano, sin abrir el navegador; el icono de la bandeja indica que está corriendo.
+         */
+        get: operations["getAutostart"];
+        /** Activa o desactiva abrir SocialHub al iniciar sesión (por defecto, activado) */
+        put: operations["setAutostart"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/system/version": {
         parameters: {
             query?: never;
@@ -1842,6 +1863,14 @@ export interface components {
              */
             build_time: string;
         };
+        Autostart: {
+            /** @description Este sistema lo permite (Windows con SocialHub instalado) */
+            available: boolean;
+            enabled: boolean;
+        };
+        AutostartInput: {
+            enabled: boolean;
+        };
         LogsFolder: {
             /**
              * @description Ruta completa de la carpeta de registros
@@ -2347,6 +2376,8 @@ export type Brand = components['schemas']['Brand'];
 export type AppMode = components['schemas']['AppMode'];
 export type AppModeState = components['schemas']['AppModeState'];
 export type AppVersion = components['schemas']['AppVersion'];
+export type Autostart = components['schemas']['Autostart'];
+export type AutostartInput = components['schemas']['AutostartInput'];
 export type LogsFolder = components['schemas']['LogsFolder'];
 export type AppModeChange = components['schemas']['AppModeChange'];
 export type BrandList = components['schemas']['BrandList'];
@@ -2812,6 +2843,56 @@ export interface operations {
                 };
                 content?: never;
             };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getAutostart: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Estado del arranque con el sistema */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Autostart"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    setAutostart: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AutostartInput"];
+            };
+        };
+        responses: {
+            /** @description Estado nuevo */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Autostart"];
+                };
+            };
+            400: components["responses"]["Problem"];
             default: components["responses"]["Problem"];
         };
     };
