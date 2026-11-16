@@ -1,14 +1,6 @@
 package com.socialhub.ai.application;
 
-import com.socialhub.ai.domain.AiAutoOrder;
-
-import com.socialhub.ai.AiOrders;
-import com.socialhub.ai.AiTypeHandler;
-import com.socialhub.ai.domain.AiAutoOrderRepository;
-import com.socialhub.ai.domain.AiRequestType;
-
 import static org.assertj.core.api.Assertions.assertThat;
-
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -16,17 +8,22 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.socialhub.ai.AiOrders;
+import com.socialhub.ai.AiTypeHandler;
+import com.socialhub.ai.domain.AiAutoOrder;
+import com.socialhub.ai.domain.AiAutoOrderRepository;
+import com.socialhub.ai.domain.AiRequestType;
+import com.socialhub.promotion.PromotionActivation;
 import com.socialhub.promotion.PromotionQueries;
-import com.socialhub.promotion.PromotionService;
 import java.time.Clock;
 import java.time.LocalDate;
-import java.util.List;
-import org.springframework.transaction.TransactionStatus;
-import org.springframework.transaction.support.TransactionTemplate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.TransactionTemplate;
 
 class AiAutoOrdersTest {
 
@@ -36,7 +33,7 @@ class AiAutoOrdersTest {
     private static ZonedDateTime at(int day, int hour) { return ZonedDateTime.of(2026, 11, day, hour, 0, 0, 0, MADRID); }
 
     private final PromotionQueries promotions = mock(PromotionQueries.class);
-    private final PromotionService promotionService = mock(PromotionService.class);
+    private final PromotionActivation promotionService = mock(PromotionActivation.class);
     private final AiOrders orders = mock(AiOrders.class);
     private final AiHandlers handlers = mock(AiHandlers.class);
     private final AiAutoOrderRepository done = mock(AiAutoOrderRepository.class);

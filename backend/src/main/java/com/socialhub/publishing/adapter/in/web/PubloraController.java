@@ -9,7 +9,7 @@ import com.socialhub.api.model.PubloraConnectionDto;
 import com.socialhub.api.model.PubloraDismissedInputDto;
 import com.socialhub.api.model.PubloraKeyInputDto;
 import com.socialhub.api.model.PubloraStatusDto;
-import com.socialhub.publishing.PubloraService;
+import com.socialhub.publishing.PubloraConnection;
 import com.socialhub.publishing.domain.Platform;
 import com.socialhub.publishing.domain.PubloraAccountRepository;
 import java.util.List;
@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 class PubloraController implements PubloraApi {
 
-    private final PubloraService publora;
+    private final PubloraConnection publora;
 
     @Override
     public ResponseEntity<PubloraStatusDto> getPublora() {
@@ -48,7 +48,7 @@ class PubloraController implements PubloraApi {
     public ResponseEntity<PubloraAccountListDto> saveBrandPubloraAccounts(String brandId, String requestGuard,
                                                                          PubloraAccountListInputDto input) {
         var choices = input.getItems().stream()
-                .map(i -> new PubloraService.Choice(Platform.valueOf(i.getPlatform().name()), i.getConnectionId()))
+                .map(i -> new PubloraConnection.Choice(Platform.valueOf(i.getPlatform().name()), i.getConnectionId()))
                 .toList();
         publora.saveAccounts(brandId, choices);
         return ResponseEntity.ok(accountList(brandId));
@@ -65,7 +65,7 @@ class PubloraController implements PubloraApi {
         return toDto(publora.accounts(brandId), publora.isDismissed(brandId));
     }
 
-    private static PubloraStatusDto toDto(PubloraService.Status status) {
+    private static PubloraStatusDto toDto(PubloraConnection.Status status) {
         var dto = new PubloraStatusDto(status.configured(), status.connections().stream()
                 .map(c -> new PubloraConnectionDto(c.id(), c.platform(), c.label(), c.usable())).toList());
         dto.setKeyHint(status.keyHint());

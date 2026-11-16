@@ -11,7 +11,9 @@ import com.socialhub.production.domain.AiModel;
 import com.socialhub.production.domain.AvailableCommand;
 import com.socialhub.production.domain.Station;
 import com.socialhub.production.domain.StationCommandType;
+import com.socialhub.production.domain.StationSummary;
 import com.socialhub.production.domain.Task;
+import com.socialhub.production.domain.TaskCounts;
 import com.socialhub.production.domain.TaskHistoryEntry;
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -32,6 +34,10 @@ interface ProductionWebMapper {
     @Mapping(target = "counts", source = "counts")
     @Mapping(target = "availableCommands", expression = "java(toStationCommandDtos(station.availableCommands()))")
     StationDto toDto(Station station, TaskCountsDto counts);
+
+    default StationDto toDto(StationSummary summary) { return toDto(summary.station(), toDto(summary.counts())); }
+
+    TaskCountsDto toDto(TaskCounts counts);
 
     TaskEventDto toDto(TaskHistoryEntry entry);
 

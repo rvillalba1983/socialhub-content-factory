@@ -6,7 +6,7 @@ import com.socialhub.pieces.domain.PieceOrder;
 import com.socialhub.pieces.domain.PieceOrderRepository;
 import com.socialhub.platform.AppMode;
 import com.socialhub.platform.AppModeHolder;
-import com.socialhub.production.ProductionService;
+import com.socialhub.production.ProductionTasks;
 import com.socialhub.production.TaskRequest;
 import com.socialhub.promotion.PromotionQueries;
 import java.io.IOException;
@@ -29,7 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 class PieceOrdersService implements PieceOrders {
 
     private final PromotionQueries promotions;
-    private final ProductionService production;
+    private final ProductionTasks production;
     private final SpecReader reader;
     private final PieceOrderRepository orders;
     private final Clock clock;

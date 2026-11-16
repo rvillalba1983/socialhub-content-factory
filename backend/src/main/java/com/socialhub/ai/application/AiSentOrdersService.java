@@ -3,7 +3,7 @@ package com.socialhub.ai.application;
 import com.socialhub.ai.AiSentOrders;
 import com.socialhub.ai.domain.AiRequest;
 import com.socialhub.ai.domain.AiRequestRepository;
-import com.socialhub.production.ProductionService;
+import com.socialhub.production.ProductionAiTasks;
 import com.socialhub.promotion.PromotionQueries;
 import java.util.Comparator;
 import java.util.List;
@@ -16,7 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 class AiSentOrdersService implements AiSentOrders {
 
     private final AiRequestRepository requests;
-    private final ProductionService production;
+    private final ProductionAiTasks production;
     private final PromotionQueries promotions;
 
     @Override

@@ -2,18 +2,18 @@ package com.socialhub.publishing.adapter.in.web;
 
 import com.socialhub.api.InstagramApi;
 import com.socialhub.api.model.InstagramAccountDto;
+import com.socialhub.api.model.InstagramAccountInputDto;
 import com.socialhub.api.model.InstagramAppInputDto;
+import com.socialhub.api.model.InstagramBrandCheckDto;
+import com.socialhub.api.model.InstagramCheckDto;
 import com.socialhub.api.model.InstagramConnectionDto;
 import com.socialhub.api.model.InstagramDetectedAccountDto;
 import com.socialhub.api.model.InstagramDetectedAccountListDto;
-import com.socialhub.api.model.InstagramOAuthStartDto;
-import com.socialhub.api.model.InstagramAccountInputDto;
-import com.socialhub.api.model.InstagramBrandCheckDto;
-import com.socialhub.api.model.InstagramCheckDto;
 import com.socialhub.api.model.InstagramKeyInputDto;
+import com.socialhub.api.model.InstagramOAuthStartDto;
 import com.socialhub.api.model.InstagramStatusDto;
-import com.socialhub.publishing.InstagramOAuthService;
-import com.socialhub.publishing.InstagramService;
+import com.socialhub.publishing.InstagramConnection;
+import com.socialhub.publishing.InstagramOAuth;
 import com.socialhub.publishing.domain.InstagramAccountRepository;
 import java.net.URI;
 import java.net.URLEncoder;
@@ -28,8 +28,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 class InstagramController implements InstagramApi {
 
-    private final InstagramService instagram;
-    private final InstagramOAuthService oauth;
+    private final InstagramConnection instagram;
+    private final InstagramOAuth oauth;
 
     @Override
     public ResponseEntity<InstagramStatusDto> getInstagram() {
@@ -109,7 +109,7 @@ class InstagramController implements InstagramApi {
         return ResponseEntity.ok(toDto(instagram.saveAccount(brandId, input.getIgUserId())));
     }
 
-    private static InstagramStatusDto toDto(InstagramService.Status system, InstagramOAuthService.Overview overview) {
+    private static InstagramStatusDto toDto(InstagramConnection.Status system, InstagramOAuth.Overview overview) {
         var dto = new InstagramStatusDto(!"NONE".equals(overview.source()));
         dto.setKeyHint(system.keyHint());
         dto.setSystemKey(system.configured());

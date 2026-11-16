@@ -1,18 +1,16 @@
 package com.socialhub.ai.application;
 
-import com.socialhub.ai.domain.AiRequest;
-import com.socialhub.ai.domain.AiRequestId;
-import com.socialhub.ai.domain.ClaudeModel;
-
-import com.socialhub.ai.AiTypeHandler;
-import com.socialhub.ai.domain.AiRequestRepository;
-import com.socialhub.ai.domain.AiRequestType;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.socialhub.ai.AiTypeHandler;
+import com.socialhub.ai.domain.AiRequest;
+import com.socialhub.ai.domain.AiRequestId;
+import com.socialhub.ai.domain.AiRequestRepository;
+import com.socialhub.ai.domain.AiRequestType;
+import com.socialhub.ai.domain.ClaudeModel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
@@ -39,7 +37,7 @@ class AiUrgencyTest {
     }
 
     private final AiHandlers handlers = mock(AiHandlers.class);
-    private final com.socialhub.production.ProductionService production = mock(com.socialhub.production.ProductionService.class);
+    private final com.socialhub.production.ProductionAiTasks production = mock(com.socialhub.production.ProductionAiTasks.class);
 
     private AiUrgency at(Instant now) {
         return new AiUrgency(requests, json, Clock.fixed(now, MADRID), handlers, production, new AiUrgentRule(48));

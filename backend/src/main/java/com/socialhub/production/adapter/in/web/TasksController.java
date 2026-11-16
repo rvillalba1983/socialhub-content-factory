@@ -5,8 +5,8 @@ import com.socialhub.api.model.TaskCommandDto;
 import com.socialhub.api.model.TaskDto;
 import com.socialhub.api.model.TaskListDto;
 import com.socialhub.api.model.TaskStatusDto;
+import com.socialhub.production.ProductionOrders;
 import com.socialhub.production.ProductionQueries;
-import com.socialhub.production.ProductionService;
 import com.socialhub.production.domain.TaskCommandType;
 import com.socialhub.production.domain.TaskFilter;
 import com.socialhub.production.domain.TaskStatus;
@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 class TasksController implements TasksApi {
 
-    private final ProductionService service;
+    private final ProductionOrders service;
     private final ProductionQueries queries;
     private final ProductionWebMapper mapper;
 

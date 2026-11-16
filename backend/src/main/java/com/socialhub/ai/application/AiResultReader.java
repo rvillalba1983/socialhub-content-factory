@@ -6,7 +6,7 @@ import com.socialhub.ai.domain.AiRequestRepository;
 import com.socialhub.ai.domain.AiRequestType;
 import com.socialhub.ai.domain.AiResultFile;
 import com.socialhub.ai.domain.AiResultFileRepository;
-import com.socialhub.production.ProductionService;
+import com.socialhub.production.ProductionAiTasks;
 import com.socialhub.promotion.PromotionQueries;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -45,7 +45,7 @@ class AiResultReader {
     static final Duration SETTLE = Duration.ofSeconds(3);
 
     private final PromotionQueries promotions;
-    private final ProductionService production;
+    private final ProductionAiTasks production;
     private final AiRequestRepository requests;
     private final AiResultFileRepository files;
     private final ResultValidator validator;

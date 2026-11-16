@@ -1,32 +1,32 @@
 package com.socialhub.production;
 
-import com.socialhub.platform.NotFoundException;
+import com.socialhub.production.domain.ProductionOverview;
 import com.socialhub.production.domain.Station;
-import com.socialhub.production.domain.StationRepository;
+import com.socialhub.production.domain.StationSummary;
 import com.socialhub.production.domain.Task;
 import com.socialhub.production.domain.TaskFilter;
-import com.socialhub.production.domain.TaskRepository;
 import java.util.List;
-import lombok.RequiredArgsConstructor;
 import org.jmolecules.architecture.hexagonal.PrimaryPort;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 /** Consultas de producción (solo lectura). */
 @PrimaryPort
-@Service
-@RequiredArgsConstructor
-@Transactional(readOnly = true)
-public class ProductionQueries {
+public interface ProductionQueries {
 
-    private final TaskRepository tasks;
-    private final StationRepository stations;
+    Task task(String id);
 
-    public Task task(String id) {
-        return tasks.findById(id).orElseThrow(() -> new NotFoundException("No existe la tarea " + id));
-    }
+    List<Task> tasks(TaskFilter filter);
 
-    public List<Task> tasks(TaskFilter filter) { return tasks.findAll(filter); }
+    List<Station> stations();
 
-    public List<Station> stations() { return stations.findAll(); }
+    /** Las estaciones con su recuento de tareas y todas las tareas. */
+    ProductionOverview overview();
+
+    /** Una estación con el recuento de sus tareas. */
+    StationSummary station(String stationId);
+
+    /**
+     * Lo que necesita atención de Raúl en lo ya leído: tareas con error o bloqueadas y estaciones bloqueadas o caídas.
+     * No consulta nada: así la vista completa lee la producción una sola vez.
+     */
+    List<ProductionAlert> alertsOf(ProductionOverview overview);
 }

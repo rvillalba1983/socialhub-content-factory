@@ -60,7 +60,7 @@ class SpecBatchesTest {
     @Autowired MockMvc mvc;
     @Autowired WeeklySpecHandler handler;
     @Autowired AiOrders orders;
-    @Autowired com.socialhub.production.ProductionService production;
+    @Autowired com.socialhub.production.ProductionAiTasks production;
     @Autowired ContentGaps gaps;
     private final JsonMapper json = JsonMapper.builder().build();
 

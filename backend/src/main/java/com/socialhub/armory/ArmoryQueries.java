@@ -1,20 +1,18 @@
 package com.socialhub.armory;
 
 import com.socialhub.armory.domain.ArmoryItem;
-import com.socialhub.armory.domain.ArmoryRepository;
 import java.util.List;
-import lombok.RequiredArgsConstructor;
 import org.jmolecules.architecture.hexagonal.PrimaryPort;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
+/** Consultas de la armería (solo lectura). */
 @PrimaryPort
-@Service
-@RequiredArgsConstructor
-@Transactional(readOnly = true)
-public class ArmoryQueries {
+public interface ArmoryQueries {
 
-    private final ArmoryRepository repository;
+    List<ArmoryItem> items();
 
-    public List<ArmoryItem> items() { return repository.findAll(); }
+    /** Un servicio real (no de ejemplo) que no está disponible, por ejemplo Google Drive sin montar. */
+    record BlockedService(String id, String name, String note) {}
+
+    /** Los servicios reales bloqueados: salen en «Necesita atención». */
+    List<BlockedService> blockedServices();
 }

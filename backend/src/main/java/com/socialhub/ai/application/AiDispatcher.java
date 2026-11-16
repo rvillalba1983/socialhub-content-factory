@@ -11,7 +11,7 @@ import com.socialhub.ai.domain.AiRequestType;
 import com.socialhub.ai.domain.ClaudeModel;
 import com.socialhub.platform.live.FactoryChanged;
 import com.socialhub.production.AiTask;
-import com.socialhub.production.ProductionService;
+import com.socialhub.production.ProductionAiTasks;
 import com.socialhub.promotion.PromotionQueries;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -40,7 +40,7 @@ import tools.jackson.databind.ObjectMapper;
 @RequiredArgsConstructor
 class AiDispatcher {
 
-    private final ProductionService production;
+    private final ProductionAiTasks production;
     private final PromotionQueries promotions;
     private final AiSettings settings;
     private final AiRequestRepository requests;
@@ -82,7 +82,7 @@ class AiDispatcher {
      * cuentan: si no, el motivo desaparecería en la ronda siguiente, a los 30 s.
      */
     private void stallBlockedProposals() {
-        for (ProductionService.BlockedAi blocked : production.blockedAiTasks()) {
+        for (ProductionAiTasks.BlockedAi blocked : production.blockedAiTasks()) {
             AiTask task = blocked.task();
             if (task.promotionId() == null
                     || AiRequestType.ofTaskType(task.type()).filter(t -> t == AiRequestType.WEEKLY_PROPOSALS).isEmpty()) continue;
