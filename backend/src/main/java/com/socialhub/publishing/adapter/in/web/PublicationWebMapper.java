@@ -52,7 +52,9 @@ interface PublicationWebMapper {
         } catch (InvalidPathException e) {
             available = false;
         }
-        return new PublicationFileDto(file.path(), PublicationFileDto.OriginEnum.valueOf(file.origin().name()),
-                file.addedAt().atOffset(ZoneOffset.UTC), available);
+        var dto = new PublicationFileDto(file.id(), file.path(), PublicationFileDto.OriginEnum.valueOf(file.origin().name()),
+                file.addedAt().atOffset(ZoneOffset.UTC), available, PublicationFileDto.KindEnum.valueOf(file.kind().name()));
+        dto.setMimeType(file.mimeType());
+        return dto;
     }
 }
