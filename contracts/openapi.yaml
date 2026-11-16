@@ -1532,6 +1532,34 @@ paths:
         "409": { $ref: "#/components/responses/Problem" }
         default: { $ref: "#/components/responses/Problem" }
 
+  /api/tasks/{task_id}/answer:
+    post:
+      tags: [Tasks]
+      operationId: answerTask
+      summary: Contesta a la pregunta que Claude hizo en un encargo
+      description: |
+        Solo si la tarea ofrece `ANSWER` en `available_commands` (encargo a Claude en espera de Raúl). Guarda la
+        pregunta con la respuesta y relanza el encargo: la respuesta sale en `inputs.human_answers` (acumulada con las
+        de intentos anteriores). Una respuesta vacía responde 409 y no se envía nada.
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TaskAnswer" }
+      responses:
+        "200":
+          description: Tarea tras responder (vuelve a la cola)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Task" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
   /api/stations:
     get:
       tags: [Stations]
@@ -1685,7 +1713,7 @@ components:
     TaskCommandType:
       type: string
       enum: [PAUSE, RESUME, CANCEL, DISCARD, RETRY, SWITCH_TO_MANUAL, RUN_NOW, RESCHEDULE, RECHECK, START, RERUN,
-             REOPEN, APPROVE, MARK_DONE, REMIND, CHANGE_AGENT]
+             REOPEN, APPROVE, MARK_DONE, REMIND, ANSWER, CHANGE_AGENT]
 
     AgentKind:
       type: string
@@ -2713,6 +2741,14 @@ components:
         max_attempts: { type: integer, format: int32 }
         started_at: { type: string, format: date-time }
         inputs: { type: array, items: { type: string } }
+        question_options:
+          type: array
+          items: { type: string }
+          description: Respuestas cortas que Claude propuso para su pregunta (la pregunta es `reason`). Puede estar vacía.
+        human_answers:
+          type: array
+          items: { $ref: "#/components/schemas/HumanAnswer" }
+          description: Lo que Claude preguntó y lo que Raúl contestó, de más antigua a más reciente
         steps: { type: array, items: { $ref: "#/components/schemas/TaskStep" } }
         checks: { type: array, items: { $ref: "#/components/schemas/TaskCheck" } }
         depends_on: { type: array, items: { type: string } }
@@ -2721,6 +2757,23 @@ components:
           type: array
           items: { $ref: "#/components/schemas/AvailableCommand" }
         demo: { type: boolean }
+
+    HumanAnswer:
+      type: object
+      required: [question, answer, answered_at]
+      properties:
+        question: { type: string }
+        answer: { type: string }
+        answered_at: { type: string, format: date-time }
+
+    TaskAnswer:
+      type: object
+      required: [answer]
+      properties:
+        answer:
+          type: string
+          maxLength: 2000
+          description: Texto de la respuesta. No puede estar vacío ni en blanco (responde 409)
 
     Agent:
       type: object

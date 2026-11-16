@@ -143,7 +143,8 @@ class AiResultReader {
                     String reason = text(result.path("error"), String.join(" · ", warnings(result)));
                     if (type.automatic()) failed(sent, "Claude pide ayuda: " + reason);
                     finish(sent, AiRequest.Status.NEEDS_HUMAN, file, result, reason);
-                    production.aiNeedsHuman(taskId, reason.isBlank() ? "Claude necesita que lo revises." : reason);
+                    production.aiNeedsHuman(taskId, reason.isBlank() ? "Claude necesita que lo revises." : reason,
+                            options(result));
                 }
             }
             record(file, modified, sent.id().value(), "APPLIED", status);
@@ -196,6 +197,21 @@ class AiResultReader {
         List<String> warnings = warnings(result);
         return warnings.isEmpty() ? text : text + " · Avisos: " + String.join(" · ", warnings);
     }
+
+    /** Respuestas cortas que Claude propone (opcional): como mucho 6, de hasta 120 caracteres, sin repetir ni vacías. */
+    static List<String> options(JsonNode result) {
+        List<String> list = new ArrayList<>();
+        result.path("options").forEach(o -> {
+            if (!o.isString()) return;
+            String option = o.asString().strip();
+            if (option.isEmpty()) return;
+            if (option.length() > MAX_OPTION_LENGTH) option = option.substring(0, MAX_OPTION_LENGTH - 1) + "…";
+            if (!list.contains(option) && list.size() < com.socialhub.ai.application.AiStandingRules.MAX_OPTIONS) list.add(option);
+        });
+        return list;
+    }
+
+    static final int MAX_OPTION_LENGTH = 120;
 
     private static List<String> warnings(JsonNode result) {
         List<String> list = new ArrayList<>();

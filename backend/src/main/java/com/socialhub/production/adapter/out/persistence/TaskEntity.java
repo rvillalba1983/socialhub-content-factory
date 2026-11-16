@@ -93,6 +93,17 @@ class TaskEntity {
 
     @NotAudited
     @ElementCollection
+    @CollectionTable(name = "task_human_answer", joinColumns = @JoinColumn(name = "task_id"))
+    @OrderColumn(name = "position")
+    private List<HumanAnswerEmbeddable> humanAnswers = new ArrayList<>();
+
+    @NotAudited
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(columnDefinition = "text[]")
+    private List<String> questionOptions = new ArrayList<>();
+
+    @NotAudited
+    @ElementCollection
     @CollectionTable(name = "task_dependency", joinColumns = @JoinColumn(name = "task_id"))
     @Column(name = "depends_on")
     private Set<String> dependsOn = new LinkedHashSet<>();

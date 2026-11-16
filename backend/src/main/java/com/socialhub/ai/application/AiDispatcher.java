@@ -20,7 +20,9 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -191,8 +193,11 @@ class AiDispatcher {
             if (!identity.isEmpty()) inputs.put("brand_identity", identity);
             contexts.forEach(c -> inputs.putAll(c.context(task.promotionId(), brandId)));
             handlers.of(type).ifPresent(h -> inputs.putAll(h.inputs(job)));
+            if (!task.humanAnswers().isEmpty()) inputs.put("human_answers", humanAnswers(task));
             request.put("inputs", inputs);
-            request.put("rules", promotions.rulesFor(task.promotionId()));
+            List<String> rules = new ArrayList<>(promotions.rulesFor(task.promotionId()));
+            rules.addAll(AiStandingRules.forType(type));
+            request.put("rules", rules);
             request.put("model", model.name().toLowerCase(java.util.Locale.ROOT));
             @org.jspecify.annotations.Nullable Instant deadline = handlers.of(type).map(h -> h.deadline(job)).orElse(null);
             if (deadline != null) request.put("deadline", deadline.toString());
@@ -208,6 +213,17 @@ class AiDispatcher {
         } catch (IOException e) {
             throw new IllegalStateException(e.getMessage(), e);
         }
+    }
+
+    /** Lo que Claude preguntó en intentos anteriores y lo que Raúl contestó, de más antigua a más reciente. */
+    private static List<Map<String, Object>> humanAnswers(AiTask task) {
+        return task.humanAnswers().stream().map(a -> {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("question", a.question());
+            item.put("answer", a.answer());
+            item.put("answered_at", a.answeredAt().toString());
+            return item;
+        }).toList();
     }
 
     private AiJob jobOf(AiTask task, AiRequestType type, String brandId) {
