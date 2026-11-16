@@ -1,6 +1,7 @@
-package com.socialhub.backup;
+package com.socialhub.backup.application;
 
-import com.socialhub.armory.ArmoryService;
+import com.socialhub.armory.ArmoryRegistry;
+import com.socialhub.backup.Backups;
 import com.socialhub.backup.domain.BackupFile;
 import com.socialhub.backup.domain.BackupKind;
 import com.socialhub.backup.domain.BackupName;
@@ -36,29 +37,22 @@ import org.springframework.stereotype.Service;
  */
 @Slf4j
 @Service
-public class BackupService {
+class BackupService implements Backups {
 
     static final String ARMORY_ID = "copias";
     static final String ARMORY_NAME = "Copias de seguridad";
     static final String ARMORY_DESCRIPTION = "Copia diaria de la base de datos real al abrir SocialHub, en la carpeta "
             + "de copias. Se guardan las " + BackupRotation.KEEP + " últimas.";
 
-    public record Folders(@Nullable Path chosen, boolean chosenAvailable, Path local) {
-        /** Dónde se guarda la próxima copia. */
-        public Path target() { return chosen != null && chosenAvailable ? chosen : local; }
-    }
-
-    public record Restored(String restored, String safetyBackup, String haltedReason) {}
-
     private final BackupStore store;
     private final DatabaseArchive archive;
     private final SettingsRepository settings;
-    private final ArmoryService armory;
+    private final ArmoryRegistry armory;
     private final Clock clock;
     private final Path local;
     private final ReentrantLock lock = new ReentrantLock();
 
-    BackupService(BackupStore store, DatabaseArchive archive, SettingsRepository settings, ArmoryService armory,
+    BackupService(BackupStore store, DatabaseArchive archive, SettingsRepository settings, ArmoryRegistry armory,
                   Clock clock, AppPaths paths) {
         this.store = store;
         this.archive = archive;
@@ -69,14 +63,17 @@ public class BackupService {
     }
 
     /** Hay carpeta de copias elegida (sin mirar el disco). */
+    @Override
     public boolean hasChosenFolder() { return settings.get(SettingsRepository.BACKUP_FOLDER).isPresent(); }
 
+    @Override
     public Folders folders() {
         Optional<Path> chosen = settings.get(SettingsRepository.BACKUP_FOLDER).map(Path::of);
         return new Folders(chosen.orElse(null), chosen.map(Files::isDirectory).orElse(false), local);
     }
 
     /** Todas las copias (la carpeta elegida y la local), de la más reciente a la más antigua. */
+    @Override
     public List<BackupFile> list() {
         Folders f = folders();
         List<BackupFile> all = new ArrayList<>(store.list(f.local(), true));
@@ -86,6 +83,7 @@ public class BackupService {
     }
 
     /** Elige la carpeta de copias (tiene que existir) o la quita con un texto vacío. */
+    @Override
     public Folders chooseFolder(@Nullable String folder) {
         if (folder == null || folder.isBlank()) {
             settings.delete(SettingsRepository.BACKUP_FOLDER);
@@ -104,6 +102,7 @@ public class BackupService {
     }
 
     /** Hace una copia ahora y borra las que sobran en esa carpeta. */
+    @Override
     public BackupFile create(BackupKind kind) {
         lock.lock();
         try {
@@ -127,6 +126,7 @@ public class BackupService {
     }
 
     /** La copia diaria: si hoy no hay ninguna copia (de ningún tipo, en ninguna carpeta), la hace. */
+    @Override
     public Optional<BackupFile> dailyIfNeeded() {
         if (AppModeHolder.haltedReason() != null) return Optional.empty();
         LocalDate today = LocalDate.now(clock);
@@ -138,6 +138,7 @@ public class BackupService {
      * Restaura una copia: antes hace otra de lo actual («antes-de-restaurar») y después para SocialHub hasta que
      * Raúl lo cierre y lo vuelva a abrir.
      */
+    @Override
     public Restored restore(String name, String confirmation) {
         if (!name.equals(confirmation == null ? null : confirmation.trim())) {
             throw new DomainException("Para restaurar, escribe exactamente el nombre de la copia: " + name);

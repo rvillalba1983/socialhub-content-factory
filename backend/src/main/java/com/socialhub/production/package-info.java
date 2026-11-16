@@ -2,13 +2,16 @@
  * Producción: estaciones del anillo y tareas, con su máquina de estados.
  *
  * <ul>
- *   <li>{@org.springframework.modulith.ApplicationModule(allowedDependencies = {"platform", "platform::live", "api"})
-@code domain}: agregados {@code Task} y {@code Station} y los puertos de salida (repositorios).</li>
- *   <li>Raíz del módulo: casos de uso ({@link com.socialhub.production.ProductionService}) y eventos de dominio
- *       que escuchan otros módulos.</li>
- *   <li>{@code adapter.in.web}: controladores que implementan las interfaces generadas desde OpenAPI.</li>
- *   <li>{@code adapter.out.persistence}: JPA, con auditoría de Hibernate Envers.</li>
+ *   <li>Raíz: puertos primarios ({@code ProductionOrders}, {@code ProductionQueries}, {@code ProductionTasks},
+ *       {@code ProductionAiTasks}, {@code TaskRounds}) y el puerto que implementan otros módulos
+ *       ({@code TaskExecutor}).</li>
+ *   <li>{@code domain}: agregados {@code Task} y {@code Station} y los puertos de salida (repositorios). Los eventos
+ *       van en {@code domain.events} (interfaz con nombre {@code events}).</li>
+ *   <li>{@code application}: implementación de los puertos primarios y motor de tareas.</li>
+ *   <li>{@code adapter.in}: web (con la vista {@code ProductionView}, interfaz con nombre {@code web}) y relojes.
+ *       {@code adapter.out}: persistencia JPA con auditoría de Hibernate Envers.</li>
  * </ul>
  */
+@org.springframework.modulith.ApplicationModule(allowedDependencies = {"platform", "platform::live", "api"})
 @org.jspecify.annotations.NullMarked
 package com.socialhub.production;

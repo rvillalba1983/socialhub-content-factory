@@ -1,6 +1,6 @@
 package com.socialhub.publishing;
 
-import com.socialhub.armory.ArmoryService;
+import com.socialhub.armory.ArmoryRegistry;
 import com.socialhub.platform.AppMode;
 import com.socialhub.platform.AppModeHolder;
 import com.socialhub.platform.live.FactoryChanged;
@@ -51,7 +51,7 @@ public class InstagramService {
     private final InstagramGateway instagram;
     private final InstagramAccountRepository accounts;
     private final PromotionQueries promotions;
-    private final ArmoryService armory;
+    private final ArmoryRegistry armory;
     private final ApplicationEventPublisher events;
     private volatile @Nullable Check last;
 

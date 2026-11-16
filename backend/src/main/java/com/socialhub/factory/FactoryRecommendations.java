@@ -8,7 +8,7 @@ import com.socialhub.ai.ClaudeActivity;
 import com.socialhub.ai.domain.ClaudePickups;
 import com.socialhub.api.model.RecommendationDto;
 import com.socialhub.api.model.RecommendationTargetDto;
-import com.socialhub.backup.BackupService;
+import com.socialhub.backup.Backups;
 import com.socialhub.pieces.ContentGaps;
 import com.socialhub.promotion.PromotionQueries;
 import com.socialhub.publishing.InstagramOAuthService;
@@ -78,7 +78,7 @@ class FactoryRecommendations {
     private final PublishingQueries publishing;
     private final PubloraService publora;
     private final PublerAccountService publer;
-    private final BackupService backups;
+    private final Backups backups;
     private final AiAutoStarted autoStarted;
     private final ContentGaps contentGaps;
     private final InstagramOAuthService instagramOAuth;

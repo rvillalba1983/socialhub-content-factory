@@ -7,7 +7,8 @@ import com.socialhub.ai.JsonContracts;
 import com.socialhub.pieces.domain.LoadedSpec;
 import com.socialhub.pieces.PieceOrders;
 import com.socialhub.promotion.PromotionQueries;
-import com.socialhub.production.ProductionService;
+import com.socialhub.production.ProductionAiTasks;
+import com.socialhub.production.ProductionTasks;
 import com.socialhub.publishing.PublishingQueries;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -54,7 +55,8 @@ class WeeklySpecHandler implements AiTypeHandler {
 
     private final PromotionQueries promotions;
     private final PublishingQueries publications;
-    private final ProductionService production;
+    private final ProductionTasks production;
+    private final ProductionAiTasks aiTasks;
     private final PieceOrders orders;
     private final SpecReader reader;
     private final PiecePublications piecePublications;
@@ -107,7 +109,7 @@ class WeeklySpecHandler implements AiTypeHandler {
      * Un spec completado deja de cubrir sus publicaciones cuando la generación de sus piezas terminó (la tarea de piezas
      * que dejó anotada en su resultado); si no consta, pasadas 24 h. Las que sigan sin piezas vuelven a contar como pendientes.
      */
-    private boolean piecesFinished(ProductionService.Covering cover, Instant now) {
+    private boolean piecesFinished(ProductionAiTasks.Covering cover, Instant now) {
         String result = cover.result();
         var found = result == null ? null : PIECES_TASK.matcher(result);
         if (found != null && found.find()) return production.isFinished(found.group(1));
@@ -121,21 +123,21 @@ class WeeklySpecHandler implements AiTypeHandler {
         Set<LocalDate> weeks = new HashSet<>();
         List<FailedLot> failed = new java.util.ArrayList<>();
         Map<String, Integer> completed = new java.util.HashMap<>();
-        for (var cover : production.coveringAiTasks(AiRequestType.WEEKLY_SPEC.taskType(), promotionId)) {
+        for (var cover : aiTasks.coveringAiTasks(AiRequestType.WEEKLY_SPEC.taskType(), promotionId)) {
             if (cover.task().id().equals(except)) continue;
             List<String> ids = cover.task().inputs().stream().filter(i -> !isDate(i)).toList();
-            if (cover.cover() == ProductionService.Cover.FAILED) {
+            if (cover.cover() == ProductionAiTasks.Cover.FAILED) {
                 if (!ids.isEmpty()) failed.add(new FailedLot(Set.copyOf(ids), cover.at()));
                 continue;
             }
-            boolean done = cover.cover() == ProductionService.Cover.DONE;
+            boolean done = cover.cover() == ProductionAiTasks.Cover.DONE;
             if (done) ids.forEach(id -> completed.merge(id, 1, Integer::sum));
             // Un spec completado cuyas piezas ya se generaron no cubre lo que sigue sin piezas
             if (done && piecesFinished(cover, now)) continue;
             // Los specs antiguos llevaban una fecha: cubren las publicaciones de esa semana (de lunes a domingo)
             cover.task().inputs().stream().filter(WeeklySpecHandler::isDate).forEach(d -> weeks.add(mondayOf(LocalDate.parse(d))));
             all.addAll(ids);
-            if (cover.cover() == ProductionService.Cover.OPEN) open.addAll(ids);
+            if (cover.cover() == ProductionAiTasks.Cover.OPEN) open.addAll(ids);
         }
         Set<String> capped = new HashSet<>();
         completed.forEach((id, n) -> { if (n >= MAX_AUTO_SPECS) capped.add(id); });

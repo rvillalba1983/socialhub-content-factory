@@ -1,7 +1,7 @@
 package com.socialhub.ai.application;
 
 import com.socialhub.ai.domain.AiRequestType;
-import com.socialhub.production.ProductionService;
+import com.socialhub.production.ProductionAiTasks;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -24,7 +24,7 @@ class AiAutoRetry {
 
     static final Duration WAIT = Duration.ofMinutes(30);
 
-    private final ProductionService production;
+    private final ProductionAiTasks production;
     private final Clock clock;
 
     /** @return cuántos encargos se han vuelto a poner en cola */

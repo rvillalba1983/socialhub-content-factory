@@ -1,7 +1,9 @@
-package com.socialhub.production;
+package com.socialhub.production.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.socialhub.production.ProductionOrders;
+import com.socialhub.production.ProductionQueries;
 import com.socialhub.production.domain.Agent;
 import com.socialhub.production.domain.Task;
 import com.socialhub.production.domain.TaskCheck;
@@ -27,7 +29,7 @@ import org.springframework.modulith.test.AssertablePublishedEvents;
 @org.springframework.context.annotation.Import(com.socialhub.PinnedClock.class)
 class ProductionModuleTest {
 
-    @Autowired ProductionService service;
+    @Autowired ProductionOrders service;
     @Autowired ProductionQueries queries;
     @Autowired TaskRepository tasks;
 

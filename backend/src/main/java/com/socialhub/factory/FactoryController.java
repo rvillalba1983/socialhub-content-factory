@@ -2,8 +2,7 @@ package com.socialhub.factory;
 
 import com.socialhub.api.FactoryApi;
 import com.socialhub.api.model.FactoryDto;
-import com.socialhub.armory.ArmoryQueries;
-import com.socialhub.armory.adapter.in.web.ArmoryWebMapper;
+import com.socialhub.armory.adapter.in.web.ArmoryView;
 import com.socialhub.platform.AppModeHolder;
 import com.socialhub.production.adapter.in.web.ProductionView;
 import com.socialhub.promotion.PromotionQueries;
@@ -32,8 +31,7 @@ class FactoryController implements FactoryApi {
     private final ProductionView production;
     private final PublishingQueries publishing;
     private final PublicationWebMapper publicationMapper;
-    private final ArmoryQueries armory;
-    private final ArmoryWebMapper armoryMapper;
+    private final ArmoryView armory;
     private final AppModeHolder mode;
     private final Clock clock;
     private final com.socialhub.ai.AiHeldOrders heldOrders;
@@ -44,7 +42,7 @@ class FactoryController implements FactoryApi {
     @Transactional(readOnly = true)
     public ResponseEntity<FactoryDto> getFactory() {
         var snapshot = production.snapshot();
-        var armoryItems = armoryMapper.toDtos(armory.items());
+        var armoryItems = armory.items();
         boolean real = mode.selected() == com.socialhub.platform.AppMode.REAL;
         List<RecommendationDto> recs = real ? recommendations.compute() : List.of();
         return ResponseEntity.ok(new FactoryDto(

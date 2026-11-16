@@ -1,12 +1,10 @@
-package com.socialhub;
+package com.socialhub.production.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.socialhub.platform.AppMode;
 import com.socialhub.platform.AppModeHolder;
 import com.socialhub.production.ProductionQueries;
-import com.socialhub.production.ProductionService;
-import com.socialhub.production.TaskEngine;
 import com.socialhub.production.TaskExecutor;
 import com.socialhub.production.TaskRequest;
 import com.socialhub.production.domain.Task;

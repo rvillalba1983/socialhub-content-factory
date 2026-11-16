@@ -6,7 +6,7 @@ import java.util.List;
 import org.mapstruct.Mapper;
 
 @Mapper
-public interface ArmoryWebMapper {
+interface ArmoryWebMapper {
     List<ArmoryItemDto> toDtos(List<ArmoryItem> items);
 
     ArmoryItemDto toDto(ArmoryItem item);

@@ -1,7 +1,12 @@
-package com.socialhub.production;
+package com.socialhub.production.application;
 
 import com.socialhub.platform.NotFoundException;
 import com.socialhub.platform.live.FactoryChanged;
+import com.socialhub.production.AiTask;
+import com.socialhub.production.ProductionAiTasks;
+import com.socialhub.production.ProductionOrders;
+import com.socialhub.production.ProductionTasks;
+import com.socialhub.production.TaskRequest;
 import com.socialhub.production.domain.Agent;
 import com.socialhub.production.domain.AgentKind;
 import com.socialhub.production.domain.AiModel;
@@ -24,17 +29,15 @@ import java.util.function.Function;
 import java.util.random.RandomGenerator;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
-import org.jmolecules.architecture.hexagonal.PrimaryPort;
 import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /** Casos de uso de producción: órdenes sobre tareas y estaciones, y avance del trabajo. */
-@PrimaryPort
 @Service
 @RequiredArgsConstructor
-public class ProductionService {
+class ProductionService implements ProductionOrders, ProductionTasks, ProductionAiTasks {
 
     private final TaskRepository tasks;
     private final StationRepository stations;
@@ -43,6 +46,7 @@ public class ProductionService {
 
     /** Ejecuta una orden pedida desde la interfaz. Lanza DomainException si no está permitida. */
     @Transactional
+    @Override
     public Task execute(String taskId, TaskCommandType command, @Nullable AiModel model) {
         Task task = task(taskId);
         task.execute(command, model, clock.instant());
@@ -57,6 +61,7 @@ public class ProductionService {
 
     /** Marca un encargo a Claude recién creado como pedido por Raúl desde la interfaz. */
     @Transactional
+    @Override
     public void markManual(String taskId) {
         Task task = task(taskId);
         task.markManual();
@@ -65,6 +70,7 @@ public class ProductionService {
 
     /** La tarea ya terminó (completada, fallida o cancelada), no está en cola ni en curso. Una que no existe cuenta como terminada. */
     @Transactional(readOnly = true)
+    @Override
     public boolean isFinished(String taskId) {
         return tasks.findById(taskId).map(t -> t.getStatus() == TaskStatus.COMPLETED || t.getStatus() == TaskStatus.FAILED
                 || t.getStatus() == TaskStatus.CANCELLED).orElse(true);
@@ -72,11 +78,13 @@ public class ProductionService {
 
     /** Cancela un encargo a Claude en cola que ya no tiene nada que hacer. */
     @Transactional
+    @Override
     public void cancelAi(String taskId) {
         execute(taskId, TaskCommandType.CANCEL, null);
     }
 
     @Transactional
+    @Override
     public Station execute(String stationId, StationCommandType command) {
         Station station = station(stationId);
         boolean pause = command == StationCommandType.PAUSE;
@@ -100,6 +108,7 @@ public class ProductionService {
      * aceptan trabajo. En la Fase 2 solo lo usa el simulador del modo demo.
      */
     @Transactional
+    @Override
     public int engineTick(RandomGenerator random) {
         Map<String, Station> byId = stations.findAll().stream()
                 .collect(Collectors.toMap(Station::getId, Function.identity()));
@@ -146,20 +155,20 @@ public class ProductionService {
 
     /** Como {@link #submit(TaskRequest, String)}, para otros módulos: devuelve solo el identificador. */
     @Transactional
+    @Override
     public String submitTask(TaskRequest request, String agentName) {
         return submit(request, agentName).getId();
     }
 
-    /**
-     * Tarea de identificador fijo (por ejemplo, una comprobación periódica): si ya existe y no está en marcha,
-     * vuelve a la cola; si no existe, se crea.
-     */
+    @Override
     @Transactional
-    public Task submitOrRequeue(String id, TaskRequest request, String agentName) {
-        return tasks.findById(id).map(task -> {
-            if (task.requeue(clock.instant())) persist(task);
-            return task;
-        }).orElseGet(() -> submit(id, request, agentName));
+    public void submitOrRequeue(String id, TaskRequest request, String agentName) {
+        Task existing = tasks.findById(id).orElse(null);
+        if (existing == null) {
+            submit(id, request, agentName);
+        } else if (existing.requeue(clock.instant())) {
+            persist(existing);
+        }
     }
 
     private Task submit(String id, TaskRequest request, String agentName) {
@@ -196,6 +205,7 @@ public class ProductionService {
 
     /** Crea un encargo a Claude: tiene 3 intentos (el tercero sube un nivel de modelo). */
     @Transactional
+    @Override
     public String submitAi(TaskRequest request, String model) {
         if (!request.type().startsWith(Task.AI_PREFIX)) {
             throw new IllegalArgumentException("Un encargo a Claude debe tener un tipo " + Task.AI_PREFIX + "…");
@@ -205,6 +215,7 @@ public class ProductionService {
 
     /** Encargos a Claude en cola, por orden de llegada. */
     @Transactional(readOnly = true)
+    @Override
     public List<AiTask> queuedAiTasks() {
         return tasks.findByStatusIn(List.of(TaskStatus.QUEUED)).stream()
                 .filter(Task::isAiRequest)
@@ -213,11 +224,9 @@ public class ProductionService {
                 .toList();
     }
 
-    /** Encargo a Claude bloqueado esperando una carpeta, con la ruta que espera. */
-    public record BlockedAi(AiTask task, String waitingFor) {}
-
     /** Encargos a Claude bloqueados porque les falta una carpeta (salen solos cuando aparece). */
     @Transactional(readOnly = true)
+    @Override
     public List<BlockedAi> blockedAiTasks() {
         return tasks.findByStatusIn(List.of(TaskStatus.BLOCKED)).stream()
                 .filter(t -> t.isAiRequest() && t.getWaitingFor() != null)
@@ -226,21 +235,9 @@ public class ProductionService {
                 .toList();
     }
 
-    /** Cómo ocupa un encargo a Claude sus datos de entrada. */
-    public enum Cover {
-        /** Sigue vivo: en cola, en curso, en espera, bloqueado o fallido con reintentos por delante. */
-        OPEN,
-        /** Ya se completó. */
-        DONE,
-        /** Falló del todo (sin reintentos): no ocupa nada, pero se sabe cuándo falló. */
-        FAILED
-    }
-
-    /** Un encargo a Claude, cómo cubre sus datos y cuándo cambió de estado por última vez. */
-    public record Covering(AiTask task, Cover cover, java.time.Instant at, @Nullable String result) {}
-
     /** Encargos a Claude de un tipo y promoción en cola, vivos, completados o fallidos del todo (no los cancelados). */
     @Transactional(readOnly = true)
+    @Override
     public List<Covering> coveringAiTasks(String type, String promotionId) {
         return tasks.findByTypeAndPromotion(type, promotionId, List.of(TaskStatus.QUEUED, TaskStatus.RUNNING,
                         TaskStatus.WAITING, TaskStatus.BLOCKED, TaskStatus.FAILED, TaskStatus.COMPLETED)).stream()
@@ -253,10 +250,8 @@ public class ProductionService {
                 .toList();
     }
 
-    /** Encargo a Claude fallido que aún tiene intentos, con cuándo falló. */
-    public record RetryableAi(String id, String type, java.time.Instant failedAt) {}
-
     @Transactional(readOnly = true)
+    @Override
     public List<RetryableAi> retryableAiTasks() {
         return tasks.findByStatusIn(List.of(TaskStatus.FAILED)).stream()
                 .filter(Task::canAutoRetry)
@@ -266,6 +261,7 @@ public class ProductionService {
 
     /** Reintento automático de un encargo a Claude (fase 8). */
     @Transactional
+    @Override
     public void autoRetry(String taskId) {
         Task task = task(taskId);
         task.autoRetry(clock.instant());
@@ -274,11 +270,13 @@ public class ProductionService {
 
     /** El encargo que espera un resultado de Claude, si lo hay con ese identificador. */
     @Transactional(readOnly = true)
+    @Override
     public java.util.Optional<AiTask> waitingAiTask(String taskId) {
         return tasks.findById(taskId).filter(Task::isWaitingForAi).map(ProductionService::toAiTask);
     }
 
     @Transactional
+    @Override
     public void delegateToAi(String taskId, String model, String reason) {
         Task task = task(taskId);
         task.delegateToAi(AiModel.valueOf(model), reason, clock.instant());
@@ -286,6 +284,7 @@ public class ProductionService {
     }
 
     @Transactional
+    @Override
     public void keepQueued(String taskId, String reason) {
         tasks.findById(taskId).ifPresent(t -> {
             if (t.keepQueued(reason, clock.instant())) persist(t);
@@ -294,6 +293,7 @@ public class ProductionService {
 
     /** Un encargo en cola no puede salir porque falta su carpeta: se bloquea sin gastar intento. */
     @Transactional
+    @Override
     public void blockQueued(String taskId, String reason, String path) {
         tasks.findById(taskId).filter(t -> t.getStatus() == TaskStatus.QUEUED).ifPresent(t -> {
             t.blockRun(reason, path, clock.instant());
@@ -302,6 +302,7 @@ public class ProductionService {
     }
 
     @Transactional
+    @Override
     public void aiCompleted(String taskId, String result) {
         Task task = task(taskId);
         task.aiCompleted(result, clock.instant());
@@ -310,6 +311,7 @@ public class ProductionService {
     }
 
     @Transactional
+    @Override
     public void aiFailed(String taskId, String error) {
         Task task = task(taskId);
         task.aiFailed(error, clock.instant());
@@ -317,6 +319,7 @@ public class ProductionService {
     }
 
     @Transactional
+    @Override
     public void aiNeedsHuman(String taskId, String reason) {
         Task task = task(taskId);
         task.aiNeedsHuman(reason, clock.instant());

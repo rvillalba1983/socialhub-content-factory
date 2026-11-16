@@ -2,7 +2,7 @@ package com.socialhub.factory;
 
 import com.socialhub.ai.AiSentOrders;
 import com.socialhub.ai.ClaudeActivity;
-import com.socialhub.armory.ArmoryService;
+import com.socialhub.armory.ArmoryRegistry;
 import com.socialhub.platform.AppMode;
 import com.socialhub.platform.AppModeHolder;
 import com.socialhub.promotion.PromotionQueries;
@@ -33,7 +33,7 @@ class ServicesWatch {
     static final String PC_ID = "claude-pc";
     static final String PUBLORA_ID = "publora";
 
-    private final ArmoryService armory;
+    private final ArmoryRegistry armory;
     private final AiSentOrders sentOrders;
     private final ClaudeActivity activity;
     private final PubloraService publora;

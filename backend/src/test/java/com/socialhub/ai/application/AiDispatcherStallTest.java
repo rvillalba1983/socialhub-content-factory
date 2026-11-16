@@ -12,7 +12,7 @@ import static org.mockito.Mockito.when;
 
 import com.socialhub.platform.AppModeHolder;
 import com.socialhub.production.AiTask;
-import com.socialhub.production.ProductionService;
+import com.socialhub.production.ProductionAiTasks;
 import com.socialhub.promotion.PromotionQueries;
 import java.nio.file.Path;
 import java.time.Clock;
@@ -30,7 +30,7 @@ class AiDispatcherStallTest {
 
     @TempDir Path tmp;
 
-    private final ProductionService production = mock(ProductionService.class);
+    private final ProductionAiTasks production = mock(ProductionAiTasks.class);
     private final PromotionQueries promotions = mock(PromotionQueries.class);
     private final AiSettings settings = mock(AiSettings.class);
     private final HeldOrders held = new HeldOrders();
@@ -59,7 +59,7 @@ class AiDispatcherStallTest {
 
         // Ronda 2: ya no está en cola sino bloqueada esperando esa carpeta: la fila se mantiene
         when(production.queuedAiTasks()).thenReturn(List.of());
-        when(production.blockedAiTasks()).thenReturn(List.of(new ProductionService.BlockedAi(task, missing)));
+        when(production.blockedAiTasks()).thenReturn(List.of(new ProductionAiTasks.BlockedAi(task, missing)));
         AppModeHolder.runIn(com.socialhub.platform.AppMode.REAL, dispatcher::dispatchQueued);
         assertThat(held.stalledProposals()).extracting(AiHeldOrders.Stalled::promotionId).containsExactly("lit-1");
 

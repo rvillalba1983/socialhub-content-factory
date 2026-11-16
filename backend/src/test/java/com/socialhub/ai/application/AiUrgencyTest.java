@@ -39,7 +39,7 @@ class AiUrgencyTest {
     }
 
     private final AiHandlers handlers = mock(AiHandlers.class);
-    private final com.socialhub.production.ProductionService production = mock(com.socialhub.production.ProductionService.class);
+    private final com.socialhub.production.ProductionAiTasks production = mock(com.socialhub.production.ProductionAiTasks.class);
 
     private AiUrgency at(Instant now) {
         return new AiUrgency(requests, json, Clock.fixed(now, MADRID), handlers, production, new AiUrgentRule(48));

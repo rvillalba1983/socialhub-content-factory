@@ -1,12 +1,10 @@
-package com.socialhub.demo;
+package com.socialhub.demo.adapter.out.jdbc;
 
+import com.socialhub.demo.domain.DemoData;
+import com.socialhub.demo.domain.DemoDatabase;
 import com.socialhub.platform.AppMode;
-import com.socialhub.platform.SocialHubProperties;
 import com.socialhub.platform.postgres.ModeDataSources;
-import java.io.IOException;
-import java.io.InputStream;
 import java.sql.Timestamp;
-import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -15,56 +13,40 @@ import java.util.List;
 import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.ApplicationArguments;
-import org.springframework.boot.ApplicationRunner;
-import org.springframework.core.annotation.Order;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.stereotype.Component;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
+import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
-import tools.jackson.databind.ObjectMapper;
 
 /**
- * Carga los datos de ejemplo (marcados con is_demo) en la base de datos del modo demo, la primera vez que está vacía.
- * Nunca toca la base de datos del modo real. Las fechas se colocan alrededor del día de la carga.
+ * La base de datos del modo demo, por JDBC: nunca toca la del modo real. Las fechas se colocan alrededor del día de
+ * la carga y todo queda marcado con {@code is_demo}.
  */
 @Component
-@Order(0)
-class DemoDataLoader implements ApplicationRunner {
+class JdbcDemoDatabase implements DemoDatabase {
 
-    private static final Logger log = LoggerFactory.getLogger(DemoDataLoader.class);
-    static final String RESOURCE = "demo/demo-data.json";
+    private static final Logger log = LoggerFactory.getLogger(JdbcDemoDatabase.class);
 
     private final JdbcClient jdbc;
-    private final ObjectMapper mapper;
-    private final SocialHubProperties properties;
-    private final Clock clock;
     private final TransactionTemplate tx;
 
-    DemoDataLoader(ModeDataSources databases, ObjectMapper mapper, SocialHubProperties properties, Clock clock) {
+    JdbcDemoDatabase(ModeDataSources databases) {
         var demo = databases.of(AppMode.DEMO);
         this.tx = new TransactionTemplate(new DataSourceTransactionManager(demo));
         this.jdbc = JdbcClient.create(demo);
-        this.mapper = mapper;
-        this.properties = properties;
-        this.clock = clock;
     }
 
     @Override
-    public void run(ApplicationArguments args) throws IOException {
-        if (!properties.demo().enabled()) return;
-        if (jdbc.sql("select count(*) from brand").query(Integer.class).single() > 0) return;
-        DemoData data;
-        try (InputStream in = new ClassPathResource(RESOURCE).getInputStream()) {
-            data = mapper.readValue(in, DemoData.class);
-        }
-        tx.executeWithoutResult(status -> load(data));
+    public boolean isEmpty() {
+        return jdbc.sql("select count(*) from brand").query(Integer.class).single() == 0;
     }
 
-    private void load(DemoData data) {
-        LocalDate today = LocalDate.now(clock);
-        Instant now = clock.instant();
+    @Override
+    public void load(DemoData data, LocalDate today, Instant now) {
+        tx.executeWithoutResult(status -> insertAll(data, today, now));
+    }
+
+    private void insertAll(DemoData data, LocalDate today, Instant now) {
 
         for (int i = 0; i < data.commonRules().size(); i++) {
             jdbc.sql("insert into common_rule (position, text) values (?, ?)").params(i, data.commonRules().get(i)).update();

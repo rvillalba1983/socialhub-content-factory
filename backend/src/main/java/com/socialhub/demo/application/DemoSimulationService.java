@@ -1,35 +1,35 @@
-package com.socialhub.demo;
+package com.socialhub.demo.application;
 
+import com.socialhub.demo.DemoSimulation;
 import com.socialhub.platform.AppMode;
 import com.socialhub.platform.AppModeHolder;
-import com.socialhub.production.ProductionService;
+import com.socialhub.production.ProductionTasks;
 import java.util.random.RandomGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 /**
  * Solo en modo demo: hace avanzar las tareas de ejemplo en la base de datos para que el anillo se
- * mueva y se prueben los avisos en directo. Desaparece en cuanto haya motor de tareas real (Fase 3).
+ * mueva y se prueben los avisos en directo.
  */
-@Component
+@Service
 @ConditionalOnExpression("${socialhub.demo.enabled:true} and ${socialhub.demo.simulate:true}")
-class DemoSimulator {
+class DemoSimulationService implements DemoSimulation {
 
-    private static final Logger log = LoggerFactory.getLogger(DemoSimulator.class);
+    private static final Logger log = LoggerFactory.getLogger(DemoSimulationService.class);
 
-    private final ProductionService production;
+    private final ProductionTasks production;
     private final RandomGenerator random = RandomGenerator.getDefault();
 
-    DemoSimulator(ProductionService production) {
+    DemoSimulationService(ProductionTasks production) {
         this.production = production;
         log.info("Simulador del modo demo activo: las tareas de ejemplo avanzan solas en modo demo");
     }
 
-    @Scheduled(initialDelay = 3_000, fixedDelayString = "${socialhub.demo.tick-millis:1500}")
-    void tick() {
+    @Override
+    public void tick() {
         // Siempre sobre la base de datos del modo demo, aunque la interfaz muestre el modo real
         try {
             AppModeHolder.runIn(AppMode.DEMO, () -> production.engineTick(random));

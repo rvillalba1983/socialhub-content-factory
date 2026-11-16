@@ -8,7 +8,7 @@ import static org.mockito.Mockito.when;
 
 import com.socialhub.ai.AiSentOrders;
 import com.socialhub.ai.ClaudeActivity;
-import com.socialhub.armory.ArmoryService;
+import com.socialhub.armory.ArmoryRegistry;
 import com.socialhub.promotion.PromotionQueries;
 import com.socialhub.publishing.InstagramService;
 import com.socialhub.publishing.PubloraService;
@@ -25,7 +25,7 @@ class InstagramCardWatchTest {
     private final PromotionQueries promotions = mock(PromotionQueries.class);
 
     private ServicesWatch watch(InstagramService service) {
-        return new ServicesWatch(mock(ArmoryService.class), mock(AiSentOrders.class), mock(ClaudeActivity.class),
+        return new ServicesWatch(mock(ArmoryRegistry.class), mock(AiSentOrders.class), mock(ClaudeActivity.class),
                 mock(PubloraService.class), service, promotions, Clock.systemUTC());
     }
 

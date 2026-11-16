@@ -2,7 +2,7 @@ package com.socialhub.tools.adapter.in.startup;
 
 import com.socialhub.platform.AppMode;
 import com.socialhub.platform.AppModeHolder;
-import com.socialhub.production.ProductionService;
+import com.socialhub.production.ProductionTasks;
 import com.socialhub.production.TaskRequest;
 import com.socialhub.tools.LocalTools;
 import java.util.List;
@@ -22,7 +22,7 @@ class StartupToolCheck {
 
     static final String TASK_ID = "check-local-tools";
 
-    private final ProductionService production;
+    private final ProductionTasks production;
 
     @EventListener(ApplicationReadyEvent.class)
     void onReady() {

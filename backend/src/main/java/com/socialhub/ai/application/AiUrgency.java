@@ -37,7 +37,7 @@ class AiUrgency {
     private final ObjectMapper json;
     private final Clock clock;
     private final AiHandlers handlers;
-    private final com.socialhub.production.ProductionService production;
+    private final com.socialhub.production.ProductionAiTasks production;
     private final AiUrgentRule rule;
 
     /** @return cuántos archivos de encargo han pasado a urgentes */

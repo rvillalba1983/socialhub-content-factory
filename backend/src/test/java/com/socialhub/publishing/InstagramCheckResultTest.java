@@ -5,7 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.socialhub.armory.ArmoryService;
+import com.socialhub.armory.ArmoryRegistry;
 import com.socialhub.promotion.PromotionQueries;
 import com.socialhub.publishing.domain.InstagramAccountRepository;
 import com.socialhub.publishing.domain.InstagramGateway;
@@ -23,7 +23,7 @@ class InstagramCheckResultTest {
     private final InstagramGateway gateway = mock(InstagramGateway.class);
     private final PromotionQueries promotions = mock(PromotionQueries.class);
     private final InstagramService instagram = new InstagramService(mock(SecretStore.class), credentials, gateway,
-            mock(InstagramAccountRepository.class), promotions, mock(ArmoryService.class), mock(ApplicationEventPublisher.class));
+            mock(InstagramAccountRepository.class), promotions, mock(ArmoryRegistry.class), mock(ApplicationEventPublisher.class));
 
     @Test
     void aCheckThatFailsAtMetaStillLeavesItsResult() {

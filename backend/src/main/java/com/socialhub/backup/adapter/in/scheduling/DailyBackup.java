@@ -1,5 +1,6 @@
-package com.socialhub.backup;
+package com.socialhub.backup.adapter.in.scheduling;
 
+import com.socialhub.backup.Backups;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -14,7 +15,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class DailyBackup {
 
-    private final BackupService backups;
+    private final Backups backups;
 
     @Scheduled(initialDelayString = "${socialhub.backup.initial-delay-millis:20000}",
                fixedDelayString = "${socialhub.backup.check-millis:600000}")

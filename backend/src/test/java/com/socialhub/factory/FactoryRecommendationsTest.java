@@ -13,7 +13,7 @@ import com.socialhub.ai.domain.ClaudePickups;
 import com.socialhub.api.model.RecommendationDto;
 import com.socialhub.api.model.RecommendationDto.KindEnum;
 import com.socialhub.api.model.RecommendationTargetDto.ScreenEnum;
-import com.socialhub.backup.BackupService;
+import com.socialhub.backup.Backups;
 import com.socialhub.promotion.PromotionQueries;
 import com.socialhub.promotion.PromotionQueries.BrandRef;
 import com.socialhub.promotion.PromotionQueries.PromotionRef;
@@ -38,7 +38,7 @@ class FactoryRecommendationsTest {
     private final PubloraService publora = mock(PubloraService.class);
     private final PublerAccountService publer = mock(PublerAccountService.class);
     private final com.socialhub.ai.AiAutoStarted autoStarted = mock(com.socialhub.ai.AiAutoStarted.class);
-    private final BackupService backups = mock(BackupService.class);
+    private final Backups backups = mock(Backups.class);
     private final com.socialhub.pieces.ContentGaps contentGaps = mock(com.socialhub.pieces.ContentGaps.class);
     private final com.socialhub.publishing.InstagramOAuthService instagramOAuth = mock(com.socialhub.publishing.InstagramOAuthService.class);
 

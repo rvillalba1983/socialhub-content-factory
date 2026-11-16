@@ -1,7 +1,10 @@
-package com.socialhub.production;
+package com.socialhub.production.application;
 
 import com.socialhub.platform.AppMode;
 import com.socialhub.platform.AppModeHolder;
+import com.socialhub.production.ResourceUnavailableException;
+import com.socialhub.production.TaskExecutor;
+import com.socialhub.production.TaskRounds;
 import com.socialhub.production.domain.events.ProductionEvents.TaskInterrupted;
 import java.time.Duration;
 import java.util.List;
@@ -16,7 +19,6 @@ import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -35,7 +37,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 @Slf4j
 @Component
 @ConditionalOnProperty(name = "socialhub.engine.enabled", havingValue = "true", matchIfMissing = true)
-public class TaskEngine {
+class TaskEngine implements TaskRounds {
 
     private final ProductionService production;
     private final Map<String, TaskExecutor> executors;
@@ -56,13 +58,12 @@ public class TaskEngine {
     }
 
     /** Tipos de tarea que sabe ejecutar. */
-    public Set<String> types() { return executors.keySet(); }
+    Set<String> types() { return executors.keySet(); }
 
-    public boolean isRunning(String taskId) { return running.containsKey(taskId); }
+    boolean isRunning(String taskId) { return running.containsKey(taskId); }
 
-    @Scheduled(initialDelayString = "${socialhub.engine.initial-delay-millis:2000}",
-               fixedDelayString = "${socialhub.engine.poll-millis:1000}")
-    void poll() {
+    @Override
+    public void poll() {
         AppModeHolder.runIn(AppMode.REAL, () -> {
             try {
                 if (!recovered) {
@@ -131,7 +132,7 @@ public class TaskEngine {
      * Devuelve a la cola las tareas «en progreso» que este motor no está ejecutando (se quedaron así al cerrar
      * SocialHub). Se hace al arrancar.
      */
-    public int recoverStale() {
+    int recoverStale() {
         int n;
         synchronized (running) {
             n = AppModeHolder.callIn(AppMode.REAL, () -> production.recoverAfterRestart(Set.copyOf(running.keySet())));
@@ -140,10 +141,8 @@ public class TaskEngine {
         return n;
     }
 
-    /** Cada 30 s: las tareas que esperaban una carpeta vuelven a la cola cuando aparece. */
-    @Scheduled(initialDelayString = "${socialhub.engine.initial-delay-millis:2000}",
-               fixedDelayString = "${socialhub.engine.folder-check-millis:30000}")
-    void requeueWhenFoldersAppear() {
+    @Override
+    public void requeueWhenFoldersAppear() {
         AppModeHolder.runIn(AppMode.REAL, () -> {
             try {
                 int n = production.requeueWhenAvailable(TaskEngine::exists);
