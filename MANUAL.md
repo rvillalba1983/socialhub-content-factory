@@ -194,6 +194,8 @@ Cada promoción tiene su centro de control («Abrir centro de control →» en s
 ![Editor de una publicación](docs/manual/img/09-editor.jpg)
 
 El editor tiene la red, el tipo, el título, la fecha y hora, la vía, el texto, los hashtags y las observaciones.
+- **Tipo:** se elige de una lista (Carrusel, Historia, Reel, Clip). Con **Otro…** escribes el tuyo; si Claude propone un tipo que no está en la lista, sale ahí y no se pierde.
+- **Vía:** solo salen las que valen para la red. En Instagram, API oficial, Publer y Publora; en TikTok, solo Publer.
 - **Pedir textos a Claude:** pide a Claude el texto y los hashtags.
 - **Descartar texto:** borra el texto de Claude. Pide un motivo, que queda en la memoria editorial.
 - Tus correcciones a los textos de Claude también quedan en la memoria, para que Claude imite tu estilo.
@@ -211,6 +213,14 @@ SocialHub comprueba solo:
 Con **Revisar con Claude**, Claude revisa además el tono, la ortografía y las afirmaciones sin fuente.
 
 Mientras quede un aviso abierto, la publicación **no pasa a «Aprobada» ni a «Programada»**. Cada aviso se corrige o se acepta con un motivo. **Aceptar solo vale mientras no cambie la publicación**: si cambias el texto, los hashtags o los archivos, las aceptaciones se anulan y los avisos se comprueban de nuevo (reaparecen si siguen fallando).
+
+**Vista previa**
+
+En el editor de cada publicación, debajo del estado, está **Vista previa**:
+- **Cómo queda:** el carrusel, la imagen o el vídeo con el texto y los hashtags, con la proporción y la estructura de Instagram o TikTok (es un esbozo, sin logos). Si hay varias piezas, las flechas pasan de una a otra.
+- **Archivos:** cada uno tiene su botón **Ver imagen** o **Ver vídeo**; la imagen se ve grande y el vídeo con su reproductor (no se descarga hasta que le das al play).
+- **Ver en Instagram / Ver en TikTok:** cuando está publicada, abre la publicación con el enlace que SocialHub guardó al confirmarla. Si no lo guardó, no hay botón y el editor lo dice.
+- Si aún no hay archivos, sale «Aún no hay archivos» con el motivo (por ejemplo, que Claude todavía no ha generado las piezas).
 
 **Archivos, publicación y métricas**
 
