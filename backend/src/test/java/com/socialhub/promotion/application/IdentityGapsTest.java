@@ -1,4 +1,4 @@
-package com.socialhub.promotion;
+package com.socialhub.promotion.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -19,8 +19,8 @@ class IdentityGapsTest {
 
     private final PromotionRepository repository = mock(PromotionRepository.class);
     private final IdentityRepository identities = mock(IdentityRepository.class);
-    private final PromotionQueries queries =
-            new PromotionQueries(repository, mock(FolderRepository.class), identities, mock(DecisionRepository.class));
+    private final PromotionQueriesService queries =
+            new PromotionQueriesService(repository, mock(FolderRepository.class), identities, mock(DecisionRepository.class));
 
     private void identity(String tone, String audience, List<String> forbiddenTopics) {
         when(repository.brand("b")).thenReturn(Optional.of(new Brand("b", "B", "@b", "#fff", false)));

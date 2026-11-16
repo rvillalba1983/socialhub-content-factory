@@ -1,18 +1,17 @@
 package com.socialhub.promotion.adapter.in.web;
 
 import com.socialhub.api.PromotionsApi;
+import com.socialhub.api.model.FolderListDto;
+import com.socialhub.api.model.FolderListInputDto;
 import com.socialhub.api.model.PromotionDto;
 import com.socialhub.api.model.PromotionInputDto;
 import com.socialhub.api.model.PromotionListDto;
-import com.socialhub.api.model.FolderListDto;
-import com.socialhub.api.model.FolderListInputDto;
+import com.socialhub.promotion.PromotionCommands;
 import com.socialhub.promotion.PromotionQueries;
 import com.socialhub.promotion.PromotionSaveNotes;
-import com.socialhub.promotion.PromotionService;
 import com.socialhub.promotion.domain.Promotion;
-
-import org.springframework.http.HttpStatus;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -21,7 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 class PromotionsController implements PromotionsApi {
 
     private final PromotionQueries queries;
-    private final PromotionService service;
+    private final PromotionCommands service;
     private final PromotionWebMapper mapper;
     private final PromotionSaveNotes saveNotes;
 

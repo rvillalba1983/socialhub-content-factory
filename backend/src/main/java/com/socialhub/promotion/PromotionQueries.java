@@ -1,227 +1,118 @@
 package com.socialhub.promotion;
 
-import com.socialhub.platform.NotFoundException;
 import com.socialhub.promotion.domain.Brand;
 import com.socialhub.promotion.domain.BrandIdentity;
 import com.socialhub.promotion.domain.EditorialDecision;
 import com.socialhub.promotion.domain.FolderAssignment;
-import com.socialhub.promotion.domain.FolderAssignment.Origin;
-import com.socialhub.promotion.domain.FolderRepository;
-import com.socialhub.promotion.domain.FolderRole;
 import com.socialhub.promotion.domain.Promotion;
-import com.socialhub.promotion.domain.PromotionRepository;
-import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import lombok.RequiredArgsConstructor;
 import org.jmolecules.architecture.hexagonal.PrimaryPort;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
+/** Consultas de marcas y promociones (solo lectura). */
 @PrimaryPort
-@Service
-@RequiredArgsConstructor
-@Transactional(readOnly = true)
-public class PromotionQueries {
+public interface PromotionQueries {
 
-    private final PromotionRepository repository;
-    private final FolderRepository folderRepository;
-    private final com.socialhub.promotion.domain.IdentityRepository identities;
-    private final com.socialhub.promotion.domain.DecisionRepository decisions;
+    List<Brand> brands();
 
-    public List<Brand> brands() { return repository.brands(); }
+    List<Promotion> promotions();
 
-    public List<Promotion> promotions() { return repository.promotions(); }
+    Promotion promotion(String id);
 
-    public Promotion promotion(String id) {
-        return repository.promotion(id).orElseThrow(() -> new NotFoundException("No existe la promoción " + id));
-    }
-
-    public List<String> commonRules() { return repository.commonRules(); }
+    List<String> commonRules();
 
     /**
      * Carpetas donde las piezas pueden leer y escribir: las de «Recursos» de tipo Carpeta y las que tienen un papel,
      * sin repetir y en ese orden.
      */
-    public List<String> driveFolders(String promotionId) {
-        var all = new LinkedHashSet<String>();
-        promotion(promotionId).resources().stream()
-                .filter(r -> "DRIVE".equals(r.kind()))
-                .map(Promotion.Resource::location)
-                .forEach(all::add);
-        folders(promotionId).forEach(f -> all.add(f.location()));
-        return List.copyOf(all);
-    }
+    List<String> driveFolders(String promotionId);
 
     /** Papeles de carpeta de la marca. */
-    public List<FolderAssignment> brandFolders(String brandId) {
-        if (repository.brand(brandId).isEmpty()) throw new NotFoundException("No existe la marca " + brandId);
-        return folderRepository.brandFolders(brandId).entrySet().stream()
-                .map(e -> new FolderAssignment(e.getKey(), e.getValue(), Origin.BRAND))
-                .toList();
-    }
+    List<FolderAssignment> brandFolders(String brandId);
 
     /** Papeles en vigor de una promoción: los de la marca, salvo los que la promoción cambia. */
-    public List<FolderAssignment> folders(String promotionId) {
-        Promotion promotion = promotion(promotionId);
-        Map<FolderRole, String> brand = folderRepository.brandFolders(promotion.brandId());
-        Map<FolderRole, String> own = folderRepository.promotionFolders(promotionId);
-        List<FolderAssignment> result = new ArrayList<>();
-        for (FolderRole role : FolderRole.values()) {
-            if (own.containsKey(role)) result.add(new FolderAssignment(role, own.get(role), Origin.PROMOTION));
-            else if (brand.containsKey(role)) result.add(new FolderAssignment(role, brand.get(role), Origin.BRAND));
-        }
-        return result;
-    }
+    List<FolderAssignment> folders(String promotionId);
 
     /** Todas las carpetas configuradas: las de las marcas y las de cada promoción, sin repetir. */
-    public List<String> allFolders() {
-        var all = new LinkedHashSet<String>();
-        brands().forEach(b -> folderRepository.brandFolders(b.id()).values().forEach(all::add));
-        promotionIds().forEach(id -> all.addAll(driveFolders(id)));
-        return List.copyOf(all);
-    }
+    List<String> allFolders();
 
     /** Promociones activas cuyas fechas se cruzan con ese intervalo (incluido). */
-    public List<String> activeBetween(java.time.LocalDate from, java.time.LocalDate to) {
-        return repository.promotions().stream()
-                .filter(p -> "ACTIVE".equals(p.status()) && !p.startsOn().isAfter(to) && !p.endsOn().isBefore(from))
-                .map(Promotion::id)
-                .toList();
-    }
+    List<String> activeBetween(java.time.LocalDate from, java.time.LocalDate to);
 
     /**
      * Promociones que reciben propuestas (activas o planificadas: una planificada se activa sola el día que empieza)
      * cuyas fechas se cruzan con ese intervalo (incluido). Las pausadas y las terminadas no reciben nada.
      */
-    public List<String> proposableBetween(java.time.LocalDate from, java.time.LocalDate to) {
-        return repository.promotions().stream()
-                .filter(p -> ("ACTIVE".equals(p.status()) || "PLANNED".equals(p.status()))
-                        && !p.startsOn().isAfter(to) && !p.endsOn().isBefore(from))
-                .map(Promotion::id)
-                .toList();
-    }
+    List<String> proposableBetween(java.time.LocalDate from, java.time.LocalDate to);
 
     /** Fechas de una promoción. */
-    public record PromotionDates(String id, java.time.LocalDate startsOn, java.time.LocalDate endsOn) {}
+    record PromotionDates(String id, java.time.LocalDate startsOn, java.time.LocalDate endsOn) {}
 
     /** Promociones activas o planificadas, con sus fechas (las que reciben propuestas). */
-    public List<PromotionDates> proposableDates() {
-        return repository.promotions().stream()
-                .filter(p -> "ACTIVE".equals(p.status()) || "PLANNED".equals(p.status()))
-                .map(p -> new PromotionDates(p.id(), p.startsOn(), p.endsOn()))
-                .toList();
-    }
+    List<PromotionDates> proposableDates();
 
     /** La cadencia de la promoción, en el texto que escribió Raúl; nulo si no hay promoción o no la tiene. */
-    public @org.jspecify.annotations.Nullable String cadenceOf(String promotionId) {
-        return repository.promotion(promotionId).map(Promotion::cadence).orElse(null);
-    }
+    @org.jspecify.annotations.Nullable String cadenceOf(String promotionId);
 
     /** Usuario de la marca en las redes («@elde_lito»); vacío si no existe. */
-    public String handleOf(String brandId) {
-        return repository.brand(brandId).map(b -> b.handle()).orElse("");
-    }
+    String handleOf(String brandId);
 
     /** Falla con 404 si la marca no existe. */
-    public void requireBrand(String brandId) {
-        if (repository.brand(brandId).isEmpty()) throw new NotFoundException("No existe la marca " + brandId);
-    }
+    void requireBrand(String brandId);
 
     /** Falla con 404 si la promoción no existe. */
-    public void requirePromotion(String promotionId) {
-        if (repository.promotion(promotionId).isEmpty()) throw new NotFoundException("No existe la promoción " + promotionId);
-    }
+    void requirePromotion(String promotionId);
 
     /** Identidad de la marca (vacía si no se ha rellenado). Solo para el propio módulo: usa tipos de dominio. */
-    public BrandIdentity identity(String brandId) {
-        if (repository.brand(brandId).isEmpty()) throw new NotFoundException("No existe la marca " + brandId);
-        return identities.identity(brandId).orElse(BrandIdentity.EMPTY);
-    }
+    BrandIdentity identity(String brandId);
 
     /**
      * Lo que falta en la identidad de la marca para que Claude no proponga a ciegas, en español y con artículo
      * («el tono», «el público»). Vacío si está completa. Los temas que no se tocan vacíos son válidos (no hay temas
      * vetados) y no cuentan como hueco.
      */
-    public List<String> identityGaps(String brandId) {
-        BrandIdentity identity = identity(brandId);
-        List<String> gaps = new ArrayList<>();
-        if (identity.tone().isBlank()) gaps.add("el tono");
-        if (identity.audience().isBlank()) gaps.add("el público");
-        return gaps;
-    }
+    List<String> identityGaps(String brandId);
 
     /** Identidad de la marca de la promoción, con los nombres que entiende Claude (solo los campos rellenos). */
-    public Map<String, Object> identityForAi(String promotionId) { return identity(brandOf(promotionId)).forAi(); }
+    Map<String, Object> identityForAi(String promotionId);
 
     /** Lo que el control de calidad comprueba de la identidad de la marca de la promoción. */
-    public QualityRules qualityRulesOf(String promotionId) {
-        BrandIdentity identity = identity(brandOf(promotionId));
-        return new QualityRules(identity.forbiddenExpressions(), identity.callToAction(), identity.fixedHashtags());
-    }
+    QualityRules qualityRulesOf(String promotionId);
 
     /** Reglas de calidad de una marca: expresiones prohibidas, llamada a la acción y hashtags fijos. */
-    public record QualityRules(List<String> forbiddenExpressions, String callToAction, String fixedHashtags) {}
+    record QualityRules(List<String> forbiddenExpressions, String callToAction, String fixedHashtags) {}
 
     /** Decisiones editoriales de la marca, por orden de alta. Solo para el propio módulo: usa tipos de dominio. */
-    public List<EditorialDecision> decisions(String brandId) {
-        if (repository.brand(brandId).isEmpty()) throw new NotFoundException("No existe la marca " + brandId);
-        return decisions.decisions(brandId);
-    }
+    List<EditorialDecision> decisions(String brandId);
 
     /** Decisión editorial resumida, para otros módulos. */
-    public record DecisionRef(long id, String text, java.time.Instant createdAt) {}
+    record DecisionRef(long id, String text, java.time.Instant createdAt) {}
 
-    public List<DecisionRef> decisionRefs(String brandId) {
-        return decisions(brandId).stream().map(d -> new DecisionRef(d.id(), d.text(), d.createdAt())).toList();
-    }
+    List<DecisionRef> decisionRefs(String brandId);
 
     /** Lo que Claude necesita saber de una promoción para proponer contenido. */
-    public java.util.Map<String, Object> summaryForAi(String promotionId) {
-        Promotion p = promotion(promotionId);
-        var m = new java.util.LinkedHashMap<String, Object>();
-        m.put("name", p.name());
-        if (!p.description().isBlank()) m.put("description", p.description());
-        if (!p.scope().isBlank()) m.put("scope", p.scope());
-        if (!p.cadence().isBlank()) m.put("cadence", p.cadence());
-        m.put("dates", p.startsOn() + " – " + p.endsOn());
-        if (!p.goals().isEmpty()) m.put("goals", p.goals());
-        if (!p.milestones().isEmpty()) {
-            m.put("milestones", p.milestones().stream().map(x -> x.startsOn() + (x.endsOn() == null ? "" : " – " + x.endsOn())
-                    + ": " + x.label()).toList());
-        }
-        return m;
-    }
+    java.util.Map<String, Object> summaryForAi(String promotionId);
 
     /** Fechas de una promoción (la de fin puede faltar: sin límite). */
-    public record Dates(java.time.LocalDate startsOn, java.time.@org.jspecify.annotations.Nullable LocalDate endsOn) {}
+    record Dates(java.time.LocalDate startsOn, java.time.@org.jspecify.annotations.Nullable LocalDate endsOn) {}
 
-    public Dates datesOf(String promotionId) {
-        Promotion p = promotion(promotionId);
-        return new Dates(p.startsOn(), p.endsOn());
-    }
+    Dates datesOf(String promotionId);
 
     /** Promociones de una marca. */
-    public List<String> promotionIdsOf(String brandId) {
-        return repository.promotions().stream().filter(p -> p.brandId().equals(brandId)).map(Promotion::id).toList();
-    }
+    List<String> promotionIdsOf(String brandId);
 
     /** Marca de una promoción. */
-    public String brandOf(String promotionId) { return promotion(promotionId).brandId(); }
+    String brandOf(String promotionId);
 
     /** Carpeta con el papel «Encargos» de la marca (sin las excepciones de sus promociones). */
-    public Optional<String> brandOrdersFolder(String brandId) {
-        return Optional.ofNullable(folderRepository.brandFolders(brandId).get(FolderRole.ORDERS));
-    }
+    Optional<String> brandOrdersFolder(String brandId);
 
     /** Marca resumida, para textos de la interfaz. */
-    public record BrandRef(String id, String name) {}
+    record BrandRef(String id, String name) {}
 
     /** Promoción resumida; {@code status}: PLANNED, ACTIVE, PAUSED o FINISHED. */
-    public record PromotionRef(String id, String brandId, String name, String status, java.time.LocalDate startsOn,
+    record PromotionRef(String id, String brandId, String name, String status, java.time.LocalDate startsOn,
                                java.time.LocalDate endsOn) {
         public boolean active() { return "ACTIVE".equals(status); }
 
@@ -231,53 +122,28 @@ public class PromotionQueries {
         }
     }
 
-    public List<BrandRef> brandRefs() { return brands().stream().map(b -> new BrandRef(b.id(), b.name())).toList(); }
+    List<BrandRef> brandRefs();
 
-    public List<PromotionRef> promotionRefs() {
-        return promotions().stream()
-                .map(p -> new PromotionRef(p.id(), p.brandId(), p.name(), p.status(), p.startsOn(), p.endsOn()))
-                .toList();
-    }
+    List<PromotionRef> promotionRefs();
 
     /** La marca tiene carpeta asignada para todos los papeles (Material, Borradores… Encargos). */
-    public boolean hasAllBrandFolders(String brandId) {
-        return folderRepository.brandFolders(brandId).keySet().containsAll(java.util.List.of(FolderRole.values()));
-    }
+    boolean hasAllBrandFolders(String brandId);
 
     /** Identificadores de todas las marcas. */
-    public List<String> brandIds() { return brands().stream().map(Brand::id).toList(); }
+    List<String> brandIds();
 
     /** Reglas que se aplican a una promoción: las suyas y las comunes. */
-    public List<String> rulesFor(String promotionId) {
-        var all = new ArrayList<String>(promotion(promotionId).rules());
-        all.addAll(commonRules());
-        return List.copyOf(all);
-    }
+    List<String> rulesFor(String promotionId);
 
     /** Carpeta con el papel «Informes» de la promoción (propia o de la marca). */
-    public Optional<String> reportsFolder(String promotionId) { return folderOf(promotionId, FolderRole.REPORTS); }
+    Optional<String> reportsFolder(String promotionId);
 
     /** Carpetas en vigor por papel («MATERIAL» → ruta…), para contárselas a Claude. */
-    public java.util.Map<String, String> folderMap(String promotionId) {
-        var map = new java.util.LinkedHashMap<String, String>();
-        folders(promotionId).forEach(f -> map.put(f.role().name(), f.location()));
-        return map;
-    }
-
-    private Optional<String> folderOf(String promotionId, FolderRole role) {
-        return folders(promotionId).stream().filter(f -> f.role() == role).map(FolderAssignment::location).findFirst();
-    }
+    java.util.Map<String, String> folderMap(String promotionId);
 
     /** Carpeta con el papel «Encargos», si la promoción lo tiene. */
-    public Optional<String> ordersFolder(String promotionId) {
-        return folders(promotionId).stream()
-                .filter(f -> f.role() == FolderRole.ORDERS)
-                .map(FolderAssignment::location)
-                .findFirst();
-    }
+    Optional<String> ordersFolder(String promotionId);
 
     /** Identificadores de todas las promociones. */
-    public List<String> promotionIds() {
-        return repository.promotions().stream().map(Promotion::id).toList();
-    }
+    List<String> promotionIds();
 }

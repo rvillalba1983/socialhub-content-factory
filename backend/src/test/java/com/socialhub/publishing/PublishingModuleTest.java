@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.socialhub.production.domain.events.ProductionEvents.ReviewApproved;
 import com.socialhub.production.domain.events.ProductionEvents.SwitchedToManual;
-import com.socialhub.promotion.PromotionService;
+import com.socialhub.promotion.PromotionCommands;
 import com.socialhub.promotion.domain.BrandDraft;
 import com.socialhub.promotion.domain.PromotionDraft;
 import com.socialhub.publishing.domain.Platform;
@@ -35,7 +35,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 @org.springframework.context.annotation.Import(com.socialhub.PinnedClock.class)
 class PublishingModuleTest {
 
-    @Autowired PromotionService promotionService;
+    @Autowired PromotionCommands promotionService;
     @Autowired PublishingService publishing;
     @Autowired PublishingQueries queries;
     @Autowired PublicationRepository repository;

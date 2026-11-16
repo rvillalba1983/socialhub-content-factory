@@ -1,8 +1,11 @@
-package com.socialhub.promotion;
+package com.socialhub.promotion.application;
 
 import com.socialhub.platform.AppModeHolder;
 import com.socialhub.platform.NotFoundException;
 import com.socialhub.platform.live.FactoryChanged;
+import com.socialhub.promotion.PromotionActivation;
+import com.socialhub.promotion.PromotionQueries;
+import com.socialhub.promotion.PromotionCommands;
 import com.socialhub.promotion.domain.Brand;
 import com.socialhub.promotion.domain.BrandDraft;
 import com.socialhub.promotion.domain.BrandIdentity;
@@ -20,17 +23,15 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
-import org.jmolecules.architecture.hexagonal.PrimaryPort;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /** Alta y edición de marcas y promociones. Lo creado en modo demo queda marcado como ejemplo. */
-@PrimaryPort
 @Service
 @RequiredArgsConstructor
 @Transactional
-public class PromotionService {
+class PromotionService implements PromotionActivation, PromotionCommands {
 
     private final PromotionRepository repository;
     private final AppModeHolder mode;
@@ -43,6 +44,7 @@ public class PromotionService {
     private final com.socialhub.promotion.domain.FolderMaker folderMaker;
     private final com.socialhub.promotion.domain.PublicShareMemo publicShare;
 
+    @Override
     public Brand createBrand(BrandDraft draft) {
         String id = Slugs.of(draft.name(), repository::brandIdTaken);
         Brand brand = repository.save(new Brand(id, draft.name().strip(), draft.handle().strip(), draft.color(), mode.isDemo()));
@@ -50,6 +52,7 @@ public class PromotionService {
         return brand;
     }
 
+    @Override
     public Brand updateBrand(String id, BrandDraft draft) {
         Brand current = repository.brand(id).orElseThrow(() -> new NotFoundException("No existe la marca " + id));
         Brand brand = repository.save(new Brand(id, draft.name().strip(), draft.handle().strip(), draft.color(), current.demo()));
@@ -57,6 +60,7 @@ public class PromotionService {
         return brand;
     }
 
+    @Override
     public Promotion createPromotion(PromotionDraft draft) {
         validate(draft);
         String id = Slugs.of(draft.name(), repository::promotionIdTaken);
@@ -65,6 +69,7 @@ public class PromotionService {
         return promotion;
     }
 
+    @Override
     public Promotion updatePromotion(String id, PromotionDraft draft) {
         Promotion current = repository.promotion(id).orElseThrow(() -> new NotFoundException("No existe la promoción " + id));
         validate(draft);
@@ -77,6 +82,7 @@ public class PromotionService {
      * Las promociones planificadas que ya han empezado (empiezan hoy o antes y no han terminado) pasan a activas.
      * @return los identificadores de las promociones activadas
      */
+    @Override
     public List<String> activateStarted(java.time.LocalDate today) {
         List<String> activated = new java.util.ArrayList<>();
         for (Promotion p : repository.promotions()) {
@@ -101,6 +107,7 @@ public class PromotionService {
     }
 
     /** Sustituye los papeles de carpeta de la marca. Las promociones los heredan. */
+    @Override
     public List<FolderAssignment> replaceBrandFolders(String brandId, Map<FolderRole, String> assignments) {
         if (repository.brand(brandId).isEmpty()) throw new NotFoundException("No existe la marca " + brandId);
         folders.replaceBrandFolders(brandId, clean(assignments));
@@ -117,6 +124,7 @@ public class PromotionService {
      * para-claude-pc, de-claude y publico. Los 7 papeles pasan a apuntar ahí. Sin raíz se crean las carpetas ya asignadas.
      * Nunca se borra ni se mueve nada: lo que ya exista se respeta.
      */
+    @Override
     public List<FolderAssignment> createBrandFolders(String brandId, @org.jspecify.annotations.Nullable String base) {
         if (repository.brand(brandId).isEmpty()) throw new NotFoundException("No existe la marca " + brandId);
         Map<FolderRole, String> current = new EnumMap<>(FolderRole.class);
@@ -166,6 +174,7 @@ public class PromotionService {
 
     /** Si Raúl marcó la carpeta «publico» como compartida y la carpeta de Encargos sigue siendo la misma. */
     @Transactional(readOnly = true)
+    @Override
     public boolean publicShared(String brandId) {
         if (repository.brand(brandId).isEmpty()) throw new NotFoundException("No existe la marca " + brandId);
         String orders = folders.brandFolders(brandId).get(FolderRole.ORDERS);
@@ -173,6 +182,7 @@ public class PromotionService {
     }
 
     /** Marca (con la carpeta de Encargos de ahora) o desmarca que la carpeta «publico» ya está compartida. */
+    @Override
     public boolean setPublicShared(String brandId, boolean shared) {
         if (repository.brand(brandId).isEmpty()) throw new NotFoundException("No existe la marca " + brandId);
         if (!shared) {
@@ -186,6 +196,7 @@ public class PromotionService {
     }
 
     /** Sustituye las excepciones de la promoción. Devuelve los papeles que quedan en vigor. */
+    @Override
     public List<FolderAssignment> replacePromotionFolders(String promotionId, Map<FolderRole, String> assignments) {
         if (repository.promotion(promotionId).isEmpty()) {
             throw new NotFoundException("No existe la promoción " + promotionId);
@@ -214,6 +225,7 @@ public class PromotionService {
     }
 
     /** Guarda la identidad de la marca. Sus promociones la heredan. */
+    @Override
     public BrandIdentity saveIdentity(String brandId, BrandIdentity identity) {
         if (repository.brand(brandId).isEmpty()) throw new NotFoundException("No existe la marca " + brandId);
         identities.save(brandId, identity);
@@ -221,6 +233,7 @@ public class PromotionService {
         return queries.identity(brandId);
     }
 
+    @Override
     public EditorialDecision addDecision(String brandId, String text) {
         if (repository.brand(brandId).isEmpty()) throw new NotFoundException("No existe la marca " + brandId);
         String clean = text == null ? "" : text.strip();
@@ -230,6 +243,7 @@ public class PromotionService {
         return decision;
     }
 
+    @Override
     public void deleteDecision(String brandId, long id) {
         if (!decisions.delete(brandId, id)) throw new NotFoundException("No existe esa decisión en la marca " + brandId);
         events.publishEvent(new FactoryChanged("brand", brandId));
