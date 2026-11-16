@@ -21,6 +21,19 @@ export function ExternalOperations({ onClose }: { onClose: () => void }) {
   const [systems, setSystems] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState<number | null>(null);
+  const [logsPath, setLogsPath] = useState<string | null>(null);
+  const [logsError, setLogsError] = useState<string | null>(null);
+
+  useEffect(() => { api.logsFolder().then(f => setLogsPath(f.path)).catch(() => {}); }, []);
+
+  const openLogs = async () => {
+    try {
+      await api.openLogsFolder();
+      setLogsError(null);
+    } catch (e) {
+      setLogsError(e instanceof Error ? e.message : String(e));
+    }
+  };
 
   const load = useCallback(async () => {
     try {
@@ -49,6 +62,14 @@ export function ExternalOperations({ onClose }: { onClose: () => void }) {
           </div>
           <button className="btn" onClick={load}>Actualizar</button>
         </div>
+
+        {logsPath && (
+          <p className="src" aria-label="Registros de SocialHub">
+            Registros de SocialHub (errores, arranque, instalación): <span className="mono">{logsPath}</span>{' '}
+            <button className="btn" style={{ padding: '3px 8px' }} onClick={openLogs}>Abrir carpeta de registros</button>
+            {logsError && <span className="error" role="alert"> No se pudo abrir: {logsError}</span>}
+          </p>
+        )}
 
         <div className="filters ops-filters">
           {([[undefined, 'Todas'], ['FAILURE', 'Fallidas'], ['SUCCESS', 'Correctas']] as const).map(([o, l]) => (

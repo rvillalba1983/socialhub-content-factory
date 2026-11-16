@@ -201,6 +201,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/app/logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Carpeta donde SocialHub deja sus registros
+         * @description Ruta de la carpeta de registros (socialhub.log, arranque.log, postgres.log…). Solo lectura.
+         */
+        get: operations["getLogsFolder"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/app/logs/open": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Abre la carpeta de registros en el explorador de archivos
+         * @description Abre en el ordenador donde corre SocialHub la carpeta de registros. No recibe ninguna ruta: siempre es la de SocialHub.
+         */
+        post: operations["openLogsFolder"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/system/version": {
         parameters: {
             query?: never;
@@ -1782,6 +1822,13 @@ export interface components {
              */
             build_time: string;
         };
+        LogsFolder: {
+            /**
+             * @description Ruta completa de la carpeta de registros
+             * @example C:\Users\Raul\AppData\Local\SocialHub\logs
+             */
+            path: string;
+        };
         AppModeChange: {
             mode: components["schemas"]["AppMode"];
         };
@@ -2271,6 +2318,7 @@ export type Brand = components['schemas']['Brand'];
 export type AppMode = components['schemas']['AppMode'];
 export type AppModeState = components['schemas']['AppModeState'];
 export type AppVersion = components['schemas']['AppVersion'];
+export type LogsFolder = components['schemas']['LogsFolder'];
 export type AppModeChange = components['schemas']['AppModeChange'];
 export type BrandList = components['schemas']['BrandList'];
 export type BrandInput = components['schemas']['BrandInput'];
@@ -2687,6 +2735,49 @@ export interface operations {
         responses: {
             /** @description SocialHub se está cerrando */
             202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getLogsFolder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Carpeta de registros */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogsFolder"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    openLogsFolder: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Carpeta abierta */
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
