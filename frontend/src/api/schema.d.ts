@@ -505,6 +505,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/instagram/oauth/renewal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * «Renovar conexión» sin volver a pedir el App ID ni el App Secret
+         * @description Cambia la clave vigente por otra de larga duración (unos 60 días) con el App ID y el App Secret ya guardados. Si la conexión ya caducó o Meta no acepta la clave, devuelve renewed = false y la dirección del inicio de sesión completo (authorization_url). Si Meta no responde, 400 y la conexión sigue como estaba. Nunca devuelve ni registra claves.
+         */
+        post: operations["renewInstagramConnection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/instagram/oauth/callback": {
         parameters: {
             query?: never;
@@ -1590,6 +1610,13 @@ export interface components {
         InstagramOAuthStart: {
             authorization_url: string;
         };
+        InstagramRenewal: {
+            /** @description Se renovó sin salir de SocialHub */
+            renewed: boolean;
+            message: string;
+            /** @description Solo si renewed es false: el inicio de sesión completo de Meta */
+            authorization_url?: string;
+        };
         InstagramDetectedAccount: {
             ig_user_id: string;
             username: string;
@@ -2393,6 +2420,7 @@ export type InstagramStatus = components['schemas']['InstagramStatus'];
 export type InstagramConnection = components['schemas']['InstagramConnection'];
 export type InstagramAppInput = components['schemas']['InstagramAppInput'];
 export type InstagramOAuthStart = components['schemas']['InstagramOAuthStart'];
+export type InstagramRenewal = components['schemas']['InstagramRenewal'];
 export type InstagramDetectedAccount = components['schemas']['InstagramDetectedAccount'];
 export type InstagramDetectedAccountList = components['schemas']['InstagramDetectedAccountList'];
 export type InstagramKeyInput = components['schemas']['InstagramKeyInput'];
@@ -3320,6 +3348,31 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["InstagramOAuthStart"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    renewInstagramConnection: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Resultado de la renovación */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstagramRenewal"];
                 };
             };
             400: components["responses"]["Problem"];

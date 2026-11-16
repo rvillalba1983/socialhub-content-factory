@@ -317,7 +317,7 @@ function MetricsPanel({ publication }: { publication: Publication }) {
     <fieldset className="rows" aria-label="Métricas">
       <legend>Métricas</legend>
       {!m && <p className="src">Se leen solas a los 7 días de publicarse.</p>}
-      {m?.status === 'REQUESTED' && <p className="src">Pedidas a Claude el {dateTime(m.requested_at)}.</p>}
+      {m?.status === 'REQUESTED' && <p className="src">Pedidas a Claude el {dateTime(m.requested_at)}.{m.note ? ` ${m.note}` : ''}</p>}
       {m?.status === 'FAILED' && <p className="src">No se pudieron leer{m.note ? `: ${m.note}` : ''}. Se reintenta al día siguiente (máximo 3 veces).</p>}
       {m?.status === 'DONE' && (
         <>

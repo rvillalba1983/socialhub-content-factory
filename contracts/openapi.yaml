@@ -652,6 +652,26 @@ paths:
         "400": { $ref: "#/components/responses/Problem" }
         default: { $ref: "#/components/responses/Problem" }
 
+  /api/instagram/oauth/renewal:
+    post:
+      tags: [Instagram]
+      operationId: renewInstagramConnection
+      summary: «Renovar conexión» sin volver a pedir el App ID ni el App Secret
+      description: >
+        Cambia la clave vigente por otra de larga duración (unos 60 días) con el App ID y el App Secret ya guardados. Si la
+        conexión ya caducó o Meta no acepta la clave, devuelve renewed = false y la dirección del inicio de sesión completo
+        (authorization_url). Si Meta no responde, 400 y la conexión sigue como estaba. Nunca devuelve ni registra claves.
+      parameters:
+        - $ref: "#/components/parameters/RequestGuard"
+      responses:
+        "200":
+          description: Resultado de la renovación
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InstagramRenewal" }
+        "400": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
   /api/instagram/oauth/callback:
     get:
       tags: [Instagram]
@@ -2150,6 +2170,14 @@ components:
       required: [authorization_url]
       properties:
         authorization_url: { type: string }
+
+    InstagramRenewal:
+      type: object
+      required: [renewed, message]
+      properties:
+        renewed: { type: boolean, description: Se renovó sin salir de SocialHub }
+        message: { type: string }
+        authorization_url: { type: string, description: "Solo si renewed es false: el inicio de sesión completo de Meta" }
 
     InstagramDetectedAccount:
       type: object

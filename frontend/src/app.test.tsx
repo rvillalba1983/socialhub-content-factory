@@ -691,7 +691,7 @@ describe('Instagram · API oficial', () => {
     await waitFor(() => expect(writeText).toHaveBeenCalledWith('http://localhost:8686/api/instagram/oauth/callback'));
   });
 
-  it('conectado: enseña como quién y cuándo caduca, avisa a 7 días o menos y permite renovar', async () => {
+  it('conectado: enseña como quién y cuándo caduca, avisa a 10 días o menos y permite renovar', async () => {
     const connection = { name: 'Raúl', usernames: ['elde_lito', 'litoques'], expires_at: '2027-01-14T10:00:00Z', days_left: 5, expired: false };
     vi.spyOn(api, 'instagram').mockResolvedValue({ configured: true, source: 'OAUTH', app_id: '1234567890123', app_secret_saved: true,
       redirect_uri: 'http://localhost:8686/api/instagram/oauth/callback', connection });
@@ -707,6 +707,14 @@ describe('Instagram · API oficial', () => {
     const found = await screen.findByRole('group', { name: 'Cuentas de Instagram encontradas' });
     expect(within(found).getByText(/asignada a el-delito/)).toBeInTheDocument();
     expect(within(found).getByText(/sin marca/)).toBeInTheDocument();
+    // Renovar no pide nada más ni sale de SocialHub si Meta acepta la clave
+    const renew = vi.spyOn(api, 'renewInstagramConnection').mockResolvedValue({ renewed: true, message: 'Conexión renovada: dura otros 60 días.' });
+    fireEvent.click(screen.getByRole('button', { name: 'Renovar conexión' }));
+    await waitFor(() => expect(renew).toHaveBeenCalled());
+    expect(await screen.findByText('Conexión renovada: dura otros 60 días.')).toBeInTheDocument();
+    expect(open).not.toHaveBeenCalled();
+    // Si ya no vale, lleva al inicio de sesión completo de Meta
+    renew.mockResolvedValue({ renewed: false, message: 'caducó', authorization_url: 'https://www.facebook.com/dialog' });
     fireEvent.click(screen.getByRole('button', { name: 'Renovar conexión' }));
     await waitFor(() => expect(open).toHaveBeenCalledWith('https://www.facebook.com/dialog', '_self'));
   });
