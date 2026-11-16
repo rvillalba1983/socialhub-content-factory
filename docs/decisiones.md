@@ -697,3 +697,10 @@ Decisiones técnicas:
 - **Por PR (`mutacion.yml`):** solo las clases de producción añadidas o modificadas respecto a main (`targetClasses` calculadas del diff, con `*` para las internas). **Informativo:** el umbral sale de la variable del repositorio `PIT_UMBRAL` (vacía = 0). Para imponer el 75 %, Raúl pone `PIT_UMBRAL=75`.
 - **Semanal (`mutacion-semanal.yml`):** lunes 03:00 UTC, o a mano; pasada completa sin umbral, informe como artefacto y tabla por módulo en el resumen del trabajo (`.github/scripts/resumen-mutacion.py`). Se prueba también al cambiar su propio archivo.
 - **Primera medición (solo unitarias, 4089 mutantes):** ver «Estado» en `docs/estado.md` / PR #51. Total 26 %. Lejos del 75 %: por eso el umbral no se impone de momento.
+
+## Fase 12 · Zoom mínimo del mapa = encuadre vigente (16 nov 2026)
+
+Decisión técnica (fallo intermitente de `01-mapa.spec.ts` «límites de arrastre y de zoom», también en main):
+- **Causa:** el zoom mínimo (`minScale()`) se calcula en vivo con el alto disponible, pero el mapa solo se volvía a encuadrar con `hasNext` (recomendaciones sin filtrar) y con `resize` de la ventana con 150 ms. La franja «Qué hacer ahora» también cambia al filtrar avisos de la marca abierta, al desplegar «Ver N más» o al llegar las recomendaciones después de cargar: el alto del mapa cambiaba sin encuadrar. El recorrido guardaba el encuadre de antes (`fitted`) y lo comparaba con un mínimo ya recalculado (≈2,5 % por debajo).
+- **Arreglo:** un `ResizeObserver` sobre el mapa (sustituye al efecto de `hasNext` y al de `resize`): al cambiar su tamaño se vuelve a medir y, si la vista estaba en el encuadre (`lastFit`), se vuelve a encuadrar; si no, solo se acota. Así el mínimo y el encuadre salen del mismo alto y la misma caja.
+- **Prueba:** el recorrido compara el mínimo alcanzado con la rueda con el de «Encuadrar todo» en ese momento, con tolerancia fija del 0,1 %, sin la comparación con un valor viejo. Prueba unitaria en `viewLimits.test.ts`.
