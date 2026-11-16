@@ -58,7 +58,9 @@ class PowerShellAutostart implements AutostartEntry {
     static String command(String exe) { return "\"" + exe + "\" " + BACKGROUND; }
 
     static String setScript(String exe) {
-        return "Set-ItemProperty -Path '" + KEY + "' -Name '" + NAME + "' -Value '" + command(exe).replace("'", "''") + "' -Type String";
+        // En una cuenta nueva la clave «Run» puede no existir todavía: se crea (es del usuario)
+        return "if (-not (Test-Path '" + KEY + "')) { New-Item -Path '" + KEY + "' -Force | Out-Null }; "
+                + "Set-ItemProperty -Path '" + KEY + "' -Name '" + NAME + "' -Value '" + command(exe).replace("'", "''") + "' -Type String";
     }
 
     /** La orden para {@code powershell -EncodedCommand}: UTF-16 little endian en Base64. */

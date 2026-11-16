@@ -290,6 +290,7 @@ jobs:
           Write-Host "Instalado con registro: $($logIns[0].Name) ($($logIns[0].Length) bytes)"
           # El .msi no puede limpiar la entrada del usuario; el lanzador de desinstalación sí
           $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+          if (-not (Test-Path $runKey)) { New-Item -Path $runKey -Force | Out-Null }
           Set-ItemProperty -Path $runKey -Name SocialHub -Value '"C:\Program Files\SocialHub\SocialHub.exe" --background'
           $p = Start-Process -FilePath $des.FullName -ArgumentList '/silencioso' -Wait -PassThru
           if ($p.ExitCode -ne 0) { throw "El lanzador de desinstalación terminó con $($p.ExitCode)" }

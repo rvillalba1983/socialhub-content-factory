@@ -18,7 +18,8 @@ class PowerShellAutostartTest {
     @Test
     void theScriptWritesOnlyTheUsersRunKeyAndEscapesSingleQuotes() {
         String script = PowerShellAutostart.setScript("C:\\Users\\Raúl O'Neil\\SocialHub.exe");
-        assertThat(script).startsWith("Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run' -Name 'SocialHub'");
+        assertThat(script).contains("New-Item -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run' -Force")
+                .contains("Set-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run' -Name 'SocialHub'");
         assertThat(script).doesNotContain("HKLM");
         assertThat(script).contains("O''Neil").contains("--background");
     }
