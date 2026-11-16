@@ -1,15 +1,14 @@
 package com.socialhub.ai.application;
 
-import com.socialhub.ai.AiSettings;
-import com.socialhub.ai.AiHeldOrders;
-import com.socialhub.ai.domain.AiRequestRepository;
-import com.socialhub.ai.domain.AiRequestType;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.socialhub.ai.AiHeldOrders;
+import com.socialhub.ai.AiSettings;
+import com.socialhub.ai.domain.AiRequestRepository;
+import com.socialhub.ai.domain.AiRequestType;
 import com.socialhub.platform.AppModeHolder;
 import com.socialhub.production.AiTask;
 import com.socialhub.production.ProductionAiTasks;

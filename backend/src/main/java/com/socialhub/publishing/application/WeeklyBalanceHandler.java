@@ -1,17 +1,14 @@
 package com.socialhub.publishing.application;
 
-import com.socialhub.ai.domain.AiJob;
 import com.socialhub.ai.AiReports;
-import com.socialhub.ai.domain.AiRequestType;
 import com.socialhub.ai.AiTypeHandler;
-import com.socialhub.publishing.application.PublicationMetrics;
-import com.socialhub.publishing.application.PublishingQueriesService;
+import com.socialhub.ai.domain.AiJob;
+import com.socialhub.ai.domain.AiRequestType;
 import java.time.Clock;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.TemporalAdjusters;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;

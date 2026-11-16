@@ -1,13 +1,12 @@
 package com.socialhub.publishing.application;
 
-import com.socialhub.ai.domain.AiJob;
 import com.socialhub.ai.AiOrders;
-import com.socialhub.ai.domain.AiRequestType;
 import com.socialhub.ai.AiTypeHandler;
+import com.socialhub.ai.domain.AiJob;
+import com.socialhub.ai.domain.AiRequestType;
 import com.socialhub.platform.AppMode;
 import com.socialhub.platform.AppModeHolder;
 import com.socialhub.platform.live.FactoryChanged;
-import com.socialhub.publishing.application.PublishingQueriesService;
 import com.socialhub.publishing.domain.MetricsRepository;
 import com.socialhub.publishing.domain.MetricsRepository.Metrics;
 import com.socialhub.publishing.domain.MetricsRepository.Status;

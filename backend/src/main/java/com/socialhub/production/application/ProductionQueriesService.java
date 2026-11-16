@@ -61,9 +61,9 @@ class ProductionQueriesService implements ProductionQueries {
     }
 
     @Override
-    public List<ProductionAlert> alerts() {
+    public List<ProductionAlert> alertsOf(ProductionOverview overview) {
         List<ProductionAlert> alerts = new ArrayList<>();
-        for (Task t : tasks.findAll(TaskFilter.all())) {
+        for (Task t : overview.tasks()) {
             if (t.getStatus() == TaskStatus.FAILED) {
                 alerts.add(new ProductionAlert(ProductionAlert.Kind.FAILED, ProductionAlert.Target.TASK, t.getId(),
                         t.getStationId(), t.getTitle(), Objects.requireNonNullElse(t.getError(), "Error sin detalle")));
@@ -72,7 +72,8 @@ class ProductionQueriesService implements ProductionQueries {
                         t.getStationId(), t.getTitle(), Objects.requireNonNullElse(t.getReason(), "Bloqueada")));
             }
         }
-        for (Station s : stations.findAll()) {
+        for (StationSummary summary : overview.stations()) {
+            Station s = summary.station();
             if (s.getStatus() == StatusLevel.FAILED || s.getStatus() == StatusLevel.BLOCKED) {
                 alerts.add(new ProductionAlert(
                         s.getStatus() == StatusLevel.FAILED ? ProductionAlert.Kind.FAILED : ProductionAlert.Kind.BLOCKED,

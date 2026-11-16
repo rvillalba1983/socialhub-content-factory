@@ -1,9 +1,7 @@
 package com.socialhub.publishing.application;
 
-import com.socialhub.publishing.InstagramOAuth;
 import com.socialhub.promotion.PromotionQueries;
-import com.socialhub.publishing.application.InstagramService;
-import com.socialhub.publishing.application.InstagramCredentials;
+import com.socialhub.publishing.InstagramOAuth;
 import com.socialhub.publishing.domain.InstagramAccountRepository;
 import com.socialhub.publishing.domain.InstagramGateway;
 import com.socialhub.publishing.domain.InstagramGateway.InstagramException;

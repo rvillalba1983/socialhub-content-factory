@@ -1,6 +1,5 @@
 package com.socialhub.publishing.application;
 
-import com.socialhub.publishing.application.InstagramRoute;
 import com.socialhub.publishing.domain.SecretStore;
 import java.time.Clock;
 import java.time.Duration;

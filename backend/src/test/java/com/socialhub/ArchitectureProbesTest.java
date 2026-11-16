@@ -29,4 +29,15 @@ class ArchitectureProbesTest {
     @Test void primaryPortsNotInApplication() { fails(ModularityTest.puertosPrimariosEnLaRaiz, "PrimaryPortInApplication"); }
     @Test void transactionsOnlyInApplication() { fails(ModularityTest.transaccionesFueraDeDominioYEntrada, "TransactionalInInbound"); }
     @Test void clocksOnlyInInboundAdapters() { fails(ModularityTest.programacionSoloEnAdaptadoresDeEntrada, "ScheduledInApplication"); }
+    @Test void controllersAreThin() { fails(ModularityTest.controladoresFinos, "FatController"); }
+    @Test void modulesOnlyUseThePublicApiOfOthers() { fails(ModularityTest.modulosSoloUsanLaApiPublicaDeOtros, "Intruder"); }
+    @Test void modulesHaveNoCycles() { fails(ModularityTest.sinCiclos("archprobes.cycle.(*).."), "cycle"); }
+    @Test void everyModuleDeclaresApplicationModule() {
+        assertThatThrownBy(() -> ModularityTest.declaraSusDependencias("archprobes.undeclared"))
+                .isInstanceOf(AssertionError.class).hasMessageContaining("undeclared");
+    }
+    @Test void aModuleCannotLeaveItsDependenciesOpen() {
+        assertThatThrownBy(() -> ModularityTest.declaraSusDependencias("archprobes.open"))
+                .isInstanceOf(AssertionError.class).hasMessageContaining("abiertas");
+    }
 }

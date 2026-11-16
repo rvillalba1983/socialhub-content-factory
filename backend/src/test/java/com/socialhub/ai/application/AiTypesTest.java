@@ -1,8 +1,5 @@
 package com.socialhub.ai.application;
 
-import com.socialhub.ai.domain.AiRequestRepository;
-import com.socialhub.ai.domain.AiRequestType;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -10,6 +7,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.socialhub.ai.domain.AiRequestRepository;
+import com.socialhub.ai.domain.AiRequestType;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;

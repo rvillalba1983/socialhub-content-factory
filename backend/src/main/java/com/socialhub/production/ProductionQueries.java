@@ -24,6 +24,9 @@ public interface ProductionQueries {
     /** Una estación con el recuento de sus tareas. */
     StationSummary station(String stationId);
 
-    /** Lo que necesita atención de Raúl: tareas con error o bloqueadas y estaciones bloqueadas o caídas. */
-    List<ProductionAlert> alerts();
+    /**
+     * Lo que necesita atención de Raúl en lo ya leído: tareas con error o bloqueadas y estaciones bloqueadas o caídas.
+     * No consulta nada: así la vista completa lee la producción una sola vez.
+     */
+    List<ProductionAlert> alertsOf(ProductionOverview overview);
 }

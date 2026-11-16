@@ -1,11 +1,8 @@
 package com.socialhub.publishing.application;
 
+import com.socialhub.ai.AiTypeHandler;
 import com.socialhub.ai.domain.AiJob;
 import com.socialhub.ai.domain.AiRequestType;
-import com.socialhub.ai.AiTypeHandler;
-import com.socialhub.publishing.application.PublishingEngine;
-import com.socialhub.publishing.application.PublishingQueriesService;
-import com.socialhub.publishing.application.InstagramRoute;
 import com.socialhub.publishing.domain.PublicMediaHost;
 import com.socialhub.publishing.domain.PublicMediaRepository;
 import com.socialhub.publishing.domain.Publication;

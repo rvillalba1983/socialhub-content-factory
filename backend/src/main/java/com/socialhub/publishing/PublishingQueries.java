@@ -1,6 +1,5 @@
 package com.socialhub.publishing;
 
-import com.socialhub.publishing.PubloraConnection;
 import com.socialhub.publishing.domain.Publication;
 import com.socialhub.publishing.domain.PublicationFile;
 import com.socialhub.publishing.domain.PublicationFilter;

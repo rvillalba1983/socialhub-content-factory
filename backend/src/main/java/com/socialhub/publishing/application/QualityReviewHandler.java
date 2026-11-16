@@ -1,10 +1,8 @@
 package com.socialhub.publishing.application;
 
+import com.socialhub.ai.AiTypeHandler;
 import com.socialhub.ai.domain.AiJob;
 import com.socialhub.ai.domain.AiRequestType;
-import com.socialhub.ai.AiTypeHandler;
-import com.socialhub.publishing.application.QualityService;
-import com.socialhub.publishing.application.PublishingQueriesService;
 import com.socialhub.publishing.domain.PublicationFile;
 import com.socialhub.publishing.domain.PublicationFileRepository;
 import com.socialhub.publishing.domain.QualityIssue;

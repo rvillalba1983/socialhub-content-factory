@@ -1,11 +1,7 @@
 package com.socialhub.publishing.application;
 
-import com.socialhub.publishing.PublishingQueries;
-import com.socialhub.publishing.PublishRouteId;
 import com.socialhub.platform.NotFoundException;
-import com.socialhub.publishing.application.PubloraService;
-import com.socialhub.publishing.application.PublishRoute;
-import com.socialhub.publishing.application.PublishingEngine;
+import com.socialhub.publishing.PublishingQueries;
 import com.socialhub.publishing.domain.Publication;
 import com.socialhub.publishing.domain.PublicationFile;
 import com.socialhub.publishing.domain.PublicationFileRepository;
@@ -136,7 +132,7 @@ class PublishingQueriesService implements PublishingQueries {
                 }
             });
         }
-        for (Publication p : publications.findAll()) {
+        for (Publication p : publications.findFlagged()) {
             String flag = p.getFlag();
             if (flag == null || listed.contains(p.getId())) continue;
             if (flag.startsWith(PublishingEngine.LATE_FLAG) || flag.startsWith(PublishingEngine.STILL_SCHEDULED)) {

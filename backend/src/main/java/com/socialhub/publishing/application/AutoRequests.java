@@ -4,7 +4,6 @@ import com.socialhub.ai.AiOrders;
 import com.socialhub.ai.domain.AiRequestType;
 import com.socialhub.platform.AppMode;
 import com.socialhub.platform.AppModeHolder;
-import com.socialhub.publishing.application.QualityChecker;
 import com.socialhub.publishing.domain.AutoRequestRepository;
 import com.socialhub.publishing.domain.Publication;
 import com.socialhub.publishing.domain.PublicationRepository;

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.socialhub.platform.AppMode;
 import com.socialhub.platform.AppModeHolder;
+import com.socialhub.platform.postgres.ModeDataSources;
 import com.socialhub.production.ProductionQueries;
 import com.socialhub.production.TaskExecutor;
 import com.socialhub.production.TaskRequest;
@@ -17,12 +18,11 @@ import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
-import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.context.annotation.Import;
-import com.socialhub.platform.postgres.ModeDataSources;
+import org.springframework.jdbc.core.simple.JdbcClient;
 
 /** Motor de tareas del modo real con ejecutores de prueba, y comprobación real de las herramientas locales. */
 @SpringBootTest(webEnvironment = WebEnvironment.NONE, properties = {

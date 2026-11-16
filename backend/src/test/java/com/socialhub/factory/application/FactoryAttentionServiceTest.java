@@ -15,7 +15,6 @@ import com.socialhub.factory.domain.Recommendation;
 import com.socialhub.platform.AppMode;
 import com.socialhub.platform.AppModeHolder;
 import com.socialhub.production.ProductionAlert;
-import com.socialhub.production.ProductionQueries;
 import com.socialhub.publishing.PublerAccounts;
 import com.socialhub.publishing.PublishingQueries;
 import java.util.List;
@@ -24,7 +23,6 @@ import org.junit.jupiter.api.Test;
 /** Lo que necesita atención: avisos de todos los módulos y recomendaciones, solo en modo real las que dependen de Claude. */
 class FactoryAttentionServiceTest {
 
-    private final ProductionQueries production = mock(ProductionQueries.class);
     private final PublishingQueries publishing = mock(PublishingQueries.class);
     private final ArmoryQueries armory = mock(ArmoryQueries.class);
     private final AiHeldOrders held = mock(AiHeldOrders.class);
@@ -35,7 +33,10 @@ class FactoryAttentionServiceTest {
     private final Recommendation recommendation = new Recommendation("x", Recommendation.Kind.PUBLORA_MISSING, "Conecta Publora");
 
     private Attention attention(Recommendation... shown) {
-        when(production.alerts()).thenReturn(List.of());
+        return attention(List.of(), shown);
+    }
+
+    private Attention attention(List<ProductionAlert> productionAlerts, Recommendation... shown) {
         when(armory.blockedServices()).thenReturn(List.of());
         when(publishing.publishAlerts()).thenReturn(List.of());
         when(held.current()).thenReturn(List.of(
@@ -43,7 +44,7 @@ class FactoryAttentionServiceTest {
                 new AiHeldOrders.Held("t2", "gen", "Textos", "Sin carpeta", "lit-1", AiRequestType.CAPTIONS),
                 new AiHeldOrders.Held("t3", "est", "Propuestas sin promoción", "Sin promoción", null, AiRequestType.WEEKLY_PROPOSALS)));
         when(recommendations.compute()).thenReturn(List.of(shown));
-        return new FactoryAttentionService(production, publishing, armory, held, publer, recommendations, mode).attention();
+        return new FactoryAttentionService(publishing, armory, held, publer, recommendations, mode).attention(productionAlerts);
     }
 
     @Test
@@ -112,10 +113,10 @@ class FactoryAttentionServiceTest {
     void productionAlertsAndBlockedServicesComeThrough() {
         when(mode.selected()).thenReturn(AppMode.DEMO);
         var attention = attention();
-        when(production.alerts()).thenReturn(List.of(new ProductionAlert(ProductionAlert.Kind.FAILED, ProductionAlert.Target.TASK,
-                "task-1", "gen", "Piezas", "Sin espacio")));
+        var production = List.of(new ProductionAlert(ProductionAlert.Kind.FAILED, ProductionAlert.Target.TASK,
+                "task-1", "gen", "Piezas", "Sin espacio"));
         when(armory.blockedServices()).thenReturn(List.of(new ArmoryQueries.BlockedService("google-drive", "Google Drive", "No disponible")));
-        var alerts = new FactoryAttentionService(production, publishing, armory, held, publer, recommendations, mode).attention().alerts();
+        var alerts = new FactoryAttentionService(publishing, armory, held, publer, recommendations, mode).attention(production).alerts();
         assertThat(alerts).extracting(FactoryAlert::targetId).containsExactly("task-1", "google-drive");
         assertThat(alerts.get(1).kind()).isEqualTo(FactoryAlert.Kind.BLOCKED);
         assertThat(alerts.get(1).targetType()).isEqualTo(FactoryAlert.TargetType.ARMORY);

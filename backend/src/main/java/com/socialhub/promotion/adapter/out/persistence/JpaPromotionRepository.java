@@ -28,6 +28,19 @@ class JpaPromotionRepository implements PromotionRepository {
     }
 
     @Override
+    public List<BrandSummary> brandSummaries() {
+        return brands.findAllByOrderByPosition().stream().map(b -> new BrandSummary(b.getId(), b.getName())).toList();
+    }
+
+    @Override
+    public List<PromotionSummary> promotionSummaries() {
+        return promotions.findAllByOrderByPosition().stream()
+                .map(p -> new PromotionSummary(p.getId(), p.getBrandId(), p.getName(), p.getStatus(), p.getStartsOn(),
+                        p.getEndsOn()))
+                .toList();
+    }
+
+    @Override
     public Optional<Promotion> promotion(String id) {
         return promotions.findById(id).map(mapper::toDomain);
     }

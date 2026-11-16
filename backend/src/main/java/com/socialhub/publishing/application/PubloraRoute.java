@@ -1,15 +1,13 @@
 package com.socialhub.publishing.application;
 
-import com.socialhub.publishing.PublishRouteId;
 import com.socialhub.promotion.PromotionQueries;
-import com.socialhub.publishing.application.QualityChecker;
-import com.socialhub.publishing.application.PublishRoute;
+import com.socialhub.publishing.PublishRouteId;
 import com.socialhub.publishing.domain.Platform;
 import com.socialhub.publishing.domain.Publication;
 import com.socialhub.publishing.domain.PublicationFileRepository;
+import com.socialhub.publishing.domain.PublishJob;
 import com.socialhub.publishing.domain.PubloraAccountRepository;
 import com.socialhub.publishing.domain.PubloraGateway;
-import com.socialhub.publishing.domain.PublishJob;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;

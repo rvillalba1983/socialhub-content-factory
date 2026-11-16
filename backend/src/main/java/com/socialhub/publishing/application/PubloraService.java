@@ -1,8 +1,7 @@
 package com.socialhub.publishing.application;
 
-import com.socialhub.publishing.PubloraConnection;
 import com.socialhub.promotion.PromotionQueries;
-import com.socialhub.publishing.application.PubloraRoute;
+import com.socialhub.publishing.PubloraConnection;
 import com.socialhub.publishing.domain.Platform;
 import com.socialhub.publishing.domain.PubloraAccountRepository;
 import com.socialhub.publishing.domain.PubloraGateway;
@@ -12,7 +11,6 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
-import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

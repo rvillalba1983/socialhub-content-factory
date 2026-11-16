@@ -1,6 +1,5 @@
 package com.socialhub.publishing.application;
 
-import com.socialhub.publishing.PublishRouteId;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -12,11 +11,12 @@ import static org.mockito.Mockito.when;
 
 import com.socialhub.promotion.PromotionQueries;
 import com.socialhub.promotion.PromotionQueries.BrandRef;
+import com.socialhub.publishing.PublishRouteId;
 import com.socialhub.publishing.domain.Platform;
+import com.socialhub.publishing.domain.PublerAccountRepository;
 import com.socialhub.publishing.domain.Publication;
 import com.socialhub.publishing.domain.PublicationRepository;
 import com.socialhub.publishing.domain.PublicationStatus;
-import com.socialhub.publishing.domain.PublerAccountRepository;
 import com.socialhub.publishing.domain.PublishJob;
 import com.socialhub.publishing.domain.PublishJobRepository;
 import java.time.Instant;

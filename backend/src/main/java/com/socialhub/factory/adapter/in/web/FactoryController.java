@@ -34,7 +34,7 @@ class FactoryController implements FactoryApi {
     @Override
     public ResponseEntity<FactoryDto> getFactory() {
         var snapshot = production.snapshot();
-        Attention needed = attention.attention();
+        Attention needed = attention.attention(snapshot.alerts());
         return ResponseEntity.ok(new FactoryDto(
                 OffsetDateTime.now(clock),
                 mode.isDemo(),

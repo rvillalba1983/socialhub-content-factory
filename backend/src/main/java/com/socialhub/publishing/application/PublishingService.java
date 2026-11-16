@@ -1,14 +1,12 @@
 package com.socialhub.publishing.application;
 
-import com.socialhub.publishing.PublishingCommands;
 import com.socialhub.platform.AppModeHolder;
 import com.socialhub.platform.NotFoundException;
 import com.socialhub.platform.live.FactoryChanged;
 import com.socialhub.production.domain.events.ProductionEvents.ReviewApproved;
 import com.socialhub.production.domain.events.ProductionEvents.SwitchedToManual;
 import com.socialhub.promotion.PromotionQueries;
-import com.socialhub.publishing.application.QualityService;
-import com.socialhub.publishing.application.PublishingEngine;
+import com.socialhub.publishing.PublishingCommands;
 import com.socialhub.publishing.domain.Publication;
 import com.socialhub.publishing.domain.PublicationFile;
 import com.socialhub.publishing.domain.PublicationFileRepository;
@@ -23,8 +21,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
-import org.jspecify.annotations.Nullable;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;

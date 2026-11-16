@@ -1,6 +1,5 @@
 package com.socialhub.publishing.application;
 
-import com.socialhub.publishing.PublishRouteId;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -10,6 +9,7 @@ import static org.mockito.Mockito.when;
 
 import com.socialhub.ai.AiOrders;
 import com.socialhub.promotion.PromotionQueries;
+import com.socialhub.publishing.PublishRouteId;
 import com.socialhub.publishing.domain.Platform;
 import com.socialhub.publishing.domain.Publication;
 import com.socialhub.publishing.domain.PublicationFileRepository;

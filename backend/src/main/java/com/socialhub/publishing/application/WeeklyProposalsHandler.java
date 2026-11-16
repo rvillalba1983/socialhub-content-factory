@@ -1,12 +1,9 @@
 package com.socialhub.publishing.application;
 
+import com.socialhub.ai.AiTypeHandler;
 import com.socialhub.ai.domain.AiJob;
 import com.socialhub.ai.domain.AiRequestType;
-import com.socialhub.ai.AiTypeHandler;
 import com.socialhub.promotion.PromotionQueries;
-import com.socialhub.publishing.application.ExternalCalendarService;
-import com.socialhub.publishing.application.PublishingQueriesService;
-import com.socialhub.publishing.application.PublishingService;
 import com.socialhub.publishing.domain.Platform;
 import com.socialhub.publishing.domain.Publication;
 import com.socialhub.publishing.domain.PublicationStatus;
@@ -14,9 +11,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Clock;
+import java.time.DayOfWeek;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;

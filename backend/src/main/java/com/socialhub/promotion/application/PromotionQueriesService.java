@@ -243,11 +243,11 @@ class PromotionQueriesService implements PromotionQueries {
     
 
     @Override
-    public List<BrandRef> brandRefs() { return brands().stream().map(b -> new BrandRef(b.id(), b.name())).toList(); }
+    public List<BrandRef> brandRefs() { return repository.brandSummaries().stream().map(b -> new BrandRef(b.id(), b.name())).toList(); }
 
     @Override
     public List<PromotionRef> promotionRefs() {
-        return promotions().stream()
+        return repository.promotionSummaries().stream()
                 .map(p -> new PromotionRef(p.id(), p.brandId(), p.name(), p.status(), p.startsOn(), p.endsOn()))
                 .toList();
     }

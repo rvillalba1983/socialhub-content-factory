@@ -1,12 +1,8 @@
 package com.socialhub.publishing.application;
 
+import com.socialhub.promotion.PromotionQueries;
 import com.socialhub.publishing.PublerAccounts;
 import com.socialhub.publishing.PublishRouteId;
-import com.socialhub.promotion.PromotionQueries;
-import com.socialhub.publishing.application.PublishRoute;
-import com.socialhub.publishing.application.PublishingEngine;
-import com.socialhub.publishing.application.PubloraRoute;
-import com.socialhub.publishing.application.PubloraService;
 import com.socialhub.publishing.domain.Platform;
 import com.socialhub.publishing.domain.PublerAccountRepository;
 import com.socialhub.publishing.domain.PublicationRepository;

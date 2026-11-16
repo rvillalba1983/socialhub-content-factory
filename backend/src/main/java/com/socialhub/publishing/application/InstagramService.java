@@ -1,13 +1,11 @@
 package com.socialhub.publishing.application;
 
-import com.socialhub.publishing.InstagramConnection;
 import com.socialhub.armory.ArmoryRegistry;
 import com.socialhub.platform.AppMode;
 import com.socialhub.platform.AppModeHolder;
 import com.socialhub.platform.live.FactoryChanged;
 import com.socialhub.promotion.PromotionQueries;
-import com.socialhub.publishing.application.InstagramCredentials;
-import com.socialhub.publishing.application.InstagramRoute;
+import com.socialhub.publishing.InstagramConnection;
 import com.socialhub.publishing.domain.InstagramAccountRepository;
 import com.socialhub.publishing.domain.InstagramGateway;
 import com.socialhub.publishing.domain.InstagramGateway.InstagramException;

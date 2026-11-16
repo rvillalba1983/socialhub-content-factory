@@ -9,7 +9,6 @@ import com.socialhub.factory.domain.Recommendation;
 import com.socialhub.platform.AppMode;
 import com.socialhub.platform.AppModeHolder;
 import com.socialhub.production.ProductionAlert;
-import com.socialhub.production.ProductionQueries;
 import com.socialhub.publishing.PublerAccounts;
 import com.socialhub.publishing.PublishingQueries;
 import java.util.ArrayList;
@@ -28,7 +27,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 class FactoryAttentionService implements FactoryAttention {
 
-    private final ProductionQueries production;
     private final PublishingQueries publishing;
     private final ArmoryQueries armory;
     private final AiHeldOrders heldOrders;
@@ -37,10 +35,10 @@ class FactoryAttentionService implements FactoryAttention {
     private final AppModeHolder mode;
 
     @Override
-    public Attention attention() {
+    public Attention attention(List<ProductionAlert> productionAlerts) {
         boolean real = mode.selected() == AppMode.REAL;
         List<Recommendation> recs = real ? recommendations.compute() : List.of();
-        return new Attention(alerts(production.alerts(), armory.blockedServices(), publishing.publishAlerts(),
+        return new Attention(alerts(productionAlerts, armory.blockedServices(), publishing.publishAlerts(),
                 real ? heldOrders.current() : List.of(), recs, real ? publer.full() : List.of()), recs);
     }
 

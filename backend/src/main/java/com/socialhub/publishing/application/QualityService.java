@@ -1,10 +1,9 @@
 package com.socialhub.publishing.application;
 
-import com.socialhub.publishing.PublicationQuality;
 import com.socialhub.platform.NotFoundException;
 import com.socialhub.platform.live.FactoryChanged;
 import com.socialhub.promotion.PromotionQueries;
-import com.socialhub.publishing.application.QualityChecker;
+import com.socialhub.publishing.PublicationQuality;
 import com.socialhub.publishing.domain.Publication;
 import com.socialhub.publishing.domain.PublicationFile;
 import com.socialhub.publishing.domain.PublicationFileRepository;

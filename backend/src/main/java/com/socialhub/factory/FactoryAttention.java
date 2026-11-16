@@ -1,6 +1,8 @@
 package com.socialhub.factory;
 
 import com.socialhub.factory.domain.Attention;
+import com.socialhub.production.ProductionAlert;
+import java.util.List;
 import org.jmolecules.architecture.hexagonal.PrimaryPort;
 
 /**
@@ -10,5 +12,6 @@ import org.jmolecules.architecture.hexagonal.PrimaryPort;
 @PrimaryPort
 public interface FactoryAttention {
 
-    Attention attention();
+    /** @param productionAlerts avisos de producción ya leídos (los da {@code ProductionQueries.alertsOf}) */
+    Attention attention(List<ProductionAlert> productionAlerts);
 }

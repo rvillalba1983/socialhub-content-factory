@@ -1,5 +1,10 @@
 package com.socialhub;
 
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods;
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
+import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices;
+
 import com.tngtech.archunit.base.DescribedPredicate;
 import com.tngtech.archunit.core.domain.Dependency;
 import com.tngtech.archunit.core.domain.JavaClass;
@@ -15,14 +20,10 @@ import com.tngtech.archunit.library.GeneralCodingRules;
 import java.util.Set;
 import org.jmolecules.archunit.JMoleculesArchitectureRules;
 import org.junit.jupiter.api.Test;
+import org.springframework.modulith.ApplicationModule;
 import org.springframework.modulith.core.ApplicationModules;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.modulith.docs.Documenter;
-
-import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
-import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods;
-import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
-import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices;
+import org.springframework.scheduling.annotation.Scheduled;
 
 /**
  * Comprueba la arquitectura:
@@ -223,6 +224,26 @@ class ModularityTest {
                 }
             })
             .because("sin Clock inyectado, las pruebas no pueden fijar la hora");
+
+    /** Todos los módulos declaran su {@code @ApplicationModule} de verdad (no en un comentario) y con {@code allowedDependencies}. */
+    @Test
+    void everyModuleDeclaresItsDependencies() {
+        ApplicationModules.of(SocialHubApplication.class).forEach(module -> declaraSusDependencias(module.getBasePackage().getName()));
+    }
+
+    /** Falla si el paquete no tiene {@code @ApplicationModule} o lo deja abierto a todo ({@code "*"}); la usan la regla y su sonda. */
+    static void declaraSusDependencias(String basePackage) {
+        ApplicationModule declared;
+        try {
+            declared = Class.forName(basePackage + ".package-info").getAnnotation(ApplicationModule.class);
+        } catch (ClassNotFoundException e) {
+            throw new AssertionError(basePackage + " no tiene package-info", e);
+        }
+        if (declared == null) throw new AssertionError(basePackage + " no declara @ApplicationModule");
+        if (Set.of(declared.allowedDependencies()).contains(ApplicationModule.OPEN_TOKEN)) {
+            throw new AssertionError(basePackage + " deja abiertas sus dependencias: declara allowedDependencies");
+        }
+    }
 
     @Test
     void modulesRespectTheirBoundaries() {
