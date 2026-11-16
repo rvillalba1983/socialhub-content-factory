@@ -52,8 +52,8 @@ interface PublicationWebMapper {
         } catch (InvalidPathException e) {
             available = false;
         }
-        var dto = new PublicationFileDto(file.id(), file.path(), PublicationFileDto.OriginEnum.valueOf(file.origin().name()),
-                file.addedAt().atOffset(ZoneOffset.UTC), available, PublicationFileDto.KindEnum.valueOf(file.kind().name()));
+        var dto = new PublicationFileDto(file.id(), file.path(), PublicationFileDto.KindEnum.valueOf(file.kind().name()),
+                PublicationFileDto.OriginEnum.valueOf(file.origin().name()), file.addedAt().atOffset(ZoneOffset.UTC), available);
         dto.setMimeType(file.mimeType());
         return dto;
     }
