@@ -123,3 +123,6 @@ export const dateTime = (iso: string) =>
   new Date(iso).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Europe/Madrid' });
 
 export const normalize = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+
+/** Vías de publicación, con el nombre que guarda el backend (PublishRoute.Id): API oficial, Publer y Publora. */
+export const PUBLISH_ROUTES: string[] = ['API oficial', 'Publer', 'Publora'];

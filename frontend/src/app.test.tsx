@@ -330,6 +330,25 @@ describe('Publicaciones', () => {
     }));
   });
 
+  it('la vía de publicación es un desplegable con las vías actuales y conserva un valor antiguo', async () => {
+    const create = vi.spyOn(api, 'createPublication').mockResolvedValue({ ...publication, status: 'DRAFT' });
+    const { unmount } = render(<PublicationEditor promotionId="p" onClose={() => {}} onSaved={() => {}} />);
+    const via = screen.getByLabelText('Vía') as HTMLSelectElement;
+    expect(via.tagName).toBe('SELECT');
+    expect(Array.from(via.options).map(o => o.value)).toEqual(['API oficial', 'Publer', 'Publora']);
+    expect(via.value).toBe('Publer');
+    fireEvent.change(via, { target: { value: 'Publora' } });
+    fireEvent.change(screen.getByLabelText('Tipo'), { target: { value: 'Carrusel' } });
+    fireEvent.change(screen.getByLabelText('Título'), { target: { value: 'Poema 1' } });
+    fireEvent.change(screen.getByLabelText('Día'), { target: { value: '2026-11-10' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+    await waitFor(() => expect(create).toHaveBeenCalledWith('p', expect.objectContaining({ route: 'Publora' })));
+    unmount();
+    render(<PublicationEditor promotionId="p" publication={{ ...publication, route: 'A mano' }} onClose={() => {}} onSaved={() => {}} />);
+    const old = screen.getByLabelText('Vía') as HTMLSelectElement;
+    expect(old.value).toBe('A mano');
+  });
+
   it('solo ofrece los cambios de estado permitidos y nunca «Publicada»', async () => {
     vi.spyOn(api, 'publicationFiles').mockResolvedValue({ items: [
       { path: 'G:/DeLito/Semana 2/poema_1.jpg', origin: 'SPEC', added_at: '2026-11-02T09:00:00Z', available: true },
