@@ -56,6 +56,11 @@ public final class Desktop {
                 + " · " + System.getProperty("os.name") + " · carpeta de datos " + AppPaths.defaultDataDir());
         StartupLog.phase("Registros de la JVM en: " + System.getProperty("socialhub.jvm.logs", "(no indicada)")
                 + (System.getProperty("socialhub.jvm.logs", "").contains("$") ? "  <- AVISO: el instalador no expandió la variable" : ""));
+        try {
+            StartupLog.phase("Opciones de la JVM: " + java.lang.management.ManagementFactory.getRuntimeMXBean().getInputArguments());
+        } catch (RuntimeException | LinkageError e) {
+            StartupLog.phase("No se pudieron leer las opciones de la JVM: " + e);
+        }
         JvmCrashReports.collect(logs, List.of(Path.of(System.getProperty("user.dir", ".")),
                 Path.of(System.getProperty("java.io.tmpdir", "."))));
         rotateExternalLogs(logs);

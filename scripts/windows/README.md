@@ -35,3 +35,7 @@ La prueba en un Windows real está en `.github/workflows/siempre-abierto.yml`. S
 Apunta en `ficha-<nombre del equipo>.txt`, junto al script, lo necesario para decidir si un PC sirve como servidor de SocialHub: modelo, procesador (y si cumple con Windows 11), memoria y ranuras libres, discos (SSD o mecánico) y espacio libre, versión de Windows, UEFI, TPM y arranque seguro, red, programas instalados (Claude, OpenCode, Chrome, Google Drive, SocialHub) y energía. Solo lee: no instala ni cambia nada.
 
 Se usa con doble clic en `ficha-equipo.bat`. Para ver también TPM y arranque seguro: clic derecho › «Ejecutar como administrador».
+
+## instalador/
+
+`instalar-con-registro.cmd` y `desinstalar-con-registro.cmd`: lanzadores que ejecutan `msiexec /i` (o `/x`) con `/l*v` y dejan el registro en `%LOCALAPPDATA%\SocialHub\logs`. El workflow `instaladores.yml` los copia junto al `.msi` (con los nombres «Instalar SocialHub (con registro).cmd» y «Desinstalar SocialHub (con registro).cmd») y los prueba en Windows. Solo ASCII y saltos de línea CRLF. Con `/silencioso` no abren ventanas ni piden pausa (para las pruebas).

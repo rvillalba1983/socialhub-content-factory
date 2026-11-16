@@ -35,9 +35,10 @@ SocialHub **no llama a la API de Claude**. Deja los encargos en una carpeta de G
 
 ### Instalar y cerrar
 
-- **Instalar:** abre `SocialHub-<versión>.msi`.
+- **Instalar:** lo más seguro es abrir **«Instalar SocialHub (con registro).cmd»**, que va junto al `.msi` (misma descarga), con doble clic. Instala el `.msi` y deja un registro detallado de la instalación, ver [Registros y qué mirar si algo falla](#registros-y-qué-mirar-si-algo-falla). También sirve abrir `SocialHub-<versión>.msi` directamente, pero entonces Windows no deja ningún registro.
   - Windows avisa con «Windows protegió tu PC» porque el instalador no está firmado: pulsa «Más información» y luego «Ejecutar de todas formas».
   - Pide permiso de administrador y crea un acceso directo en el escritorio y en el menú Inicio.
+  - **Antes de instalar o actualizar, cierra SocialHub** (botón **Cerrar**) **y Chrome**. Si alguno está abierto, Windows puede dejar la instalación a medias y pedir reiniciar. Si Windows pide reiniciar, **primero cierra SocialHub y Chrome** y reinicia después; si al abrir SocialHub no arranca, repite la instalación con el lanzador con registro.
 - **Abrir:** con el acceso directo. SocialHub arranca y se abre en el navegador (`http://localhost:8686`). Si ya estaba abierto, solo se abre el navegador.
 - **Cerrar:** botón **Cerrar** en la barra de arriba, y confirma. Se paran el motor, la base de datos y el servidor. Lo que quedó a medias sigue al volver a abrirlo.
 - **Ver qué versión tienes:** junto al nombre «SocialHub», arriba a la izquierda, sale en pequeño la versión y el commit (por ejemplo `1.2.57 · a1b2c3d`). Púlsala y verás el detalle: versión, commit, fecha y hora de compilación y el modo (Real o Demo). Si pasas el ratón por encima, sale la versión y la fecha en un recuadro.
@@ -49,6 +50,32 @@ SocialHub **no llama a la API de Claude**. Deja los encargos en una carpeta de G
   - Las versiones publicadas (releases) llevan el número de la release, por ejemplo `1.2.0`.
   - Los instaladores que genera GitHub (Actions › Instaladores) llevan `1.2.<número de ejecución>`, por ejemplo `1.2.57`: cada instalador nuevo tiene un número mayor que el anterior, y por eso Windows lo trata como actualización.
   - Si un instalador no cambia nada, mira la versión de arriba: si es la misma que ya tenías, Windows no habría actualizado.
+
+### Registros y qué mirar si algo falla
+
+Todo queda en la carpeta `%LOCALAPPDATA%\SocialHub\logs` (pégalo en la barra del Explorador). También la ves, con un botón **Abrir carpeta de registros**, en **Operaciones** (arriba) en la web.
+
+| Archivo | Qué cuenta | Cuándo mirarlo |
+|---|---|---|
+| `instalacion-<fecha-hora>.log` | Lo que hizo Windows al instalar, paso a paso (lo crea el lanzador «Instalar SocialHub (con registro).cmd») | La instalación falla, pide reiniciar o SocialHub no aparece. Busca la palabra `Error` o `return value 3` |
+| `desinstalacion-<fecha-hora>.log` | Lo mismo al desinstalar («Desinstalar SocialHub (con registro).cmd») | Algo no se ha borrado bien |
+| `arranque.log` | Las fases del arranque (versión, carpeta de datos, PostgreSQL, Flyway, puerto, «SocialHub listo»), lo que escribe la JVM por consola y las excepciones que nadie captura | SocialHub no abre o se cierra solo. La última línea dice hasta dónde llegó o por qué falló |
+| `socialhub.log` | Lo que hace SocialHub ya en marcha: errores, respuestas 5xx de la API (método y ruta, sin datos), fallos de tareas programadas | Algo falla mientras lo usas. Cada archivo llega a 10 MB; se guardan 30 días y 300 MB como máximo, los viejos comprimidos (`.gz`) |
+| `hs_err_pid<número>.log` | Fallo fatal de Java (se cierra de golpe). Se guardan los 10 últimos y 60 días | SocialHub desaparece sin avisar |
+| `pg_ctl.log`, `postgres.log` | La base de datos incluida | Error de base de datos o «puerto en uso» |
+
+Los registros **no llevan claves, tokens ni contraseñas** (se tapan como `***`) ni el contenido de lo que envías o recibes de la API. Si pides ayuda, manda `arranque.log` y `socialhub.log`.
+
+**Instalar o desinstalar con registro** (los dos `.cmd` van junto al `.msi`, en la misma descarga):
+
+1. Cierra SocialHub y Chrome.
+2. Doble clic en **«Instalar SocialHub (con registro).cmd»** (o **«Desinstalar SocialHub (con registro).cmd»**). Windows avisa porque no está firmado: **Más información** y **Ejecutar de todas formas**.
+3. Acepta el permiso de administrador. Al terminar, la ventana dice **dónde está el registro** y el **código de salida**: `0` es correcto, `3010` es «instalado, hay que reiniciar» (cierra SocialHub y Chrome y reinicia), `1603` es error grave (mira el registro).
+4. Los lanzadores no piden ni guardan contraseñas y solo escriben en la carpeta de registros. Desinstalar no borra tus datos.
+
+Si no tienes los `.cmd`, desde una ventana de «Símbolo del sistema»: `msiexec /i "C:\ruta\SocialHub-1.2.57.msi" /l*v "%LOCALAPPDATA%\SocialHub\logs\instalacion.log"`. Windows también anota las instalaciones en el **Visor de eventos** (Registros de Windows › Aplicación, origen `MsiInstaller`).
+
+La JVM de SocialHub **no guarda volcados de memoria** si se queda sin memoria: pesan gigas y contienen tus datos y claves. Solo queda el aviso en `arranque.log` con la memoria que había.
 
 ## 2. Ideas básicas
 
@@ -348,6 +375,8 @@ Los enlaces son oficiales y se han abierto uno a uno. Los de **Meta Business** (
 ![Operaciones externas](docs/manual/img/20-operaciones.jpg)
 
 Cada llamada a algo de fuera queda registrada con su resultado y su duración, para saber qué falló y cuándo: PostgreSQL, Drive, Publora, herramientas locales…
+
+Arriba, la pantalla enseña la **carpeta de registros** de SocialHub y un botón **Abrir carpeta de registros** (se abre en el Explorador de archivos). Qué hay en cada archivo: [Registros y qué mirar si algo falla](#registros-y-qué-mirar-si-algo-falla).
 
 ## 10. Copias de seguridad
 
