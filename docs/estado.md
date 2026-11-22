@@ -29,6 +29,10 @@ Las fases 0 a 12 están hechas y en `main`:
 
 - Orden con la #45: **primero se instala la 1.1.0 y después se cambian las tareas programadas** (nube y PC) a los horarios y la regla de 08:00-18:00 nuevos; el detalle está en `docs/tarea-programada-encargos.md`.
 
+## Funciones finales (16 nov)
+
+PR `fase-12-funciones-finales` (pendiente de merge): arranque con Windows en segundo plano, icono en la bandeja, métricas de Instagram por la API de Meta, renovar conexión, aviso de versión nueva y «Textos» a mano que sustituyen el texto de Raúl. Detalle en `fase-12.md`.
+
 ## Siguiente (para Raúl)
 
 1. Instalar SocialHub 1.0.0 cuando se publique la release.

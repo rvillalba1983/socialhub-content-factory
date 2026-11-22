@@ -139,3 +139,14 @@ Hecho el 11-12 nov 2026. Conclusión: **la API oficial pasa a ser la vía princi
 ### Sin comprobar
 
 - Nada de FFmpeg: probado en la máquina macOS de GitHub (herramientas locales por la API y una pieza de 2 s). No hay Mac real de Raúl.
+
+## Funciones finales (16 nov 2026, decididas por Raúl; rama `fase-12-funciones-finales`, una PR)
+
+1. **Abrirse con Windows en segundo plano** con interruptor (Ajustes generales y detalle de la versión): clave `HKCU\...\Run`, sin administrador. Hecho.
+2. **Icono en la bandeja** con «Abrir SocialHub» y «Cerrar SocialHub» (cierre ordenado). Sin entorno gráfico no falla. Hecho.
+3. **Métricas de Instagram por la API de Meta**, con respaldo de Chrome y sin inventar cifras. Hecho. Necesita el permiso `instagram_manage_insights` en la clave (pendiente de Raúl).
+4. **«Conectar con Instagram» y «Renovar conexión»**, con aviso a los 10 días de caducar. Hecho.
+5. **Aviso de versión nueva** de GitHub Releases, sin autoinstalar y sin enviar datos. Hecho; para que haya aviso hay que publicar una release (workflow Instaladores con «publicar»).
+6. **«Textos» a mano sustituye el texto de Raúl**, con «Recuperar mi texto anterior». Hecho, con pruebas.
+
+Pendiente de Raúl: icono propio (`.ico`) para el instalador; permiso de estadísticas en Meta; publicar una release para probar el aviso.

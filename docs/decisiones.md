@@ -802,7 +802,9 @@ Decisiones técnicas:
 
 ## Fase 12 · Funciones finales (16 nov 2026, decididas por Raúl el 16 nov)
 
-Rama `fase-12-funciones-finales` y las que salen de ella (una PR por bloque).
+Rama `fase-12-funciones-finales`: una sola PR que reúne los seis puntos (las ramas `fase-12-arranque-bandeja`, `fase-12-actualizaciones` e `fase-12-instagram-metricas` se unieron aquí).
+
+Decididas por Raúl el 16 nov: (1) SocialHub arranca con Windows en segundo plano, con interruptor; (2) icono en la bandeja con «Abrir SocialHub» y «Cerrar»; (3) métricas de Instagram por la API oficial de Meta, con respaldo de Chrome y nunca cifras inventadas; (4) «Conectar con Instagram» y «Renovar conexión», con aviso de caducidad; (5) aviso de versión nueva de GitHub Releases, sin autoinstalar; (6) «Textos» a mano sustituye el texto de Raúl. Técnica: el interruptor de arranque está en «Ajustes generales» (Copias de seguridad) y en el detalle de la versión (componente `AutostartSwitch`).
 
 - **«Textos» pedidos a mano sustituyen el texto de Raúl** (decidido por Raúl el 16 nov). Pedirlos a mano es una orden explícita. El encargo lleva ahora `origin` (`manual` o `auto`; campo opcional de `task-request` v1, sin cambiar de versión; sale de la marca `manual` de la tarea). Solo con `origin = manual`, `CaptionsHandler` aplica el texto de Claude aunque haya texto propio (`Publication.hasOwnText`) y guarda el texto previo en la publicación (migración V27: `previous_caption`, `previous_hashtags`). La publicación ofrece «Recuperar mi texto anterior» (`POST /api/publications/{id}/previous-text-restorations`). Con `origin = auto` no cambia nada: no se pisa y el texto de Claude va a la incidencia.
 
