@@ -30,6 +30,26 @@ async function openClaude(page: Page) {
 }
 
 test.describe('Claude: ajustes, encargos y ritmo', () => {
+  test('margen mínimo de publicación: 30 minutos por defecto, ajustable y nunca por debajo de 5', async ({ page, api }) => {
+    const brand = await api.createBrandWithFolders(unique('Marca Claude margen'), `@${unique('margen').toLowerCase()}`, path.join(makeTempDir('claude-margen'), 'raiz'));
+    await api.createPromotion(brand.id, unique('Promoción Claude margen'));
+    await openClaude(page);
+
+    const card = page.getByRole('form', { name: 'Margen mínimo de publicación' });
+    const input = card.getByLabel(/Minutos entre ahora y la hora de publicación/);
+    await expect(input).toHaveValue('30');
+    await input.fill('90');
+    await card.getByRole('button', { name: 'Guardar margen' }).click();
+    await expect(toast(page)).toHaveText('Margen mínimo de publicación guardado');
+    expect((await api.get<{ min_margin_minutes: number }>('/api/settings/publishing')).min_margin_minutes).toBe(90);
+
+    // Fuera de límites no se guarda (el campo ya lo impide en el navegador; la API también lo rechaza)
+    await expect(input).toHaveAttribute('min', '5');
+    await input.fill('30');
+    await card.getByRole('button', { name: 'Guardar margen' }).click();
+    await expect(toast(page)).toHaveText('Margen mínimo de publicación guardado');
+  });
+
   test('ajustes del límite y de los modelos, y los avisos de cada tipo de encargo', async ({ page, api }) => {
     const brand = await api.createBrandWithFolders(unique('Marca Claude ajustes'), `@${unique('ajustes').toLowerCase()}`, path.join(makeTempDir('claude-ajustes'), 'raiz'));
     await api.createPromotion(brand.id, unique('Promoción Claude ajustes'));

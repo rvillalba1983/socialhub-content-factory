@@ -27,7 +27,7 @@ SocialHub es la fábrica de contenido de **El DeLito** (el poemario) y **Litoque
 - **Planifica** la semana con propuestas de Claude que tú apruebas o rechazas.
 - **Produce** las piezas (carruseles, historias, reels) con herramientas locales y los textos con Claude.
 - **Revisa** cada publicación con un control de calidad antes de que la apruebes.
-- **Programa** en Publer o en Publora, con 6 horas de margen como mínimo.
+- **Programa** por la API oficial, Publer o Publora, respetando el margen mínimo de publicación (30 minutos por defecto, ajustable).
 - **Comprueba** lo publicado y lee sus métricas a los 7 días.
 - **Aprende**: los rechazos, tus correcciones y los balances vuelven a Claude en cada encargo.
 
@@ -187,6 +187,7 @@ Cada promoción tiene su centro de control («Abrir centro de control →» en s
 
   ![Automatización](docs/manual/img/13-automatizacion.jpg)
 
+- **Estilo visual:** campo opcional de la promoción («Navidad: rojo, dorado, nieve y estrellas», máximo 300 caracteres) que se ve en su ficha. Claude lo usa para dibujar los fondos de las piezas sin material y respeta los colores de la marca salvo que el estilo los cambie.
 - **Métricas** y **Configuración:** las métricas de la promoción y sus parámetros. Las métricas reales de cada publicación se ven en la propia publicación.
 
 ### Editar una publicación
@@ -260,7 +261,7 @@ Una publicación **programada no se edita**: para cambiarla, vuelve a «Aprobada
    - Como la tarea pasa cada 5 horas, SocialHub solo pide el encargo si alguna pasada llega antes de ese límite; si no, sigue por otra vía o deja el LEEME. Por eso conviene programar con margen.
    - Si programas algo con menos de 8 h de margen, Publer se salta.
 3. **Publora** es la siguiente vía, con su API y tu clave (plan gratuito: pocas publicaciones al mes).
-   - SocialHub sube los archivos y la programa, hasta 6 h antes.
+   - SocialHub sube los archivos y la programa, hasta el margen mínimo de publicación antes de la hora.
    - Si la sacas de «Programada», SocialHub la borra él solo en Publora.
 4. **Si fallan todas**, SocialHub reintenta cada hora mientras quede margen. Si no, deja un **LEEME** en la carpeta de aprobados para que la publiques tú, y te avisa.
 
@@ -297,11 +298,14 @@ Cada encargo es un archivo en la carpeta **Encargos** de la marca, en Drive.
 
 **Especificación de piezas por lotes.** SocialHub la pide por promoción, sin esperar al domingo, en cuanto hay **3 o más publicaciones pendientes de contenido** (en «En producción» y sin piezas) o la más próxima sale en **menos de 3 días** (aunque sean 1 o 2). El spec lleva solo esas publicaciones. Una publicación no entra en dos specs a la vez; si el spec falla del todo o lo cancelas, vuelve a contar como pendiente (ese mismo lote no se pide solo otra vez hasta pasadas 24 h; a mano sí). Si el spec se completa y, cuando terminan de generarse sus piezas, una publicación sigue sin ninguna, vuelve a contar como pendiente y entra sola en el siguiente spec, como mucho dos veces; después solo a mano. Las promociones **planificadas** también piden su spec, sin esperar a activarse. Si una publicación en producción sin piezas y fuera de cualquier spec abierto sale en menos de 3 días, en «Qué hacer ahora» aparece «{título} no tiene contenido» con el botón **«Pedir contenido ya»**, que pide un spec urgente de esa publicación (o de las de su promoción en la misma situación).
 
+**Material que falta.** Ninguna pieza se queda sin fondo. Si una publicación no tiene imagen o vídeo en la carpeta Material, «Qué hacer ahora» lo avisa (solo informa, no bloquea) y SocialHub elige el fondo por este orden: tu imagen o vídeo > un fondo SVG que dibuja Claude (`fondo_svg`) > la portada de la marca > un fondo que genera SocialHub con el color de la marca y el título. La **portada de la marca** es un archivo `portada.jpg`, `portada.jpeg` o `portada.png` (mayúsculas o minúsculas) en la raíz de la carpeta Material de la marca. Si la carpeta no está disponible en el ordenador, el aviso lo dice y no falla nada.
+
 Los resultados vuelven a la carpeta `de-claude`. SocialHub los comprueba contra el contrato y los aplica; si un resultado no cumple el contrato, la tarea falla con el motivo.
 
 ![Encargos a Claude: ajustes](docs/manual/img/14-claude.jpg)
 
 En la pantalla **Claude** se ajusta:
+- El **margen mínimo de publicación** (minutos; por defecto 30; entre 5 y 1440). Nunca se publica al instante: una publicación solo se programa si su hora queda a este margen o más de ahora. Publer y Publora dependen de las pasadas de la tarea del PC (cada 5 h; de 08:00 a 18:00 solo las urgentes), así que con 30 minutos lo habitual es publicar por la API oficial con SocialHub abierto.
 - El **límite diario** de encargos. Los de publicación con Chrome no cuentan: tienen hora fija.
 - El **modelo de cada tipo de encargo** (Haiku, Sonnet u Opus).
 - Un **encargo a mano** a Claude.
@@ -419,7 +423,7 @@ El modo Demo no tiene copias: sus datos son de ejemplo.
 
 ## 12. Reglas que siempre se cumplen
 
-- Nada se programa sin tu aprobación, sin pasar el control de calidad y sin **6 h de margen**. Nunca se publica al momento.
+- Nada se programa sin tu aprobación, sin pasar el control de calidad y sin el **margen mínimo de publicación** (30 minutos por defecto, ajustable en «Encargos a Claude»). Nunca se publica al momento.
 - Nunca se simula una publicación: «Publicada» exige el enlace o el identificador.
 - Nunca se inventan cifras: lo que no se ve queda «Sin dato».
 - Claude no envía correos ni mensajes, no inicia sesión por ti, no crea cuentas y no paga nada.
