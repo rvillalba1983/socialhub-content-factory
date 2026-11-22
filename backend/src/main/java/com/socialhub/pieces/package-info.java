@@ -3,6 +3,9 @@
  * Java 2D; reel, clip y comprimir con FFmpeg. Solo lee y escribe en las carpetas de la promoción y nunca
  * sobrescribe. Aporta al motor la tarea {@code GENERATE_PIECES}.
  *
+ * También incluye el motor de plantillas SVG (puerto {@code TemplateRenderer}): dibujo con Batik y texto ajustado con
+ * Java 2D y las fuentes incluidas.
+ *
  * <ul>
  *   <li>Raíz: puertos primarios ({@code PieceOrders}, {@code ContentGaps}).</li>
  *   <li>{@code domain}: el spec, el acceso seguro a los archivos y los puertos de salida (repositorio y lector de

@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1350">
+  <defs>
+    <linearGradient id="fondo" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2A221D"/>
+      <stop offset="1" stop-color="#14100E"/>
+    </linearGradient>
+  </defs>
+  <rect width="1080" height="1350" fill="url(#fondo)"/>
+  <rect x="60" y="60" width="960" height="1230" fill="none" stroke="#C9A25B" stroke-width="4"/>
+  <line x1="440" y1="940" x2="640" y2="940" stroke="#C9A25B" stroke-width="3"/>
+
+  <rect id="caja-cita" x="120" y="200" width="840" height="680" fill="none"/>
+  <text id="campo-cita" font-family="Crimson Text" font-style="italic" font-size="96"
+        data-tamano-min="44" data-interlineado="1.25" data-vertical="centro"
+        text-anchor="middle" fill="#F4EBDD">Aquí va la cita de ejemplo, con ñ, acentos y «comillas»</text>
+
+  <rect id="caja-autor" x="120" y="1000" width="840" height="80" fill="none"/>
+  <text id="campo-autor" font-family="Fira Sans" font-weight="500" font-size="40"
+        letter-spacing="4" text-anchor="middle" fill="#C9A25B">AUTOR DE EJEMPLO</text>
+
+  <rect id="caja-marca" x="120" y="1180" width="840" height="50" fill="none"/>
+  <text id="campo-marca" font-family="Fira Sans" font-size="28" text-anchor="middle" data-fijo="true"
+        fill="#F4EBDD" fill-opacity="0.6">@eldelito</text>
+</svg>

@@ -3,20 +3,12 @@ package com.socialhub.pieces.adapter.out.svg;
 import com.socialhub.pieces.domain.SvgRasterizer;
 import java.awt.Color;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
 import java.io.StringReader;
-import java.io.StringWriter;
-import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 import javax.xml.XMLConstants;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.transform.OutputKeys;
-import javax.xml.transform.TransformerFactory;
-import javax.xml.transform.dom.DOMSource;
-import javax.xml.transform.stream.StreamResult;
 import org.apache.batik.bridge.NoLoadExternalResourceSecurity;
 import org.apache.batik.bridge.NoLoadScriptSecurity;
 import org.apache.batik.bridge.UserAgent;
@@ -29,7 +21,6 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
-import org.xml.sax.InputSource;
 
 /**
  * Pinta con Apache Batik los fondos SVG de Claude. Antes de pintar, un validador estricto con lista de permitidos
@@ -85,7 +76,7 @@ public class BatikSvgRasterizer implements SvgRasterizer {
             capture.addTranscodingHint(ImageTranscoder.KEY_EXECUTE_ONLOAD, false);
             capture.addTranscodingHint(ImageTranscoder.KEY_ALLOWED_SCRIPT_TYPES, "");
             capture.addTranscodingHint(ImageTranscoder.KEY_XML_PARSER_VALIDATING, false);
-            capture.transcode(new TranscoderInput(new StringReader(serialize(parsed.get()))), new TranscoderOutput());
+            capture.transcode(new TranscoderInput(new StringReader(SecureXml.serialize(parsed.get()))), new TranscoderOutput());
             BufferedImage image = capture.image;
             if (image == null) return Optional.empty();
             BufferedImage rgb = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
@@ -135,19 +126,7 @@ public class BatikSvgRasterizer implements SvgRasterizer {
     private Optional<Document> parse(String svg) {
         if (svg == null || svg.isBlank() || svg.length() > MAX_CHARS) return Optional.empty();
         try {
-            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-            factory.setNamespaceAware(true);
-            factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
-            factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
-            factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
-            factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
-            factory.setXIncludeAware(false);
-            factory.setExpandEntityReferences(false);
-            factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
-            factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
-            var builder = factory.newDocumentBuilder();
-            builder.setEntityResolver((publicId, systemId) -> new InputSource(new ByteArrayInputStream(new byte[0])));
-            Document document = builder.parse(new InputSource(new StringReader(svg.strip())));
+            Document document = SecureXml.parse(svg);
             Element root = document.getDocumentElement();
             if (!"svg".equals(root.getLocalName()) || !SVG_NS.equals(root.getNamespaceURI())) return Optional.empty();
             int[] count = {0};
@@ -195,16 +174,5 @@ public class BatikSvgRasterizer implements SvgRasterizer {
         if (FORBIDDEN.matcher(lower).find()) return false;
         if (ANY_URL.matcher(value).find()) return URL_REF.matcher(value).replaceAll("").indexOf("url") < 0;
         return true;
-    }
-
-    private static String serialize(Document document) throws javax.xml.transform.TransformerException {
-        TransformerFactory factory = TransformerFactory.newInstance();
-        factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
-        var transformer = factory.newTransformer();
-        transformer.setOutputProperty(OutputKeys.ENCODING, StandardCharsets.UTF_8.name());
-        transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
-        StringWriter out = new StringWriter();
-        transformer.transform(new DOMSource(document), new StreamResult(out));
-        return out.toString();
     }
 }
