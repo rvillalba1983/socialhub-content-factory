@@ -88,7 +88,7 @@ class PromotionService implements PromotionActivation, PromotionCommands {
         for (Promotion p : repository.promotions()) {
             if (!"PLANNED".equals(p.status()) || p.startsOn().isAfter(today) || p.endsOn().isBefore(today)) continue;
             // Sin método «copia con otro estado» en el registro: MapStruct lo tomaría por un setter
-            repository.save(new Promotion(p.id(), p.brandId(), p.name(), p.description(), p.scope(), p.cadence(),
+            repository.save(new Promotion(p.id(), p.brandId(), p.name(), p.description(), p.scope(), p.cadence(), p.visualStyle(),
                     p.startsOn(), p.endsOn(), "ACTIVE", p.metricsSource(), p.goals(), p.rules(), p.humanTodos(),
                     p.milestones(), p.resources(), p.automations(), p.routes(), p.settings(), p.demo()));
             events.publishEvent(new FactoryChanged("promotion", p.id()));

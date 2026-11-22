@@ -14,6 +14,6 @@
  *   <li>{@code adapter.in}: web y relojes. {@code adapter.out}: persistencia.</li>
  * </ul>
  */
-@org.springframework.modulith.ApplicationModule(allowedDependencies = {"promotion", "production", "platform", "platform::live", "api"})
+@org.springframework.modulith.ApplicationModule(allowedDependencies = {"promotion", "production", "settings", "platform", "platform::live", "api"})
 @org.jspecify.annotations.NullMarked
 package com.socialhub.ai;

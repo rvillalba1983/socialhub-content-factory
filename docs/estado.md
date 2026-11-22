@@ -24,6 +24,7 @@ Las fases 0 a 12 están hechas y en `main`:
 ## Fase 12 en una línea por PR
 
 - #36 plan · #37 instalador de macOS (`.dmg`) y versión 1.0.0 en todos los sistemas · #38 API oficial de Instagram (vía principal; Publer de respaldo) · #39 pruebas con reloj fijo · #40 detalles visuales de «Necesita atención» y «Qué hacer ahora» · #41 TikTok y cuenta de Publer por marca y red, con el límite de 10 del plan Free · #42 métricas reales de la promoción · #45 ritmo de Claude (pasadas cada 5 h, urgencia, spec por lotes; versión 1.1.0).
+- 16 nov: rama `fase-12-material-faltante` (PR abierta): fondos por defecto y SVG de Claude, portada de marca, aviso previo, «Estilo visual» y margen mínimo de publicación ajustable (30 minutos por defecto, en lugar de 6 h). Detalle en `fase-12.md` y `decisiones.md`.
 - El repositorio es público desde el 12 nov (GitHub Actions se había quedado sin minutos).
 - Configurado fuera del código: Meta (app, porfolio, usuario del sistema), carpeta `publico` de Litoques en Drive, Publer con 3 cuentas, y las tareas «Encargos de SocialHub» y «Publicar con Chrome» actualizadas. Detalle en `fase-12.md`.
 

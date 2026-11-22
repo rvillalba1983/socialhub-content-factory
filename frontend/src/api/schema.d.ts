@@ -618,7 +618,7 @@ export interface paths {
         put?: never;
         /**
          * Pasa a Publora las publicaciones retenidas por el límite de una cuenta de Publer
-         * @description Solo pasan las retenidas de esa cuenta y red (de todas las marcas que la comparten) cuya marca tiene Publora configurada para esa red. Cada una sigue el flujo normal de Publora (su margen de 6 h; si ya no llega, lo de siempre). 400 si ninguna tiene Publora.
+         * @description Solo pasan las retenidas de esa cuenta y red (de todas las marcas que la comparten) cuya marca tiene Publora configurada para esa red. Cada una sigue el flujo normal de Publora (su margen mínimo de publicación; si ya no llega, lo de siempre). 400 si ninguna tiene Publora.
          */
         post: operations["moveHeldToPublora"];
         delete?: never;
@@ -821,7 +821,7 @@ export interface paths {
         get?: never;
         /**
          * Edita los datos de una publicación
-         * @description No cambia el estado. No se puede editar una publicación que se está publicando o ya publicada; si está programada, la nueva hora debe quedar al menos a 6 horas de ahora.
+         * @description No cambia el estado. No se puede editar una publicación que se está publicando o ya publicada; si está programada, la nueva hora debe quedar al menos al margen mínimo de publicación (30 minutos por defecto, ajustable) de ahora.
          */
         put: operations["updatePublication"];
         post?: never;
@@ -1001,7 +1001,7 @@ export interface paths {
         put?: never;
         /**
          * Cambia el estado de una publicación
-         * @description Para cancelar hace falta «reason»: el rechazo queda en la memoria editorial de la marca. Solo transiciones permitidas por su ciclo de vida. «Publicando», «Publicada» y «Error de publicación» los pone SocialHub al publicar, nunca a mano. Para programarla, la hora debe quedar al menos a 6 horas de ahora.
+         * @description Para cancelar hace falta «reason»: el rechazo queda en la memoria editorial de la marca. Solo transiciones permitidas por su ciclo de vida. «Publicando», «Publicada» y «Error de publicación» los pone SocialHub al publicar, nunca a mano. Para programarla, la hora debe quedar al menos al margen mínimo de publicación (30 minutos por defecto, ajustable) de ahora.
          */
         post: operations["changePublicationStatus"];
         delete?: never;
@@ -1020,6 +1020,24 @@ export interface paths {
         /** Límite diario y modelo de cada tipo de encargo */
         get: operations["getAiSettings"];
         put: operations["updateAiSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/publishing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ajustes generales de publicación (margen mínimo) */
+        get: operations["getPublishSettings"];
+        /** Cambia el margen mínimo de publicación */
+        put: operations["updatePublishSettings"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1257,10 +1275,10 @@ export interface components {
             /** @description Estable mientras la recomendación siga haciendo falta (por ejemplo, brand-folders:litoques) */
             id: string;
             /**
-             * @description Por orden de prioridad: marca sin forma de publicar (NO_PUBLISHING_ROUTE) y tarea del PC «Publicar con Chrome» sin contestar (PC_TASK_SILENT), que van primero porque bloquean publicaciones reales (también salen como aviso en «Necesita atención»); marca sin cuenta de Publer para una red con publicaciones retenidas (PUBLER_ACCOUNT_MISSING, con botón a la tarjeta «Cuenta en Publer»); conexión con Instagram que caduca en 7 días o menos, o ya caducada (INSTAGRAM_CONNECTION_EXPIRING, con botón a la tarjeta «Instagram · API oficial», donde está «Renovar conexión»); propuestas retenidas (por la carpeta de Encargos, Drive cerrado o el límite diario), propuestas por revisar, marca sin todas sus carpetas, encargos sin recoger, marca sin cuenta de Publora, sin carpeta de copias, marca sin promoción activa, propuestas pedidas en camino y, la última, promoción activada sola hoy (PROMOTION_AUTO_STARTED, informativa: solo el día en que se activa). CONTENT_MISSING: publicación en producción sin contenido (sin piezas y fuera de cualquier spec abierto) que sale en menos de 3 días; con «publication_ids» y «promotion_id», el botón «Pedir contenido ya» pide un spec urgente a mano de esas publicaciones (sin target: no navega). IDENTITY_MISSING: marca con promoción en marcha a la que le falta el tono o el público (botón a su identidad; los temas que no se tocan vacíos son válidos). PUBLICATION_TOO_SOON: publicaciones de camino a publicar a las que ya no quedan 6 horas de margen, o cuya hora ya pasó, y aún no están programadas (botón a las pendientes de la promoción). SPEC_WAITING ya no se calcula (el spec se pide por lotes, no por semana) y se conserva solo por compatibilidad
+             * @description Por orden de prioridad: marca sin forma de publicar (NO_PUBLISHING_ROUTE) y tarea del PC «Publicar con Chrome» sin contestar (PC_TASK_SILENT), que van primero porque bloquean publicaciones reales (también salen como aviso en «Necesita atención»); marca sin cuenta de Publer para una red con publicaciones retenidas (PUBLER_ACCOUNT_MISSING, con botón a la tarjeta «Cuenta en Publer»); conexión con Instagram que caduca en 7 días o menos, o ya caducada (INSTAGRAM_CONNECTION_EXPIRING, con botón a la tarjeta «Instagram · API oficial», donde está «Renovar conexión»); propuestas retenidas (por la carpeta de Encargos, Drive cerrado o el límite diario), propuestas por revisar, marca sin todas sus carpetas, encargos sin recoger, marca sin cuenta de Publora, sin carpeta de copias, marca sin promoción activa, propuestas pedidas en camino y, la última, promoción activada sola hoy (PROMOTION_AUTO_STARTED, informativa: solo el día en que se activa). CONTENT_MISSING: publicación en producción sin contenido (sin piezas y fuera de cualquier spec abierto) que sale en menos de 3 días; con «publication_ids» y «promotion_id», el botón «Pedir contenido ya» pide un spec urgente a mano de esas publicaciones (sin target: no navega). IDENTITY_MISSING: marca con promoción en marcha a la que le falta el tono o el público (botón a su identidad; los temas que no se tocan vacíos son válidos). PUBLICATION_TOO_SOON: publicaciones de camino a publicar a las que ya no queda el margen mínimo de publicación, o cuya hora ya pasó, y aún no están programadas (botón a las pendientes de la promoción). SPEC_WAITING ya no se calcula (el spec se pide por lotes, no por semana) y se conserva solo por compatibilidad. MATERIAL_MISSING: aviso informativo (no bloquea) de las publicaciones de una promoción a las que les falta imagen o vídeo en las carpetas de Material; dice qué fondo se usará (la portada de la marca, o un fondo con su color) y, si la promoción tiene «Estilo visual», que Claude lo usará; si la carpeta no está disponible, avisa de que no se ha podido comprobar (botón a las carpetas de la marca)
              * @enum {string}
              */
-            kind: "HELD_PROPOSALS" | "PROPOSALS_TO_REVIEW" | "BRAND_FOLDERS_MISSING" | "ORDERS_NOT_COLLECTED" | "PUBLORA_MISSING" | "BACKUP_FOLDER_MISSING" | "NO_ACTIVE_PROMOTION" | "PROPOSALS_PENDING" | "SPEC_WAITING" | "PC_TASK_SILENT" | "NO_PUBLISHING_ROUTE" | "PUBLER_ACCOUNT_MISSING" | "INSTAGRAM_CONNECTION_EXPIRING" | "PROMOTION_AUTO_STARTED" | "CONTENT_MISSING" | "IDENTITY_MISSING" | "PUBLICATION_TOO_SOON";
+            kind: "HELD_PROPOSALS" | "PROPOSALS_TO_REVIEW" | "BRAND_FOLDERS_MISSING" | "ORDERS_NOT_COLLECTED" | "PUBLORA_MISSING" | "BACKUP_FOLDER_MISSING" | "NO_ACTIVE_PROMOTION" | "PROPOSALS_PENDING" | "SPEC_WAITING" | "PC_TASK_SILENT" | "NO_PUBLISHING_ROUTE" | "PUBLER_ACCOUNT_MISSING" | "INSTAGRAM_CONNECTION_EXPIRING" | "PROMOTION_AUTO_STARTED" | "CONTENT_MISSING" | "IDENTITY_MISSING" | "PUBLICATION_TOO_SOON" | "MATERIAL_MISSING";
             /** @description Texto en español */
             title: string;
             /** @description Más información (por ejemplo, el motivo de un encargo retenido) */
@@ -1685,6 +1703,32 @@ export interface components {
             label: string;
             configured: boolean;
         };
+        PublishSettings: {
+            /**
+             * Format: int32
+             * @description Margen mínimo de publicación, en minutos: una publicación solo se puede programar si su hora queda al menos a este margen de ahora (nunca se publica al instante). Es la única fuente: la usan las validaciones de edición y programación, el motor de publicación, «Qué hacer ahora» y los encargos a Claude
+             */
+            min_margin_minutes: number;
+            /**
+             * Format: int32
+             * @description Valor por defecto (30)
+             */
+            default_minutes: number;
+            /**
+             * Format: int32
+             * @description Mínimo permitido (5)
+             */
+            min_minutes: number;
+            /**
+             * Format: int32
+             * @description Máximo permitido (1440: un día)
+             */
+            max_minutes: number;
+        };
+        PublishSettingsInput: {
+            /** Format: int32 */
+            min_margin_minutes: number;
+        };
         AiSettings: {
             /** Format: int32 */
             daily_limit: number;
@@ -1868,6 +1912,8 @@ export interface components {
             description?: string;
             scope?: string;
             cadence?: string;
+            /** @description Estilo visual de la promoción, en texto libre corto (por ejemplo «Navidad: rojo, dorado, nieve y estrellas»). Opcional. Claude lo usa para diseñar los fondos de las piezas que no tienen imagen ni vídeo. */
+            visual_style?: string;
             /** Format: date */
             starts_on: string;
             /** Format: date */
@@ -1915,6 +1961,8 @@ export interface components {
             description: string;
             scope: string;
             cadence: string;
+            /** @description Estilo visual de la promoción; vacío si no lo tiene */
+            visual_style?: string;
             /** Format: date */
             starts_on: string;
             /** Format: date */
@@ -2332,6 +2380,8 @@ export type PublerAccountListInput = components['schemas']['PublerAccountListInp
 export type PublerMoveInput = components['schemas']['PublerMoveInput'];
 export type PublerMoveResult = components['schemas']['PublerMoveResult'];
 export type PublishRouteState = components['schemas']['PublishRouteState'];
+export type PublishSettings = components['schemas']['PublishSettings'];
+export type PublishSettingsInput = components['schemas']['PublishSettingsInput'];
 export type AiSettings = components['schemas']['AiSettings'];
 export type AiSettingsInput = components['schemas']['AiSettingsInput'];
 export type AiOrderInput = components['schemas']['AiOrderInput'];
@@ -4300,6 +4350,56 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AiSettings"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    getPublishSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Ajustes vigentes */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublishSettings"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    updatePublishSettings: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PublishSettingsInput"];
+            };
+        };
+        responses: {
+            /** @description Ajustes guardados */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublishSettings"];
                 };
             };
             400: components["responses"]["Problem"];

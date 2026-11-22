@@ -51,7 +51,8 @@ class PublishingEngineHeldTest {
             @Override public Outcome schedule(Publication p, PublishJob job, Instant now) { return new Outcome.Held(reason); }
         };
         return new PublishingEngine(jobs, publications, mock(PublicationFileRepository.class), mock(PromotionQueries.class),
-                List.of(route), events, transactions, mock(AiOrders.class), Clock.fixed(NOW, ZoneId.of("UTC")));
+                List.of(route), events, transactions, mock(AiOrders.class), Clock.fixed(NOW, ZoneId.of("UTC")),
+                com.socialhub.settings.FixedMargin.of(com.socialhub.settings.FixedMargin.SIX_HOURS));
     }
 
     private Publication publication(String flag) {
@@ -142,7 +143,8 @@ class PublishingEngineHeldTest {
             @Override public Outcome schedule(Publication p, PublishJob job, Instant now) { return new Outcome.Scheduled("ext-1", null); }
         };
         var engine = new PublishingEngine(jobs, publications, mock(PublicationFileRepository.class), mock(PromotionQueries.class),
-                List.of(publer, publora), events, transactions, mock(AiOrders.class), Clock.fixed(NOW, ZoneId.of("UTC")));
+                List.of(publer, publora), events, transactions, mock(AiOrders.class), Clock.fixed(NOW, ZoneId.of("UTC")),
+                com.socialhub.settings.FixedMargin.of(com.socialhub.settings.FixedMargin.SIX_HOURS));
         var p = publication("Retenida: " + reason);
         var held = new PublishJob("p1", PublishJob.Status.HELD, 0, "Publer", null, List.of(), null, null, NOW.plusSeconds(300), 1,
                 reason, null, null, null, List.of(), NOW.minusSeconds(600), NOW.minusSeconds(300), 0);

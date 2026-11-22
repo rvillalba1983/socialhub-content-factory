@@ -130,6 +130,30 @@ class PromotionQueriesService implements PromotionQueries {
         return repository.promotion(promotionId).map(Promotion::cadence).orElse(null);
     }
 
+    @Override
+    public String colorOf(String brandId) {
+        return repository.brand(brandId).map(b -> b.color()).orElse("");
+    }
+
+    @Override
+    public Optional<String> brandMaterialFolder(String brandId) {
+        return Optional.ofNullable(folderRepository.brandFolders(brandId).get(FolderRole.MATERIAL));
+    }
+
+    @Override
+    public List<String> materialFolders(String promotionId) {
+        var all = new LinkedHashSet<String>();
+        promotion(promotionId).resources().stream().filter(r -> "DRIVE".equals(r.kind())).map(Promotion.Resource::location)
+                .forEach(all::add);
+        folderOf(promotionId, FolderRole.MATERIAL).ifPresent(all::add);
+        return List.copyOf(all);
+    }
+
+    @Override
+    public String visualStyleOf(String promotionId) {
+        return promotion(promotionId).visualStyle();
+    }
+
     /** Usuario de la marca en las redes («@elde_lito»); vacío si no existe. */
     @Override
     public String handleOf(String brandId) {

@@ -1,0 +1,15 @@
+package com.socialhub.settings.domain;
+
+import java.util.Optional;
+import org.jmolecules.architecture.hexagonal.SecondaryPort;
+
+/** Dónde se guardan los ajustes generales (no los de una marca). */
+@SecondaryPort
+public interface SettingStore {
+
+    String PUBLISH_MARGIN_MINUTES = "publish.min_margin_minutes";
+
+    Optional<String> get(String key);
+
+    void put(String key, String value);
+}

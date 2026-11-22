@@ -63,12 +63,13 @@ class InstagramRoute implements PublishRoute {
     private final PublicMediaHost host;
     private final PublicMediaRepository publicMedia;
     private final AiOrders orders;
+    private final com.socialhub.settings.PublishSettings settings;
     private final long pollMillis;
     private final int maxPolls;
 
     InstagramRoute(InstagramCredentials credentials, InstagramGateway instagram, InstagramAccountRepository accounts,
                    PublicationFileRepository files, PromotionQueries promotions, PublicMediaHost host,
-                   PublicMediaRepository publicMedia, AiOrders orders,
+                   PublicMediaRepository publicMedia, AiOrders orders, com.socialhub.settings.PublishSettings settings,
                    @Value("${socialhub.instagram.poll-millis:10000}") long pollMillis,
                    @Value("${socialhub.instagram.max-polls:30}") int maxPolls) {
         this.credentials = credentials;
@@ -79,6 +80,7 @@ class InstagramRoute implements PublishRoute {
         this.host = host;
         this.publicMedia = publicMedia;
         this.orders = orders;
+        this.settings = settings;
         this.pollMillis = pollMillis;
         this.maxPolls = maxPolls;
     }
@@ -91,7 +93,7 @@ class InstagramRoute implements PublishRoute {
 
     @Override public boolean publishesAtTime() { return true; }
 
-    @Override public Instant lastMoment(Instant scheduledAt) { return scheduledAt.minus(Publication.MIN_MARGIN); }
+    @Override public Instant lastMoment(Instant scheduledAt) { return scheduledAt.minus(settings.minMargin()); }
 
     @Override
     public Instant lastMoment(Publication p) {

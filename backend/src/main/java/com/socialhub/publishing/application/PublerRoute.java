@@ -19,7 +19,8 @@ import org.springframework.stereotype.Component;
  * {@code para-claude-pc} y Claude lo programa con Chrome en el PC de Raúl.
  * <p>
  * Claude debe hacerlo antes de 8 h de la hora de publicación (la «deadline» del encargo). El motor espera su
- * resultado hasta 7 h antes; así queda una hora para probar las otras vías sin bajar del margen de 6 h.
+ * resultado hasta 7 h antes. Publer depende de las pasadas de Claude con Chrome en el PC (una cada 5 h; de 08:00 a 18:00 solo las
+ * urgentes), así que con un margen mínimo corto (30 minutos por defecto) lo habitual es publicar por la API oficial con SocialHub abierto.
  */
 @Component
 @Order(1)

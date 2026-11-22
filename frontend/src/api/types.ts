@@ -6,7 +6,7 @@ export type {
   StationCommandType, StatusLevel, Task, TaskCommand, TaskCommandType, TaskCounts, TaskStatus, TaskStep,
   AiModel, AppMode, AppModeState, AppVersion, LogsFolder, BrandInput, PromotionInput, Milestone, PromotionResource, Automation,
   PublishingRoute, Setting, PieceSpecList, PieceSpec, PieceOrder, Folder, FolderList, FolderInput, FolderRole,
-  PublicationInput, PublicationFile, PublicationFileList, AiRequestType, AiSettings, AiSettingsInput, AiRequest,
+  PublicationInput, PublicationFile, PublicationFileList, AiRequestType, AiSettings, AiSettingsInput, PublishSettings, PublishSettingsInput, AiRequest,
   AiRequestPage, AiOrderInput, AiOrder, BrandIdentity, QualityIssue, QualityReport,
   RejectionReason, EditorialDecision, EditorialMemory, PublishJob, PublishRouteState,
   PublicationMetrics, PromotionMetrics, NetworkMetrics, FormatMetrics, ExternalCalendar, ExternalPost, ExternalSource, PubloraStatus, PubloraConnection, PubloraAccount, PubloraAccountList, PubloraAccountInput, PublerAccount, PublerAccountList, PublerAccountInput, PublerMoveInput, PublerMoveResult, AlertAction,

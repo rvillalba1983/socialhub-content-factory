@@ -37,7 +37,8 @@ class WeeklyProposalsHandlerTest {
     }
 
     private WeeklyProposalsHandler at(Instant now) {
-        return new WeeklyProposalsHandler(promotions, mock(PublishingQueriesService.class), service, Clock.fixed(now, MADRID),
+        return new WeeklyProposalsHandler(promotions, mock(PublishingQueriesService.class), service,
+                com.socialhub.settings.FixedMargin.of(com.socialhub.settings.FixedMargin.SIX_HOURS), Clock.fixed(now, MADRID),
                 mock(ExternalCalendarService.class), JSON);
     }
 
@@ -122,7 +123,7 @@ class WeeklyProposalsHandlerTest {
         assertThat(text).startsWith("2 propuestas para revisar en Publicaciones · 6 descartadas: ")
                 .contains("3 con fecha, hora, red, tipo o título no válidos")
                 .contains("2 fuera de la semana")
-                .contains("1 con fecha pasada o a menos de 6 h");
+                .contains("1 con fecha pasada o sin el margen mínimo de publicación");
         verify(service, times(2)).create(eq("lit-1"), any(), eq(PublicationStatus.PROPOSAL));
     }
 
@@ -133,7 +134,7 @@ class WeeklyProposalsHandlerTest {
         assertThat(handler.apply(week9(), proposals(p("2026-11-09", "16:00", "INSTAGRAM")), JSON.createObjectNode()))
                 .startsWith("1 propuesta para revisar");
         assertThatThrownBy(() -> handler.apply(week9(), proposals(p("2026-11-09", "15:59", "INSTAGRAM")), JSON.createObjectNode()))
-                .hasMessageContaining("1 descartada: 1 con fecha pasada o a menos de 6 h");
+                .hasMessageContaining("1 descartada: 1 con fecha pasada o sin el margen mínimo de publicación");
     }
 
     @Test
