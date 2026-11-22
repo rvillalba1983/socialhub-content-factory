@@ -63,6 +63,10 @@ public final class Task {
     private final List<TaskCheck> checks;
     private final Set<String> dependsOn;
     private final List<TaskHistoryEntry> history;
+    /** Respuestas de Raúl a lo que Claude ha preguntado, de más antigua a más reciente (se acumulan entre intentos). */
+    private final List<HumanAnswer> humanAnswers;
+    /** Opciones que Claude propuso para la pregunta abierta (vacía si no propuso ninguna o no hay pregunta). */
+    private List<String> questionOptions;
     private final boolean demo;
     private final long version;
 
@@ -77,7 +81,8 @@ public final class Task {
                 boolean paused, double progress, Agent agent, @Nullable String reason, @Nullable String error,
                 @Nullable String result, boolean human, int attempts, int maxAttempts, @Nullable Instant startedAt,
                 @Nullable List<TaskStep> steps, @Nullable List<TaskCheck> checks, @Nullable Set<String> dependsOn,
-                @Nullable List<TaskHistoryEntry> history, boolean demo, long version, @Nullable String waitingFor, boolean manual) {
+                @Nullable List<TaskHistoryEntry> history, boolean demo, long version, @Nullable String waitingFor, boolean manual,
+                @Nullable List<HumanAnswer> humanAnswers, @Nullable List<String> questionOptions) {
         this.id = Objects.requireNonNull(id);
         this.stationId = Objects.requireNonNull(stationId);
         this.promotionId = promotionId;
@@ -102,6 +107,8 @@ public final class Task {
         this.checks = checks == null ? new ArrayList<>() : new ArrayList<>(checks);
         this.dependsOn = dependsOn == null ? Set.of() : Collections.unmodifiableSet(new LinkedHashSet<>(dependsOn));
         this.history = history == null ? new ArrayList<>() : new ArrayList<>(history);
+        this.humanAnswers = humanAnswers == null ? new ArrayList<>() : new ArrayList<>(humanAnswers);
+        this.questionOptions = questionOptions == null ? List.of() : List.copyOf(questionOptions);
         this.demo = demo;
         this.version = version;
         this.waitingFor = status == BLOCKED ? waitingFor : null;
@@ -125,6 +132,8 @@ public final class Task {
                     commands.add(TaskCommandType.RESUME);
                 } else if (human && TYPE_REVIEW.equals(type)) {
                     commands.addAll(List.of(TaskCommandType.APPROVE, TaskCommandType.REMIND));
+                } else if (human && isAiRequest()) {
+                    commands.addAll(List.of(TaskCommandType.ANSWER, TaskCommandType.REMIND, TaskCommandType.MARK_DONE));
                 } else if (human) {
                     commands.addAll(List.of(TaskCommandType.REMIND, TaskCommandType.MARK_DONE));
                 } else if (isAiRequest()) {
@@ -249,6 +258,7 @@ public final class Task {
                 }
             }
             case REMIND -> record(now, "Aviso preparado para Raúl");
+            case ANSWER -> throw new DomainException("Para responder a Claude hace falta el texto de la respuesta.");
             case CHANGE_AGENT -> {
                 if (model == null) throw new IllegalArgumentException("Falta el modelo para cambiar de agente");
                 Agent next = Agent.ai(model);
@@ -338,10 +348,43 @@ public final class Task {
 
     /** Claude necesita que Raúl decida algo. */
     public void aiNeedsHuman(String reasonText, Instant now) {
+        aiNeedsHuman(reasonText, List.of(), now);
+    }
+
+    /** Claude necesita que Raúl decida algo y propone, si quiere, respuestas cortas para elegir. */
+    public void aiNeedsHuman(String reasonText, List<String> options, Instant now) {
         requireWaitingForAi();
         human = true;
         reason = reasonText;
+        questionOptions = options.stream().filter(o -> !o.isBlank()).map(String::strip).distinct().limit(MAX_OPTIONS).toList();
         record(now, "Claude pide a Raúl: " + reasonText);
+    }
+
+    public static final int MAX_OPTIONS = 6;
+    public static final int MAX_ANSWER_LENGTH = 2000;
+
+    /**
+     * Raúl contesta a lo que Claude preguntó: la respuesta se guarda junto a la pregunta y el encargo vuelve a la cola
+     * para salir otra vez con ella entre sus datos de entrada. No gasta un intento.
+     */
+    public void answerAi(String answerText, Instant now) {
+        if (status != WAITING || paused || !human || !isAiRequest() || TYPE_REVIEW.equals(type)) {
+            throw new DomainException("Esta tarea no está esperando una respuesta tuya para Claude.");
+        }
+        String answer = answerText == null ? "" : answerText.strip();
+        if (answer.isEmpty()) throw new DomainException("Escribe una respuesta antes de enviarla.");
+        if (answer.length() > MAX_ANSWER_LENGTH) {
+            throw new DomainException("La respuesta es demasiado larga (máximo " + MAX_ANSWER_LENGTH + " caracteres).");
+        }
+        String question = reason == null || reason.isBlank() ? "Claude necesita que lo revises." : reason;
+        humanAnswers.add(new HumanAnswer(question, answer, now));
+        questionOptions = List.of();
+        human = false;
+        manual = true;
+        status = QUEUED;
+        error = null;
+        reason = "Respuesta enviada: el encargo vuelve a Claude en cola.";
+        record(now, "Raúl responde a Claude: " + answer);
     }
 
     /** Lo ha pedido o reintentado Raúl: solo tiene sentido en un encargo a Claude. */
@@ -491,6 +534,7 @@ public final class Task {
     public List<TaskStep> getSteps() { return Collections.unmodifiableList(steps); }
     public List<TaskCheck> getChecks() { return Collections.unmodifiableList(checks); }
     public List<TaskHistoryEntry> getHistory() { return Collections.unmodifiableList(history); }
+    public List<HumanAnswer> getHumanAnswers() { return Collections.unmodifiableList(humanAnswers); }
 
     /** Líneas del historial añadidas desde que se cargó la tarea (se guardan solo estas). */
     public List<TaskHistoryEntry> newHistory() { return Collections.unmodifiableList(newHistory); }

@@ -61,6 +61,7 @@ class WeeklySpecHandler implements AiTypeHandler {
     private final PieceOrders orders;
     private final SpecReader reader;
     private final PiecePublications piecePublications;
+    private final com.socialhub.publishing.PublicationCitations citations;
     private final JsonContracts contracts;
     private final ObjectMapper json;
     private final Clock clock;
@@ -315,11 +316,24 @@ class WeeklySpecHandler implements AiTypeHandler {
             throw new IllegalArgumentException("El spec no se puede encargar: " + e.getMessage());
         }
         String taskId = orders.order(job.promotionId(), file.toString());
+        declareCitations(spec);
         String summary = outputs.path("summary").isString() ? outputs.path("summary").asString().strip() : "";
         return "spec guardado en " + file + " · piezas encargadas (tarea " + taskId + ")"
                 + (discarded == 0 ? "" : " · aviso: " + discarded + (discarded == 1 ? " pieza descartada" : " piezas descartadas")
                         + " por no ser de las publicaciones de este encargo")
                 + (summary.isEmpty() ? "" : " · " + summary);
+    }
+
+    /** Las citas de cada pieza (piezas[].citations) pasan a su publicación, donde el control de calidad las comprueba. */
+    private void declareCitations(JsonNode spec) {
+        Map<String, List<com.socialhub.publishing.PublicationCitations.Declared>> byPublication = new java.util.LinkedHashMap<>();
+        for (JsonNode piece : spec.path("piezas")) {
+            String id = piece.path("publicacion").isString() ? piece.path("publicacion").asString().strip() : "";
+            if (id.isEmpty() || !piece.has("citations")) continue;
+            byPublication.computeIfAbsent(id, k -> new java.util.ArrayList<>())
+                    .addAll(com.socialhub.publishing.PublicationCitations.parse(piece.path("citations")));
+        }
+        byPublication.forEach((id, list) -> citations.declare(id, list.stream().distinct().toList()));
     }
 
     /** El día (hora de España) en que se creó el encargo, para el nombre del archivo. */

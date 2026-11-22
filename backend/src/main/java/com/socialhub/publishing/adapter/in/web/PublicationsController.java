@@ -238,7 +238,8 @@ class PublicationsController implements PublicationsApi {
     private static QualityReportDto report(List<QualityIssue> issues) {
         List<QualityIssueDto> dtos = issues.stream().map(i -> {
             QualityIssueDto dto = new QualityIssueDto(i.key(), QualityIssueDto.SourceEnum.valueOf(i.source().name()),
-                    i.message(), !i.open());
+                    i.message(), i.acceptedReason() != null);
+            dto.setLevel(QualityIssueDto.LevelEnum.valueOf(i.level().name()));
             dto.setAcceptedReason(i.acceptedReason());
             dto.setAcceptedAt(i.acceptedAt() == null ? null : i.acceptedAt().atOffset(ZoneOffset.UTC));
             return dto;

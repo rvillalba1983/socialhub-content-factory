@@ -184,6 +184,63 @@ describe('TaskPanel', () => {
   });
 });
 
+describe('Pregunta de Claude en la tarjeta', () => {
+  const waiting = (o: Partial<Task> = {}) => task({
+    status: 'WAITING', human: true, reason: '¿Incluyo clubes de fuera de Granada?', question_options: ['Solo Granada', 'También Málaga'],
+    available_commands: [
+      { type: 'ANSWER', label: 'Responder a Claude', needs_confirmation: false },
+      { type: 'MARK_DONE', label: 'Marcar como hecho', needs_confirmation: false },
+    ], ...o,
+  });
+
+  it('enseña la pregunta, las opciones y envía la opción elegida', async () => {
+    const onAnswer = vi.fn().mockResolvedValue(undefined);
+    render(<TaskPanel t={waiting()} tasks={[]} demo onClose={() => {}} onTask={() => {}} onAction={() => {}} onAnswer={onAnswer} />);
+    expect(screen.getByText('¿Incluyo clubes de fuera de Granada?')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Responder a Claude' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'También Málaga' }));
+    await waitFor(() => expect(onAnswer).toHaveBeenCalledWith('También Málaga'));
+  });
+
+  it('envía el texto libre y no deja enviar una respuesta vacía', async () => {
+    const onAnswer = vi.fn().mockResolvedValue(undefined);
+    render(<TaskPanel t={waiting({ question_options: [] })} tasks={[]} demo onClose={() => {}} onTask={() => {}} onAction={() => {}} onAnswer={onAnswer} />);
+    const send = screen.getByRole('button', { name: 'Enviar respuesta a Claude' });
+    expect(send).toBeDisabled();
+    fireEvent.change(screen.getByLabelText('Tu respuesta'), { target: { value: '   ' } });
+    expect(send).toBeDisabled();
+    fireEvent.change(screen.getByLabelText('Tu respuesta'), { target: { value: ' Solo Granada ' } });
+    fireEvent.click(send);
+    await waitFor(() => expect(onAnswer).toHaveBeenCalledWith('Solo Granada'));
+    expect(onAnswer).toHaveBeenCalledTimes(1);
+  });
+
+  it('enseña el error del backend junto a la caja y conserva lo escrito', async () => {
+    const onAnswer = vi.fn().mockRejectedValue(new Error('Esta tarea no está esperando una respuesta tuya para Claude.'));
+    render(<TaskPanel t={waiting()} tasks={[]} demo onClose={() => {}} onTask={() => {}} onAction={() => {}} onAnswer={onAnswer} />);
+    fireEvent.change(screen.getByLabelText('Tu respuesta'), { target: { value: 'Sí' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar respuesta a Claude' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('no está esperando');
+    expect(screen.getByLabelText('Tu respuesta')).toHaveValue('Sí');
+  });
+
+  it('recuerda lo ya contestado y no enseña la caja si no hay pregunta abierta', () => {
+    render(<TaskPanel t={task({ status: 'WAITING', human_answers: [{ question: '¿Qué verso?', answer: 'El segundo', answered_at: '2026-11-16T10:00:00Z' }] })}
+      tasks={[]} demo onClose={() => {}} onTask={() => {}} onAction={() => {}} onAnswer={vi.fn()} />);
+    expect(screen.getByText('¿Qué verso?')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Tu respuesta')).not.toBeInTheDocument();
+  });
+
+  it('envía la respuesta a /answer con la cabecera de protección', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify(task({})), { status: 200 }));
+    await api.answerTask('t1', 'Solo Granada');
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('/api/tasks/t1/answer');
+    expect((init?.headers as Record<string, string>)['X-SocialHub-Request']).toBe('1');
+    expect(JSON.parse(String(init?.body))).toEqual({ answer: 'Solo Granada' });
+  });
+});
+
 describe('api', () => {
   it('envía las órdenes a /commands con la cabecera de protección', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify(task({})), { status: 200 }));
@@ -934,6 +991,28 @@ describe('Control de calidad', () => {
     expect(await screen.findByText(/Aceptado: Se sube en Publer/)).toBeInTheDocument();
     expect(screen.getByText(/\(vale mientras no cambie la publicación\)/)).toBeInTheDocument();
     expect(screen.getByText(/las aceptaciones se anulan y los avisos se comprueban de nuevo/)).toBeInTheDocument();
+    expect(screen.getByText(/1 aviso abierto/)).toBeInTheDocument();
+  });
+
+  it('enseña citas y enlaces como información que no se acepta ni cuenta como abierta', async () => {
+    const publication: Publication = {
+      id: 'p-1', promotion_id: 'p', platform: 'INSTAGRAM', type: 'Post', title: 'Poema 1',
+      scheduled_on: '2026-11-10', scheduled_time: '19:00', timezone: 'Europe/Madrid', status: 'IN_PRODUCTION', route: 'Publer', demo: false,
+    };
+    vi.spyOn(api, 'publicationFiles').mockResolvedValue({ items: [] });
+    vi.spyOn(api, 'publicationQuality').mockResolvedValue({ open: 1, issues: [
+      { key: 'CITATION:ab12cd34', source: 'CODE', message: 'Sin verificar: comprueba la cita en poemario.pdf, página 4.', accepted: false },
+      { key: 'LINK:https://litoques.es', source: 'CODE', level: 'INFO', message: 'Enlace OK: https://litoques.es', accepted: false },
+      { key: 'LINK:https://roto.example', source: 'CODE', level: 'INFO', message: 'No responde: https://roto.example', accepted: false },
+      { key: 'REUSED:p-0', source: 'CODE', level: 'INFO', message: 'Este texto ya se usó el 3 nov 2026 (publicación p-0).', accepted: false },
+    ] });
+    render(<PublicationEditor promotionId="p" publication={publication} onClose={() => {}} onSaved={() => {}} />);
+    expect(await screen.findByText('Enlace OK: https://litoques.es')).toBeInTheDocument();
+    expect(screen.getByText('No responde: https://roto.example')).toBeInTheDocument();
+    expect(screen.getByText(/Este texto ya se usó el 3 nov 2026/)).toBeInTheDocument();
+    expect(screen.getByText(/Sin verificar: comprueba la cita en poemario.pdf/)).toBeInTheDocument();
+    // Solo el aviso de la cita se puede aceptar; los informativos no llevan botón
+    expect(screen.getAllByRole('button', { name: 'Aceptar' })).toHaveLength(1);
     expect(screen.getByText(/1 aviso abierto/)).toBeInTheDocument();
   });
 

@@ -17,6 +17,7 @@ public enum TaskCommandType {
     APPROVE("Aprobar como Raúl"),
     MARK_DONE("Marcar como hecho"),
     REMIND("Avisar a Raúl"),
+    ANSWER("Responder a Claude"),
     CHANGE_AGENT("Cambiar agente");
 
     private final String label;

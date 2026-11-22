@@ -320,10 +320,19 @@ class ProductionService implements ProductionOrders, ProductionTasks, Production
 
     @Transactional
     @Override
-    public void aiNeedsHuman(String taskId, String reason) {
+    public void aiNeedsHuman(String taskId, String reason, List<String> options) {
         Task task = task(taskId);
-        task.aiNeedsHuman(reason, clock.instant());
+        task.aiNeedsHuman(reason, options, clock.instant());
         persist(task);
+    }
+
+    /** Raúl contesta a Claude: la respuesta queda en la tarea y el encargo vuelve a la cola. */
+    @Transactional
+    @Override
+    public Task answer(String taskId, String answer) {
+        Task task = task(taskId);
+        task.answerAi(answer, clock.instant());
+        return persist(task);
     }
 
     private static AiTask toAiTask(Task t) {
@@ -333,7 +342,8 @@ class ProductionService implements ProductionOrders, ProductionTasks, Production
                 : AiModel.SONNET.name();
         Instant created = t.getHistory().isEmpty() ? Instant.EPOCH : t.getHistory().getFirst().at();
         return new AiTask(t.getId(), t.getType(), t.getPromotionId(), t.getTitle(), t.getGoal(), t.getInputs(),
-                t.getAttempts(), model, created, t.isManual());
+                t.getAttempts(), model, created, t.isManual(),
+                t.getHumanAnswers().stream().map(a -> new AiTask.HumanAnswer(a.question(), a.answer(), a.at())).toList());
     }
 
     /** Toma de la cola hasta {@code limit} tareas de esos tipos en estaciones que aceptan trabajo y las pone en marcha. */

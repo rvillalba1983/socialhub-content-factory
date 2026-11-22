@@ -1,6 +1,7 @@
 package com.socialhub.production.adapter.in.web;
 
 import com.socialhub.api.TasksApi;
+import com.socialhub.api.model.TaskAnswerDto;
 import com.socialhub.api.model.TaskCommandDto;
 import com.socialhub.api.model.TaskDto;
 import com.socialhub.api.model.TaskListDto;
@@ -44,5 +45,10 @@ class TasksController implements TasksApi {
         var task = service.execute(taskId, TaskCommandType.valueOf(command.getType().name()),
                 mapper.toDomain(command.getModel()));
         return ResponseEntity.ok(mapper.toDto(task));
+    }
+
+    @Override
+    public ResponseEntity<TaskDto> answerTask(String taskId, String requestGuard, TaskAnswerDto answer) {
+        return ResponseEntity.ok(mapper.toDto(service.answer(taskId, answer.getAnswer())));
     }
 }

@@ -416,6 +416,13 @@ export function Factory({ data, live, onRefresh }: {
     }
   }, [onRefresh, say]);
 
+  /** Raúl contesta a la pregunta de Claude: si falla, el error vuelve a la tarjeta para que lo vea junto a la caja. */
+  const answerTask = useCallback(async (t: Task, answer: string) => {
+    await api.answerTask(t.id, answer);
+    say(`Respuesta enviada a Claude · ${t.title}`);
+    onRefresh();
+  }, [onRefresh, say]);
+
   const switchMode = useCallback(async (mode: AppMode) => {
     try {
       await api.changeAppMode(mode);
@@ -544,7 +551,7 @@ export function Factory({ data, live, onRefresh }: {
       <main className="vp" ref={vp} data-lod="1">
         <div className="world" ref={world}>
           <World data={data} sel={sel} onStation={goStation} onTask={goTask}
-            onTaskAction={(t, a) => (t.available_commands.find(x => x.type === a)?.needs_confirmation ? goTask(t.id) : runTask(t, a))}
+            onTaskAction={(t, a) => (a === 'ANSWER' || t.available_commands.find(x => x.type === a)?.needs_confirmation ? goTask(t.id) : runTask(t, a))}
             onArmory={goArmory}
             onPublication={goPublication}
             onAlertAction={alertAction}
@@ -578,7 +585,7 @@ export function Factory({ data, live, onRefresh }: {
         {selTask && (
           <TaskPanel key={selTask.id} t={selTask} station={data.stations.find(s => s.id === selTask.station_id)} brand={brandOf(selTask.promotion_id)}
             tasks={data.tasks} demo={data.demo} onClose={() => setSel({ type: null, id: null })} onTask={goTask}
-            onAction={(a, model) => runTask(selTask, a, model)} />
+            onAction={(a, model) => runTask(selTask, a, model)} onAnswer={answer => answerTask(selTask, answer)} />
         )}
         {selArmory && <ArmoryPanel item={selArmory} data={data} onClose={() => setSel({ type: null, id: null })} onStation={goStation} onRefresh={onRefresh} />}
 

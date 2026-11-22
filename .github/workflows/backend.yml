@@ -56,6 +56,12 @@ jobs:
         run: |
           jar tf target/socialhub.jar | grep -q 'BOOT-INF/lib/batik-transcoder-' || { echo "::error::El jar no incluye batik-transcoder"; exit 1; }
           jar tf target/socialhub.jar | grep -q 'BOOT-INF/lib/xmlgraphics-commons-' || { echo "::error::El jar no incluye xmlgraphics-commons"; exit 1; }
+      # Las citas de los PDF se comprueban con Apache PDFBox (solo el módulo pdfbox y lo que trae)
+      - name: Comprobar que el jar lleva Apache PDFBox
+        shell: bash
+        run: |
+          jar tf target/socialhub.jar | grep -q 'BOOT-INF/lib/pdfbox-3' || { echo "::error::El jar no incluye pdfbox"; exit 1; }
+          jar tf target/socialhub.jar | grep -q 'BOOT-INF/lib/fontbox-' || { echo "::error::El jar no incluye fontbox"; exit 1; }
       - name: Arrancar SocialHub y comprobar que responde
         shell: bash
         run: |

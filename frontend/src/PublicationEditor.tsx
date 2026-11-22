@@ -371,11 +371,21 @@ export function whatToDo(key: string, source: string): string {
     case 'CAROUSEL_COUNT': return 'ajusta el número de imágenes del carrusel a lo que admite la red.';
     case 'CAROUSEL_MIX': return 'usa solo fotos o solo vídeos en esta publicación.';
     case 'VIDEO_MISSING': return 'añade el archivo de vídeo en «Archivos».';
+    case 'CITATION': return 'corrige la cita para que sea literal del documento o pide a Claude otro fragmento. Si dice «sin verificar» y ya la has comprobado tú en el documento, acéptala con tu motivo.';
     default: return source === 'CLAUDE'
       ? 'léelo y corrige lo que señala; si no estás de acuerdo, acéptalo con tu motivo.'
       : 'corrígelo o, si lo das por bueno así, acéptalo con tu motivo.';
   }
 }
+
+/** Los avisos informativos no bloquean: enlaces, texto ya usado y citas verificadas. */
+const infoLabel = (i: { key: string; message: string }) => {
+  if (i.key.startsWith('LINK:')) return i.message.startsWith('Enlace OK') ? 'Enlace OK' : i.message.startsWith('No responde') ? 'No responde' : 'No comprobado';
+  if (i.key.startsWith('REUSED:')) return 'Texto repetido';
+  if (i.key.startsWith('CITATION:')) return 'Cita verificada';
+  return 'Información';
+};
+const infoClass = (i: { key: string; message: string }) => (i.message.startsWith('No responde') ? 's-block' : i.message.startsWith('Enlace OK') || i.key.startsWith('CITATION:') ? 's-ok' : '');
 
 /** Control de calidad: avisos del código y de Claude. Cada uno se corrige o se acepta con su motivo. */
 function QualityPanel({ publication, promotionId, margin }: { publication: Publication; promotionId: string; margin: string }) {
@@ -418,6 +428,10 @@ function QualityPanel({ publication, promotionId, margin }: { publication: Publi
         <ul>
           <li><b>Aceptar</b> significa «lo doy por bueno aunque falle». Escribes el motivo, el aviso deja de bloquear y queda anotado.
             Solo vale mientras no cambie la publicación: si cambias el texto, los hashtags o los archivos, las aceptaciones se anulan y los avisos se comprueban de nuevo (reaparecen si siguen fallando).</li>
+          <li><b>Citas y enlaces:</b> si Claude cita un verso o una letra, SocialHub comprueba que aparece literal en un documento de las carpetas de la
+            promoción (txt, md y PDF con texto); si no aparece, bloquea; si el documento no se puede leer, avisa «sin verificar» y tienes que comprobarlo tú.
+            Los enlaces https del texto se prueban aparte («Enlace OK», «No responde» o «No comprobado») y el aviso «este texto ya se usó el…» sale si la marca
+            repitió el texto: estos avisos solo informan y no bloquean.</li>
           <li><b>Comprobar de nuevo</b> vuelve a pasar las comprobaciones. Úsalo después de corregir algo (añadir un archivo, cambiar el texto…).</li>
           <li><b>Revisar con Claude</b> le pide a Claude una segunda lectura: coherencia, tono de la marca, ortografía y datos sin fuente.
             Sus avisos llegan aquí en la siguiente recogida.</li>
@@ -425,7 +439,12 @@ function QualityPanel({ publication, promotionId, margin }: { publication: Publi
         <p>Aparte, para programar hace falta el margen mínimo de publicación antes de la hora ({margin} en esta publicación, ajustable en «Encargos a Claude»).</p>
       </details>
       {report && report.issues.length === 0 && <p className="src">Sin avisos.</p>}
-      {report?.issues.map(i => (
+      {report?.issues.map(i => i.level === 'INFO' ? (
+        <div key={i.key} className="quality-row quality-info">
+          <span className={`pill ${infoClass(i)}`}>{infoLabel(i)}</span>
+          <span>{i.message}</span>
+        </div>
+      ) : (
         <div key={i.key} className="quality-row">
           <span className={`pill ${i.accepted ? 's-ok' : 's-block'}`}>{i.source === 'CLAUDE' ? 'Claude' : 'Comprobación'}</span>
           <span>{i.message}{i.accepted && <small className="src"> · Aceptado: {i.accepted_reason} (vale mientras no cambie la publicación)</small>}

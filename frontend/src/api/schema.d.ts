@@ -1258,6 +1258,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tasks/{task_id}/answer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Contesta a la pregunta que Claude hizo en un encargo
+         * @description Solo si la tarea ofrece `ANSWER` en `available_commands` (encargo a Claude en espera de Raúl). Guarda la
+         *     pregunta con la respuesta y relanza el encargo: la respuesta sale en `inputs.human_answers` (acumulada con las
+         *     de intentos anteriores). Una respuesta vacía responde 409 y no se envía nada.
+         */
+        post: operations["answerTask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/stations": {
         parameters: {
             query?: never;
@@ -1365,7 +1387,7 @@ export interface components {
         /** @enum {string} */
         TaskStatus: "IDLE" | "QUEUED" | "RUNNING" | "WAITING" | "BLOCKED" | "FAILED" | "COMPLETED" | "CANCELLED";
         /** @enum {string} */
-        TaskCommandType: "PAUSE" | "RESUME" | "CANCEL" | "DISCARD" | "RETRY" | "SWITCH_TO_MANUAL" | "RUN_NOW" | "RESCHEDULE" | "RECHECK" | "START" | "RERUN" | "REOPEN" | "APPROVE" | "MARK_DONE" | "REMIND" | "CHANGE_AGENT";
+        TaskCommandType: "PAUSE" | "RESUME" | "CANCEL" | "DISCARD" | "RETRY" | "SWITCH_TO_MANUAL" | "RUN_NOW" | "RESCHEDULE" | "RECHECK" | "START" | "RERUN" | "REOPEN" | "APPROVE" | "MARK_DONE" | "REMIND" | "ANSWER" | "CHANGE_AGENT";
         /** @enum {string} */
         AgentKind: "AI" | "LOCAL" | "HUMAN" | "BROWSER" | "CONNECTOR";
         /** @enum {string} */
@@ -2259,12 +2281,26 @@ export interface components {
             /** Format: date-time */
             started_at?: string;
             inputs: string[];
+            /** @description Respuestas cortas que Claude propuso para su pregunta (la pregunta es `reason`). Puede estar vacía. */
+            question_options?: string[];
+            /** @description Lo que Claude preguntó y lo que Raúl contestó, de más antigua a más reciente */
+            human_answers?: components["schemas"]["HumanAnswer"][];
             steps: components["schemas"]["TaskStep"][];
             checks: components["schemas"]["TaskCheck"][];
             depends_on: string[];
             events: components["schemas"]["TaskEvent"][];
             available_commands: components["schemas"]["AvailableCommand"][];
             demo: boolean;
+        };
+        HumanAnswer: {
+            question: string;
+            answer: string;
+            /** Format: date-time */
+            answered_at: string;
+        };
+        TaskAnswer: {
+            /** @description Texto de la respuesta. No puede estar vacío ni en blanco (responde 409) */
+            answer: string;
         };
         Agent: {
             kind: components["schemas"]["AgentKind"];
@@ -2461,6 +2497,12 @@ export interface components {
             accepted_reason?: string;
             /** Format: date-time */
             accepted_at?: string;
+            /**
+             * @description BLOCKING (por defecto): impide aprobar y programar hasta corregirlo o aceptarlo. INFO: solo informa (estado de los
+             *     enlaces, texto ya usado, cita verificada); no cuenta en `open` ni se acepta.
+             * @enum {string}
+             */
+            level?: "BLOCKING" | "INFO";
         };
         QualityReport: {
             issues: components["schemas"]["QualityIssue"][];
@@ -2664,6 +2706,8 @@ export type StationCommandType = components['schemas']['StationCommandType'];
 export type StationCommand = components['schemas']['StationCommand'];
 export type TaskList = components['schemas']['TaskList'];
 export type Task = components['schemas']['Task'];
+export type HumanAnswer = components['schemas']['HumanAnswer'];
+export type TaskAnswer = components['schemas']['TaskAnswer'];
 export type Agent = components['schemas']['Agent'];
 export type TaskStep = components['schemas']['TaskStep'];
 export type TaskCheck = components['schemas']['TaskCheck'];
@@ -4962,6 +5006,39 @@ export interface operations {
         };
         responses: {
             /** @description Tarea tras aplicar el comando */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Task"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    answerTask: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path: {
+                task_id: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskAnswer"];
+            };
+        };
+        responses: {
+            /** @description Tarea tras responder (vuelve a la cola) */
             200: {
                 headers: {
                     [name: string]: unknown;

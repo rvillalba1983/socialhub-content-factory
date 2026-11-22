@@ -37,6 +37,8 @@ PR `fase-12-funciones-finales` (pendiente de merge): arranque con Windows en seg
 
 - Publicaciones: aviso de duplicados con «Descartar esta», resultado de cada publicación (Publicada ✓ / Falló / Retrasada / Pendiente / Sin confirmar) y «Mover a la siguiente hora libre» (PR `fase-12-publicaciones-estado`, pendiente de revisión).
 
+- Claude pregunta y Raúl contesta desde la tarjeta; las citas se comprueban contra los documentos de la promoción (PDFBox) y los enlaces https se prueban en el control de calidad (PR `fase-12-claude-preguntas-citas`, pendiente de revisión). Para que Claude use `human_answers` y `citations` basta con que el encargo llegue con las reglas nuevas (van dentro de cada encargo); el texto de la tarea programada se actualizó en `docs/tarea-programada-encargos.md` y no se ha tocado la tarea existente.
+
 ## Siguiente (para Raúl)
 
 1. Instalar SocialHub 1.0.0 cuando se publique la release.

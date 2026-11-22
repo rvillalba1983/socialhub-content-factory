@@ -55,7 +55,7 @@ class QualityReviewHandler implements AiTypeHandler {
         queries.find(id).ifPresent(p -> inputs.put("publication", PublishingQueriesService.forAi(p)));
         inputs.put("files", files.files(id).stream().map(PublicationFile::path).toList());
         inputs.put("automatic_checks", quality.issues(id).stream()
-                .filter(i -> i.source() == QualityIssue.Source.CODE).map(QualityIssue::message).toList());
+                .filter(i -> i.source() == QualityIssue.Source.CODE && i.level() == QualityIssue.Level.BLOCKING).map(QualityIssue::message).toList());
         inputs.put("expected_outputs", "issues: [{message}] con lo que hay que corregir (coherencia del mensaje, tono e "
                 + "identidad de la marca, ortografía, afirmaciones sin fuente, restricciones de la marca); lista vacía si "
                 + "está bien. No repitas lo de automatic_checks. summary: una línea.");
