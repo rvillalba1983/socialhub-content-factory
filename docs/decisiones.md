@@ -930,3 +930,13 @@ Decisiones técnicas:
 - **Formulario:** el color empieza vacío al crear; selector de color más un campo `#RRGGBB` (para poder elegir también el negro, que el selector no distingue de «sin elegir»).
 - **Duplicados:** el tipo se compara sin mayúsculas, tildes ni espacios sobrantes. El duplicado por misma hora y mismo texto también ignora ideas y propuestas. Los avisos de calidad del texto repetido entre promociones (`QualityService`) no cambian.
 - **Huecos libres:** `FreeSlot.next` ya solo retrasaba; se añade una prueba que lo fija.
+
+## Fase 12 · Cierre: cuentas de prueba, tareas de Claude y carpeta «info» (decididos por Raúl el 16 y el 22 nov 2026)
+
+Respuestas de Raúl:
+- **16 nov · Cuentas de prueba:** las cuentas actuales de Instagram (@litoques, @elde_lito) y el TikTok compartido son cuentas de prueba de SocialHub. Da igual publicar algo mal. Nunca se publica al instante.
+- **22 nov · Tareas programadas de Claude:** se borraron «Encargos de SocialHub» y «Publicar con Chrome». Se recrearán, con el texto de `docs/tarea-programada-encargos.md` y con el OK de Raúl, en la prueba de cero. Las 27 publicaciones de prueba y las tareas de espera de la app (spec, balances, propuestas, lectura de calendario) se cancelaron.
+- **22 nov · Carpeta `info`:** no tiene papel propio; valen los documentos de las carpetas de la promoción. Las citas «sin verificar» bloquean. Una pieza sin fondo de una marca sin color falla con mensaje.
+- **22 nov · Dudas del programador:** se dejan como están. Las mayúsculas cuentan en las citas; el aviso de color vale para toda marca sin color; los avisos de texto repetido entre promociones siguen contando ideas y propuestas.
+
+Pendiente para la fase 13 o después (sin decidir cómo): aviso de publicaciones a la misma hora, lectura de Word/odt, OCR de texto en imágenes y la «prueba de cero» con Raúl.

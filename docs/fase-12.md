@@ -1,6 +1,6 @@
 # Fase 12 · Todo lo pendiente (una sola fase)
 
-Estado: **hecha** (unida a `main` el 12 nov 2026). Falta la revisión de Raúl con pruebas funcionales completas y una publicación real por la API oficial.
+Estado: **código hecho y en `main`** (PR #36 a #78, hasta el 22 nov 2026). **No hay nada probado con publicaciones reales todavía:** falta la «prueba de cero» con Raúl (ver «Cierre»).
 
 Raúl pidió seguir sin él y revisar todo al final con pruebas funcionales completas. Sobre SocialHub 0.9.3 no contestó qué había visto: se toma «nada».
 
@@ -181,3 +181,17 @@ El `.msi` no avisaba de que había terminado. Ahora:
 3. La CI lee las tablas del `.msi` (falla si falta `ExitDialog`), prueba los avisos y, de forma informativa, instala y desinstala con la interfaz real y guarda capturas.
 
 Detalle técnico y límites en `docs/decisiones.md`. Lo que Raúl debe mirar a mano: ver «Instalar y cerrar» en `MANUAL.md`.
+
+## Cierre (22 nov 2026)
+
+**Hecho y en `main`:** PR #69 (arranque con Windows, bandeja, métricas de Instagram, «Renovar conexión», aviso de versión, textos a mano), #73 (instalador), #74 (módulo `settings`, margen mínimo ajustable de 5 min a 24 h, fondos SVG con Batik, fondo propio de SocialHub, spec con `img` opcional), #75 (margen de TikTok aparte, 8 h), #76 (estado de publicaciones, duplicados, hueco libre «solo retrasar», «mover»), #77 (respuestas de Claude, citas con PDFBox, enlaces, «este texto ya se usó»; V31 y V32) y #78 (aviso del margen de TikTok, color de marca obligatorio, duplicados solo desde «En producción» y mismo título y tipo).
+
+**Decisiones de Raúl del cierre:** cuentas actuales de prueba; tareas programadas de Claude borradas (se recrean en la prueba de cero); carpeta `info`, citas sin verificar y pieza sin fondo. Detalle en `decisiones.md`.
+
+**Sin probar en real:** publicaciones reales en Instagram y TikTok, y las tareas de Claude con las reglas nuevas (no existen ahora).
+
+**Pendiente (fase 13 o más):**
+- Aviso de publicaciones a la misma hora.
+- Lectura de Word/odt.
+- OCR de texto en imágenes.
+- **Prueba de cero**, con Raúl en una próxima conversación: desinstalar, carpetas de Drive nuevas (las viejas renombradas con prefijo), configurar con Chrome, recrear las tareas de Claude con su OK y publicaciones reales de prueba en Instagram y TikTok respetando el margen.

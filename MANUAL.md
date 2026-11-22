@@ -446,6 +446,7 @@ El modo Demo no tiene copias: sus datos son de ejemplo.
 
 ## 12. Reglas que siempre se cumplen
 
+- **Estado de las tareas de Claude (22 nov):** las dos tareas programadas («Encargos de SocialHub» y «Publicar con Chrome») están borradas y se recrearán en la «prueba de cero». Hasta entonces Claude no recoge encargos por sí solo. Las cuentas de Instagram y el TikTok actuales son de prueba.
 - Nada se programa sin tu aprobación, sin pasar el control de calidad y sin el **margen mínimo de publicación** (30 minutos por defecto y 8 horas en TikTok, ajustables en «Encargos a Claude»). Nunca se publica al momento.
 - Nunca se simula una publicación: «Publicada» exige el enlace o el identificador.
 - Nunca se inventan cifras: lo que no se ve queda «Sin dato».
