@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Interfaz del .msi de SocialHub (la sustituye a la que genera jpackage: la opcion resource-dir la recoge por el nombre ui.wxf).
+  Es WiX 3 con WixUIExtension. Idea: NINGUNA pantalla de asistente antes de instalar (igual que antes: al hacer doble clic empieza
+  directamente), solo la barra de progreso y, al terminar, la pantalla final (ExitDialog) con el resultado en espanol.
+    - Instalacion nueva:      "SocialHub se ha instalado correctamente" + casilla "Abrir SocialHub ahora" (marcada).
+    - Actualizacion:          "SocialHub se ha actualizado correctamente" (+ casilla).
+    - Misma version (mantenimiento): "SocialHub ya estaba instalado".
+    - Desinstalacion:         "Se ha desinstalado SocialHub. Tus datos siguen en %LOCALAPPDATA%\SocialHub".
+  Los textos estan en MsiInstallerStrings_es.wxl (!(loc.SH_...)). Sin ErrorDlg, FatalError ni UserExit a proposito: si algo falla,
+  Windows enseña su propio mensaje de error estandar. Con /qn (pruebas, sin interfaz) nada de esto se ejecuta.
+-->
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Fragment>
+    <UI Id="JpUI">
+      <TextStyle Id="WixUI_Font_Normal" FaceName="Tahoma" Size="8" />
+      <TextStyle Id="WixUI_Font_Bigger" FaceName="Tahoma" Size="12" />
+      <TextStyle Id="WixUI_Font_Title" FaceName="Tahoma" Size="9" Bold="yes" />
+
+      <Property Id="DefaultUIFont" Value="WixUI_Font_Normal" />
+      <Property Id="WixUI_Mode" Value="Minimal" />
+
+      <!-- Solo lo imprescindible (como WixUI_Minimal, sin bienvenida ni licencia ni carpeta) -->
+      <DialogRef Id="FilesInUse" />
+      <DialogRef Id="MsiRMFilesInUse" />
+      <DialogRef Id="ProgressDlg" />
+      <DialogRef Id="ExitDialog" />
+
+      <!-- Casilla "Abrir SocialHub ahora" (WixUI la enseña solo en la primera instalacion o al actualizar, no al desinstalar ni en mantenimiento) -->
+      <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="!(loc.SH_AbrirAhora)" />
+      <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
+
+      <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="SH_AbrirSocialHub" Order="1">WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 AND NOT Installed AND NOT REMOVE</Publish>
+      <Publish Dialog="ExitDialog" Control="Finish" Event="EndDialog" Value="Return" Order="999">1</Publish>
+
+      <InstallUISequence>
+        <!-- Texto de la pantalla final segun lo que ha pasado (por defecto: instalacion nueva) -->
+        <Custom Action="SH_TituloActualizado" After="CostFinalize">JP_UPGRADABLE_FOUND AND NOT Installed AND NOT REMOVE</Custom>
+        <Custom Action="SH_DescripcionActualizado" After="CostFinalize">JP_UPGRADABLE_FOUND AND NOT Installed AND NOT REMOVE</Custom>
+        <Custom Action="SH_TituloMantenimiento" After="CostFinalize">Installed AND NOT REMOVE</Custom>
+        <Custom Action="SH_DescripcionMantenimiento" After="CostFinalize">Installed AND NOT REMOVE</Custom>
+        <Custom Action="SH_TituloDesinstalado" After="CostFinalize">REMOVE~="ALL"</Custom>
+        <Custom Action="SH_DescripcionDesinstalado" After="CostFinalize">REMOVE~="ALL"</Custom>
+        <!-- Para que la barra de progreso diga "Quitando" o "Reparando" en vez de quedarse sin titulo -->
+        <Custom Action="SH_ModoQuitar" After="CostFinalize">REMOVE~="ALL"</Custom>
+        <Custom Action="SH_ModoMantenimiento" After="CostFinalize">Installed AND NOT REMOVE</Custom>
+      </InstallUISequence>
+
+      <UIRef Id="WixUI_Common" />
+    </UI>
+
+    <Property Id="SH_TITULO" Value="!(loc.SH_TituloInstalado)" />
+    <Property Id="SH_DESCRIPCION" Value="!(loc.SH_DescripcionInstalado)" />
+
+    <CustomAction Id="SH_TituloActualizado" Property="SH_TITULO" Value="!(loc.SH_TituloActualizado)" />
+    <CustomAction Id="SH_DescripcionActualizado" Property="SH_DESCRIPCION" Value="!(loc.SH_DescripcionActualizado)" />
+    <CustomAction Id="SH_TituloMantenimiento" Property="SH_TITULO" Value="!(loc.SH_TituloMantenimiento)" />
+    <CustomAction Id="SH_DescripcionMantenimiento" Property="SH_DESCRIPCION" Value="!(loc.SH_DescripcionMantenimiento)" />
+    <CustomAction Id="SH_TituloDesinstalado" Property="SH_TITULO" Value="!(loc.SH_TituloDesinstalado)" />
+    <CustomAction Id="SH_DescripcionDesinstalado" Property="SH_DESCRIPCION" Value="!(loc.SH_DescripcionDesinstalado)" />
+    <CustomAction Id="SH_ModoQuitar" Property="WixUI_InstallMode" Value="Remove" />
+    <CustomAction Id="SH_ModoMantenimiento" Property="WixUI_InstallMode" Value="Repair" />
+
+    <!--
+      Abrir SocialHub al pulsar "Finalizar" con la casilla marcada. Se lanza con explorer.exe, que lo abre con el usuario normal de
+      la sesion (aunque el instalador se haya lanzado como administrador). Es inmediata (no va dentro de la instalacion ni elevada) y
+      asincrona sin esperar (asyncNoWait): la instalacion ya esta hecha cuando se ejecuta y, si falla o tarda, no bloquea nada ni
+      puede dejar la instalacion a medias. Se ejecuta en el proceso de pantalla del instalador, no en el servicio.
+    -->
+    <CustomAction Id="SH_AbrirSocialHub" Directory="TARGETDIR" ExeCommand="&quot;[WindowsFolder]explorer.exe&quot; &quot;[INSTALLDIR]SocialHub.exe&quot;" Return="asyncNoWait" />
+  </Fragment>
+</Wix>

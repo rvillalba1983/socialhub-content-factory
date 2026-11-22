@@ -26,7 +26,7 @@ on:
         default: false
   # Al cambiar este workflow en una PR, se prueban el .msi y el .dmg (sin publicar nada)
   pull_request:
-    paths: [".github/workflows/instaladores.yml"]
+    paths: [".github/workflows/instaladores.yml", "scripts/windows/instalador/**"]
 
 permissions:
   contents: write
@@ -115,8 +115,18 @@ jobs:
             --java-options '-Dsocialhub.jvm.logs=$LOCALAPPDATA\SocialHub\logs' \
             --java-options '-XX:ErrorFile=$LOCALAPPDATA\SocialHub\logs\hs_err_pid%p.log' \
             --win-menu --win-menu-group SocialHub --win-shortcut \
-            --win-upgrade-uuid "$UPGRADE_UUID" --verbose
+            --win-upgrade-uuid "$UPGRADE_UUID" \
+            --resource-dir scripts/windows/instalador/recursos \
+            --license-file scripts/windows/instalador/recursos/licencia.txt --verbose
           ls -la salida
+      # Nadie ve la interfaz en la CI: se leen las tablas del .msi (Dialog, ControlEvent, CustomAction, Property...) y falla si falta la pantalla final
+      - name: Comprobar la interfaz del .msi (tablas)
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force "$env:RUNNER_TEMP\registros" | Out-Null
+          $msi = Get-ChildItem salida\*.msi | Select-Object -First 1
+          & scripts/windows/instalador/comprobar-msi.ps1 -Msi $msi.FullName -Version $env:VERSION -UpgradeCode $env:UPGRADE_UUID -Informe "$env:RUNNER_TEMP\registros\interfaz-msi.txt"
+          if ($LASTEXITCODE -ne 0) { throw "La interfaz del .msi no es la esperada" }
       # Junto al .msi, los lanzadores que instalan y desinstalan dejando un registro (un .msi no lo deja solo)
       - name: Lanzadores con registro
         shell: bash
@@ -276,6 +286,47 @@ jobs:
           $p = Start-Process -FilePath $des.FullName -ArgumentList '/silencioso' -Wait -PassThru
           if ($p.ExitCode -ne 0) { throw "Desinstalar sin nada instalado terminó con $($p.ExitCode)" }
           Write-Host "Desinstalado con registro: $($logDes[0].Name) ($($logDes[0].Length) bytes)"
+          # El aviso final (en pruebas se escribe en un archivo en vez de abrir la ventana)
+          $env:SOCIALHUB_AVISO_ARCHIVO = Join-Path $env:RUNNER_TEMP "aviso.txt"
+          function Aviso($cmd, $esperado, $icono) {
+            Remove-Item $env:SOCIALHUB_AVISO_ARCHIVO -ErrorAction SilentlyContinue
+            $r = Start-Process -FilePath $cmd.FullName -ArgumentList '/aviso-prueba' -Wait -PassThru
+            if ($r.ExitCode -ne 0) { throw "$($cmd.Name) /aviso-prueba terminó con $($r.ExitCode)" }
+            $t = Get-Content $env:SOCIALHUB_AVISO_ARCHIVO -Raw -Encoding UTF8
+            Write-Host "Aviso: $t"
+            if ($t -notmatch [regex]::Escape($esperado)) { throw "El aviso de $($cmd.Name) no dice «$esperado»: $t" }
+            if (-not $t.StartsWith("$icono|")) { throw "El icono del aviso de $($cmd.Name) no es $icono" }
+          }
+          Aviso $des 'SocialHub no aparece como instalado' 'Information'
+          $p = Start-Process -FilePath $ins.FullName -ArgumentList '/aviso-prueba' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Instalar con aviso terminó con $($p.ExitCode)" }
+          $t = Get-Content $env:SOCIALHUB_AVISO_ARCHIVO -Raw -Encoding UTF8
+          if ($t -notmatch 'SocialHub se ha instalado correctamente') { throw "El aviso de instalación no es el esperado: $t" }
+          if ($t -notmatch 'Registro: ') { throw "El aviso no cita el registro: $t" }
+          Aviso $des 'Se ha desinstalado SocialHub. Tus datos siguen en' 'Information'
+          # Sin el .msi al lado: error con aviso y código 2
+          $sola = Join-Path $env:RUNNER_TEMP "lanzador-solo"; New-Item -ItemType Directory -Force $sola | Out-Null
+          Copy-Item $ins.FullName $sola
+          Remove-Item $env:SOCIALHUB_AVISO_ARCHIVO -ErrorAction SilentlyContinue
+          $p = Start-Process -FilePath (Join-Path $sola $ins.Name) -ArgumentList '/aviso-prueba' -Wait -PassThru
+          if ($p.ExitCode -ne 2) { throw "Sin .msi tenía que terminar con 2 y terminó con $($p.ExitCode)" }
+          if ((Get-Content $env:SOCIALHUB_AVISO_ARCHIVO -Raw -Encoding UTF8) -notmatch '^Error\|No encuentro el instalador') { throw "El aviso sin .msi no es el esperado" }
+          Remove-Item Env:SOCIALHUB_AVISO_ARCHIVO
+          Write-Host "Avisos de los lanzadores correctos"
+      # Informativo (no bloquea): instala y desinstala con la interfaz de verdad, pulsa Finalizar con UI Automation y guarda capturas
+      - name: Probar la interfaz del .msi con capturas
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $msi = Get-ChildItem salida\*.msi | Select-Object -First 1
+          & scripts/windows/instalador/probar-interfaz.ps1 -Msi $msi.FullName -Salida "$env:RUNNER_TEMP\registros\capturas"
+      - name: Quitar SocialHub si la prueba de interfaz lo dejó instalado
+        if: always()
+        shell: pwsh
+        run: |
+          Get-Process SocialHub -ErrorAction SilentlyContinue | Stop-Process -Force
+          $msi = Get-ChildItem salida\*.msi | Select-Object -First 1
+          Start-Process msiexec.exe -ArgumentList "/x `"$($msi.FullName)`" /qn" -Wait
       - name: Reunir los registros de la instalación
         if: always()
         shell: pwsh

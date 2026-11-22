@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Textos en espanol del .msi. jpackage lo recoge de la opcion resource-dir (cualquier .wxl con otro nombre que los suyos) y anade su cultura
+  (es-es) delante de la inglesa en -cultures. Los textos de WixUI (botones, barra de progreso, etc.) salen en espanol de la
+  cultura es-es de WixUIExtension; aqui se sustituyen solo los de la pantalla final y los propios de jpackage.
+  Solo caracteres de la pagina de codigos 1252 (acentos y comillas angulares valen; nada como flechas o emojis).
+-->
+<WixLocalization Culture="es-es" Codepage="1252" xmlns="http://schemas.microsoft.com/wix/2006/localization">
+  <!-- Pantalla final: titulo y descripcion salen de las propiedades SH_TITULO y SH_DESCRIPCION (las cambia ui.wxf segun lo ocurrido) -->
+  <String Id="ExitDialogTitle">{\WixUI_Font_Bigger}[SH_TITULO]</String>
+  <String Id="ExitDialogDescription">[SH_DESCRIPCION]</String>
+
+  <String Id="SH_AbrirAhora">Abrir SocialHub ahora</String>
+
+  <String Id="SH_TituloInstalado">SocialHub se ha instalado correctamente</String>
+  <String Id="SH_DescripcionInstalado">Encontrarás SocialHub en el menú Inicio y en el escritorio.</String>
+
+  <String Id="SH_TituloActualizado">SocialHub se ha actualizado correctamente</String>
+  <String Id="SH_DescripcionActualizado">Tus datos se han conservado. Encontrarás SocialHub en el menú Inicio y en el escritorio.</String>
+
+  <String Id="SH_TituloMantenimiento">SocialHub ya estaba instalado</String>
+  <String Id="SH_DescripcionMantenimiento">Esta versión ya estaba instalada. Si algo no funciona, desinstala SocialHub y vuelve a instalarlo: tus datos se conservan.</String>
+
+  <String Id="SH_TituloDesinstalado">Se ha desinstalado SocialHub</String>
+  <String Id="SH_DescripcionDesinstalado">Tus datos siguen en %LOCALAPPDATA%\SocialHub.</String>
+
+  <!-- Los de jpackage (los mismos identificadores que MsiInstallerStrings_en.wxl) -->
+  <String Id="MainFeatureTitle">SocialHub</String>
+  <String Id="DowngradeErrorMessage">Ya hay instalada una versión más nueva de [ProductName]. La instalación se cancelará.</String>
+  <String Id="DisallowUpgradeErrorMessage">Ya hay instalada una versión más antigua de [ProductName] y no se puede actualizar. La instalación se cancelará.</String>
+  <String Id="OsConditionMessage">[ProductName] [ProductVersion] no es compatible con esta versión de Windows.</String>
+</WixLocalization>
