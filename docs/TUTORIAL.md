@@ -309,6 +309,8 @@ Arriba ves la marca, el nombre, las fechas, la cadencia y dos etiquetas: **Activ
 
 - **Métricas:** lo que se publicó y cómo fue; las lee 🤖 Claude con Chrome a los 7 días.
 
+> **Novedad · resultado de las publicaciones:** en «Publicaciones» cada fila dice si salió (Publicada ✓, Falló, Retrasada, Pendiente o Sin confirmar), con la hora real, la vía y el enlace. Los posibles duplicados traen «Descartar esta» y las publicaciones sin margen o que chocan, «Mover a la siguiente hora libre» (siempre con confirmación).
+
 ## 5. Servicios externos
 
 ### 5.1 Publer

@@ -4,6 +4,8 @@ Estado: **hecha** (unida a `main` el 12 nov 2026). Falta la revisión de Raúl c
 
 Raúl pidió seguir sin él y revisar todo al final con pruebas funcionales completas. Sobre SocialHub 0.9.3 no contestó qué había visto: se toma «nada».
 
+**Añadido después:** PR `fase-12-publicaciones-estado`: aviso de duplicados, resultado de cada publicación a la vista (con hora real, vía y enlace, solo con datos reales) y «Mover a la siguiente hora libre» con confirmación. Detalle en `docs/decisiones.md`.
+
 ## Orden propuesto de los bloques
 
 Una rama y una PR por bloque.

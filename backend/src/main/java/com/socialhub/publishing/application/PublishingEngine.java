@@ -68,9 +68,9 @@ class PublishingEngine {
     /** No se sabe si Instagram llegó a publicarla: no se reintenta, se revisa. */
     static final String DOUBT_FLAG = "Revisar antes de reintentar: ";
     /** Publicada por la API oficial con retraso (SocialHub estaba cerrado a la hora): se avisa de cuánto. */
-    static final String DELAY_FLAG = "Publicada con ";
+    static final String DELAY_FLAG = com.socialhub.publishing.domain.PublicationOutcome.DELAY_PREFIX;
     /** Retraso a partir del cual se avisa (la ronda del motor es cada minuto y una subida de vídeo tarda). */
-    static final Duration DELAY_NOTICE = Duration.ofMinutes(10);
+    static final Duration DELAY_NOTICE = com.socialhub.publishing.domain.PublicationOutcome.DELAY_NOTICE;
     private static final DateTimeFormatter WHEN = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm").withZone(ZoneId.of("Europe/Madrid"));
     private static final EnumSet<PublishJob.Status> TIMED = EnumSet.of(PublishJob.Status.WORKING,
             PublishJob.Status.HELD, PublishJob.Status.RETRY_WAIT, PublishJob.Status.SCHEDULED, PublishJob.Status.MANUAL, PublishJob.Status.CHECKING);

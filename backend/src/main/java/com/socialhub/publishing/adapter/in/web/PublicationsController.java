@@ -63,7 +63,7 @@ class PublicationsController implements PublicationsApi {
                 : status.stream().map(mapper::toDomain).collect(Collectors.toUnmodifiableSet());
         var page = queries.page(new PublicationFilter(promotionId, statuses, mapper.toDomain(platform), from, to, flagged),
                 offset, limit);
-        return ResponseEntity.ok(new PublicationPageDto(mapper.toDtos(page.items()), offset, limit, page.total()));
+        return ResponseEntity.ok(new PublicationPageDto(mapper.toDtos(page.items(), queries.insights()), offset, limit, page.total()));
     }
 
     @Override
@@ -89,6 +89,19 @@ class PublicationsController implements PublicationsApi {
                 : com.socialhub.publishing.domain.RejectionReason.valueOf(change.getReason().name());
         return ResponseEntity.ok(mapper.toDto(service.changeStatus(publicationId, mapper.toDomain(change.getStatus()),
                 reason, change.getNote())));
+    }
+
+    @Override
+    public ResponseEntity<com.socialhub.api.model.SlotProposalDto> getNextFreeSlot(String publicationId) {
+        return ResponseEntity.ok(mapper.toDto(queries.nextFreeSlot(publicationId)));
+    }
+
+    @Override
+    public ResponseEntity<PublicationDto> moveToFreeSlot(String publicationId, String requestGuard,
+                                                         com.socialhub.api.model.SlotMoveDto move) {
+        var moved = service.moveToFreeSlot(publicationId, move.getNewOn(), java.time.LocalTime.parse(move.getNewTime(), PublicationWebMapper.HH_MM),
+                Boolean.TRUE.equals(move.getConfirmed()), Boolean.TRUE.equals(move.getAcceptAfterEnd()));
+        return ResponseEntity.ok(mapper.toDto(moved));
     }
 
     @Override

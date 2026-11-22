@@ -35,6 +35,8 @@ Las fases 0 a 12 están hechas y en `main`:
 
 PR `fase-12-funciones-finales` (pendiente de merge): arranque con Windows en segundo plano, icono en la bandeja, métricas de Instagram por la API de Meta, renovar conexión, aviso de versión nueva y «Textos» a mano que sustituyen el texto de Raúl. Detalle en `fase-12.md`.
 
+- Publicaciones: aviso de duplicados con «Descartar esta», resultado de cada publicación (Publicada ✓ / Falló / Retrasada / Pendiente / Sin confirmar) y «Mover a la siguiente hora libre» (PR `fase-12-publicaciones-estado`, pendiente de revisión).
+
 ## Siguiente (para Raúl)
 
 1. Instalar SocialHub 1.0.0 cuando se publique la release.

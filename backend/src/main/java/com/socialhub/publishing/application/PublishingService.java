@@ -47,6 +47,7 @@ class PublishingService implements PublishingCommands {
     private final QualityService quality;
     private final com.socialhub.publishing.domain.EditorialMemoryRepository memory;
     private final PublishingEngine engine;
+    private final PublicationInsights insights;
     private final com.socialhub.settings.PublishSettings settings;
 
     /** Alta desde el centro de control. El identificador es la fecha y la plataforma: «2026-11-10-instagram». */
@@ -121,6 +122,26 @@ class PublishingService implements PublishingCommands {
         publications.save(publication);
         events.publishEvent(new FactoryChanged("publication", id));
         return publication;
+    }
+
+    /** Mueve la publicación a la hora que Raúl ha confirmado (la siguiente hora libre, recalculada ahora). */
+    @Transactional
+    @Override
+    public Publication moveToFreeSlot(String id, java.time.LocalDate day, java.time.LocalTime time, boolean confirmed,
+                                      boolean acceptAfterEnd) {
+        if (!confirmed) throw new IllegalArgumentException("Hace falta la confirmación de Raúl para mover la publicación");
+        Publication p = find(id);
+        var proposal = insights.proposal(p);
+        if (!day.equals(proposal.newDay()) || !time.equals(proposal.newTime())) {
+            throw new com.socialhub.platform.DomainException("La siguiente hora libre ha cambiado (ahora es el "
+                    + proposal.newDay() + " a las " + proposal.newTime() + "). Vuelve a pedirla.");
+        }
+        if (proposal.afterPromotionEnd() && !acceptAfterEnd) {
+            throw new com.socialhub.platform.DomainException("Quedaría el " + proposal.newDay()
+                    + ", después del fin de la promoción (" + proposal.promotionEndsOn() + "). Confírmalo expresamente.");
+        }
+        return update(id, new Publication.Details(p.getPlatform(), p.getType(), p.getTitle(), day, time, p.getTimezone(),
+                p.getRoute(), p.getNote(), p.getCaption(), p.getHashtags()));
     }
 
     /** Raúl da por resuelta la incidencia anotada. */
