@@ -42,7 +42,7 @@ Reglas fijas para todas:
 
 - SocialHub escribe en cada encargo `inputs.skills`: solo las que hacen falta según los tipos de pieza del spec (por ejemplo, un spec solo de carruseles no carga la de memes). Menos skills cargadas, menos tokens.
 - El subagente las carga con la herramienta Skill. Si alguna no existe en la sesión de la tarea programada, sigue sin ella y lo dice en `warnings`; el spec sale igual con reglas mínimas, que viajan en el propio encargo (como las `AiStandingRules` de hoy).
-- **No se copian skills al repositorio:** `video-making`, `dataviz` y `frontend-design` no son de Raúl ni tienen licencia para redistribuirse.
+- **No se copian skills al repositorio:** `video-making` tiene licencia propietaria de Anthropic y no se puede redistribuir; el resto se cargan de la cuenta de Raúl, y si no están en la tarea programada se sigue sin ellas (ver arriba).
 - **Pendiente de comprobar en la prueba de cero:** si las skills del plugin `social-media-skills` están disponibles en las sesiones de las tareas programadas. Hasta recrearlas no se puede saber.
 
 ### Control de tokens

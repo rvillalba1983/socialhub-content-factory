@@ -955,7 +955,7 @@ Respuestas de Raúl:
 Decisiones técnicas (a confirmar con el OK del plan):
 - **`brand-profile` sin entrevista:** parte de `inputs.brand_identity`; si falta tono o público, `needs_human`.
 - **`inputs.skills` en cada encargo:** solo las skills necesarias según los tipos de pieza, para gastar menos tokens. Si alguna no existe en la sesión de la tarea programada, el encargo sigue sin ella y lo dice en `warnings`.
-- **No se copian skills al repositorio** (`video-making`, `dataviz` y `frontend-design` no son de Raúl ni tienen licencia para redistribuirse).
+- **No se copian skills al repositorio:** `video-making` tiene licencia propietaria de Anthropic y no se puede redistribuir; el resto se cargan de la cuenta de Raúl.
 - **`platform-specs-and-validation`:** solo se usa su parte de tamaños y límites de Instagram y TikTok; su flujo de validación es de otro servicio.
 - **`video-making`:** se aplica como guía del montaje en el FFmpeg de SocialHub, no en la tarea de Claude (pendiente de confirmar con Raúl).
 - **Sin imágenes generadas con IA** en ninguna skill.
