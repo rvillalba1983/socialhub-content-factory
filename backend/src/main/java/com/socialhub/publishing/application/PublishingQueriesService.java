@@ -81,7 +81,14 @@ class PublishingQueriesService implements PublishingQueries {
 
     @Override
     public List<com.socialhub.publishing.domain.DuplicateDetector.Group> duplicateGroups() {
-        return com.socialhub.publishing.domain.DuplicateDetector.find(publications.findAll(), promotionQueries::brandOf);
+        var all = publications.findAll();
+        var byId = new java.util.HashMap<String, Publication>();
+        all.forEach(p -> byId.put(p.getId(), p));
+        // Solo los grupos en los que aún se puede descartar alguna (si todas están publicadas, ya no hay nada que hacer)
+        return com.socialhub.publishing.domain.DuplicateDetector.find(all, promotionQueries::brandOf).stream()
+                .filter(g -> g.publicationIds().stream().anyMatch(id -> byId.get(id).getStatus()
+                        .canMoveTo(com.socialhub.publishing.domain.PublicationStatus.CANCELLED)))
+                .toList();
     }
 
     @Override
@@ -162,6 +169,21 @@ class PublishingQueriesService implements PublishingQueries {
                 alerts.add(new PublishAlert(p.getId(), false, "Publicada con retraso: " + p.getTitle(), flag));
             }
         }
+        // Resultado de cada publicación con datos reales: falló o se retrasó y aún no tiene aviso
+        java.util.Set<String> alerted = new java.util.HashSet<>();
+        alerts.forEach(a -> alerted.add(a.publicationId()));
+        var byId = new java.util.HashMap<String, Publication>();
+        publications.findAll().forEach(p -> byId.put(p.getId(), p));
+        insights.all().forEach((id, insight) -> insight.outcome().filter(com.socialhub.publishing.domain.PublicationOutcome::needsAttention)
+                .filter(o -> o.result() == com.socialhub.publishing.domain.PublicationOutcome.Result.FAILED
+                        || o.at() == null) // las ya publicadas con retraso tienen su propio aviso
+                .ifPresent(o -> {
+                    if (!alerted.add(id)) return;
+                    var p = byId.get(id);
+                    boolean failed = o.result() == com.socialhub.publishing.domain.PublicationOutcome.Result.FAILED;
+                    alerts.add(new PublishAlert(id, failed, (failed ? "Falló: " : "Retrasada: ") + p.getTitle(),
+                            o.reason() + ". " + o.advice()));
+                }));
         return alerts;
     }
 

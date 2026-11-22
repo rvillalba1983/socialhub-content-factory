@@ -140,6 +140,13 @@ class FactoryRecommendations {
             all.add(noMargin(promotion, list, now, settings.minMarginFor(list.getFirst().platform()), tiktok));
         });
 
+        // 0d. Posibles duplicados: dos o más publicaciones activas que se repiten (aviso, no bloquea)
+        for (var group : publishing.duplicateGroups()) {
+            var promotion = promotionById.get(group.promotionId());
+            if (promotion == null) continue;
+            all.add(duplicates(group, promotion));
+        }
+
         // 1. Propuestas retenidas, o paradas por Drive o por el límite diario
         Map<String, AiHeldOrders.Held> held = new LinkedHashMap<>();
         for (var h : heldOrders.current()) {
@@ -314,6 +321,20 @@ class FactoryRecommendations {
 
     private static boolean isTikTok(PublishingQueries.WithoutMargin w) { return com.socialhub.settings.PublishSettings.TIKTOK.equals(w.platform()); }
 
+    private static Recommendation duplicates(com.socialhub.publishing.domain.DuplicateDetector.Group group,
+                                             PromotionQueries.PromotionRef promotion) {
+        String network = group.platform() == com.socialhub.publishing.domain.Platform.INSTAGRAM ? "Instagram" : "TikTok";
+        String day = group.day().getDayOfMonth() + " de " + group.day().getMonth().getDisplayName(TextStyle.SHORT, Locale.of("es", "ES"));
+        boolean sameTitle = group.reason() == com.socialhub.publishing.domain.DuplicateDetector.Reason.SAME_TITLE;
+        return recommendation("duplicates:" + group.publicationIds().getFirst() + ":" + group.reason(),
+                Recommendation.Kind.DUPLICATE_PUBLICATIONS,
+                "Posible duplicado: «" + group.title() + "» (" + group.publicationIds().size() + " publicaciones de " + network + ")",
+                sameTitle ? "El " + day + ", con el mismo título. Descarta la que sobre"
+                        : "El " + day + " a la misma hora y con el mismo texto. Descarta la que sobre",
+                Recommendation.Screen.PUBLICATIONS, promotion.brandId(), promotion.id())
+                .promotionId(promotion.id()).publicationIds(group.publicationIds());
+    }
+
     private static Recommendation noMargin(PromotionQueries.PromotionRef promotion,
                                               List<PublishingQueries.WithoutMargin> list, Instant now, java.time.Duration margin,
                                               boolean tiktok) {
@@ -330,7 +351,7 @@ class FactoryRecommendations {
                 + " y aún no está programada. SocialHub no programa con menos de " + span + " de margen (ajuste «" + (tiktok ? "Margen mínimo de publicación en TikTok" : "Margen mínimo de publicación") + "»): cambia la hora o publícala a mano";
         return recommendation("publication-too-soon:" + promotion.id() + (tiktok ? ":tiktok" : ""), Recommendation.Kind.PUBLICATION_TOO_SOON,
                 title, detail, Recommendation.Screen.PUBLICATIONS, promotion.brandId(), promotion.id())
-                .promotionId(promotion.id());
+                .promotionId(promotion.id()).publicationIds(list.stream().map(PublishingQueries.WithoutMargin::publicationId).toList());
     }
 
     private static Recommendation heldRow(PromotionQueries.PromotionRef promotion, String reason,

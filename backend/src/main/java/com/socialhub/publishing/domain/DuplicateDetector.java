@@ -21,7 +21,8 @@ public final class DuplicateDetector {
     public enum Reason { SAME_TITLE, SAME_TIME_AND_TEXT }
 
     /** Dos o más publicaciones que se repiten entre sí, por orden de hora. */
-    public record Group(String brandId, Platform platform, Reason reason, List<String> publicationIds) {}
+    public record Group(String brandId, Platform platform, Reason reason, List<String> publicationIds, String promotionId,
+                        String title, LocalDate day) {}
 
     private DuplicateDetector() {}
 
@@ -67,6 +68,8 @@ public final class DuplicateDetector {
     private static Group group(String brand, Platform platform, Reason reason, List<Publication> list) {
         List<String> ids = list.stream().sorted(java.util.Comparator.comparing(Publication::scheduledAt)
                 .thenComparing(Publication::getId)).map(Publication::getId).toList();
-        return new Group(brand, platform, reason, ids);
+        var first = list.stream().min(java.util.Comparator.comparing(Publication::scheduledAt)
+                .thenComparing(Publication::getId)).orElseThrow();
+        return new Group(brand, platform, reason, ids, first.getPromotionId(), first.getTitle(), first.getScheduledOn());
     }
 }

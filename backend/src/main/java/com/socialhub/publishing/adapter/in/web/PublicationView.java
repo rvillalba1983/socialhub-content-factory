@@ -17,5 +17,5 @@ public class PublicationView {
     private final PublishingQueries queries;
     private final PublicationWebMapper mapper;
 
-    public List<PublicationDto> all() { return mapper.toDtos(queries.all()); }
+    public List<PublicationDto> all() { return mapper.toDtos(queries.all(), queries.insights()); }
 }
