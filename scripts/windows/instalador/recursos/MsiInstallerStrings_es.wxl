@@ -24,9 +24,6 @@
   <String Id="SH_TituloDesinstalado">Se ha desinstalado SocialHub</String>
   <String Id="SH_DescripcionDesinstalado">Tus datos siguen en %LOCALAPPDATA%\SocialHub.</String>
 
-  <!-- Los de jpackage (los mismos identificadores que MsiInstallerStrings_en.wxl) -->
-  <String Id="MainFeatureTitle">SocialHub</String>
-  <String Id="DowngradeErrorMessage">Ya hay instalada una versión más nueva de [ProductName]. La instalación se cancelará.</String>
-  <String Id="DisallowUpgradeErrorMessage">Ya hay instalada una versión más antigua de [ProductName] y no se puede actualizar. La instalación se cancelará.</String>
-  <String Id="OsConditionMessage">[ProductName] [ProductVersion] no es compatible con esta versión de Windows.</String>
+  <!-- Los textos propios de jpackage (MainFeatureTitle, DowngradeErrorMessage, DisallowUpgradeErrorMessage, OsConditionMessage) NO se repiten
+       aqui: light da error si el mismo identificador esta en dos culturas. Salen de MsiInstallerStrings_en.wxl y no se ven en esta interfaz. -->
 </WixLocalization>
