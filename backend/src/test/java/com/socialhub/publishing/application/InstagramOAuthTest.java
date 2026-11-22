@@ -77,6 +77,8 @@ class InstagramOAuthTest {
     static final String SECRET = "s3cr3tDePruebaQueNoExiste0123456789";
     static final String SHORT = "EAAB.corta-de-prueba-0001";
     static final String LONG = "EAAB.larga-de-prueba-0002";
+    static final String RENEWED = "EAAB.renovada-de-prueba-0004";
+    static volatile boolean rejectRenewal = false;
     static final String SYSTEM_KEY = "EAAB.sistema-de-prueba-0003";
     static final String CODE = "codigo-de-prueba-ok";
     static final String IG_DELITO = "17841400000000001";
@@ -145,6 +147,9 @@ class InstagramOAuthTest {
                 reply = "{\"error\":{\"message\":\"Error validating client secret.\",\"type\":\"OAuthException\",\"code\":1}}";
             } else if ("client_credentials".equals(f.get("grant_type"))) {
                 reply = "{\"access_token\":\"" + APP_ID + "|app-token\",\"token_type\":\"bearer\"}";
+            } else if ("fb_exchange_token".equals(f.get("grant_type")) && !rejectRenewal
+                    && (LONG.equals(f.get("fb_exchange_token")) || RENEWED.equals(f.get("fb_exchange_token")))) {
+                reply = "{\"access_token\":\"" + RENEWED + "\",\"token_type\":\"bearer\",\"expires_in\":" + LONG_SECONDS + "}";
             } else if ("fb_exchange_token".equals(f.get("grant_type"))) {
                 reply = SHORT.equals(f.get("fb_exchange_token"))
                         ? "{\"access_token\":\"" + LONG + "\",\"token_type\":\"bearer\",\"expires_in\":" + LONG_SECONDS + "}"
@@ -156,7 +161,8 @@ class InstagramOAuthTest {
                 code = 400;
                 reply = "{\"error\":{\"message\":\"This authorization code has been used.\",\"code\":100,\"error_subcode\":36009}}";
             }
-        } else if (!("OAuth " + LONG).equals(authorization.get(call)) && !("OAuth " + SYSTEM_KEY).equals(authorization.get(call))) {
+        } else if (!("OAuth " + LONG).equals(authorization.get(call)) && !("OAuth " + RENEWED).equals(authorization.get(call))
+                && !("OAuth " + SYSTEM_KEY).equals(authorization.get(call))) {
             code = 401;
             reply = "{\"error\":{\"message\":\"Invalid OAuth access token\",\"code\":190}}";
         } else if (path.equals("/v23.0/me")) {
@@ -433,6 +439,52 @@ class InstagramOAuthTest {
 
     @Test
     @Order(10)
+    void renewingExtendsTheConnectionWithoutAskingForTheAppAgainAndFallsBackToTheFullFlow(CapturedOutput output) throws Exception {
+        int before = tokenRequests.size();
+        // Quedan 9 días: ya avisa (a 10 o menos) y renovar lo quita sin salir de SocialHub
+        Instant expiresAt = Instant.parse(get("/api/instagram").get("connection").get("expires_at").asString());
+        CLOCK.set(expiresAt.minus(Duration.ofDays(9)).minusSeconds(3600));
+        try {
+            assertThat(recommendation().get("title").asString()).isEqualTo("La conexión con Instagram caduca en 9 días");
+            JsonNode renewal = json.readTree(write(post("/api/instagram/oauth/renewal"), "{}").andExpect(status().isOk())
+                    .andReturn().getResponse().getContentAsString());
+            assertThat(renewal.get("renewed").asBoolean()).isTrue();
+            assertThat(renewal.has("authorization_url") && !renewal.get("authorization_url").isNull()).isFalse();
+            assertThat(tokenRequests).hasSize(before + 1);
+            assertThat(tokenRequests.getLast()).containsEntry("grant_type", "fb_exchange_token").containsEntry("fb_exchange_token", LONG)
+                    .containsEntry("client_id", APP_ID);
+            assertThat(get("/api/instagram").get("connection").get("days_left").asInt()).isEqualTo(59);
+            assertThat(get("/api/instagram").get("connection").get("usernames").size()).isGreaterThan(0);
+            assertThat(recommendation()).isNull();
+            assertThat(Files.readString(dataDir.resolve("secretos/instagram-oauth.key"))).contains(RENEWED);
+            assertThat(get("/api/instagram").toString()).doesNotContain(RENEWED).doesNotContain(SECRET);
+            assertThat(output.getAll()).doesNotContain(RENEWED).doesNotContain(LONG).doesNotContain(SECRET);
+
+            // Meta no acepta la clave: se lleva al inicio de sesión completo y la conexión no se toca
+            rejectRenewal = true;
+            JsonNode refused = json.readTree(write(post("/api/instagram/oauth/renewal"), "{}").andExpect(status().isOk())
+                    .andReturn().getResponse().getContentAsString());
+            assertThat(refused.get("renewed").asBoolean()).isFalse();
+            assertThat(refused.get("authorization_url").asString()).contains("/dialog/oauth").contains("state=");
+            assertThat(get("/api/instagram").get("source").asString()).isEqualTo("OAUTH");
+            rejectRenewal = false;
+
+            // Ya caducada: también al inicio de sesión completo, sin llamar a Meta para intercambiar nada
+            CLOCK.set(Instant.now().plusSeconds(LONG_SECONDS * 4));
+            int tokens = tokenRequests.size();
+            JsonNode expired = json.readTree(write(post("/api/instagram/oauth/renewal"), "{}").andExpect(status().isOk())
+                    .andReturn().getResponse().getContentAsString());
+            assertThat(expired.get("renewed").asBoolean()).isFalse();
+            assertThat(expired.get("authorization_url").asString()).contains("/dialog/oauth");
+            assertThat(tokenRequests).hasSize(tokens);
+        } finally {
+            rejectRenewal = false;
+            CLOCK.reset();
+        }
+    }
+
+    @Test
+    @Order(11)
     void disconnectingKeepsTheSystemKeyAndTheBrandAccounts() throws Exception {
         write(delete("/api/instagram/oauth"), "").andExpect(status().isNoContent());
         JsonNode status = get("/api/instagram");

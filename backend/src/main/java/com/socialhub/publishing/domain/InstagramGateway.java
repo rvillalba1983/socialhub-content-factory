@@ -23,6 +23,13 @@ public interface InstagramGateway {
         public boolean exhausted() { return used >= total; }
     }
 
+    /**
+     * Métricas de una publicación (Graph API Insights, v23.0). Lo que Meta no devuelve para esa publicación (por ejemplo,
+     * me gusta ocultos o una métrica que no admite ese tipo) es {@code null}: nunca se estima.
+     */
+    record MediaInsights(@Nullable Long views, @Nullable Long reach, @Nullable Long likes, @Nullable Long comments,
+                         @Nullable Long saves, @Nullable Long shares) {}
+
     enum ContainerState { IN_PROGRESS, FINISHED, ERROR, EXPIRED, PUBLISHED }
 
     record Container(ContainerState state, @Nullable String detail) {}
@@ -67,4 +74,10 @@ public interface InstagramGateway {
 
     /** GET /{media-id}?fields=permalink. */
     @Nullable String permalink(String key, String mediaId);
+
+    /**
+     * Métricas de una publicación ya publicada por la API: GET /{media-id}/insights y los contadores de la publicación.
+     * Falla (con el motivo) si Meta no da ninguna, por ejemplo por falta de permisos de la clave.
+     */
+    MediaInsights mediaInsights(String key, String mediaId);
 }

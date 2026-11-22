@@ -691,7 +691,7 @@ describe('Instagram · API oficial', () => {
     await waitFor(() => expect(writeText).toHaveBeenCalledWith('http://localhost:8686/api/instagram/oauth/callback'));
   });
 
-  it('conectado: enseña como quién y cuándo caduca, avisa a 7 días o menos y permite renovar', async () => {
+  it('conectado: enseña como quién y cuándo caduca, avisa a 10 días o menos y permite renovar', async () => {
     const connection = { name: 'Raúl', usernames: ['elde_lito', 'litoques'], expires_at: '2027-01-14T10:00:00Z', days_left: 5, expired: false };
     vi.spyOn(api, 'instagram').mockResolvedValue({ configured: true, source: 'OAUTH', app_id: '1234567890123', app_secret_saved: true,
       redirect_uri: 'http://localhost:8686/api/instagram/oauth/callback', connection });
@@ -707,6 +707,14 @@ describe('Instagram · API oficial', () => {
     const found = await screen.findByRole('group', { name: 'Cuentas de Instagram encontradas' });
     expect(within(found).getByText(/asignada a el-delito/)).toBeInTheDocument();
     expect(within(found).getByText(/sin marca/)).toBeInTheDocument();
+    // Renovar no pide nada más ni sale de SocialHub si Meta acepta la clave
+    const renew = vi.spyOn(api, 'renewInstagramConnection').mockResolvedValue({ renewed: true, message: 'Conexión renovada: dura otros 60 días.' });
+    fireEvent.click(screen.getByRole('button', { name: 'Renovar conexión' }));
+    await waitFor(() => expect(renew).toHaveBeenCalled());
+    expect(await screen.findByText('Conexión renovada: dura otros 60 días.')).toBeInTheDocument();
+    expect(open).not.toHaveBeenCalled();
+    // Si ya no vale, lleva al inicio de sesión completo de Meta
+    renew.mockResolvedValue({ renewed: false, message: 'caducó', authorization_url: 'https://www.facebook.com/dialog' });
     fireEvent.click(screen.getByRole('button', { name: 'Renovar conexión' }));
     await waitFor(() => expect(open).toHaveBeenCalledWith('https://www.facebook.com/dialog', '_self'));
   });
@@ -955,6 +963,14 @@ describe('Memoria editorial', () => {
     await waitFor(() => expect(discard).toHaveBeenCalledWith('p-2', 'TONE', 'Muy serio'));
   });
 
+  it('recupera el texto anterior de Raúl si Claude lo sustituyó', async () => {
+    vi.spyOn(api, 'publicationFiles').mockResolvedValue({ items: [] });
+    const restore = vi.spyOn(api, 'restorePublicationText').mockResolvedValue({ ...publication, caption: 'Mi texto' });
+    render(<PublicationEditor promotionId="p" publication={{ ...publication, previous_caption: 'Mi texto' }} onClose={() => {}} onSaved={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Recuperar mi texto anterior' }));
+    await waitFor(() => expect(restore).toHaveBeenCalledWith('p-2'));
+  });
+
   it('muestra la memoria de la marca y añade decisiones', async () => {
     const memory = {
       decisions: [{ id: 1, text: 'Nada de precios', created_at: '2026-11-03T09:00:00Z' }],
@@ -1053,6 +1069,53 @@ describe('Versión de SocialHub', () => {
     expect(pop).toHaveTextContent('Real');
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByRole('dialog', { name: 'Versión de SocialHub' })).toBeNull();
+  });
+
+  it('avisa de una versión nueva con el enlace al instalador y el recordatorio de instalar con registro', async () => {
+    vi.spyOn(api, 'appVersion').mockResolvedValue({ version: '1.2.7', commit: 'a1b2c3d', build_time: '2026-11-15T10:30:00Z' });
+    vi.spyOn(api, 'updateStatus').mockResolvedValue({ installed_version: '1.2.7', state: 'UPDATE_AVAILABLE', latest_version: '1.3.0',
+      installer_url: 'https://github.com/x/y/releases/download/v1.3.0/SocialHub-1.3.0.msi',
+      release_url: 'https://github.com/x/y/releases/tag/v1.3.0', message: 'Hay una versión nueva: 1.3.0 (tienes la 1.2.7)' });
+    render(<VersionBadge demo={false} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Nueva versión 1.3.0' }));
+    const pop = screen.getByRole('dialog', { name: 'Versión de SocialHub' });
+    expect(pop).toHaveTextContent('Instalada');
+    expect(pop).toHaveTextContent('1.3.0');
+    expect(within(pop).getByRole('link', { name: 'Descargar el instalador' })).toHaveAttribute('href', expect.stringContaining('.msi'));
+    expect(pop).toHaveTextContent('Instalar SocialHub (con registro)');
+  });
+
+  it('sin información de versiones nuevas lo dice sin error', async () => {
+    vi.spyOn(api, 'appVersion').mockResolvedValue({ version: '1.2.7', commit: 'a1b2c3d', build_time: '2026-11-15T10:30:00Z' });
+    vi.spyOn(api, 'updateStatus').mockResolvedValue({ installed_version: '1.2.7', state: 'UNKNOWN', message: 'No hay información de versiones nuevas' });
+    render(<VersionBadge demo={false} />);
+    fireEvent.click(await screen.findByRole('button', { name: '1.2.7 · a1b2c3d' }));
+    expect(screen.queryByRole('button', { name: /Nueva versión/ })).toBeNull();
+    expect(screen.getByRole('dialog', { name: 'Versión de SocialHub' })).toHaveTextContent('No hay información de versiones nuevas');
+  });
+
+  it('el interruptor de abrir con Windows aparece si está disponible, se apaga y se enciende', async () => {
+    vi.spyOn(api, 'appVersion').mockResolvedValue({ version: '1.2.7', commit: 'a1b2c3d', build_time: '2026-11-15T10:30:00Z' });
+    vi.spyOn(api, 'updateStatus').mockResolvedValue({ installed_version: '1.2.7', state: 'UNKNOWN', message: 'No hay información de versiones nuevas' });
+    vi.spyOn(api, 'autostart').mockResolvedValue({ available: true, enabled: true });
+    const set = vi.spyOn(api, 'setAutostart').mockResolvedValue({ available: true, enabled: false });
+    render(<VersionBadge demo={false} />);
+    fireEvent.click(await screen.findByRole('button', { name: '1.2.7 · a1b2c3d' }));
+    const box = await screen.findByRole('checkbox', { name: /Abrir SocialHub al iniciar sesión/ });
+    expect(box).toBeChecked();
+    fireEvent.click(box);
+    await waitFor(() => expect(set).toHaveBeenCalledWith(false));
+    await waitFor(() => expect(box).not.toBeChecked());
+  });
+
+  it('si el sistema no permite abrir con Windows no enseña el interruptor', async () => {
+    vi.spyOn(api, 'appVersion').mockResolvedValue({ version: '1.2.7', commit: 'a1b2c3d', build_time: '2026-11-15T10:30:00Z' });
+    vi.spyOn(api, 'updateStatus').mockResolvedValue({ installed_version: '1.2.7', state: 'UNKNOWN', message: 'No hay información de versiones nuevas' });
+    vi.spyOn(api, 'autostart').mockResolvedValue({ available: false, enabled: false });
+    render(<VersionBadge demo={false} />);
+    fireEvent.click(await screen.findByRole('button', { name: '1.2.7 · a1b2c3d' }));
+    await screen.findByRole('dialog', { name: 'Versión de SocialHub' });
+    expect(screen.queryByRole('checkbox')).toBeNull();
   });
 
   it('en modo demo lo dice en el detalle y, si falla la consulta, no enseña nada', async () => {

@@ -241,6 +241,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/system/autostart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * ¿Se abre SocialHub al iniciar sesión?
+         * @description Solo en Windows con SocialHub instalado (available). Es una entrada del usuario en HKCU Run: no pide administrador. Se abre en segundo plano, sin abrir el navegador; el icono de la bandeja indica que está corriendo.
+         */
+        get: operations["getAutostart"];
+        /** Activa o desactiva abrir SocialHub al iniciar sesión (por defecto, activado) */
+        put: operations["setAutostart"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/system/updates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * ¿Hay una versión nueva publicada?
+         * @description Compara la versión instalada con la última release publicada en GitHub (rvillalba1983/socialhub-content-factory). Mira GitHub como mucho una vez al día (y una hora después de un fallo), sin enviar datos del usuario. Sin red o sin releases no falla: devuelve state UNKNOWN con «No hay información de versiones nuevas». Instalar sigue siendo manual.
+         */
+        get: operations["getUpdateStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/system/version": {
         parameters: {
             query?: never;
@@ -458,6 +499,26 @@ export interface paths {
          * @description Genera un «state» aleatorio de un solo uso (10 minutos de vida; protege frente a CSRF) y devuelve la dirección de Meta a la que hay que llevar a Raúl para que dé su permiso. Hace falta haber guardado el App ID y el App Secret.
          */
         post: operations["startInstagramOAuth"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/instagram/oauth/renewal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * «Renovar conexión» sin volver a pedir el App ID ni el App Secret
+         * @description Cambia la clave vigente por otra de larga duración (unos 60 días) con el App ID y el App Secret ya guardados. Si la conexión ya caducó o Meta no acepta la clave, devuelve renewed = false y la dirección del inicio de sesión completo (authorization_url). Si Meta no responde, 400 y la conexión sigue como estaba. Nunca devuelve ni registra claves.
+         */
+        post: operations["renewInstagramConnection"];
         delete?: never;
         options?: never;
         head?: never;
@@ -984,6 +1045,26 @@ export interface paths {
          * @description El texto descartado y el motivo quedan en la memoria editorial de la marca.
          */
         post: operations["rejectPublicationText"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/publications/{publication_id}/previous-text-restorations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Recupera el texto anterior de Raúl, el que sustituyó un texto pedido a mano a Claude
+         * @description Cuando Raúl pide los textos a mano sobre una publicación que ya tenía texto suyo, el de Claude lo sustituye y el suyo queda guardado (previous_caption, previous_hashtags). Aquí lo recupera: el de Claude se descarta.
+         */
+        post: operations["restorePublicationText"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1547,6 +1628,13 @@ export interface components {
         InstagramOAuthStart: {
             authorization_url: string;
         };
+        InstagramRenewal: {
+            /** @description Se renovó sin salir de SocialHub */
+            renewed: boolean;
+            message: string;
+            /** @description Solo si renewed es false: el inicio de sesión completo de Meta */
+            authorization_url?: string;
+        };
         InstagramDetectedAccount: {
             ig_user_id: string;
             username: string;
@@ -1886,6 +1974,32 @@ export interface components {
              */
             build_time: string;
         };
+        Autostart: {
+            /** @description Este sistema lo permite (Windows con SocialHub instalado) */
+            available: boolean;
+            enabled: boolean;
+        };
+        AutostartInput: {
+            enabled: boolean;
+        };
+        UpdateStatus: {
+            /** @example 1.2.7 */
+            installed_version: string;
+            /** @enum {string} */
+            state: "UP_TO_DATE" | "UPDATE_AVAILABLE" | "UNKNOWN";
+            /** @description La última versión publicada, si se sabe */
+            latest_version?: string;
+            /** @description Enlace directo al instalador de este sistema (si la release lo trae) */
+            installer_url?: string;
+            /** @description Página de la release en GitHub */
+            release_url?: string;
+            /**
+             * Format: date-time
+             * @description Última comprobación con éxito
+             */
+            checked_at?: string;
+            message: string;
+        };
         LogsFolder: {
             /**
              * @description Ruta completa de la carpeta de registros
@@ -2153,6 +2267,9 @@ export interface components {
             /** @description Texto de la publicación */
             caption?: string;
             hashtags?: string;
+            /** @description Texto de Raúl que sustituyó Claude al pedirlo a mano; se recupera con previous-text-restorations */
+            previous_caption?: string;
+            previous_hashtags?: string;
             /** @description Prueba de que se ha publicado de verdad */
             confirmation?: string;
             demo: boolean;
@@ -2351,6 +2468,7 @@ export type InstagramStatus = components['schemas']['InstagramStatus'];
 export type InstagramConnection = components['schemas']['InstagramConnection'];
 export type InstagramAppInput = components['schemas']['InstagramAppInput'];
 export type InstagramOAuthStart = components['schemas']['InstagramOAuthStart'];
+export type InstagramRenewal = components['schemas']['InstagramRenewal'];
 export type InstagramDetectedAccount = components['schemas']['InstagramDetectedAccount'];
 export type InstagramDetectedAccountList = components['schemas']['InstagramDetectedAccountList'];
 export type InstagramKeyInput = components['schemas']['InstagramKeyInput'];
@@ -2397,6 +2515,9 @@ export type Brand = components['schemas']['Brand'];
 export type AppMode = components['schemas']['AppMode'];
 export type AppModeState = components['schemas']['AppModeState'];
 export type AppVersion = components['schemas']['AppVersion'];
+export type Autostart = components['schemas']['Autostart'];
+export type AutostartInput = components['schemas']['AutostartInput'];
+export type UpdateStatus = components['schemas']['UpdateStatus'];
 export type LogsFolder = components['schemas']['LogsFolder'];
 export type AppModeChange = components['schemas']['AppModeChange'];
 export type BrandList = components['schemas']['BrandList'];
@@ -2865,6 +2986,77 @@ export interface operations {
             default: components["responses"]["Problem"];
         };
     };
+    getAutostart: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Estado del arranque con el sistema */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Autostart"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    setAutostart: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AutostartInput"];
+            };
+        };
+        responses: {
+            /** @description Estado nuevo */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Autostart"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    getUpdateStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Estado de las versiones */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateStatus"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
     getAppVersion: {
         parameters: {
             query?: never;
@@ -3206,6 +3398,31 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["InstagramOAuthStart"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    renewInstagramConnection: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Resultado de la renovación */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstagramRenewal"];
                 };
             };
             400: components["responses"]["Problem"];
@@ -4261,6 +4478,34 @@ export interface operations {
         };
         responses: {
             /** @description Publicación sin texto */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Publication"];
+                };
+            };
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    restorePublicationText: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path: {
+                publication_id: components["parameters"]["PublicationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Publicación con su texto anterior */
             200: {
                 headers: {
                     [name: string]: unknown;

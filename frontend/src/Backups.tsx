@@ -4,6 +4,7 @@ import { Icon } from './icons';
 import { dateTime, type Backup, type BackupList } from './model';
 import { Pill } from './ui';
 import { WhereHelp } from './WhereHelp';
+import { AutostartSwitch } from './AutostartSwitch';
 
 const KIND: Record<Backup['kind'], string> = { DAILY: 'Diaria', MANUAL: 'A mano', BEFORE_RESTORE: 'Antes de restaurar' };
 
@@ -56,6 +57,8 @@ export function Backups({ onClose, onMessage, onHalted }: { onClose: () => void;
         </div>
 
         {error && <p className="error" role="alert">{error}</p>}
+
+        <AutostartSwitch card />
 
         {list && (
           <form className="card form" aria-label="Carpeta de copias"

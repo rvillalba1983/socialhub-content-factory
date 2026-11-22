@@ -18,6 +18,9 @@ public class SocialHubApplication {
     public static void main(String[] args) {
         UncaughtExceptionLogger.install();
         try {
+            Desktop.readArguments(args);
+            // Instalado: Spring Boot arranca sin modo gráfico por defecto y entonces no hay bandeja del sistema (SystemTray)
+            if (Desktop.enabled() && System.getProperty("java.awt.headless") == null) System.setProperty("java.awt.headless", "false");
             // Instalado: si ya está abierto, solo se abre el navegador
             if (Desktop.enabled() && Desktop.prepare()) {
                 // Segundo clic: ya se abrió el navegador. Se sale sin esperar a hilos que pudieran quedar vivos

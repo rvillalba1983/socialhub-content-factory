@@ -292,7 +292,7 @@
               <generateModelTests>false</generateModelTests>
               <generateApiDocumentation>false</generateApiDocumentation>
               <generateModelDocumentation>false</generateModelDocumentation>
-              <apisToGenerate>Factory,AppMode,Brands,Promotions,Pieces,Publications,Claude,Tasks,Stations,Armory,ExternalOperations,Publora,Publer,Instagram,Backups,App,Settings</apisToGenerate>
+              <apisToGenerate>Factory,AppMode,Brands,Promotions,Pieces,Publications,Claude,Tasks,Stations,Armory,ExternalOperations,Publora,Publer,Instagram,Backups,App,Launcher,Updates,Settings</apisToGenerate>
               <configOptions>
                 <interfaceOnly>true</interfaceOnly>
                 <useSpringBoot3>true</useSpringBoot3>

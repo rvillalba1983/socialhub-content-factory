@@ -76,7 +76,9 @@ export function PublicationEditor({ promotionId, publication, onClose, onSaved }
         type: 'CAPTIONS', title: `Textos · ${publication.title}`, inputs: [publication.id],
         goal: `Escribe el texto y los hashtags de «${publication.title}» (${publication.type}, ${publication.platform === 'TIKTOK' ? 'TikTok' : 'Instagram'}).`,
       });
-      setAsked('Pedido a Claude: los textos llegarán aquí para que los revises.');
+      setAsked(publication.caption || publication.hashtags
+        ? 'Pedido a Claude: su texto sustituirá al actual (podrás recuperar el tuyo).'
+        : 'Pedido a Claude: los textos llegarán aquí para que los revises.');
     } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
   };
 
@@ -130,7 +132,14 @@ export function PublicationEditor({ promotionId, publication, onClose, onSaved }
             onChange={e => { setTextsTouched(true); set('hashtags', e.target.value); }} /></label>
         {publication && !locked && (
           <p className="src">
-            <button type="button" className="btn" onClick={() => void askClaude()}>Pedir textos a Claude</button>{' '}
+            <button type="button" className="btn" title={publication.caption || publication.hashtags
+              ? 'Si ya hay texto, el de Claude lo sustituirá; podrás recuperar el tuyo.' : undefined}
+              onClick={() => void askClaude()}>Pedir textos a Claude</button>{' '}
+            {(publication.previous_caption || publication.previous_hashtags) && (
+              <><button type="button" className="btn" disabled={busy}
+                onClick={() => { setTextsTouched(false); void run(() => api.restorePublicationText(publication.id), 'Texto anterior recuperado'); }}>
+                Recuperar mi texto anterior</button>{' '}</>
+            )}
             {(publication.caption || publication.hashtags) && (
               <button type="button" className="btn" onClick={() => setRejecting('TEXT')}>Descartar texto</button>
             )}
@@ -308,7 +317,7 @@ function MetricsPanel({ publication }: { publication: Publication }) {
     <fieldset className="rows" aria-label="Métricas">
       <legend>Métricas</legend>
       {!m && <p className="src">Se leen solas a los 7 días de publicarse.</p>}
-      {m?.status === 'REQUESTED' && <p className="src">Pedidas a Claude el {dateTime(m.requested_at)}.</p>}
+      {m?.status === 'REQUESTED' && <p className="src">Pedidas a Claude el {dateTime(m.requested_at)}.{m.note ? ` ${m.note}` : ''}</p>}
       {m?.status === 'FAILED' && <p className="src">No se pudieron leer{m.note ? `: ${m.note}` : ''}. Se reintenta al día siguiente (máximo 3 veces).</p>}
       {m?.status === 'DONE' && (
         <>

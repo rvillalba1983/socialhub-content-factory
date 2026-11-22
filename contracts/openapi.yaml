@@ -51,6 +51,10 @@ tags:
     description: Copias de seguridad de la base de datos real, en la carpeta de copias (ajuste general)
   - name: App
     description: La aplicación en sí (cerrarla desde la web y ver qué versión es)
+  - name: Launcher
+    description: SocialHub como programa de escritorio (abrirlo al iniciar sesión en Windows)
+  - name: Updates
+    description: Aviso de versión nueva publicada en GitHub Releases
 
 paths:
   /api/factory:
@@ -344,6 +348,59 @@ paths:
         "204": { description: Carpeta abierta }
         default: { $ref: "#/components/responses/Problem" }
 
+  /api/system/autostart:
+    get:
+      tags: [Launcher]
+      operationId: getAutostart
+      summary: ¿Se abre SocialHub al iniciar sesión?
+      description: >
+        Solo en Windows con SocialHub instalado (available). Es una entrada del usuario en HKCU Run: no pide
+        administrador. Se abre en segundo plano, sin abrir el navegador; el icono de la bandeja indica que está corriendo.
+      responses:
+        "200":
+          description: Estado del arranque con el sistema
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Autostart" }
+        default: { $ref: "#/components/responses/Problem" }
+    put:
+      tags: [Launcher]
+      operationId: setAutostart
+      summary: Activa o desactiva abrir SocialHub al iniciar sesión (por defecto, activado)
+      parameters:
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AutostartInput" }
+      responses:
+        "200":
+          description: Estado nuevo
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Autostart" }
+        "400": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/system/updates:
+    get:
+      tags: [Updates]
+      operationId: getUpdateStatus
+      summary: ¿Hay una versión nueva publicada?
+      description: >
+        Compara la versión instalada con la última release publicada en GitHub (rvillalba1983/socialhub-content-factory).
+        Mira GitHub como mucho una vez al día (y una hora después de un fallo), sin enviar datos del usuario. Sin red o sin
+        releases no falla: devuelve state UNKNOWN con «No hay información de versiones nuevas». Instalar sigue siendo
+        manual.
+      responses:
+        "200":
+          description: Estado de las versiones
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UpdateStatus" }
+        default: { $ref: "#/components/responses/Problem" }
+
   /api/system/version:
     get:
       tags: [App]
@@ -594,6 +651,26 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/InstagramOAuthStart" }
+        "400": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/instagram/oauth/renewal:
+    post:
+      tags: [Instagram]
+      operationId: renewInstagramConnection
+      summary: «Renovar conexión» sin volver a pedir el App ID ni el App Secret
+      description: >
+        Cambia la clave vigente por otra de larga duración (unos 60 días) con el App ID y el App Secret ya guardados. Si la
+        conexión ya caducó o Meta no acepta la clave, devuelve renewed = false y la dirección del inicio de sesión completo
+        (authorization_url). Si Meta no responde, 400 y la conexión sigue como estaba. Nunca devuelve ni registra claves.
+      parameters:
+        - $ref: "#/components/parameters/RequestGuard"
+      responses:
+        "200":
+          description: Resultado de la renovación
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InstagramRenewal" }
         "400": { $ref: "#/components/responses/Problem" }
         default: { $ref: "#/components/responses/Problem" }
 
@@ -1362,6 +1439,27 @@ paths:
         "409": { $ref: "#/components/responses/Problem" }
         default: { $ref: "#/components/responses/Problem" }
 
+  /api/publications/{publication_id}/previous-text-restorations:
+    post:
+      tags: [Publications]
+      operationId: restorePublicationText
+      summary: Recupera el texto anterior de Raúl, el que sustituyó un texto pedido a mano a Claude
+      description: >
+        Cuando Raúl pide los textos a mano sobre una publicación que ya tenía texto suyo, el de Claude lo sustituye y el
+        suyo queda guardado (previous_caption, previous_hashtags). Aquí lo recupera: el de Claude se descarta.
+      parameters:
+        - $ref: "#/components/parameters/PublicationId"
+        - $ref: "#/components/parameters/RequestGuard"
+      responses:
+        "200":
+          description: Publicación con su texto anterior
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Publication" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
   /api/publications/{publication_id}/status-changes:
     post:
       tags: [Publications]
@@ -2111,6 +2209,14 @@ components:
       properties:
         authorization_url: { type: string }
 
+    InstagramRenewal:
+      type: object
+      required: [renewed, message]
+      properties:
+        renewed: { type: boolean, description: Se renovó sin salir de SocialHub }
+        message: { type: string }
+        authorization_url: { type: string, description: "Solo si renewed es false: el inicio de sesión completo de Meta" }
+
     InstagramDetectedAccount:
       type: object
       required: [ig_user_id, username, page_name]
@@ -2532,6 +2638,31 @@ components:
         commit: { type: string, description: "Commit con el que se compiló, de 7 caracteres (o «local» si se compiló a mano)", example: a1b2c3d }
         build_time: { type: string, format: date-time, description: Fecha y hora de compilación }
 
+    Autostart:
+      type: object
+      required: [available, enabled]
+      properties:
+        available: { type: boolean, description: "Este sistema lo permite (Windows con SocialHub instalado)" }
+        enabled: { type: boolean }
+
+    AutostartInput:
+      type: object
+      required: [enabled]
+      properties:
+        enabled: { type: boolean }
+
+    UpdateStatus:
+      type: object
+      required: [installed_version, state, message]
+      properties:
+        installed_version: { type: string, example: 1.2.7 }
+        state: { type: string, enum: [UP_TO_DATE, UPDATE_AVAILABLE, UNKNOWN] }
+        latest_version: { type: string, description: "La última versión publicada, si se sabe" }
+        installer_url: { type: string, description: "Enlace directo al instalador de este sistema (si la release lo trae)" }
+        release_url: { type: string, description: "Página de la release en GitHub" }
+        checked_at: { type: string, format: date-time, description: "Última comprobación con éxito" }
+        message: { type: string }
+
     LogsFolder:
       type: object
       required: [path]
@@ -2862,6 +2993,8 @@ components:
         note: { type: string }
         caption: { type: string, description: Texto de la publicación }
         hashtags: { type: string }
+        previous_caption: { type: string, description: "Texto de Raúl que sustituyó Claude al pedirlo a mano; se recupera con previous-text-restorations" }
+        previous_hashtags: { type: string }
         confirmation: { type: string, description: Prueba de que se ha publicado de verdad }
         demo: { type: boolean }
 

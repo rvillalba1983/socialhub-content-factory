@@ -45,7 +45,7 @@ import org.springframework.stereotype.Component;
  *   marca y red, con botón a la tarjeta «Cuenta en Publer» de la ficha. Va tras las de publicación: bloquea publicaciones reales.</li>
  *   <li>La tarea «Publicar con Chrome» no contesta: encargos de {@code para-claude-pc} sin resultado desde hace 90
  *   minutos después de la pasada que les tocaba (cada 5 h, desde las 0:50). Sin botón.</li>
- *   <li>La conexión con Instagram («Conectar con Instagram») caduca en 7 días o menos, o ya caducó: botón a la tarjeta
+ *   <li>La conexión con Instagram («Conectar con Instagram») caduca en 10 días o menos, o ya caducó: botón a la tarjeta
  *   «Instagram · API oficial», donde está «Renovar conexión». Si hay clave de usuario del sistema, se dice que mientras tanto
  *   se usará esa. Sin conexión guardada no sale nada.</li>
  *   <li>Propuestas de una promoción retenidas, con el motivo (la marca sin carpeta de «Encargos», la carpeta no
