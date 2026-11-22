@@ -71,6 +71,20 @@ class TextFitterTest {
         assertThat(String.join("", result.lines())).isEqualTo("Supercalifragilisticoespialidoso");
         assertThat(result.lines()).allSatisfy(l -> assertThat(TextFitter.width(l, font)).isLessThanOrEqualTo(120));
         assertThat(result.truncated()).isFalse();
+        assertThat(result.wordsSplit()).isTrue();
+    }
+
+    @Test
+    void normalTextNeverReportsSplitWords() {
+        assertThat(fit("Hola mundo", 800, 300, 60, 20, 1.2, 30).wordsSplit()).isFalse();
+    }
+
+    @Test
+    void hugeInputStopsWrappingEarlyAndStaysFast() {
+        long start = System.nanoTime();
+        var result = fit("palabra ".repeat(2000), 300, 100, 40, 20, 1.2, 30);
+        assertThat(result.truncated()).isTrue();
+        assertThat((System.nanoTime() - start) / 1_000_000).isLessThan(2000);
     }
 
     @Test

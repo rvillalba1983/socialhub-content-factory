@@ -107,7 +107,7 @@ class SvgTemplateRendererTest {
 
     @Test
     void hugeTextWarnsAboutTruncationAndStaysInsideTheBox() {
-        var result = draw(template("data-tamano-min=\"30\""), "palabra ".repeat(300));
+        var result = draw(template("data-tamano-min=\"30\""), "palabra ".repeat(200));
         assertThat(result.warnings()).singleElement().asString().contains("«t»").contains("recortado");
         assertInsideBox(ink(result.image()));
     }
@@ -233,7 +233,41 @@ class SvgTemplateRendererTest {
                 Arguments.of("font-size fuera de rango", "<svg " + NS + " viewBox=\"0 0 1000 1000\">" + box + "<text id=\"campo-t\" font-family=\"Fira Sans\" font-size=\"900\">x</text></svg>", "fuera de rango"),
                 Arguments.of("fill no válido", "<svg " + NS + " viewBox=\"0 0 1000 1000\">" + box + "<text id=\"campo-t\" font-family=\"Fira Sans\" font-size=\"40\" fill=\"red\">x</text></svg>", "fill no válido"),
                 Arguments.of("text-anchor no válido", "<svg " + NS + " viewBox=\"0 0 1000 1000\">" + box + "<text id=\"campo-t\" font-family=\"Fira Sans\" font-size=\"40\" text-anchor=\"left\">x</text></svg>", "text-anchor no válido"),
-                Arguments.of("tamaño mínimo mayor que el máximo", "<svg " + NS + " viewBox=\"0 0 1000 1000\">" + box + "<text id=\"campo-t\" font-family=\"Fira Sans\" font-size=\"40\" data-tamano-min=\"50\">x</text></svg>", "data-tamano-min"));
+                Arguments.of("tamaño mínimo mayor que el máximo", "<svg " + NS + " viewBox=\"0 0 1000 1000\">" + box + "<text id=\"campo-t\" font-family=\"Fira Sans\" font-size=\"40\" data-tamano-min=\"50\">x</text></svg>", "data-tamano-min"),
+                Arguments.of("font-style no válido", withAttr("font-style=\"oblique\""), "font-style no válido"),
+                Arguments.of("font-weight no válido", withAttr("font-weight=\"heavy\""), "font-weight no válido"),
+                Arguments.of("data-vertical no válido", withAttr("data-vertical=\"medio\""), "data-vertical no válido"),
+                Arguments.of("data-fijo no válido", withAttr("data-fijo=\"si\""), "data-fijo no válido"),
+                Arguments.of("data-lineas-max no entero", withAttr("data-lineas-max=\"2.5\""), "data-lineas-max entero"),
+                Arguments.of("data-lineas-max fuera de rango", withAttr("data-lineas-max=\"31\""), "data-lineas-max"),
+                Arguments.of("letter-spacing fuera de rango", withAttr("letter-spacing=\"50\""), "letter-spacing"),
+                Arguments.of("fill-opacity fuera de rango", withAttr("fill-opacity=\"1.5\""), "fill-opacity"),
+                Arguments.of("data-interlineado fuera de rango", withAttr("data-interlineado=\"3\""), "data-interlineado"),
+                Arguments.of("caja fuera del lienzo", "<svg " + NS + " viewBox=\"0 0 1000 1000\"><rect id=\"caja-t\" x=\"900\" y=\"1\" width=\"500\" height=\"100\"/>" + field + "</svg>", "no cabe dentro del lienzo"),
+                Arguments.of("caja con número enorme", "<svg " + NS + " viewBox=\"0 0 1000 1000\"><rect id=\"caja-t\" x=\"1\" y=\"1\" width=\"1" + "0".repeat(400) + "\" height=\"100\"/>" + field + "</svg>", "demasiado grande"),
+                Arguments.of("font-size enorme", withAttr("data-x=\"1\"").replace("font-size=\"80\"", "font-size=\"1" + "0".repeat(400) + "\""), "font-size"),
+                Arguments.of("viewBox con número enorme", "<svg " + NS + " viewBox=\"0 0 1" + "0".repeat(400) + " 1000\">" + box + field + "</svg>", "viewBox"),
+                Arguments.of("origen del viewBox fuera de rango", "<svg " + NS + " viewBox=\"5000 0 1000 1000\">" + box + field + "</svg>", "entre -4000 y 4000"),
+                Arguments.of("caja más baja que una línea", "<svg " + NS + " viewBox=\"0 0 1000 1000\"><rect id=\"caja-t\" x=\"1\" y=\"1\" width=\"500\" height=\"20\"/>"
+                        + "<text id=\"campo-t\" font-family=\"Fira Sans\" font-size=\"40\">x</text></svg>", "caja demasiado pequeña"),
+                Arguments.of("caja más estrecha que el tamaño mínimo", "<svg " + NS + " viewBox=\"0 0 1000 1000\"><rect id=\"caja-t\" x=\"1\" y=\"1\" width=\"10\" height=\"100\"/>"
+                        + "<text id=\"campo-t\" font-family=\"Fira Sans\" font-size=\"40\">x</text></svg>", "caja demasiado pequeña"),
+                Arguments.of("más de 40 campos", manyFields(41), "más de 40 campos"),
+                Arguments.of("DOCTYPE", "<!DOCTYPE svg [<!ENTITY x \"y\">]><svg " + NS + " viewBox=\"0 0 1000 1000\"/>", "no es un XML válido"),
+                Arguments.of("entidad externa", "<!DOCTYPE svg [<!ENTITY x SYSTEM \"file:///etc/passwd\">]><svg " + NS + " viewBox=\"0 0 1000 1000\"><text id=\"campo-t\">&x;</text></svg>", "no es un XML válido"));
+    }
+
+    private static String withAttr(String attr) {
+        return template(attr, "x");
+    }
+
+    private static String manyFields(int count) {
+        StringBuilder body = new StringBuilder();
+        for (int i = 0; i < count; i++) {
+            body.append("<rect id=\"caja-c").append(i).append("\" x=\"1\" y=\"1\" width=\"500\" height=\"100\"/>")
+                    .append("<text id=\"campo-c").append(i).append("\" font-family=\"Fira Sans\" font-size=\"40\">x</text>");
+        }
+        return "<svg " + NS + " viewBox=\"0 0 1000 1000\">" + body + "</svg>";
     }
 
     @ParameterizedTest(name = "{0}")
@@ -276,6 +310,112 @@ class SvgTemplateRendererTest {
             assertThat(f.example()).isEqualTo("Hola");
             assertThat(f.fixed()).isTrue();
         });
+    }
+
+    // ---------------------------------------------------------------- límites, alineación con el dibujo, cajas
+
+    @Test
+    void aHugeTextIsCutTo2000CharactersWithAWarningAndRendersFast() {
+        String svg = template("data-tamano-min=\"20\"");
+        renderer.render(svg, Map.of("t", "calentar"), 1000, 1000);
+        long start = System.nanoTime();
+        var result = draw(svg, "palabra ".repeat(25_000));
+        long millis = (System.nanoTime() - start) / 1_000_000;
+        assertThat(millis).isLessThan(2000);
+        assertThat(result.warnings()).anySatisfy(w -> assertThat(w).contains("«t»").contains("cortado a 2000"));
+        assertInsideBox(ink(result.image()));
+    }
+
+    @Test
+    void aWordSplitByLettersIsAWarning() {
+        var result = draw(template("data-tamano-min=\"20\""), "Supercalifragilisticoespialidosoextraordinariamente".repeat(2));
+        assertThat(result.warnings()).anySatisfy(w -> assertThat(w).contains("«t»").contains("partido por letras"));
+        assertInsideBox(ink(result.image()));
+    }
+
+    @Test
+    void manyUnknownKeysAreListedUpToTenAndCounted() {
+        Map<String, String> texts = new java.util.TreeMap<>();
+        for (int i = 0; i < 25; i++) texts.put(String.format("k%02d", i), "x");
+        var result = renderer.render(template(""), texts, 1000, 1000);
+        assertThat(result.warnings()).hasSize(11);
+        assertThat(result.warnings().get(10)).contains("15 textos más");
+    }
+
+    @Test
+    void withoutLinesMaxTheBoxHeightDecidesHowManyLines() {
+        var check = renderer.check(template(""));
+        assertThat(check.valid()).isTrue();
+        String text = "uno\ndos\ntres\ncuatro\ncinco\nseis\nsiete\nocho";
+        var result = draw(template("data-tamano-min=\"20\""), text);
+        assertThat(result.warnings()).isEmpty();
+        assertInsideBox(ink(result.image()));
+    }
+
+    private static final String ALIGN = "<svg " + NS + " viewBox=\"0 0 1080 1350\"><rect width=\"1080\" height=\"1350\" fill=\"#000000\"/>"
+            + "<rect x=\"200\" y=\"700\" width=\"10\" height=\"100\" fill=\"#FF0000\"/>"
+            + "<rect x=\"700\" y=\"100\" width=\"100\" height=\"10\" fill=\"#FF0000\"/>"
+            + "<rect id=\"caja-t\" x=\"300\" y=\"600\" width=\"500\" height=\"300\" fill=\"none\"/>"
+            + "<text id=\"campo-t\" font-family=\"Fira Sans\" font-weight=\"bold\" font-size=\"120\" data-vertical=\"abajo\" fill=\"#FFFFFF\">HHH</text></svg>";
+
+    /** Rectángulo de los píxeles rojos (las marcas del dibujo) con x en el rango dado. */
+    private static Rectangle marker(BufferedImage image, int fromX, int toX) {
+        int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, maxX = -1, maxY = -1;
+        for (int y = 0; y < image.getHeight(); y++) {
+            for (int x = Math.max(0, fromX); x < Math.min(image.getWidth(), toX); x++) {
+                int rgb = image.getRGB(x, y);
+                if (((rgb >> 16) & 0xFF) > 128 && (rgb & 0xFF) < 64) {
+                    minX = Math.min(minX, x);
+                    maxX = Math.max(maxX, x);
+                    minY = Math.min(minY, y);
+                    maxY = Math.max(maxY, y);
+                }
+            }
+        }
+        return new Rectangle(minX, minY, maxX - minX + 1, maxY - minY + 1);
+    }
+
+    @ParameterizedTest
+    @MethodSource("slightlyDifferentRatios")
+    void theTextFollowsTheSameTransformAsTheDrawing(int w, int h) {
+        Rectangle ref = ink(renderer.render(ALIGN, Map.of("t", "HHH"), 1080, 1350).image());
+        assertThat(ref).isNotNull();
+        var result = renderer.render(ALIGN, Map.of("t", "HHH"), w, h);
+        assertThat(result.errors()).isEmpty();
+        double s = Math.max(w / 1080.0, h / 1350.0);
+        double ox = (w - 1080 * s) / 2;
+        double oy = (h - 1350 * s) / 2;
+        BufferedImage image = result.image();
+        Rectangle vertical = marker(image, 0, 500);
+        Rectangle horizontal = marker(image, 600, 2000);
+        assertThat((double) vertical.x).isCloseTo(ox + s * 200, org.assertj.core.api.Assertions.within(1.0));
+        assertThat((double) horizontal.y).isCloseTo(oy + s * 100, org.assertj.core.api.Assertions.within(1.0));
+        Rectangle text = ink(image);
+        // El texto, anclado a la caja, cae donde el dibujo: mismo desplazamiento y misma escala
+        assertThat((double) text.x).isCloseTo(ox + s * ref.x, org.assertj.core.api.Assertions.within(1.5));
+        assertThat((double) (text.y + text.height)).isCloseTo(oy + s * (ref.y + ref.height), org.assertj.core.api.Assertions.within(1.5));
+    }
+
+    static Stream<Arguments> slightlyDifferentRatios() {
+        return Stream.of(Arguments.of(1090, 1350), Arguments.of(1080, 1363), Arguments.of(1080, 1350));
+    }
+
+    @Test
+    void aVisibleFillInACajaIsNeverPainted() {
+        String svg = "<svg " + NS + " viewBox=\"0 0 1000 1000\"><rect width=\"1000\" height=\"1000\" fill=\"#000000\"/>"
+                + "<rect id=\"caja-t\" x=\"100\" y=\"200\" width=\"600\" height=\"300\" fill=\"#FF0000\" stroke=\"#00FF00\"/>"
+                + "<text id=\"campo-t\" font-family=\"Fira Sans\" font-size=\"80\">x</text></svg>";
+        var result = renderer.render(svg, Map.of(), 1000, 1000);
+        assertThat(result.ok()).isTrue();
+        assertThat(result.image().getRGB(400, 350) & 0xFFFFFF).isEqualTo(0);
+        assertThat(result.image().getRGB(100, 350) & 0xFFFFFF).isEqualTo(0);
+    }
+
+    @Test
+    void paintingAbove1080x1920IsAnError() {
+        var result = renderer.render(template(""), Map.of(), 2000, 2000);
+        assertThat(result.ok()).isFalse();
+        assertThat(result.errors()).singleElement().asString().contains("1080×1920");
     }
 
     // ---------------------------------------------------------------- plantillas de prueba y vistas previas
