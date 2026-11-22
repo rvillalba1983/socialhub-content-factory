@@ -9,7 +9,7 @@ export type {
   PublicationInput, PublicationFile, PublicationFileList, AiRequestType, AiSettings, AiSettingsInput, PublishSettings, PublishSettingsInput, AiRequest,
   AiRequestPage, AiOrderInput, AiOrder, BrandIdentity, QualityIssue, QualityReport,
   RejectionReason, EditorialDecision, EditorialMemory, PublishJob, PublishRouteState,
-  PublicationMetrics, PromotionMetrics, NetworkMetrics, FormatMetrics, ExternalCalendar, ExternalPost, ExternalSource, PubloraStatus, PubloraConnection, PubloraAccount, PubloraAccountList, PubloraAccountInput, PublerAccount, PublerAccountList, PublerAccountInput, PublerMoveInput, PublerMoveResult, AlertAction,
+  PublicationOutcome, SlotProposal, DuplicateRef, PublicationMetrics, PromotionMetrics, NetworkMetrics, FormatMetrics, ExternalCalendar, ExternalPost, ExternalSource, PubloraStatus, PubloraConnection, PubloraAccount, PubloraAccountList, PubloraAccountInput, PublerAccount, PublerAccountList, PublerAccountInput, PublerMoveInput, PublerMoveResult, AlertAction,
   InstagramStatus, InstagramCheck, InstagramBrandCheck, InstagramAccount, InstagramConnection, InstagramAppInput,
   InstagramOAuthStart, InstagramRenewal, InstagramDetectedAccount, InstagramDetectedAccountList,
   Backup, BackupList, BackupFolderInput, Restoration, RestorationInput,

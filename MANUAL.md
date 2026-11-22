@@ -128,6 +128,9 @@ Encima del mapa hay una franja con lo siguiente que te toca hacer, por ejemplo c
 - **No uso Publora:** si una marca no va a usar Publora, pulsa este botón en la recomendación y deja de salir. Para deshacerlo, ve a la tarjeta de Publora de la marca.
 - **Propuestas iniciales:** se piden solas cuando una marca tiene una promoción activa y llegan en la siguiente pasada de la noche de la tarea de Claude (20:30, 0:30 o 5:30; ver el apartado 7).
 
+- **Posible duplicado:** si hay dos o más publicaciones activas de la misma marca y red el mismo día con el mismo título, o a la misma hora con el mismo texto, sale una fila con un botón «Descartar esta» por publicación. Pide confirmación y la cancela con el motivo «Repetido». Es solo un aviso: no bloquea nada.
+- **Sin margen:** la fila de una publicación que ya no deja el margen mínimo tiene el botón «Mover a la siguiente hora libre» (ver el apartado 4).
+
 ### Necesita atención y resumen de hoy
 
 ![Necesita atención](docs/manual/img/02-atencion.jpg)
@@ -192,6 +195,12 @@ Cada promoción tiene su centro de control («Abrir centro de control →» en s
 
 - **Estilo visual:** campo opcional de la promoción («Navidad: rojo, dorado, nieve y estrellas», máximo 300 caracteres) que se ve en su ficha. Claude lo usa para dibujar los fondos de las piezas sin material y respeta los colores de la marca salvo que el estilo los cambie.
 - **Métricas** y **Configuración:** las métricas de la promoción y sus parámetros. Las métricas reales de cada publicación se ven en la propia publicación.
+
+### Resultado de cada publicación, duplicados y mover de hora
+
+En la pestaña «Publicaciones», la columna «Resultado» dice si ha salido: **Publicada ✓**, **Falló**, **Retrasada**, **Pendiente** o **Sin confirmar**, con la hora real, la vía usada (API oficial, Publer, Publora o Manual) y el enlace «Ver post» cuando existe. Solo salen datos reales (el trabajo de publicación, el calendario que lee Claude y la API de Meta): si nadie ha confirmado que salió, pone «Sin confirmar». Cuando falla o se retrasa, el motivo y qué hacer salen en la misma fila y en «Necesita atención» (solo dentro de la app). La pestaña «Resumen» cuenta cuántas hay de cada.
+
+Si dos publicaciones se parecen, la fila dice «Posible duplicado» y tiene «Descartar esta». Si una publicación ha perdido el margen o choca con otra (menos de 30 minutos con otra de la misma marca y red), tiene «Mover a la siguiente hora libre»: un diálogo enseña la hora actual y la nueva (la primera libre, en cuartos de hora, con el margen de publicación de ese ajuste) y **no mueve nada hasta que confirmes**. Si la hora nueva cae en otro día se avisa, y si pasa del fin de la promoción tienes que aceptarlo expresamente. Las programadas no se mueven: vuelve antes a «Aprobada».
 
 ### Editar una publicación
 

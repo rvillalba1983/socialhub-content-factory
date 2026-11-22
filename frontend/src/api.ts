@@ -1,5 +1,5 @@
 import type {
-  Backup, BackupList, Restoration, AiOrder, AiOrderInput, BrandIdentity, ExternalCalendar, PublicationMetrics, PromotionMetrics, PublishJob, PubloraStatus, PubloraAccountList, PubloraAccountInput, PublerAccountList, PublerAccountInput, PublerMoveInput, PublerMoveResult, PublishSettings, PublishSettingsInput, InstagramStatus, InstagramCheck, InstagramAccount, InstagramOAuthStart, InstagramRenewal, InstagramDetectedAccountList, QualityReport, RejectionReason, EditorialDecision, EditorialMemory, AiRequestPage, AiSettings, AiSettingsInput, AppMode, AppModeState, AppVersion, Autostart, UpdateStatus, LogsFolder, Brand, FolderInput, FolderList, Publication, PublicationFile, PublicationFileList, PublicationInput, PublicationStatus, PieceOrder, PieceSpecList, BrandInput, ExternalOperationPage, Promotion, PromotionInput, OperationOutcome, Snapshot, Station, StationCommandType, Task, TaskCommand,
+  Backup, BackupList, Restoration, AiOrder, AiOrderInput, BrandIdentity, ExternalCalendar, PublicationMetrics, PromotionMetrics, SlotProposal, PublishJob, PubloraStatus, PubloraAccountList, PubloraAccountInput, PublerAccountList, PublerAccountInput, PublerMoveInput, PublerMoveResult, PublishSettings, PublishSettingsInput, InstagramStatus, InstagramCheck, InstagramAccount, InstagramOAuthStart, InstagramRenewal, InstagramDetectedAccountList, QualityReport, RejectionReason, EditorialDecision, EditorialMemory, AiRequestPage, AiSettings, AiSettingsInput, AppMode, AppModeState, AppVersion, Autostart, UpdateStatus, LogsFolder, Brand, FolderInput, FolderList, Publication, PublicationFile, PublicationFileList, PublicationInput, PublicationStatus, PieceOrder, PieceSpecList, BrandInput, ExternalOperationPage, Promotion, PromotionInput, OperationOutcome, Snapshot, Station, StationCommandType, Task, TaskCommand,
 } from './model';
 
 export class ApiError extends Error {
@@ -53,6 +53,9 @@ export const api = {
   updatePublication: (id: string, input: PublicationInput) => putJson<Publication>(`/api/publications/${encodeURIComponent(id)}`, input),
   changePublicationStatus: (id: string, status: PublicationStatus, reason?: RejectionReason, note?: string) =>
     post<Publication>(`/api/publications/${encodeURIComponent(id)}/status-changes`, { status, reason, note }),
+  nextFreeSlot: (id: string) => call<SlotProposal>(`/api/publications/${encodeURIComponent(id)}/next-free-slot`),
+  moveToFreeSlot: (id: string, move: { new_on: string; new_time: string; accept_after_end?: boolean }) =>
+    post<Publication>(`/api/publications/${encodeURIComponent(id)}/moves`, { ...move, confirmed: true }),
   rejectPublicationText: (id: string, reason: RejectionReason, note?: string) =>
     post<Publication>(`/api/publications/${encodeURIComponent(id)}/text-rejections`, { reason, note }),
   restorePublicationText: (id: string) =>

@@ -532,3 +532,17 @@ tr.op-detail td{background:var(--surface-2)}
 .pv-phone.tt .pv-tags{color:#fff;font-weight:600}
 .pv-phone.tt .src{color:#ddd}
 @media (max-width:520px){.pv-phone{width:100%}}
+
+/* Resultado de las publicaciones, duplicados y «Mover a la siguiente hora libre» */
+.dlg-back { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: rgba(0, 0, 0, .45); padding: 16px; }
+.dlg { max-width: 460px; width: 100%; }
+.dlg h3 { margin: 0 0 8px; }
+.move-times { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 8px 0; }
+.move-times dt { color: var(--muted, #888); }
+.move-times dd { margin: 0; }
+.warn { padding: 8px 10px; border-left: 3px solid var(--warn, #c98a00); background: rgba(201, 138, 0, .12); margin: 8px 0; }
+.field-inline { display: flex; gap: 8px; align-items: flex-start; }
+.outcome { display: inline-flex; flex-wrap: wrap; gap: 2px 4px; align-items: baseline; }
+.outcome-why { flex-basis: 100%; opacity: .85; }
+.dup-flag { display: block; margin-top: 2px; font-size: .85em; }
+.row-actions { display: inline-flex; gap: 4px; flex-wrap: wrap; }

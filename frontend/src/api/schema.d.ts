@@ -1014,6 +1014,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/publications/{publication_id}/next-free-slot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * La siguiente hora libre de una publicación que ha perdido el margen o choca con otra
+         * @description Primera hora (en el cuarto de hora) que no queda antes de «ahora + margen» ni antes de la hora actual de la publicación y sin otra publicación activa de la misma marca y red a menos de 30 minutos. No cambia nada. 409 si no se puede mover (programada, publicada…) o no hace falta.
+         */
+        get: operations["getNextFreeSlot"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/publications/{publication_id}/moves": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mueve la publicación a la siguiente hora libre confirmada
+         * @description Nunca mueve sin «confirmed». Vuelve a calcular la hora y falla (409) si ya no es la confirmada, y si cae después del fin de la promoción exige «accept_after_end».
+         */
+        post: operations["moveToFreeSlot"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/publications/{publication_id}/quality-acceptances": {
         parameters: {
             query?: never;
@@ -1356,10 +1396,10 @@ export interface components {
             /** @description Estable mientras la recomendación siga haciendo falta (por ejemplo, brand-folders:litoques) */
             id: string;
             /**
-             * @description Por orden de prioridad: marca sin forma de publicar (NO_PUBLISHING_ROUTE) y tarea del PC «Publicar con Chrome» sin contestar (PC_TASK_SILENT), que van primero porque bloquean publicaciones reales (también salen como aviso en «Necesita atención»); marca sin cuenta de Publer para una red con publicaciones retenidas (PUBLER_ACCOUNT_MISSING, con botón a la tarjeta «Cuenta en Publer»); conexión con Instagram que caduca en 7 días o menos, o ya caducada (INSTAGRAM_CONNECTION_EXPIRING, con botón a la tarjeta «Instagram · API oficial», donde está «Renovar conexión»); propuestas retenidas (por la carpeta de Encargos, Drive cerrado o el límite diario), propuestas por revisar, marca sin todas sus carpetas, encargos sin recoger, marca sin cuenta de Publora, sin carpeta de copias, marca sin promoción activa, propuestas pedidas en camino y, la última, promoción activada sola hoy (PROMOTION_AUTO_STARTED, informativa: solo el día en que se activa). CONTENT_MISSING: publicación en producción sin contenido (sin piezas y fuera de cualquier spec abierto) que sale en menos de 3 días; con «publication_ids» y «promotion_id», el botón «Pedir contenido ya» pide un spec urgente a mano de esas publicaciones (sin target: no navega). IDENTITY_MISSING: marca con promoción en marcha a la que le falta el tono o el público (botón a su identidad; los temas que no se tocan vacíos son válidos). PUBLICATION_TOO_SOON: publicaciones de camino a publicar a las que ya no queda el margen mínimo de publicación, o cuya hora ya pasó, y aún no están programadas (botón a las pendientes de la promoción). SPEC_WAITING ya no se calcula (el spec se pide por lotes, no por semana) y se conserva solo por compatibilidad. MATERIAL_MISSING: aviso informativo (no bloquea) de las publicaciones de una promoción a las que les falta imagen o vídeo en las carpetas de Material; dice qué fondo se usará (la portada de la marca, o un fondo con su color) y, si la promoción tiene «Estilo visual», que Claude lo usará; si la carpeta no está disponible, avisa de que no se ha podido comprobar (botón a las carpetas de la marca)
+             * @description Por orden de prioridad: marca sin forma de publicar (NO_PUBLISHING_ROUTE) y tarea del PC «Publicar con Chrome» sin contestar (PC_TASK_SILENT), que van primero porque bloquean publicaciones reales (también salen como aviso en «Necesita atención»); marca sin cuenta de Publer para una red con publicaciones retenidas (PUBLER_ACCOUNT_MISSING, con botón a la tarjeta «Cuenta en Publer»); conexión con Instagram que caduca en 7 días o menos, o ya caducada (INSTAGRAM_CONNECTION_EXPIRING, con botón a la tarjeta «Instagram · API oficial», donde está «Renovar conexión»); propuestas retenidas (por la carpeta de Encargos, Drive cerrado o el límite diario), propuestas por revisar, marca sin todas sus carpetas, encargos sin recoger, marca sin cuenta de Publora, sin carpeta de copias, marca sin promoción activa, propuestas pedidas en camino y, la última, promoción activada sola hoy (PROMOTION_AUTO_STARTED, informativa: solo el día en que se activa). CONTENT_MISSING: publicación en producción sin contenido (sin piezas y fuera de cualquier spec abierto) que sale en menos de 3 días; con «publication_ids» y «promotion_id», el botón «Pedir contenido ya» pide un spec urgente a mano de esas publicaciones (sin target: no navega). IDENTITY_MISSING: marca con promoción en marcha a la que le falta el tono o el público (botón a su identidad; los temas que no se tocan vacíos son válidos). PUBLICATION_TOO_SOON: publicaciones de camino a publicar a las que ya no queda el margen mínimo de publicación, o cuya hora ya pasó, y aún no están programadas (botón a las pendientes de la promoción; con «publication_ids», las afectadas por hora, y el botón «Mover a la siguiente hora libre» actúa sobre la primera). DUPLICATE_PUBLICATIONS: posible duplicado (dos o más publicaciones activas de la misma marca y red el mismo día con el mismo título, o con la misma hora y el mismo texto); con «publication_ids», cada una tiene su «Descartar esta». SPEC_WAITING ya no se calcula (el spec se pide por lotes, no por semana) y se conserva solo por compatibilidad. MATERIAL_MISSING: aviso informativo (no bloquea) de las publicaciones de una promoción a las que les falta imagen o vídeo en las carpetas de Material; dice qué fondo se usará (la portada de la marca, o un fondo con su color) y, si la promoción tiene «Estilo visual», que Claude lo usará; si la carpeta no está disponible, avisa de que no se ha podido comprobar (botón a las carpetas de la marca)
              * @enum {string}
              */
-            kind: "HELD_PROPOSALS" | "PROPOSALS_TO_REVIEW" | "BRAND_FOLDERS_MISSING" | "ORDERS_NOT_COLLECTED" | "PUBLORA_MISSING" | "BACKUP_FOLDER_MISSING" | "NO_ACTIVE_PROMOTION" | "PROPOSALS_PENDING" | "SPEC_WAITING" | "PC_TASK_SILENT" | "NO_PUBLISHING_ROUTE" | "PUBLER_ACCOUNT_MISSING" | "INSTAGRAM_CONNECTION_EXPIRING" | "PROMOTION_AUTO_STARTED" | "CONTENT_MISSING" | "IDENTITY_MISSING" | "PUBLICATION_TOO_SOON" | "MATERIAL_MISSING";
+            kind: "HELD_PROPOSALS" | "PROPOSALS_TO_REVIEW" | "BRAND_FOLDERS_MISSING" | "ORDERS_NOT_COLLECTED" | "PUBLORA_MISSING" | "BACKUP_FOLDER_MISSING" | "NO_ACTIVE_PROMOTION" | "PROPOSALS_PENDING" | "SPEC_WAITING" | "PC_TASK_SILENT" | "NO_PUBLISHING_ROUTE" | "PUBLER_ACCOUNT_MISSING" | "INSTAGRAM_CONNECTION_EXPIRING" | "PROMOTION_AUTO_STARTED" | "CONTENT_MISSING" | "IDENTITY_MISSING" | "PUBLICATION_TOO_SOON" | "MATERIAL_MISSING" | "DUPLICATE_PUBLICATIONS";
             /** @description Texto en español */
             title: string;
             /** @description Más información (por ejemplo, el motivo de un encargo retenido) */
@@ -2288,6 +2328,74 @@ export interface components {
             /** @description Prueba de que se ha publicado de verdad */
             confirmation?: string;
             demo: boolean;
+            outcome?: components["schemas"]["PublicationOutcome"];
+            /** @description Otras publicaciones activas con las que se repite (aviso, no bloquea) */
+            duplicates?: components["schemas"]["DuplicateRef"][];
+            /**
+             * @description Presente si puede moverse a la siguiente hora libre, y por qué (perdió el margen o choca con otra)
+             * @enum {string}
+             */
+            move_reason?: "LOST_MARGIN" | "CLASH";
+        };
+        /** @description Cómo ha acabado o va la publicación, solo con datos reales (su estado, su trabajo de publicación y el calendario leído por Claude). Ausente si está cancelada. Sin confirmación, UNCONFIRMED. */
+        PublicationOutcome: {
+            /** @enum {string} */
+            result: "PUBLISHED" | "FAILED" | "DELAYED" | "PENDING" | "UNCONFIRMED";
+            /** @description Publicada / Falló / Retrasada / Pendiente / Sin confirmar */
+            label: string;
+            /**
+             * Format: date-time
+             * @description Hora real de publicación
+             */
+            at?: string;
+            /**
+             * @description CALENDAR, la hora que dice la vía; CONFIRMATION, cuando SocialHub la confirmó
+             * @enum {string}
+             */
+            at_source?: "CALENDAR" | "CONFIRMATION";
+            /** @description API oficial, Publer, Publora o Manual */
+            route?: string;
+            /** @description Enlace al post, si existe */
+            url?: string;
+            /** @description Por qué falló, se retrasó o no se confirma */
+            reason?: string;
+            /** @description Qué hacer */
+            advice?: string;
+        };
+        DuplicateRef: {
+            publication_id: string;
+            /** @enum {string} */
+            reason: "SAME_TITLE" | "SAME_TIME_AND_TEXT";
+        };
+        SlotProposal: {
+            publication_id: string;
+            /** @enum {string} */
+            reason: "LOST_MARGIN" | "CLASH";
+            /** Format: date */
+            current_on: string;
+            /** @example 19:00 */
+            current_time: string;
+            /** Format: date */
+            new_on: string;
+            /** @example 19:30 */
+            new_time: string;
+            timezone: string;
+            changes_day: boolean;
+            /** Format: date */
+            promotion_ends_on?: string;
+            /** @description La nueva fecha pasa del fin de la promoción */
+            after_promotion_end: boolean;
+            /** Format: int64 */
+            margin_minutes: number;
+        };
+        SlotMove: {
+            /** Format: date */
+            new_on: string;
+            new_time: string;
+            /** @description Raúl ha visto la hora actual y la nueva y lo confirma */
+            confirmed: boolean;
+            /** @default false */
+            accept_after_end: boolean;
         };
         PublicationInput: {
             platform: components["schemas"]["Platform"];
@@ -2564,6 +2672,10 @@ export type AvailableCommand = components['schemas']['AvailableCommand'];
 export type TaskCommand = components['schemas']['TaskCommand'];
 export type PublicationPage = components['schemas']['PublicationPage'];
 export type Publication = components['schemas']['Publication'];
+export type PublicationOutcome = components['schemas']['PublicationOutcome'];
+export type DuplicateRef = components['schemas']['DuplicateRef'];
+export type SlotProposal = components['schemas']['SlotProposal'];
+export type SlotMove = components['schemas']['SlotMove'];
 export type PublicationInput = components['schemas']['PublicationInput'];
 export type PublicationFile = components['schemas']['PublicationFile'];
 export type PublicationFileList = components['schemas']['PublicationFileList'];
@@ -4439,6 +4551,64 @@ export interface operations {
                 };
             };
             404: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    getNextFreeSlot: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publication_id: components["parameters"]["PublicationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Hora propuesta */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SlotProposal"];
+                };
+            };
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    moveToFreeSlot: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path: {
+                publication_id: components["parameters"]["PublicationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SlotMove"];
+            };
+        };
+        responses: {
+            /** @description Publicación movida */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Publication"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
             default: components["responses"]["Problem"];
         };
     };

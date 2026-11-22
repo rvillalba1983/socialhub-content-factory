@@ -85,6 +85,23 @@ class FactoryRecommendationsTest {
     }
 
     @Test
+    void aDuplicateGroupGivesOneRowWithItsPublicationsAndNoBlocking() {
+        when(publishing.duplicateGroups()).thenReturn(List.of(new PublishingQueries.DuplicateGroup("lit-1", "Poema",
+                LocalDate.of(2026, 11, 12), "Instagram", true, List.of("a", "b"))));
+        var rows = subject().compute().stream().filter(r -> r.kind() == Kind.DUPLICATE_PUBLICATIONS).toList();
+        assertThat(rows).hasSize(1);
+        var row = rows.getFirst();
+        assertThat(row.title()).isEqualTo("Posible duplicado: «Poema» (2 publicaciones de Instagram)");
+        assertThat(row.detail()).contains("12 de nov").contains("mismo título");
+        assertThat(row.publicationIds()).containsExactly("a", "b");
+        assertThat(row.target().screen()).isEqualTo(Screen.PUBLICATIONS);
+        // Un grupo de una promoción que no existe no sale
+        when(publishing.duplicateGroups()).thenReturn(List.of(new PublishingQueries.DuplicateGroup("otra", "Poema",
+                LocalDate.of(2026, 11, 12), "Instagram", false, List.of("a", "b"))));
+        assertThat(kinds()).doesNotContain(Kind.DUPLICATE_PUBLICATIONS);
+    }
+
+    @Test
     void anAutoStartedPromotionIsAnnouncedOnlyOnItsDayAndWithoutButton() {
         // El 9 de nov SocialHub activó la promoción
         when(autoStarted.on(LocalDate.of(2026, 11, 9))).thenReturn(java.util.Set.of("lit-1"));
