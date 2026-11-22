@@ -34,7 +34,7 @@ Añadir al flujo de creación de SocialHub dentro de Claude estas skills:
 | `meme-and-culture` | `socialhub.weekly-spec` | Memes solo de texto, sobre plantillas del kit. Sin imágenes ni personajes de terceros |
 | `hook-writer`, `caption-writer` | `socialhub.weekly-spec` y `socialhub.captions` | Gancho de la portada y textos y hashtags |
 | `platform-specs-and-validation` | Spec, textos y revisión de calidad | Solo la parte de tamaños y límites de Instagram y TikTok. Su flujo de validación (`POST /posts/validate`) es de otro servicio y no se usa |
-| `video-making` | Montaje de vídeo en SocialHub | Es una guía de cómo montar el vídeo (una escena por archivo con los mismos parámetros, unirlas con concat sin recodificar, sonido después). La aplica SocialHub en su FFmpeg, no Claude en la tarea. **A confirmar con Raúl** |
+| `video-making` | Montaje de vídeo en SocialHub | Es una guía de cómo montar el vídeo (una escena por archivo con los mismos parámetros, unirlas con concat sin recodificar, sonido después). La aplica SocialHub en su FFmpeg, no Claude en la tarea (confirmado por Raúl) |
 
 Reglas fijas para todas:
 - **Se ignora la parte de generación de imágenes con IA** (prompts para Nano Banana, Ideogram o similares) en todas las skills. Nada de imágenes generadas con IA.
