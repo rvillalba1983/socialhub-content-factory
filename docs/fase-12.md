@@ -169,3 +169,11 @@ Decisión de Raúl: ajuste aparte para TikTok (480 minutos por defecto, 5 a 1440
 
 Dudas para Raúl: ver el informe de la PR (carpeta `info` como papel propio, «sin verificar» bloqueante, Word/odt).
 
+## Pantalla final del instalador y avisos de los lanzadores (16 nov 2026, petición de Raúl; rama `fase-12-instalador-final`, PR #73)
+
+El `.msi` no avisaba de que había terminado. Ahora:
+1. Tras la barra de progreso sale una pantalla final en español: «SocialHub se ha instalado correctamente» con la casilla «Abrir SocialHub ahora» (marcada) y «Finalizar»; en actualización, mantenimiento y desinstalación, su propio mensaje.
+2. Los lanzadores «Instalar/Desinstalar SocialHub (con registro).cmd» acaban con una ventana de aviso según el código de salida (salvo `/silencioso`).
+3. La CI lee las tablas del `.msi` (falla si falta `ExitDialog`), prueba los avisos y, de forma informativa, instala y desinstala con la interfaz real y guarda capturas.
+
+Detalle técnico y límites en `docs/decisiones.md`. Lo que Raúl debe mirar a mano: ver «Instalar y cerrar» en `MANUAL.md`.

@@ -1,0 +1,2 @@
+SocialHub - Fabrica de contenido de El DeLito y Litoques.
+Uso personal. Este archivo solo existe para que jpackage incluya la interfaz de WiX (WixUIExtension); la pantalla de licencia no se muestra.
