@@ -38,6 +38,37 @@ public interface PublishingQueries {
      */
     List<WithoutMargin> withoutMargin(java.time.Instant now);
 
+    /** Por qué una publicación puede moverse a la siguiente hora libre. */
+    enum MoveReason { LOST_MARGIN, CLASH }
+
+    /** Aviso de posible duplicado: la otra publicación y por qué se parecen. */
+    record DuplicateRef(String publicationId, com.socialhub.publishing.domain.DuplicateDetector.Reason reason) {}
+
+    /**
+     * Lo que se ve de cada publicación además de sus datos: cómo ha acabado (vacío si está cancelada), con qué otras se
+     * repite y por qué puede moverse a la siguiente hora libre (vacío si no hace falta o no se puede mover).
+     */
+    record Insight(java.util.Optional<com.socialhub.publishing.domain.PublicationOutcome> outcome, List<DuplicateRef> duplicates,
+                   java.util.Optional<MoveReason> move) {}
+
+    /** Lo anterior de todas las publicaciones, por identificador. */
+    java.util.Map<String, Insight> insights();
+
+    /** Grupos de posibles duplicados (publicaciones activas de la misma marca y red) de todas las promociones. */
+    List<com.socialhub.publishing.domain.DuplicateDetector.Group> duplicateGroups();
+
+    /** Hora propuesta para mover una publicación. */
+    record SlotProposal(String publicationId, MoveReason reason, java.time.LocalDate currentDay, java.time.LocalTime currentTime,
+                        java.time.LocalDate newDay, java.time.LocalTime newTime, String timezone, boolean changesDay,
+                        java.time.@org.jspecify.annotations.Nullable LocalDate promotionEndsOn, boolean afterPromotionEnd,
+                        long marginMinutes) {}
+
+    /**
+     * La siguiente hora libre de una publicación que ha perdido el margen o choca con otra. Falla (409) si no se puede
+     * mover (programada, publicada…) o no hace falta.
+     */
+    SlotProposal nextFreeSlot(String publicationId);
+
     /** Métricas de la publicación, si ya se pidieron. */
     java.util.Optional<com.socialhub.publishing.domain.MetricsRepository.Metrics> metrics(String publicationId);
 

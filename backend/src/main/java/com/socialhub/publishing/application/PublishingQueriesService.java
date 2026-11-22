@@ -25,6 +25,7 @@ class PublishingQueriesService implements PublishingQueries {
     private final com.socialhub.publishing.domain.MetricsRepository metricsRepository;
     private final PubloraService publora;
     private final com.socialhub.promotion.PromotionQueries promotionQueries;
+    private final PublicationInsights insights;
 
     
 
@@ -72,6 +73,20 @@ class PublishingQueriesService implements PublishingQueries {
                 .sorted(java.util.Comparator.comparing(Publication::scheduledAt))
                 .map(p -> new WithoutMargin(p.getPromotionId(), p.getId(), p.getTitle(), p.scheduledAt()))
                 .toList();
+    }
+
+    @Override
+    public java.util.Map<String, Insight> insights() { return insights.all(); }
+
+    @Override
+    public List<com.socialhub.publishing.domain.DuplicateDetector.Group> duplicateGroups() {
+        return com.socialhub.publishing.domain.DuplicateDetector.find(publications.findAll(), promotionQueries::brandOf);
+    }
+
+    @Override
+    public SlotProposal nextFreeSlot(String publicationId) {
+        return insights.proposal(publications.findById(publicationId)
+                .orElseThrow(() -> new NotFoundException("No existe la publicación " + publicationId)));
     }
 
     /** Métricas de la publicación, si ya se pidieron. */

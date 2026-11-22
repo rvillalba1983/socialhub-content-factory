@@ -48,4 +48,12 @@ public interface PublishingCommands {
 
     /** Raúl descarta el texto de la publicación con su motivo: queda en la memoria editorial. */
     Publication discardTexts(String id, com.socialhub.publishing.domain.RejectionReason reason, @Nullable String note);
+
+    /**
+     * Mueve la publicación a la hora que Raúl ha confirmado. Vuelve a calcular la siguiente hora libre y falla si ya no es
+     * esa (otra publicación ha ocupado el hueco o ha pasado el tiempo); nunca mueve sin {@code confirmed}.
+     *
+     * @param acceptAfterEnd Raúl acepta que quede después de la fecha final de la promoción
+     */
+    Publication moveToFreeSlot(String id, java.time.LocalDate day, java.time.LocalTime time, boolean confirmed, boolean acceptAfterEnd);
 }
