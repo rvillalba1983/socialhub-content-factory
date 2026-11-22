@@ -84,6 +84,7 @@ class FactoryRecommendations {
     private final MissingMaterial missingMaterial;
     private final InstagramOAuth instagramOAuth;
     private final Clock clock;
+    private final com.socialhub.settings.PublishSettings settings;
 
     List<Recommendation> compute() {
         Instant now = clock.instant();
@@ -126,14 +127,14 @@ class FactoryRecommendations {
         // 0c. Instagram: la conexión con Meta caduca pronto o ya caducó
         instagramOAuth.notice().ifPresent(n -> all.add(instagramExpiring(n)));
 
-        // 0c. Publicaciones de camino a publicar a las que ya no les quedan 6 horas de margen (o cuya hora ya pasó)
+        // 0c. Publicaciones de camino a publicar a las que ya no les queda el margen mínimo de publicación (o cuya hora ya pasó)
         Map<String, List<PublishingQueries.WithoutMargin>> tooSoon = publishing.withoutMargin(now).stream()
                 .filter(w -> promotionById.containsKey(w.promotionId()))
                 .collect(Collectors.groupingBy(PublishingQueries.WithoutMargin::promotionId, LinkedHashMap::new, Collectors.toList()));
         tooSoon.forEach((promotionId, list) -> {
             var promotion = promotionById.get(promotionId);
             if (!promotion.active() && !promotion.plannedAhead(today)) return;
-            all.add(noMargin(promotion, list, now));
+            all.add(noMargin(promotion, list, now, settings.minMargin()));
         });
 
         // 1. Propuestas retenidas, o paradas por Drive o por el límite diario
@@ -309,17 +310,18 @@ class FactoryRecommendations {
     }
 
     private static Recommendation noMargin(PromotionQueries.PromotionRef promotion,
-                                              List<PublishingQueries.WithoutMargin> list, Instant now) {
+                                              List<PublishingQueries.WithoutMargin> list, Instant now, java.time.Duration margin) {
         var first = list.getFirst();
         var when = first.scheduledAt().atZone(ClaudePickups.ZONE);
         String day = when.getDayOfMonth() + " de " + when.getMonth().getDisplayName(TextStyle.SHORT, Locale.of("es", "ES"));
         boolean past = !first.scheduledAt().isAfter(now);
-        String title = list.size() == 1 ? "«" + first.title() + "» ya no deja 6 horas de margen"
-                : list.size() + " publicaciones de «" + promotion.name() + "» ya no dejan 6 horas de margen";
+        String span = com.socialhub.platform.SpanText.of(margin);
+        String title = list.size() == 1 ? "«" + first.title() + "» ya no deja " + span + " de margen"
+                : list.size() + " publicaciones de «" + promotion.name() + "» ya no dejan " + span + " de margen";
         String detail = (list.size() == 1 ? "" : "La primera, «" + first.title() + "»: ")
                 + (past ? "su hora (el " + day + " a las " + hour(when) + ") ya pasó"
-                        : "sale el " + day + " a las " + hour(when) + " (faltan menos de 6 horas)")
-                + " y aún no está programada. SocialHub no programa con menos de 6 horas: cambia la hora o publícala a mano";
+                        : "sale el " + day + " a las " + hour(when) + " (faltan menos de " + span + ")")
+                + " y aún no está programada. SocialHub no programa con menos de " + span + " de margen (ajuste «Margen mínimo de publicación»): cambia la hora o publícala a mano";
         return recommendation("publication-too-soon:" + promotion.id(), Recommendation.Kind.PUBLICATION_TOO_SOON,
                 title, detail, Recommendation.Screen.PUBLICATIONS, promotion.brandId(), promotion.id())
                 .promotionId(promotion.id());

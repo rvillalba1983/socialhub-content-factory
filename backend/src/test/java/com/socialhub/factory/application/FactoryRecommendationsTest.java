@@ -56,7 +56,8 @@ class FactoryRecommendationsTest {
 
     private FactoryRecommendations subject() {
         return new FactoryRecommendations(held, sent, promotions, publishing, publora, publer, backups, autoStarted,
-                contentGaps, missingMaterial, instagramOAuth, Clock.fixed(now, ClaudePickups.ZONE));
+                contentGaps, missingMaterial, instagramOAuth, Clock.fixed(now, ClaudePickups.ZONE),
+                com.socialhub.settings.FixedMargin.of(com.socialhub.settings.FixedMargin.SIX_HOURS));
     }
 
     /** Una marca «Litoques» con una promoción activa, todo en orden. */

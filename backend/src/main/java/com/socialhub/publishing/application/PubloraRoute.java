@@ -40,21 +40,24 @@ class PubloraRoute implements PublishRoute {
     private final PubloraAccountRepository accounts;
     private final PublicationFileRepository files;
     private final PromotionQueries promotions;
+    private final com.socialhub.settings.PublishSettings settings;
 
     PubloraRoute(PubloraGateway publora, com.socialhub.publishing.domain.SecretStore secrets,
-                 PubloraAccountRepository accounts, PublicationFileRepository files, PromotionQueries promotions) {
+                 PubloraAccountRepository accounts, PublicationFileRepository files, PromotionQueries promotions,
+                 com.socialhub.settings.PublishSettings settings) {
         this.publora = publora;
         this.secrets = secrets;
         this.accounts = accounts;
         this.files = files;
         this.promotions = promotions;
+        this.settings = settings;
     }
 
     @Override public PublishRouteId id() { return PublishRouteId.PUBLORA; }
 
     @Override public boolean configured() { return secrets.get(KEY).isPresent(); }
 
-    @Override public Instant lastMoment(Instant scheduledAt) { return scheduledAt.minus(Publication.MIN_MARGIN); }
+    @Override public Instant lastMoment(Instant scheduledAt) { return scheduledAt.minus(settings.minMargin()); }
 
     @Override
     public Outcome schedule(Publication p, PublishJob job, Instant now) {

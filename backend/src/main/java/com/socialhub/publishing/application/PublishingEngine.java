@@ -36,8 +36,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * Motor de publicación (fase 7). Al pasar una publicación a «Programada» prueba las vías por orden: API oficial (solo
- * Instagram, cuando está configurada), Publer y Publora. Si fallan todas, reintenta cada hora mientras quede el margen
- * de 6 h; después deja un LEEME para publicarla a mano y avisa. Pasada la hora, la pasa a «Publicando» y pide la
+ * Instagram, cuando está configurada), Publer y Publora. Si fallan todas, reintenta cada hora mientras quede el «Margen
+ * mínimo de publicación» (ajuste global, 30 minutos por defecto); después deja un LEEME para publicarla a mano y avisa. Pasada la hora, la pasa a «Publicando» y pide la
  * comprobación: «Publicada» solo llega con el enlace o el identificador; si no aparece, «Error de publicación».
  * <p>
  * La API oficial no programa: SocialHub publica él mismo. En el corte previo (cuando Publer aún llega) comprueba todo y,
@@ -84,10 +84,12 @@ class PublishingEngine {
     private final TransactionTemplate transactions;
     private final AiOrders orders;
     private final Clock clock;
+    private final com.socialhub.settings.PublishSettings settings;
 
     PublishingEngine(PublishJobRepository jobs, PublicationRepository publications, PublicationFileRepository files,
                      PromotionQueries promotions, List<PublishRoute> routes, ApplicationEventPublisher events,
-                     TransactionTemplate transactions, AiOrders orders, Clock clock) {
+                     TransactionTemplate transactions, AiOrders orders, Clock clock,
+                     com.socialhub.settings.PublishSettings settings) {
         this.orders = orders;
         this.jobs = jobs;
         this.publications = publications;
@@ -97,6 +99,7 @@ class PublishingEngine {
         this.events = events;
         this.transactions = transactions;
         this.clock = clock;
+        this.settings = settings;
     }
 
     List<PublishRoute> routes() { return routes; }
@@ -417,7 +420,7 @@ class PublishingEngine {
             }
         }
         Instant next = now.plus(RETRY);
-        if (next.isBefore(at.minus(Publication.MIN_MARGIN))) {
+        if (next.isBefore(at.minus(settings.minMargin()))) {
             job.retryAt(next, now);
             return;
         }
@@ -682,7 +685,7 @@ class PublishingEngine {
         StringBuilder text = new StringBuilder()
                 .append("PUBLICAR A MANO · ").append(p.getTitle()).append("\n\n")
                 .append(lateReason == null
-                        ? "Ninguna vía pudo programarla con el margen de 6 h. Publícala tú a su hora.\n\n"
+                        ? "Ninguna vía pudo programarla con el margen mínimo de publicación (" + com.socialhub.platform.SpanText.of(settings.minMargin()) + "). Publícala tú a su hora.\n\n"
                         : "La API oficial de Instagram no pudo publicarla: " + lateReason + ".\nLa hora de publicación ya pasó: "
                                 + "publícala tú cuanto antes, o cámbiale la fecha en SocialHub y vuelve a programarla.\n\n")
                 .append("Red: ").append(p.getPlatform()).append(" · ").append(p.getType()).append('\n')

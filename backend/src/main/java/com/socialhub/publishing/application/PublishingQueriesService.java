@@ -25,6 +25,7 @@ class PublishingQueriesService implements PublishingQueries {
     private final com.socialhub.publishing.domain.MetricsRepository metricsRepository;
     private final PubloraService publora;
     private final com.socialhub.promotion.PromotionQueries promotionQueries;
+    private final com.socialhub.settings.PublishSettings settings;
 
     
 
@@ -63,12 +64,12 @@ class PublishingQueriesService implements PublishingQueries {
 
     /**
      * Publicaciones de camino a publicar (en producción, borrador, en revisión o aprobadas) a las que ya no les quedan
-     * {@link Publication#MIN_MARGIN} hasta su hora (o cuya hora ya pasó), por hora de publicación.
+     * el margen mínimo de publicación hasta su hora (o cuya hora ya pasó), por hora de publicación.
      */
     @Override
     public List<WithoutMargin> withoutMargin(java.time.Instant now) {
         return publications.findAll().stream()
-                .filter(p -> ON_THE_WAY.contains(p.getStatus()) && p.scheduledAt().isBefore(now.plus(Publication.MIN_MARGIN)))
+                .filter(p -> ON_THE_WAY.contains(p.getStatus()) && p.scheduledAt().isBefore(now.plus(settings.minMargin())))
                 .sorted(java.util.Comparator.comparing(Publication::scheduledAt))
                 .map(p -> new WithoutMargin(p.getPromotionId(), p.getId(), p.getTitle(), p.scheduledAt()))
                 .toList();

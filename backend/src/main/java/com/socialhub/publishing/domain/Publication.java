@@ -77,9 +77,6 @@ public final class Publication {
         }
     }
 
-    /** Margen mínimo entre ahora y la hora de publicación para poder programarla: nunca se publica al instante. */
-    public static final Duration MIN_MARGIN = Duration.ofHours(6);
-
     /** Estados que solo pone SocialHub al publicar, nunca a mano. */
     private static final Set<PublicationStatus> AUTOMATIC =
             Set.of(PublicationStatus.PUBLISHING, PublicationStatus.PUBLISHED, PublicationStatus.PUBLISH_ERROR);
@@ -198,18 +195,19 @@ public final class Publication {
     }
 
     /** Cambio de estado pedido por Raúl. Los estados de publicación los pone solo SocialHub. */
-    public void changeStatus(PublicationStatus next, Instant now) {
+    public void changeStatus(PublicationStatus next, Instant now, Duration minMargin) {
         if (AUTOMATIC.contains(next)) {
             throw new DomainException("«" + next.label() + "» solo lo pone SocialHub al publicar, con confirmación.");
         }
-        if (next == PublicationStatus.SCHEDULED) requireMargin(scheduledAt(), now);
+        if (next == PublicationStatus.SCHEDULED) requireMargin(scheduledAt(), now, minMargin);
         moveTo(next);
     }
 
-    private static void requireMargin(Instant when, Instant now) {
-        if (when.isBefore(now.plus(MIN_MARGIN))) {
+    /** Nunca al instante: la hora tiene que quedar a {@code minMargin} o más de ahora (el «Margen mínimo de publicación»). */
+    private static void requireMargin(Instant when, Instant now, Duration minMargin) {
+        if (when.isBefore(now.plus(minMargin))) {
             throw new DomainException("Para programarla, la hora de publicación debe quedar al menos a "
-                    + MIN_MARGIN.toHours() + " horas de ahora.");
+                    + com.socialhub.platform.SpanText.of(minMargin) + " de ahora.");
         }
     }
 

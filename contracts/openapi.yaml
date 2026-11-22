@@ -29,6 +29,8 @@ tags:
   - name: Brands
   - name: Promotions
   - name: Publications
+  - name: Settings
+    description: Ajustes generales de SocialHub (margen mínimo de publicación)
   - name: Claude
     description: Encargos a Claude por la carpeta de Drive de cada marca (SocialHub no llama a la API de Claude)
   - name: Pieces
@@ -1418,6 +1420,38 @@ paths:
         "400": { $ref: "#/components/responses/Problem" }
         default: { $ref: "#/components/responses/Problem" }
 
+  /api/settings/publishing:
+    get:
+      tags: [Settings]
+      operationId: getPublishSettings
+      summary: Ajustes generales de publicación (margen mínimo)
+      responses:
+        "200":
+          description: Ajustes vigentes
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublishSettings" }
+        default: { $ref: "#/components/responses/Problem" }
+    put:
+      tags: [Settings]
+      operationId: updatePublishSettings
+      summary: Cambia el margen mínimo de publicación
+      parameters:
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PublishSettingsInput" }
+      responses:
+        "200":
+          description: Ajustes guardados
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublishSettings" }
+        "400": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
   /api/ai/requests:
     get:
       tags: [Claude]
@@ -2288,6 +2322,27 @@ components:
         id: { type: string, enum: [PUBLER, PUBLORA, OFFICIAL] }
         label: { type: string }
         configured: { type: boolean }
+
+    PublishSettings:
+      type: object
+      required: [min_margin_minutes, default_minutes, min_minutes, max_minutes]
+      properties:
+        min_margin_minutes:
+          type: integer
+          format: int32
+          description: >
+            Margen mínimo de publicación, en minutos: una publicación solo se puede programar si su hora queda al menos
+            a este margen de ahora (nunca se publica al instante). Es la única fuente: la usan las validaciones de edición y
+            programación, el motor de publicación, «Qué hacer ahora» y los encargos a Claude
+        default_minutes: { type: integer, format: int32, description: Valor por defecto (30) }
+        min_minutes: { type: integer, format: int32, description: Mínimo permitido (5) }
+        max_minutes: { type: integer, format: int32, description: "Máximo permitido (1440: un día)" }
+
+    PublishSettingsInput:
+      type: object
+      required: [min_margin_minutes]
+      properties:
+        min_margin_minutes: { type: integer, format: int32, minimum: 5, maximum: 1440 }
 
     AiSettings:
       type: object

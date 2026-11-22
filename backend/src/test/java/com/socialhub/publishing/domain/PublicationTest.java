@@ -62,6 +62,8 @@ class PublicationTest {
     }
 
     // 2 nov 2026, 12:00 en Madrid (UTC+1): la publicación de prueba es a las 19:00, 7 horas después
+    private static final java.time.Duration SIX = java.time.Duration.ofHours(6);
+    private static final java.time.Duration HALF_HOUR = java.time.Duration.ofMinutes(30);
     private static final Instant NOON = Instant.parse("2026-11-02T11:00:00Z");
 
     private static Publication.Details details(LocalTime time) {
@@ -72,27 +74,38 @@ class PublicationTest {
     @Test
     void schedulingNeedsSixHoursOfMargin() {
         Publication p = at(PublicationStatus.APPROVED);
-        p.changeStatus(PublicationStatus.SCHEDULED, NOON);
+        p.changeStatus(PublicationStatus.SCHEDULED, NOON, SIX);
         assertThat(p.getStatus()).isEqualTo(PublicationStatus.SCHEDULED);
 
         Publication late = at(PublicationStatus.APPROVED);
-        assertThatThrownBy(() -> late.changeStatus(PublicationStatus.SCHEDULED, NOON.plusSeconds(3600 + 1)))
+        assertThatThrownBy(() -> late.changeStatus(PublicationStatus.SCHEDULED, NOON.plusSeconds(3600 + 1), SIX))
                 .isInstanceOf(DomainException.class).hasMessageContaining("6 horas");
         // Ya programada: no se cambia nada (la vía tiene esta versión); para cambiarla se vuelve a «Aprobada»
         assertThatThrownBy(() -> p.edit(details(LocalTime.of(20, 0)), NOON)).isInstanceOf(DomainException.class)
                 .hasMessageContaining("vuelve a «Aprobada»");
         assertThatThrownBy(() -> p.setTexts("Otro", null)).isInstanceOf(DomainException.class);
-        p.changeStatus(PublicationStatus.APPROVED, NOON);
+        p.changeStatus(PublicationStatus.APPROVED, NOON, SIX);
         p.edit(details(LocalTime.of(20, 0)), NOON);
         assertThat(p.getPlatform()).isEqualTo(Platform.TIKTOK);
         assertThat(p.getNote()).isNull();
     }
 
     @Test
+    void theMarginIsTheOneGivenNotAFixedSixHours() {
+        // La publicación es a las 18:00 UTC: con 30 minutos de margen vale ahora = 16:00 UTC y no vale 17:40 UTC
+        Publication p = at(PublicationStatus.APPROVED);
+        p.changeStatus(PublicationStatus.SCHEDULED, NOON.plusSeconds(3600 * 5), HALF_HOUR);
+        assertThat(p.getStatus()).isEqualTo(PublicationStatus.SCHEDULED);
+        Publication tooLate = at(PublicationStatus.APPROVED);
+        assertThatThrownBy(() -> tooLate.changeStatus(PublicationStatus.SCHEDULED, NOON.plusSeconds(3600 * 6 + 40 * 60), HALF_HOUR))
+                .isInstanceOf(DomainException.class).hasMessageContaining("30 minutos");
+    }
+
+    @Test
     void publishingStatesAreNeverSetByHand() {
-        assertThatThrownBy(() -> at(PublicationStatus.SCHEDULED).changeStatus(PublicationStatus.PUBLISHING, NOON))
+        assertThatThrownBy(() -> at(PublicationStatus.SCHEDULED).changeStatus(PublicationStatus.PUBLISHING, NOON, SIX))
                 .isInstanceOf(DomainException.class);
-        assertThatThrownBy(() -> at(PublicationStatus.PUBLISHING).changeStatus(PublicationStatus.PUBLISHED, NOON))
+        assertThatThrownBy(() -> at(PublicationStatus.PUBLISHING).changeStatus(PublicationStatus.PUBLISHED, NOON, SIX))
                 .isInstanceOf(DomainException.class);
         assertThatThrownBy(() -> at(PublicationStatus.PUBLISHED).edit(details(LocalTime.NOON), NOON))
                 .isInstanceOf(DomainException.class);
