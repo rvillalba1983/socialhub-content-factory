@@ -141,6 +141,58 @@ class HttpInstagramGateway implements InstagramGateway {
         return text(body.path("permalink"));
     }
 
+    /** Métricas de insights que se piden (v23.0: «views» sustituye a impresiones y reproducciones; «saved» son los guardados). */
+    private static final java.util.List<String> INSIGHTS = java.util.List.of("views", "reach", "saved", "shares");
+
+    @Override
+    public MediaInsights mediaInsights(String key, String mediaId) {
+        Map<String, Long> values = new java.util.HashMap<>();
+        InstagramException first = null;
+        // Una métrica que el tipo de publicación no admite hace fallar toda la petición: si pasa, se piden una a una
+        try {
+            readInsights(key, mediaId, String.join(",", INSIGHTS), values);
+        } catch (InstagramException e) {
+            if (e.kind() != InstagramException.Kind.REJECTED) throw e;
+            first = e;
+            for (String metric : INSIGHTS) {
+                try {
+                    readInsights(key, mediaId, metric, values);
+                } catch (InstagramException single) {
+                    if (single.kind() != InstagramException.Kind.REJECTED) throw single;
+                }
+            }
+        }
+        try {
+            JsonNode counters = calls.call(SYSTEM, "media_counters", mediaId, () -> get(key, "/" + enc(mediaId), "like_count,comments_count"));
+            count(counters.path("like_count")).ifPresent(v -> values.put("likes", v));
+            count(counters.path("comments_count")).ifPresent(v -> values.put("comments", v));
+        } catch (InstagramException e) {
+            if (e.kind() != InstagramException.Kind.REJECTED) throw e;
+            if (first == null) first = e;
+        }
+        if (values.isEmpty()) {
+            throw first != null ? first : new InstagramException(InstagramException.Kind.REJECTED, "Meta no devolvió ninguna métrica");
+        }
+        return new MediaInsights(values.get("views"), values.get("reach"), values.get("likes"), values.get("comments"),
+                values.get("saved"), values.get("shares"));
+    }
+
+    private void readInsights(String key, String mediaId, String metrics, Map<String, Long> into) {
+        JsonNode body = calls.call(SYSTEM, "insights", mediaId, () -> send(HttpRequest.newBuilder(URI.create(graphUrl + "/" + version
+                + "/" + enc(mediaId) + "/insights?locale=es_ES&metric=" + enc(metrics)))
+                .timeout(TIMEOUT).header("Authorization", "OAuth " + key).header("Accept", "application/json").GET().build()));
+        for (JsonNode item : body.path("data")) {
+            String name = item.path("name").asString("");
+            JsonNode value = item.path("values").path(0).path("value");
+            if (!value.isNumber()) value = item.path("total_value").path("value");
+            if (!name.isEmpty()) count(value).ifPresent(v -> into.put(name, v));
+        }
+    }
+
+    private static java.util.Optional<Long> count(JsonNode node) {
+        return node.isIntegralNumber() && node.asLong() >= 0 ? java.util.Optional.of(node.asLong()) : java.util.Optional.empty();
+    }
+
     // ---------------------------------------------------------------- HTTP
 
     private JsonNode get(String key, String path, String fields) {

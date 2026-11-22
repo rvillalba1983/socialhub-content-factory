@@ -14,9 +14,10 @@ public record PromoSpec(@Nullable String out, @Nullable String leeme, @Nullable 
                         @Nullable String titulo, @Nullable String texto, @Nullable String cta, @Nullable List<Double> crop,
                         @Nullable String gancho, @Nullable List<String> versos, @Nullable List<String> finalLines,
                         @Nullable String audio, @Nullable Double audioInicio, @Nullable String video, @Nullable Double inicio,
-                        @Nullable Double duracion) {}
+                        @Nullable Double duracion, @Nullable String fondoSvg) {}
 
-    public record Slide(String img, String texto, @Nullable String titulo, @Nullable List<Double> crop) {}
+    public record Slide(@Nullable String img, @Nullable String texto, @Nullable String titulo, @Nullable List<Double> crop,
+                        @Nullable String fondoSvg) {}
 
-    public record Closing(String img, List<String> lineas) {}
+    public record Closing(@Nullable String img, List<String> lineas) {}
 }

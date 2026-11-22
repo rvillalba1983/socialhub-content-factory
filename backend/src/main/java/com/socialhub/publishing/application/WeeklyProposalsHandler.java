@@ -48,6 +48,7 @@ class WeeklyProposalsHandler implements AiTypeHandler {
     private final PromotionQueries promotions;
     private final PublishingQueriesService queries;
     private final PublishingService service;
+    private final com.socialhub.settings.PublishSettings settings;
     private final Clock clock;
     private final ExternalCalendarService external;
     private final ObjectMapper json;
@@ -55,8 +56,6 @@ class WeeklyProposalsHandler implements AiTypeHandler {
     @Override public AiRequestType type() { return AiRequestType.WEEKLY_PROPOSALS; }
 
     private static final ZoneId MADRID = ZoneId.of("Europe/Madrid");
-    /** Margen mínimo para poder preparar y programar una publicación. */
-    static final Duration MIN_LEAD = Duration.ofHours(6);
 
     private static LocalDate nextMonday(LocalDate day) { return day.with(TemporalAdjusters.next(DayOfWeek.MONDAY)); }
 
@@ -142,6 +141,8 @@ class WeeklyProposalsHandler implements AiTypeHandler {
         LocalDate end = windowEnd(job);
         inputs.put("week", Map.of("from", from.toString(), "to", end.toString()));
         inputs.put("promotion", promotions.summaryForAi(job.promotionId()));
+        inputs.put("min_publish_margin_minutes", settings.minMarginFor(Platform.INSTAGRAM.name()).toMinutes());
+        inputs.put("tiktok_min_publish_margin_minutes", settings.minMarginFor(Platform.TIKTOK.name()).toMinutes());
         inputs.put("already_planned", queries.forAi(job.promotionId(), from, end));
         // Lo programado o publicado fuera de SocialHub (Publer, Publora o la red) también ocupa la semana
         List<Map<String, Object>> outside = external.forAi(job.promotionId(), from, end);
@@ -157,7 +158,7 @@ class WeeklyProposalsHandler implements AiTypeHandler {
         INVALID("con fecha, hora, red, tipo o título no válidos"),
         OUT_OF_WEEK("fuera de la semana"),
         OUT_OF_PROMOTION("fuera de las fechas de la promoción"),
-        TOO_SOON("con fecha pasada o a menos de 6 h");
+        TOO_SOON("con fecha pasada o sin el margen mínimo de publicación");
 
         final String text;
         Discard(String text) { this.text = text; }
@@ -167,7 +168,7 @@ class WeeklyProposalsHandler implements AiTypeHandler {
     public String apply(AiJob job, JsonNode outputs, JsonNode result) {
         JsonNode items = outputs.path("proposals");
         if (!items.isArray()) throw new IllegalArgumentException("Faltan las propuestas («outputs.proposals») o no son una lista");
-        // Una lista vacía es una respuesta válida: Claude puede decidir que no toca publicar (p. ej., sin 6 h de margen)
+        // Una lista vacía es una respuesta válida: Claude puede decidir que no toca publicar (p. ej., sin el margen mínimo de publicación)
         if (items.isEmpty()) {
             String reason = outputs.path("summary").isString() ? outputs.path("summary").asString().strip() : "";
             return "Sin propuestas: " + (reason.isEmpty() ? "Claude no da el motivo" : reason);
@@ -176,7 +177,7 @@ class WeeklyProposalsHandler implements AiTypeHandler {
         LocalDate from = windowStart(job);
         LocalDate to = windowEnd(job);
         PromotionQueries.Dates dates = promotions.datesOf(job.promotionId());
-        Instant earliest = clock.instant().plus(MIN_LEAD);
+        Instant now = clock.instant();
         List<Publication.Details> proposals = new ArrayList<>();
         Map<Discard, Integer> discarded = new EnumMap<>(Discard.class);
         for (JsonNode item : items) {
@@ -194,7 +195,7 @@ class WeeklyProposalsHandler implements AiTypeHandler {
                     reason = Discard.OUT_OF_WEEK;
                 } else if (day.isBefore(dates.startsOn()) || (dates.endsOn() != null && day.isAfter(dates.endsOn()))) {
                     reason = Discard.OUT_OF_PROMOTION;
-                } else if (day.atTime(time).atZone(MADRID).toInstant().isBefore(earliest)) {
+                } else if (day.atTime(time).atZone(MADRID).toInstant().isBefore(now.plus(settings.minMarginFor(platform.name())))) {
                     reason = Discard.TOO_SOON;
                 } else {
                     String idea = item.path("idea").asString("").strip();

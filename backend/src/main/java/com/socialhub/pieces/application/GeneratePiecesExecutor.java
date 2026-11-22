@@ -28,6 +28,7 @@ class GeneratePiecesExecutor implements TaskExecutor {
     private final PromotionQueries promotions;
     private final PiecePublications publications;
     private final PublishingCommands publishing;
+    private final BrandLooks looks;
 
     @Override public String type() { return TYPE; }
     @Override public String agentName() { return AGENT; }
@@ -42,7 +43,7 @@ class GeneratePiecesExecutor implements TaskExecutor {
         LoadedSpec loaded = reader.load(run.inputs().getFirst(), folders);
         publications.check(run.promotionId(), loaded.spec());
         run.log("Spec leído: " + loaded.spec().piezas().size() + " piezas");
-        PieceBatch batch = generator.generate(loaded.spec(), loaded.files(), run::log, run::progress);
+        PieceBatch batch = generator.generate(loaded.spec(), loaded.files(), looks.of(run.promotionId()), run::log, run::progress);
         int files = batch.pieces().stream().mapToInt(p -> p.files().size()).sum();
         for (PieceResult piece : batch.pieces()) {
             if (piece.publication() == null || piece.files().isEmpty()) continue;

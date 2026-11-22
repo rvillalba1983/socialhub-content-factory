@@ -45,7 +45,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  * Antes de nada, las promociones planificadas que ya han empezado pasan a activas.
  * Además, una promoción nueva pide enseguida las propuestas de su primera semana si ya pasó el lunes en que se habrían
  * pedido (si empieza a mitad de semana, para los días que quedan).
- * Esa primera semana no se pide si ya no queda hueco válido (su último día acaba antes de la recogida más 6 h).
+ * Esa primera semana no se pide si ya no queda hueco válido (su último día acaba antes de la recogida más el margen mínimo de publicación).
  * Cada encargo semanal se crea una sola vez por promoción y semana. Los demás tipos se piden a mano.
  */
 @Slf4j
@@ -64,6 +64,7 @@ class AiAutoOrders {
     private final AiAutoOrderRepository done;
     private final TransactionTemplate transactions;
     private final Clock clock;
+    private final com.socialhub.settings.PublishSettings settings;
 
     /** @return cuántos encargos se han creado */
     int createDue() {
@@ -107,9 +108,9 @@ class AiAutoOrders {
      * guardado de la promoción, y comparten el registro de lo ya pedido: no se pide dos veces.
      */
     synchronized FirstWeekResult requestFirstWeek(String promotionId, LocalDate startsOn, LocalDate endsOn, ZonedDateTime now) {
-        Optional<FirstWeek> first = firstWeek(now, startsOn, endsOn, promotions.cadenceOf(promotionId));
+        Optional<FirstWeek> first = firstWeek(now, startsOn, endsOn, promotions.cadenceOf(promotionId), settings.minMargin());
         if (first.isEmpty()) return FirstWeekResult.NOT_DUE;
-        if (!hasRoom(now, first.get().to())) return FirstWeekResult.NO_ROOM;
+        if (!hasRoom(now, first.get().to(), settings.minMargin())) return FirstWeekResult.NO_ROOM;
         LocalDate week = first.get().week(), from = first.get().from(), to = first.get().to();
         var key = new AiAutoOrder.Key(promotionId, AiRequestType.WEEKLY_PROPOSALS.name(), week);
         if (done.exists(key)) return FirstWeekResult.ALREADY_REQUESTED;
@@ -131,18 +132,16 @@ class AiAutoOrders {
         return FirstWeekResult.REQUESTED;
     }
 
-    /** Margen mínimo entre la recogida y la hora de una propuesta (el mismo que exige el manejador al aplicar el resultado). */
-    static final Duration MIN_LEAD = Duration.ofHours(6);
-
     /**
      * Si queda hueco válido para proponer: con la recogida que le tocaría al encargo pedido ahora, alguna propuesta tiene
-     * que poder estar a 6 h o más de la recogida y dentro del último día. Si no (p. ej. domingo por la noche con solo ese
+     * que poder estar al «margen mínimo de publicación» ({@code lead}, el mismo que exige el manejador al aplicar el resultado)
+     * o más de la recogida y dentro del último día. Si no (p. ej. domingo por la noche con solo ese
      * día por delante), el encargo fallaría siempre y se reintentaría gastando encargos.
      */
-    static boolean hasRoom(ZonedDateTime now, LocalDate lastDay) {
+    static boolean hasRoom(ZonedDateTime now, LocalDate lastDay, Duration lead) {
         ZonedDateTime pickup = ClaudePickups.pickupFor(now.toInstant().plus(ClaudePickups.DISPATCH_MAX), false);
         ZonedDateTime endOfLastDay = lastDay.plusDays(1).atStartOfDay(now.getZone());
-        return !endOfLastDay.toInstant().isBefore(pickup.toInstant().plus(MIN_LEAD));
+        return !endOfLastDay.toInstant().isBefore(pickup.toInstant().plus(lead));
     }
 
     /** Primera semana de una promoción: su lunes y los días que quedan por proponer. */
@@ -152,8 +151,8 @@ class AiAutoOrders {
      * La primera semana toca pedirla ya si pasó el lunes anterior a las 18:00 (cuando se habría pedido sola) y la semana
      * no ha terminado.
      */
-    static Optional<FirstWeek> firstWeek(ZonedDateTime now, LocalDate startsOn, LocalDate endsOn) {
-        return firstWeek(now, startsOn, endsOn, null);
+    static Optional<FirstWeek> firstWeek(ZonedDateTime now, LocalDate startsOn, LocalDate endsOn, Duration lead) {
+        return firstWeek(now, startsOn, endsOn, null, lead);
     }
 
     private static final Pattern CADENCE = Pattern.compile(
@@ -183,15 +182,15 @@ class AiAutoOrders {
 
     /**
      * La primera fecha de la cadencia con margen: el primer hueco desde hoy (o desde el inicio, si es posterior) que queda a
-     * {@link #MIN_LEAD} o más de la recogida, dentro de la promoción. Vacío si la cadencia no se entiende o no hay ninguno.
+     * {@code lead} (el margen mínimo de publicación) o más de la recogida, dentro de la promoción. Vacío si la cadencia no se entiende o no hay ninguno.
      */
     static Optional<LocalDate> firstCadenceDate(ZonedDateTime now, LocalDate startsOn, LocalDate endsOn,
-                                                @org.jspecify.annotations.Nullable String cadence) {
+                                                @org.jspecify.annotations.Nullable String cadence, Duration lead) {
         List<java.util.Map.Entry<DayOfWeek, LocalTime>> slots = cadenceSlots(cadence);
         if (slots.isEmpty()) return Optional.empty();
         ZoneId zone = now.getZone();
         java.time.Instant earliest = ClaudePickups.pickupFor(now.toInstant().plus(ClaudePickups.DISPATCH_MAX), false)
-                .toInstant().plus(MIN_LEAD);
+                .toInstant().plus(lead);
         LocalDate day = startsOn.isAfter(now.toLocalDate()) ? startsOn : now.toLocalDate();
         for (; !day.isAfter(endsOn); day = day.plusDays(1)) {
             for (var slot : slots) {
@@ -209,12 +208,12 @@ class AiAutoOrders {
      * domingo, la ventana se extiende hasta esa fecha (sin pasar del fin de la promoción).
      */
     static Optional<FirstWeek> firstWeek(ZonedDateTime now, LocalDate startsOn, LocalDate endsOn,
-                                         @org.jspecify.annotations.Nullable String cadence) {
+                                         @org.jspecify.annotations.Nullable String cadence, Duration lead) {
         Optional<FirstWeek> normal = firstWeekBase(now, startsOn, endsOn);
         if (normal.isEmpty()) return normal;
         FirstWeek w = normal.get();
         if (!w.to().equals(w.week().plusDays(6))) return normal; // la promoción acaba esa semana
-        Optional<LocalDate> first = firstCadenceDate(now, w.from(), endsOn, cadence);
+        Optional<LocalDate> first = firstCadenceDate(now, w.from(), endsOn, cadence, lead);
         if (first.isEmpty() || !first.get().isAfter(w.to())) return normal;
         return Optional.of(new FirstWeek(w.week(), w.from(), first.get()));
     }

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Recommendation, RecommendationTarget } from './api/schema';
+import type { Publication, Recommendation, RecommendationTarget } from './api/schema';
 
 /** Un destino de navegación solo es válido si trae los datos que necesita su pantalla. */
 export function canOpen(t?: RecommendationTarget): t is RecommendationTarget {
@@ -40,12 +40,18 @@ export const VISIBLE = 3;
 
 /** «Qué hacer ahora»: 3 a la vista y «Ver N más» para el resto. Sin recomendaciones no se pinta nada. */
 
-export function NextSteps({ items, onOpen, onDismissPublora, onRequestContent }: {
+export function NextSteps({ items, onOpen, onDismissPublora, onRequestContent, publications, onDiscard, onMove }: {
   items: Recommendation[]; onOpen: (target: RecommendationTarget) => void;
   /** «Pedir contenido ya» en CONTENT_MISSING: pide un spec urgente de esas publicaciones. */
   onRequestContent?: (promotionId: string, publicationIds: string[]) => void;
   /** «No uso Publora» para la marca de la recomendación PUBLORA_MISSING. */
   onDismissPublora?: (brandId: string) => void;
+  /** Para dar nombre a cada publicación de un posible duplicado. */
+  publications?: Publication[];
+  /** «Descartar esta» en un posible duplicado (pide confirmación quien lo recibe). */
+  onDiscard?: (publicationId: string) => void;
+  /** «Mover a la siguiente hora libre» en publicaciones sin margen (pide confirmación quien lo recibe). */
+  onMove?: (publicationId: string) => void;
 }) {
   // El estado vive en el componente, que no se desmonta al recargar los datos
   const [expanded, setExpanded] = useState(false);
@@ -66,6 +72,33 @@ export function NextSteps({ items, onOpen, onDismissPublora, onRequestContent }:
             </button>
           )
           : <div className="aitem static">{body}</div>;
+        if (r.kind === 'DUPLICATE_PUBLICATIONS' && onDiscard && r.publication_ids?.length) {
+          return (
+            <div key={r.id} className="aitem-row">
+              {main}
+              <span className="row-actions">
+                {r.publication_ids.map(id => {
+                  const p = publications?.find(x => x.id === id);
+                  const label = p ? `${p.scheduled_on.slice(8, 10)}/${p.scheduled_on.slice(5, 7)} ${p.scheduled_time.slice(0, 5)}` : id;
+                  return (
+                    <button key={id} type="button" className="btn aitem-side" onClick={() => onDiscard(id)}
+                      aria-label={`Descartar esta: ${p?.title ?? id} (${label})`}>Descartar esta ({label})</button>
+                  );
+                })}
+              </span>
+            </div>
+          );
+        }
+        if (r.kind === 'PUBLICATION_TOO_SOON' && onMove && r.publication_ids?.length) {
+          const first = r.publication_ids[0];
+          return (
+            <div key={r.id} className="aitem-row">
+              {main}
+              <button type="button" className="btn aitem-side" onClick={() => onMove(first)}
+                aria-label={`Mover a la siguiente hora libre (${r.title})`}>Mover a la siguiente hora libre</button>
+            </div>
+          );
+        }
         const promotionId = r.kind === 'CONTENT_MISSING' && r.publication_ids?.length ? r.promotion_id : undefined;
         if (promotionId && onRequestContent) {
           return (

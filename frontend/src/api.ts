@@ -1,5 +1,5 @@
 import type {
-  Backup, BackupList, Restoration, AiOrder, AiOrderInput, BrandIdentity, ExternalCalendar, PublicationMetrics, PromotionMetrics, PublishJob, PubloraStatus, PubloraAccountList, PubloraAccountInput, PublerAccountList, PublerAccountInput, PublerMoveInput, PublerMoveResult, InstagramStatus, InstagramCheck, InstagramAccount, InstagramOAuthStart, InstagramDetectedAccountList, QualityReport, RejectionReason, EditorialDecision, EditorialMemory, AiRequestPage, AiSettings, AiSettingsInput, AppMode, AppModeState, AppVersion, LogsFolder, Brand, FolderInput, FolderList, Publication, PublicationFile, PublicationFileList, PublicationInput, PublicationStatus, PieceOrder, PieceSpecList, BrandInput, ExternalOperationPage, Promotion, PromotionInput, OperationOutcome, Snapshot, Station, StationCommandType, Task, TaskCommand,
+  Backup, BackupList, Restoration, AiOrder, AiOrderInput, BrandIdentity, ExternalCalendar, PublicationMetrics, PromotionMetrics, SlotProposal, PublishJob, PubloraStatus, PubloraAccountList, PubloraAccountInput, PublerAccountList, PublerAccountInput, PublerMoveInput, PublerMoveResult, PublishSettings, PublishSettingsInput, InstagramStatus, InstagramCheck, InstagramAccount, InstagramOAuthStart, InstagramRenewal, InstagramDetectedAccountList, QualityReport, RejectionReason, EditorialDecision, EditorialMemory, AiRequestPage, AiSettings, AiSettingsInput, AppMode, AppModeState, AppVersion, Autostart, UpdateStatus, LogsFolder, Brand, FolderInput, FolderList, Publication, PublicationFile, PublicationFileList, PublicationInput, PublicationStatus, PieceOrder, PieceSpecList, BrandInput, ExternalOperationPage, Promotion, PromotionInput, OperationOutcome, Snapshot, Station, StationCommandType, Task, TaskCommand,
 } from './model';
 
 export class ApiError extends Error {
@@ -29,6 +29,9 @@ export const api = {
   factory: () => call<Snapshot>('/api/factory'),
   appMode: () => call<AppModeState>('/api/app-mode'),
   appVersion: () => call<AppVersion>('/api/system/version'),
+  autostart: () => call<Autostart>('/api/system/autostart'),
+  setAutostart: (enabled: boolean) => putJson<Autostart>('/api/system/autostart', { enabled }),
+  updateStatus: () => call<UpdateStatus>('/api/system/updates'),
   changeAppMode: (mode: AppMode) => putJson<AppModeState>('/api/app-mode', { mode }),
   createBrand: (input: BrandInput) => post<Brand>('/api/brands', input),
   updateBrand: (id: string, input: BrandInput) => putJson<Brand>(`/api/brands/${encodeURIComponent(id)}`, input),
@@ -50,8 +53,13 @@ export const api = {
   updatePublication: (id: string, input: PublicationInput) => putJson<Publication>(`/api/publications/${encodeURIComponent(id)}`, input),
   changePublicationStatus: (id: string, status: PublicationStatus, reason?: RejectionReason, note?: string) =>
     post<Publication>(`/api/publications/${encodeURIComponent(id)}/status-changes`, { status, reason, note }),
+  nextFreeSlot: (id: string) => call<SlotProposal>(`/api/publications/${encodeURIComponent(id)}/next-free-slot`),
+  moveToFreeSlot: (id: string, move: { new_on: string; new_time: string; accept_after_end?: boolean }) =>
+    post<Publication>(`/api/publications/${encodeURIComponent(id)}/moves`, { ...move, confirmed: true }),
   rejectPublicationText: (id: string, reason: RejectionReason, note?: string) =>
     post<Publication>(`/api/publications/${encodeURIComponent(id)}/text-rejections`, { reason, note }),
+  restorePublicationText: (id: string) =>
+    post<Publication>(`/api/publications/${encodeURIComponent(id)}/previous-text-restorations`, {}),
   editorialMemory: (brandId: string) => call<EditorialMemory>(`/api/brands/${encodeURIComponent(brandId)}/editorial-memory`),
   addDecision: (brandId: string, text: string) =>
     post<EditorialDecision>(`/api/brands/${encodeURIComponent(brandId)}/decisions`, { text }),
@@ -66,6 +74,8 @@ export const api = {
   detachPublicationFile: (id: string, path: string) =>
     call<void>(`/api/publications/${encodeURIComponent(id)}/files?${new URLSearchParams({ path })}`, { method: 'DELETE' }),
   aiSettings: () => call<AiSettings>('/api/ai/settings'),
+  publishSettings: () => call<PublishSettings>('/api/settings/publishing'),
+  savePublishSettings: (input: PublishSettingsInput) => putJson<PublishSettings>('/api/settings/publishing', input),
   saveAiSettings: (input: AiSettingsInput) => putJson<AiSettings>('/api/ai/settings', input),
   aiRequests: (offset = 0, limit = 50) => call<AiRequestPage>(`/api/ai/requests?offset=${offset}&limit=${limit}`),
   orderFromClaude: (promotionId: string, input: AiOrderInput) =>
@@ -95,6 +105,7 @@ export const api = {
   saveInstagramApp: (appId: string, appSecret: string) =>
     putJson<InstagramStatus>('/api/instagram/app', { app_id: appId, app_secret: appSecret }),
   startInstagramOAuth: () => post<InstagramOAuthStart>('/api/instagram/oauth/start', {}),
+  renewInstagramConnection: () => post<InstagramRenewal>('/api/instagram/oauth/renewal', {}),
   disconnectInstagram: () => call<void>('/api/instagram/oauth', { method: 'DELETE' }),
   instagramAccounts: () => call<InstagramDetectedAccountList>('/api/instagram/accounts'),
   brandInstagramAccount: (id: string) => call<InstagramAccount>(`/api/brands/${encodeURIComponent(id)}/instagram-account`),

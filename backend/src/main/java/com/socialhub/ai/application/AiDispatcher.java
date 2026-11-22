@@ -205,6 +205,7 @@ class AiDispatcher {
             @org.jspecify.annotations.Nullable Instant contentDue = handlers.of(type).map(h -> h.contentDueAt(job)).orElse(null);
             boolean urgent = urgency.urgent(type.onPc(), task.manual(), deadline, contentDue, clock.instant());
             request.put("urgent", urgent);
+            request.put("origin", task.manual() ? "manual" : "auto");
             request.put("idempotencyKey", requestId.value());
             Path target = fresh(dir, task.id() + "-" + task.attempt());
             Path partial = dir.resolve("." + target.getFileName() + ".part");
@@ -228,7 +229,7 @@ class AiDispatcher {
 
     private AiJob jobOf(AiTask task, AiRequestType type, String brandId) {
         return new AiJob(task.id(), type, java.util.Objects.requireNonNull(task.promotionId()), brandId,
-                task.title(), task.goal(), task.inputs(), task.createdAt(), lastRequestPath(task.id()));
+                task.title(), task.goal(), task.inputs(), task.createdAt(), lastRequestPath(task.id()), task.manual());
     }
 
     /** El archivo del último envío de ese encargo (si es un reintento), para los manejadores que lo necesitan. */

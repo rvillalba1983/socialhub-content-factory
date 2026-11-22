@@ -212,7 +212,15 @@ class CaptionsToPublicationFlowTest {
         // Dos publicaciones sin texto en un mismo encargo: Raúl escribe el texto de la primera mientras Claude trabaja
         create("2027-02-01", "INSTAGRAM", "Post", "Con texto mientras tanto", "IN_PRODUCTION");
         create("2027-02-02", "INSTAGRAM", "Post", "Sigue sin texto", "IN_PRODUCTION");
-        String task = f.order("poemario", "CAPTIONS", "Textos mientras escribo", "2027-02-01-instagram", "2027-02-02-instagram");
+        // Lo pide SocialHub solo (no Raúl): un encargo automático no pisa el texto de Raúl
+        java.util.Set<String> before = captionTaskIds();
+        assertThat(autoRequests.requestDue()).isEqualTo(1);
+        java.util.Set<String> added = captionTaskIds();
+        added.removeAll(before);
+        assertThat(added).hasSize(1);
+        String task = added.iterator().next();
+        f.waitFor(() -> "WAITING".equals(f.task(task).get("status").asString()), "encargo automático enviado");
+        assertThat(f.request(task).get("origin").asString()).isEqualTo("auto");
         f.ok(f.put("/api/publications/2027-02-01-instagram", pub("2027-02-01", "INSTAGRAM", "Post", "Con texto mientras tanto",
                 "Mi texto, escrito a mano.", "#mio")));
 
@@ -239,7 +247,49 @@ class CaptionsToPublicationFlowTest {
     }
 
 
+    @Test
+    @Order(7)
+    void textsAskedByHandReplaceRaulsTextAndHeCanGetItBack() throws Exception {
+        Flow f = flow();
+        String id = "2027-02-01-instagram";
+        // Raúl tiene texto propio (Order 6) y pide los textos a mano: es una orden explícita, el de Claude lo sustituye
+        String task = f.order("poemario", "CAPTIONS", "Textos a mano", id);
+        assertThat(f.request(task).get("origin").asString()).isEqualTo("manual");
+        f.complete(task, "{\"publications\":[{\"id\":\"" + id + "\",\"caption\":\"Versión de Claude.\",\"hashtags\":\"#claude\"}]}");
+        JsonNode replaced = f.publication("poemario", id);
+        assertThat(replaced.get("caption").asString()).isEqualTo("Versión de Claude.");
+        assertThat(replaced.get("hashtags").asString()).isEqualTo("#claude");
+        assertThat(replaced.get("previous_caption").asString()).isEqualTo("Mi texto, escrito a mano.");
+        assertThat(replaced.get("previous_hashtags").asString()).isEqualTo("#mio");
+        assertThat(replaced.has("flag") ? replaced.get("flag").asString("") : "").as("se aplicó: no va a la incidencia")
+                .doesNotContain("Versión de Claude");
+        assertThat(f.task(task).get("result").asString()).contains("1 texto guardado").contains("sustituye un texto tuyo");
+
+        // Una segunda petición a mano sobre el texto de Claude (que no es de Raúl) no pisa el texto guardado de Raúl
+        String second = f.order("poemario", "CAPTIONS", "Otra más", id);
+        f.complete(second, "{\"publications\":[{\"id\":\"" + id + "\",\"caption\":\"Otra de Claude.\",\"hashtags\":\"#claude\"}]}");
+        JsonNode again = f.publication("poemario", id);
+        assertThat(again.get("caption").asString()).isEqualTo("Otra de Claude.");
+        assertThat(again.get("previous_caption").asString()).isEqualTo("Mi texto, escrito a mano.");
+
+        // «Recuperar mi texto anterior»: vuelve el de Raúl y ya no queda nada que recuperar
+        f.ok(f.post("/api/publications/" + id + "/previous-text-restorations", "{}"));
+        JsonNode restored = f.publication("poemario", id);
+        assertThat(restored.get("caption").asString()).isEqualTo("Mi texto, escrito a mano.");
+        assertThat(restored.get("hashtags").asString()).isEqualTo("#mio");
+        assertThat(restored.has("previous_caption") && !restored.get("previous_caption").isNull()).isFalse();
+        f.post("/api/publications/" + id + "/previous-text-restorations", "{}").andExpect(status().isConflict());
+    }
+
     // ------------------------------------------------------------------ utilidades
+
+    private java.util.Set<String> captionTaskIds() throws Exception {
+        java.util.Set<String> ids = new java.util.HashSet<>();
+        for (JsonNode t : flow().read("/api/tasks?station_id=gen").get("items")) {
+            if ("AI_CAPTIONS".equals(t.get("type").asString())) ids.add(t.get("id").asString());
+        }
+        return ids;
+    }
 
     private static String pub(String day, String platform, String type, String title, String caption, String hashtags) {
         return """

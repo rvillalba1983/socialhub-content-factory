@@ -226,4 +226,53 @@ class TaskTest {
         cancelled.execute(TaskCommandType.CANCEL, null, NOW);
         assertThat(cancelled.getWaitingFor()).isNull();
     }
+
+    // ---- Responder a Claude
+
+    private static Task asking(List<String> options) {
+        Task t = task(TaskStatus.WAITING, Agent.ai(AiModel.SONNET), false, Task.AI_PREFIX + "research", 1, Set.of());
+        t.aiNeedsHuman("¿Incluyo clubes de fuera de Granada?", options, NOW);
+        return t;
+    }
+
+    @Test
+    void claudeQuestionOffersAnswerAndKeepsOptions() {
+        Task t = asking(List.of("Solo Granada", " También Málaga ", "Solo Granada", " "));
+        assertThat(t.getQuestionOptions()).containsExactly("Solo Granada", "También Málaga");
+        assertThat(t.allowedCommands()).contains(TaskCommandType.ANSWER, TaskCommandType.MARK_DONE, TaskCommandType.REMIND);
+    }
+
+    @Test
+    void answeringStoresQuestionAndAnswerRequeuesWithoutSpendingAnAttempt() {
+        Task t = asking(List.of("Solo Granada"));
+        t.answerAi("  Solo Granada ", NOW.plusSeconds(60));
+        assertThat(t.getStatus()).isEqualTo(TaskStatus.QUEUED);
+        assertThat(t.isHuman()).isFalse();
+        assertThat(t.getAttempts()).isEqualTo(1);
+        assertThat(t.getQuestionOptions()).isEmpty();
+        assertThat(t.getHumanAnswers()).containsExactly(
+                new HumanAnswer("¿Incluyo clubes de fuera de Granada?", "Solo Granada", NOW.plusSeconds(60)));
+        assertThat(t.newHistory()).extracting(TaskHistoryEntry::message).contains("Raúl responde a Claude: Solo Granada");
+    }
+
+    @Test
+    void answersAccumulateAcrossQuestions() {
+        Task t = asking(List.of());
+        t.answerAi("Sí", NOW);
+        t.delegateToAi(AiModel.SONNET, "enviado", NOW);
+        t.aiNeedsHuman("¿Qué verso?", NOW);
+        t.answerAi("El segundo", NOW);
+        assertThat(t.getHumanAnswers()).extracting(HumanAnswer::answer).containsExactly("Sí", "El segundo");
+    }
+
+    @Test
+    void emptyOrUnexpectedAnswersAreRejected() {
+        Task t = asking(List.of());
+        assertThatThrownBy(() -> t.answerAi("   ", NOW)).isInstanceOf(DomainException.class).hasMessageContaining("Escribe una respuesta");
+        assertThatThrownBy(() -> t.answerAi("x".repeat(Task.MAX_ANSWER_LENGTH + 1), NOW)).isInstanceOf(DomainException.class);
+        assertThat(t.getHumanAnswers()).isEmpty();
+        assertThat(t.getStatus()).isEqualTo(TaskStatus.WAITING);
+        Task other = task(TaskStatus.WAITING, Agent.raul(), true, "GENERIC", 1, Set.of());
+        assertThatThrownBy(() -> other.answerAi("hola", NOW)).isInstanceOf(DomainException.class);
+    }
 }

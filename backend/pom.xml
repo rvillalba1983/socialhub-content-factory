@@ -37,6 +37,7 @@
     <javacpp.platform>linux-x86_64</javacpp.platform>
     <!-- Pruebas de mutación (PIT): `mvn test-compile org.pitest:pitest-maven:mutationCoverage`. No va en `verify`.
          Umbral de mutantes matados: 0 por defecto; la PR lo sube con -Dpit.threshold=75 (ver .github/workflows/mutacion.yml) -->
+    <batik.version>1.19</batik.version>
     <pitest.version>1.30.2</pitest.version>
     <pitest-junit5.version>1.2.3</pitest-junit5.version>
     <pit.threshold>0</pit.threshold>
@@ -192,6 +193,20 @@
       <version>3.0.8</version>
     </dependency>
 
+    <!-- Rasteriza los fondos SVG que entrega Claude (fondo_svg). Apache 2.0. Solo el transcodificador; xml-apis se excluye
+         porque el JDK ya trae el DOM. OK de Raúl (16 nov 2026) -->
+    <dependency>
+      <groupId>org.apache.xmlgraphics</groupId>
+      <artifactId>batik-transcoder</artifactId>
+      <version>${batik.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>xml-apis</groupId>
+          <artifactId>xml-apis</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
     <!-- PostgreSQL incluido -->
     <dependency>
       <groupId>org.apache.commons</groupId>
@@ -277,7 +292,7 @@
               <generateModelTests>false</generateModelTests>
               <generateApiDocumentation>false</generateApiDocumentation>
               <generateModelDocumentation>false</generateModelDocumentation>
-              <apisToGenerate>Factory,AppMode,Brands,Promotions,Pieces,Publications,Claude,Tasks,Stations,Armory,ExternalOperations,Publora,Publer,Instagram,Backups,App</apisToGenerate>
+              <apisToGenerate>Factory,AppMode,Brands,Promotions,Pieces,Publications,Claude,Tasks,Stations,Armory,ExternalOperations,Publora,Publer,Instagram,Backups,App,Launcher,Updates,Settings</apisToGenerate>
               <configOptions>
                 <interfaceOnly>true</interfaceOnly>
                 <useSpringBoot3>true</useSpringBoot3>

@@ -24,6 +24,9 @@ interface PublicationWebMapper {
 
     DateTimeFormatter HH_MM = DateTimeFormatter.ofPattern("HH:mm");
 
+    @org.mapstruct.Mapping(target = "outcome", ignore = true)
+    @org.mapstruct.Mapping(target = "duplicates", ignore = true)
+    @org.mapstruct.Mapping(target = "moveReason", ignore = true)
     PublicationDto toDto(Publication publication);
 
     List<PublicationDto> toDtos(List<Publication> publications);
@@ -31,6 +34,42 @@ interface PublicationWebMapper {
     @Nullable Platform toDomain(@Nullable PlatformDto platform);
 
     PublicationStatus toDomain(PublicationStatusDto status);
+
+    /** Los datos de la publicación con lo que se ve además: su resultado, sus duplicados y si puede moverse de hora. */
+    default List<PublicationDto> toDtos(List<Publication> publications,
+                                        java.util.Map<String, com.socialhub.publishing.PublishingQueries.Insight> insights) {
+        return publications.stream().map(p -> {
+            PublicationDto dto = toDto(p);
+            var insight = insights.get(p.getId());
+            if (insight == null) return dto;
+            insight.outcome().ifPresent(o -> dto.setOutcome(toDto(o)));
+            dto.setDuplicates(insight.duplicates().stream().map(x -> new com.socialhub.api.model.DuplicateRefDto(x.publicationId(),
+                    com.socialhub.api.model.DuplicateRefDto.ReasonEnum.valueOf(x.reason().name()))).toList());
+            insight.move().ifPresent(m -> dto.setMoveReason(PublicationDto.MoveReasonEnum.valueOf(m.name())));
+            return dto;
+        }).toList();
+    }
+
+    default com.socialhub.api.model.PublicationOutcomeDto toDto(com.socialhub.publishing.domain.PublicationOutcome o) {
+        var dto = new com.socialhub.api.model.PublicationOutcomeDto(
+                com.socialhub.api.model.PublicationOutcomeDto.ResultEnum.valueOf(o.result().name()), o.result().label());
+        if (o.at() != null) dto.setAt(o.at().atOffset(ZoneOffset.UTC));
+        if (o.atSource() != null) dto.setAtSource(com.socialhub.api.model.PublicationOutcomeDto.AtSourceEnum.valueOf(o.atSource().name()));
+        dto.setRoute(o.route());
+        dto.setUrl(o.url());
+        dto.setReason(o.reason());
+        dto.setAdvice(o.advice());
+        return dto;
+    }
+
+    default com.socialhub.api.model.SlotProposalDto toDto(com.socialhub.publishing.PublishingQueries.SlotProposal s) {
+        var dto = new com.socialhub.api.model.SlotProposalDto(s.publicationId(),
+                com.socialhub.api.model.SlotProposalDto.ReasonEnum.valueOf(s.reason().name()), s.currentDay(),
+                s.currentTime().format(HH_MM), s.newDay(), s.newTime().format(HH_MM), s.timezone(), s.changesDay(),
+                s.afterPromotionEnd(), s.marginMinutes());
+        dto.setPromotionEndsOn(s.promotionEndsOn());
+        return dto;
+    }
 
     default String toText(LocalTime time) { return time.format(HH_MM); }
 
