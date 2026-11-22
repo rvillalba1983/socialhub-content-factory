@@ -9,6 +9,7 @@ import com.socialhub.ai.domain.ClaudePickups;
 import com.socialhub.backup.Backups;
 import com.socialhub.factory.domain.Recommendation;
 import com.socialhub.pieces.ContentGaps;
+import com.socialhub.pieces.MissingMaterial;
 import com.socialhub.promotion.PromotionQueries;
 import com.socialhub.publishing.InstagramOAuth;
 import com.socialhub.publishing.PublerAccounts;
@@ -44,7 +45,7 @@ import org.springframework.stereotype.Component;
  *   marca y red, con botón a la tarjeta «Cuenta en Publer» de la ficha. Va tras las de publicación: bloquea publicaciones reales.</li>
  *   <li>La tarea «Publicar con Chrome» no contesta: encargos de {@code para-claude-pc} sin resultado desde hace 90
  *   minutos después de la pasada que les tocaba (cada 5 h, desde las 0:50). Sin botón.</li>
- *   <li>La conexión con Instagram («Conectar con Instagram») caduca en 7 días o menos, o ya caducó: botón a la tarjeta
+ *   <li>La conexión con Instagram («Conectar con Instagram») caduca en 10 días o menos, o ya caducó: botón a la tarjeta
  *   «Instagram · API oficial», donde está «Renovar conexión». Si hay clave de usuario del sistema, se dice que mientras tanto
  *   se usará esa. Sin conexión guardada no sale nada.</li>
  *   <li>Propuestas de una promoción retenidas, con el motivo (la marca sin carpeta de «Encargos», la carpeta no
@@ -80,8 +81,10 @@ class FactoryRecommendations {
     private final Backups backups;
     private final AiAutoStarted autoStarted;
     private final ContentGaps contentGaps;
+    private final MissingMaterial missingMaterial;
     private final InstagramOAuth instagramOAuth;
     private final Clock clock;
+    private final com.socialhub.settings.PublishSettings settings;
 
     List<Recommendation> compute() {
         Instant now = clock.instant();
@@ -124,14 +127,17 @@ class FactoryRecommendations {
         // 0c. Instagram: la conexión con Meta caduca pronto o ya caducó
         instagramOAuth.notice().ifPresent(n -> all.add(instagramExpiring(n)));
 
-        // 0c. Publicaciones de camino a publicar a las que ya no les quedan 6 horas de margen (o cuya hora ya pasó)
+        // 0c. Publicaciones de camino a publicar a las que ya no les queda el margen mínimo de publicación (o cuya hora ya pasó)
+        // Cada red con su margen: TikTok tiene el suyo, así que sus avisos van aparte (otra fila por promoción)
         Map<String, List<PublishingQueries.WithoutMargin>> tooSoon = publishing.withoutMargin(now).stream()
                 .filter(w -> promotionById.containsKey(w.promotionId()))
-                .collect(Collectors.groupingBy(PublishingQueries.WithoutMargin::promotionId, LinkedHashMap::new, Collectors.toList()));
-        tooSoon.forEach((promotionId, list) -> {
-            var promotion = promotionById.get(promotionId);
+                .collect(Collectors.groupingBy(w -> w.promotionId() + (isTikTok(w) ? "|" + com.socialhub.settings.PublishSettings.TIKTOK : ""),
+                        LinkedHashMap::new, Collectors.toList()));
+        tooSoon.values().forEach(list -> {
+            var promotion = promotionById.get(list.getFirst().promotionId());
             if (!promotion.active() && !promotion.plannedAhead(today)) return;
-            all.add(noMargin(promotion, list, now));
+            boolean tiktok = isTikTok(list.getFirst());
+            all.add(noMargin(promotion, list, now, settings.minMarginFor(list.getFirst().platform()), tiktok));
         });
 
         // 1. Propuestas retenidas, o paradas por Drive o por el límite diario
@@ -181,6 +187,12 @@ class FactoryRecommendations {
                     null, null, null).promotionId(promotion.id())
                     .publicationIds(gaps.stream().map(ContentGaps.Gap::publicationId).toList());
             all.add(dto);
+        }
+
+        // 2c. Publicaciones que van a producirse sin imagen ni vídeo propio (informativo: no bloquea)
+        for (var promotion : allPromotions) {
+            if (!promotion.active() && !promotion.plannedAhead(today)) continue;
+            materialNotice(promotion, missingMaterial.of(promotion.id())).ifPresent(all::add);
         }
 
         // 3. Marca sin todas sus carpetas
@@ -271,19 +283,52 @@ class FactoryRecommendations {
         return List.copyOf(all);
     }
 
+    /** Cuántos títulos se nombran en el aviso de material; el resto va como «y N más». */
+    static final int MAX_TITLES = 5;
+
+    static java.util.Optional<Recommendation> materialNotice(PromotionQueries.PromotionRef promotion,
+                                                             MissingMaterial.Report report) {
+        if (report.pending() == 0 || (report.accessible() && report.missing().isEmpty())) return java.util.Optional.empty();
+        String style = report.visualStyle() == null || report.visualStyle().isBlank() ? ""
+                : " Claude diseñará los fondos con el estilo visual de la promoción: «" + report.visualStyle().strip() + "».";
+        String fallback = report.cover() != null ? "la portada de la marca («" + report.cover() + "»)"
+                : "un fondo con el color de la marca (o la portada de la marca si pones un archivo «portada.jpg», «portada.jpeg» o "
+                        + "«portada.png» en la raíz de su carpeta Material)";
+        String id = "material-missing:" + promotion.id();
+        if (!report.accessible()) {
+            return java.util.Optional.of(recommendation(id, Recommendation.Kind.MATERIAL_MISSING,
+                    "No se puede comprobar el material de «" + promotion.name() + "»",
+                    "La carpeta de Material no está disponible en este ordenador (¿está abierto Google Drive?). Es solo un aviso: "
+                            + "lo que no tenga imagen ni vídeo usará, en este orden, el fondo SVG de Claude, " + fallback
+                            + " o un fondo de SocialHub." + style,
+                    Recommendation.Screen.BRAND_FOLDERS, promotion.brandId(), null).promotionId(promotion.id()));
+        }
+        var titles = report.missing();
+        String names = String.join(", ", titles.stream().limit(MAX_TITLES).toList())
+                + (titles.size() > MAX_TITLES ? " y " + (titles.size() - MAX_TITLES) + " más" : "");
+        return java.util.Optional.of(recommendation(id, Recommendation.Kind.MATERIAL_MISSING,
+                "Faltan imágenes o vídeos para: " + names,
+                "Si Claude no entrega un fondo SVG, SocialHub usará " + fallback + ". No bloquea nada." + style,
+                Recommendation.Screen.BRAND_FOLDERS, promotion.brandId(), null).promotionId(promotion.id()));
+    }
+
+    private static boolean isTikTok(PublishingQueries.WithoutMargin w) { return com.socialhub.settings.PublishSettings.TIKTOK.equals(w.platform()); }
+
     private static Recommendation noMargin(PromotionQueries.PromotionRef promotion,
-                                              List<PublishingQueries.WithoutMargin> list, Instant now) {
+                                              List<PublishingQueries.WithoutMargin> list, Instant now, java.time.Duration margin,
+                                              boolean tiktok) {
         var first = list.getFirst();
         var when = first.scheduledAt().atZone(ClaudePickups.ZONE);
         String day = when.getDayOfMonth() + " de " + when.getMonth().getDisplayName(TextStyle.SHORT, Locale.of("es", "ES"));
         boolean past = !first.scheduledAt().isAfter(now);
-        String title = list.size() == 1 ? "«" + first.title() + "» ya no deja 6 horas de margen"
-                : list.size() + " publicaciones de «" + promotion.name() + "» ya no dejan 6 horas de margen";
+        String span = com.socialhub.platform.SpanText.of(margin);
+        String title = list.size() == 1 ? "«" + first.title() + "» ya no deja " + span + " de margen"
+                : list.size() + (tiktok ? " publicaciones de TikTok de «" : " publicaciones de «") + promotion.name() + "» ya no dejan " + span + " de margen";
         String detail = (list.size() == 1 ? "" : "La primera, «" + first.title() + "»: ")
                 + (past ? "su hora (el " + day + " a las " + hour(when) + ") ya pasó"
-                        : "sale el " + day + " a las " + hour(when) + " (faltan menos de 6 horas)")
-                + " y aún no está programada. SocialHub no programa con menos de 6 horas: cambia la hora o publícala a mano";
-        return recommendation("publication-too-soon:" + promotion.id(), Recommendation.Kind.PUBLICATION_TOO_SOON,
+                        : "sale el " + day + " a las " + hour(when) + " (faltan menos de " + span + ")")
+                + " y aún no está programada. SocialHub no programa con menos de " + span + " de margen (ajuste «" + (tiktok ? "Margen mínimo de publicación en TikTok" : "Margen mínimo de publicación") + "»): cambia la hora o publícala a mano";
+        return recommendation("publication-too-soon:" + promotion.id() + (tiktok ? ":tiktok" : ""), Recommendation.Kind.PUBLICATION_TOO_SOON,
                 title, detail, Recommendation.Screen.PUBLICATIONS, promotion.brandId(), promotion.id())
                 .promotionId(promotion.id());
     }

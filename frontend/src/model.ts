@@ -119,6 +119,21 @@ export const weekday = (d: Date) => DAYS[d.getUTCDay()];
 export const hhmm = (t: string) => t.slice(0, 5);
 export const clockTime = (iso: string) =>
   new Date(iso).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' });
+/** Una duración en minutos con palabras, igual que el backend: «30 minutos», «1 hora», «8 horas», «1 h 30 min». */
+export function spanText(minutes: number): string {
+  if (minutes < 60) return `${minutes} ${minutes === 1 ? 'minuto' : 'minutos'}`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  if (rest === 0) return `${hours} ${hours === 1 ? 'hora' : 'horas'}`;
+  return `${hours} h ${rest} min`;
+}
+
+/** Margen mínimo de publicación que vale para una red: el de TikTok o el general. */
+export function marginFor(settings: { min_margin_minutes: number; tiktok_min_margin_minutes: number } | null, platform: string): number {
+  if (platform === 'TIKTOK') return settings?.tiktok_min_margin_minutes ?? 480;
+  return settings?.min_margin_minutes ?? 30;
+}
+
 export const dateTime = (iso: string) =>
   new Date(iso).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Europe/Madrid' });
 

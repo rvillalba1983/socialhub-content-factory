@@ -48,6 +48,7 @@ class PublishingService implements PublishingCommands {
     private final com.socialhub.publishing.domain.EditorialMemoryRepository memory;
     private final PublishingEngine engine;
     private final PublicationInsights insights;
+    private final com.socialhub.settings.PublishSettings settings;
 
     /** Alta desde el centro de control. El identificador es la fecha y la plataforma: «2026-11-10-instagram». */
     @Transactional
@@ -107,7 +108,7 @@ class PublishingService implements PublishingCommands {
             }
         }
         PublicationStatus before = publication.getStatus();
-        publication.changeStatus(status, clock.instant());
+        publication.changeStatus(status, clock.instant(), settings.minMarginFor(publication.getPlatform().name()));
         if (!mode.isDemo()) {
             if (status == PublicationStatus.SCHEDULED) engine.start(publication);
             else if (before == PublicationStatus.SCHEDULED) engine.stop(publication, "Raúl la ha pasado a «" + status.label() + "»");
@@ -239,7 +240,7 @@ class PublishingService implements PublishingCommands {
      */
     @Transactional
     @Override
-    public List<String> applyTexts(String promotionId, List<Texts> texts) {
+    public TextsOutcome applyTexts(String promotionId, List<Texts> texts, boolean replaceOwn) {
         List<Publication> found = new ArrayList<>();
         for (Texts t : texts) {
             Publication p = find(t.publicationId());
@@ -252,10 +253,16 @@ class PublishingService implements PublishingCommands {
             found.add(p);
         }
         List<String> kept = new ArrayList<>();
+        List<String> replaced = new ArrayList<>();
         for (int i = 0; i < texts.size(); i++) {
             Publication p = found.get(i);
             Texts t = texts.get(i);
-            if (p.hasOwnText()) {
+            if (p.hasOwnText() && replaceOwn) {
+                // Pedirlo a mano es una orden: el texto de Raúl se guarda aparte y se puede recuperar
+                p.replaceWithAiTexts(t.caption(), t.hashtags());
+                replaced.add(p.getId());
+                quality.invalidateAcceptances(p.getId());
+            } else if (p.hasOwnText()) {
                 String suggestion = SUGGESTION_FLAG + ": «" + t.caption() + "»"
                         + (t.hashtags().isBlank() ? "" : " " + t.hashtags());
                 p.flag(p.getFlag() == null || p.getFlag().startsWith(SUGGESTION_FLAG) ? suggestion : p.getFlag() + " · " + suggestion);
@@ -267,7 +274,19 @@ class PublishingService implements PublishingCommands {
             publications.save(p);
             events.publishEvent(new FactoryChanged("publication", p.getId()));
         }
-        return kept;
+        return new TextsOutcome(kept, replaced);
+    }
+
+    /** Raúl recupera su texto anterior, el que sustituyó Claude. */
+    @Transactional
+    @Override
+    public Publication restorePreviousText(String id) {
+        Publication publication = find(id);
+        publication.restorePreviousText();
+        quality.invalidateAcceptances(id);
+        publications.save(publication);
+        events.publishEvent(new FactoryChanged("publication", id));
+        return publication;
     }
 
     /** Raúl descarta el texto de la publicación con su motivo: queda en la memoria editorial. */

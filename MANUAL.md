@@ -27,7 +27,7 @@ SocialHub es la fábrica de contenido de **El DeLito** (el poemario) y **Litoque
 - **Planifica** la semana con propuestas de Claude que tú apruebas o rechazas.
 - **Produce** las piezas (carruseles, historias, reels) con herramientas locales y los textos con Claude.
 - **Revisa** cada publicación con un control de calidad antes de que la apruebes.
-- **Programa** en Publer o en Publora, con 6 horas de margen como mínimo.
+- **Programa** por la API oficial, Publer o Publora, respetando el margen mínimo de publicación (30 minutos por defecto, y 8 horas en TikTok; los dos ajustables).
 - **Comprueba** lo publicado y lee sus métricas a los 7 días.
 - **Aprende**: los rechazos, tus correcciones y los balances vuelven a Claude en cada encargo.
 
@@ -41,7 +41,10 @@ SocialHub **no llama a la API de Claude**. Deja los encargos en una carpeta de G
   - **Antes de instalar o actualizar, cierra SocialHub** (botón **Cerrar**) **y Chrome**. Si alguno está abierto, Windows puede dejar la instalación a medias y pedir reiniciar. Si Windows pide reiniciar, **primero cierra SocialHub y Chrome** y reinicia después; si al abrir SocialHub no arranca, repite la instalación con el lanzador con registro.
 - **Abrir:** con el acceso directo. SocialHub arranca y se abre en el navegador (`http://localhost:8686`). Si ya estaba abierto, solo se abre el navegador.
 - **Cerrar:** botón **Cerrar** en la barra de arriba, y confirma. Se paran el motor, la base de datos y el servidor. Lo que quedó a medias sigue al volver a abrirlo.
+- **Abrirse solo al iniciar sesión en Windows (en segundo plano):** al instalar, SocialHub se abre solo cada vez que inicias sesión en Windows. Está **activado por defecto** y lo cambias cuando quieras desde el icono de la bandeja («Abrir al iniciar sesión») o en «Ajustes generales» (pantalla de Copias de seguridad) o pulsando el número de versión de la web (casilla «Abrir SocialHub al iniciar sesión en Windows»). «En segundo plano» significa: el servidor arranca y sigue en `http://localhost:8686`, **sin abrir el navegador** y sin ninguna ventana; solo aparece el icono junto al reloj, que es la señal de que está corriendo. Si lo abres tú a mano (acceso directo del menú Inicio o del escritorio), sí se abre el navegador. Se hace con una entrada **del usuario** en `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` (valor `SocialHub`): no pide administrador ni toca el sistema. Al desinstalar con **«Desinstalar SocialHub (con registro)»** se borra esa entrada; si desinstalas desde «Aplicaciones» de Windows queda una entrada que apunta a un programa que ya no está (Windows la ignora sin avisar; para borrarla, vuelve a SocialHub, desactiva la casilla o ejecuta el lanzador de desinstalar).
+- **Icono de la bandeja (junto al reloj):** al pasar el ratón dice «SocialHub». **Doble clic** (o «Abrir SocialHub») abre `http://localhost:8686` en el navegador. Con clic derecho: la versión (solo texto), «Abrir SocialHub», «Abrir carpeta de registros», «Abrir al iniciar sesión» (casilla) y **«Cerrar SocialHub»**, que lo cierra de forma ordenada (servidor y PostgreSQL), igual que el botón **Cerrar** de la web, sin dejar procesos. Si el sistema no tiene bandeja, SocialHub funciona igual, sin icono. El icono lo dibuja SocialHub (cuadrado oscuro con una «S»); aún no hay un archivo de icono propio para el instalador.
 - **Ver qué versión tienes:** junto al nombre «SocialHub», arriba a la izquierda, sale en pequeño la versión y el commit (por ejemplo `1.2.57 · a1b2c3d`). Púlsala y verás el detalle: versión, commit, fecha y hora de compilación y el modo (Real o Demo). Si pasas el ratón por encima, sale la versión y la fecha en un recuadro.
+- **Aviso de versión nueva:** al abrir la web, SocialHub mira (como mucho una vez al día, sin enviar ningún dato tuyo y sin fallar si no hay red) si hay una release más nueva en GitHub. Si la hay, junto a la versión sale «Nueva versión X»; púlsalo para ver el enlace de descarga del instalador. **No se instala solo**: lo instalas tú como se explica abajo.
 - **Actualizar:**
   1. Cierra SocialHub con el botón **Cerrar**.
   2. Instala el `.msi` de la versión nueva encima, sin desinstalar nada.
@@ -187,6 +190,7 @@ Cada promoción tiene su centro de control («Abrir centro de control →» en s
 
   ![Automatización](docs/manual/img/13-automatizacion.jpg)
 
+- **Estilo visual:** campo opcional de la promoción («Navidad: rojo, dorado, nieve y estrellas», máximo 300 caracteres) que se ve en su ficha. Claude lo usa para dibujar los fondos de las piezas sin material y respeta los colores de la marca salvo que el estilo los cambie.
 - **Métricas** y **Configuración:** las métricas de la promoción y sus parámetros. Las métricas reales de cada publicación se ven en la propia publicación.
 
 ### Editar una publicación
@@ -196,7 +200,7 @@ Cada promoción tiene su centro de control («Abrir centro de control →» en s
 El editor tiene la red, el tipo, el título, la fecha y hora, la vía, el texto, los hashtags y las observaciones.
 - **Tipo:** se elige de una lista (Carrusel, Historia, Reel, Clip). Con **Otro…** escribes el tuyo; si Claude propone un tipo que no está en la lista, sale ahí y no se pierde.
 - **Vía:** solo salen las que valen para la red. En Instagram, API oficial, Publer y Publora; en TikTok, solo Publer.
-- **Pedir textos a Claude:** pide a Claude el texto y los hashtags.
+- **Pedir textos a Claude:** pide a Claude el texto y los hashtags. Si lo pides tú a mano, el texto de Claude **sustituye el tuyo** (es una orden expresa); el tuyo se guarda y aparece **Recuperar mi texto anterior** para volver a él. Si el encargo sale solo (automático), nunca pisa un texto tuyo: el texto de Claude va a una incidencia.
 - **Descartar texto:** borra el texto de Claude. Pide un motivo, que queda en la memoria editorial.
 - Tus correcciones a los textos de Claude también quedan en la memoria, para que Claude imite tu estilo.
 
@@ -228,7 +232,7 @@ En el editor de cada publicación, debajo del estado, está **Vista previa**:
 
 - **Archivos:** salen de las carpetas de Drive de la promoción. Llegan solos con las piezas generadas o se añaden a mano.
 - **Panel «Publicación»:** cuando está programada, muestra la vía, la ronda, el próximo intento, el enlace o el LEEME, y el historial.
-- **Panel «Métricas»:** cuando está publicada, muestra reproducciones, alcance, me gusta, comentarios, guardados y compartidos, leídos a los 7 días. Lo que no se pudo ver sale como «Sin dato».
+- **Panel «Métricas»:** cuando está publicada, muestra reproducciones, alcance, me gusta, comentarios, guardados y compartidos, leídos a los 7 días. Lo que no se pudo ver sale como «Sin dato». En Instagram, si salió por la API oficial, SocialHub las lee directamente de Meta (sin pedírselas a Claude); si la API falla o la clave no tiene permiso de estadísticas, se piden a Claude con Chrome y el panel dice por qué. TikTok siempre por Chrome.
 - **Incidencias:** si tiene una anotada, se da por resuelta con el botón **Resuelto**.
 
 Una publicación **programada no se edita**: para cambiarla, vuelve a «Aprobada» y prográmala otra vez.
@@ -260,7 +264,7 @@ Una publicación **programada no se edita**: para cambiarla, vuelve a «Aprobada
    - Como la tarea pasa cada 5 horas, SocialHub solo pide el encargo si alguna pasada llega antes de ese límite; si no, sigue por otra vía o deja el LEEME. Por eso conviene programar con margen.
    - Si programas algo con menos de 8 h de margen, Publer se salta.
 3. **Publora** es la siguiente vía, con su API y tu clave (plan gratuito: pocas publicaciones al mes).
-   - SocialHub sube los archivos y la programa, hasta 6 h antes.
+   - SocialHub sube los archivos y la programa, hasta el margen mínimo de publicación antes de la hora.
    - Si la sacas de «Programada», SocialHub la borra él solo en Publora.
 4. **Si fallan todas**, SocialHub reintenta cada hora mientras quede margen. Si no, deja un **LEEME** en la carpeta de aprobados para que la publiques tú, y te avisa.
 
@@ -297,11 +301,15 @@ Cada encargo es un archivo en la carpeta **Encargos** de la marca, en Drive.
 
 **Especificación de piezas por lotes.** SocialHub la pide por promoción, sin esperar al domingo, en cuanto hay **3 o más publicaciones pendientes de contenido** (en «En producción» y sin piezas) o la más próxima sale en **menos de 3 días** (aunque sean 1 o 2). El spec lleva solo esas publicaciones. Una publicación no entra en dos specs a la vez; si el spec falla del todo o lo cancelas, vuelve a contar como pendiente (ese mismo lote no se pide solo otra vez hasta pasadas 24 h; a mano sí). Si el spec se completa y, cuando terminan de generarse sus piezas, una publicación sigue sin ninguna, vuelve a contar como pendiente y entra sola en el siguiente spec, como mucho dos veces; después solo a mano. Las promociones **planificadas** también piden su spec, sin esperar a activarse. Si una publicación en producción sin piezas y fuera de cualquier spec abierto sale en menos de 3 días, en «Qué hacer ahora» aparece «{título} no tiene contenido» con el botón **«Pedir contenido ya»**, que pide un spec urgente de esa publicación (o de las de su promoción en la misma situación).
 
+**Material que falta.** Ninguna pieza se queda sin fondo. Si una publicación no tiene imagen o vídeo en la carpeta Material, «Qué hacer ahora» lo avisa (solo informa, no bloquea) y SocialHub elige el fondo por este orden: tu imagen o vídeo > un fondo SVG que dibuja Claude (`fondo_svg`) > la portada de la marca > un fondo que genera SocialHub con el color de la marca y el título. La **portada de la marca** es un archivo `portada.jpg`, `portada.jpeg` o `portada.png` (mayúsculas o minúsculas) en la raíz de la carpeta Material de la marca. Si la carpeta no está disponible en el ordenador, el aviso lo dice y no falla nada.
+
 Los resultados vuelven a la carpeta `de-claude`. SocialHub los comprueba contra el contrato y los aplica; si un resultado no cumple el contrato, la tarea falla con el motivo.
 
 ![Encargos a Claude: ajustes](docs/manual/img/14-claude.jpg)
 
 En la pantalla **Claude** se ajusta:
+- El **margen mínimo de publicación** (minutos; por defecto 30; entre 5 y 1440). Nunca se publica al instante: una publicación solo se programa si su hora queda a este margen o más de ahora. Publer y Publora dependen de las pasadas de la tarea del PC (cada 5 h; de 08:00 a 18:00 solo las urgentes), así que con 30 minutos lo habitual es publicar por la API oficial con SocialHub abierto.
+- El **margen mínimo de publicación en TikTok** (minutos; por defecto 480, es decir, 8 horas; entre 5 y 1440), justo debajo del general. TikTok solo se publica por Publer, que programa Claude con Chrome desde tu PC en sus pasadas; con menos de unas 8 horas puede no llegar y quedará para subirla a mano. Cada publicación usa el margen de su red: TikTok, el de TikTok; las demás, el general. Al elegir TikTok en el editor de una publicación se ve su margen, y Claude no propone TikTok a menos de ese margen.
 - El **límite diario** de encargos. Los de publicación con Chrome no cuentan: tienen hora fija.
 - El **modelo de cada tipo de encargo** (Haiku, Sonnet u Opus).
 - Un **encargo a mano** a Claude.
@@ -353,7 +361,7 @@ Tiene las decisiones editoriales de la marca, lo rechazado con su motivo y tus c
   - Las carpetas que ya existen se respetan: SocialHub nunca borra ni mueve nada. Repetir la acción no cambia nada. Si cambias la raíz, los siete papeles pasan a apuntar a la nueva (lo de la anterior se queda donde está).
   - Si la raíz no es accesible (por ejemplo, la unidad G: no está disponible o Google Drive para ordenador no está abierto), sale un error claro y no se crea nada.
   - Las rutas de cada papel siguen visibles y editables (avanzado) por si quieres una ruta distinta.
-- **Instagram · API oficial:** en «Agentes y herramientas › Instagram · API oficial» pegas una sola vez el App ID y el App Secret de tu app de Meta, copias en ella la dirección de redireccionamiento que enseña la tarjeta y pulsas **«Conectar con Instagram»**: Meta te pide permiso, vuelves a SocialHub y este encuentra solo la cuenta de Instagram de cada marca (por su @usuario; si no coincide, se elige de una lista en la ficha, o se pega el identificador a mano). La conexión dura unos 60 días: cuando quedan 7 o menos, «Qué hacer ahora» avisa y **«Renovar conexión»** la renueva con un clic. La clave de «usuario del sistema» (no caduca) sigue valiendo como alternativa: la publicación usa la conexión mientras está vigente y, si no, esa clave. El App Secret y las claves se guardan solo en tu ordenador, como la de Publora.
+- **Instagram · API oficial:** en «Agentes y herramientas › Instagram · API oficial» pegas una sola vez el App ID y el App Secret de tu app de Meta, copias en ella la dirección de redireccionamiento que enseña la tarjeta y pulsas **«Conectar con Instagram»**: Meta te pide permiso, vuelves a SocialHub y este encuentra solo la cuenta de Instagram de cada marca (por su @usuario; si no coincide, se elige de una lista en la ficha, o se pega el identificador a mano). La conexión dura unos 60 días: cuando quedan 10 o menos, «Qué hacer ahora» avisa y **«Renovar conexión»** la renueva con un clic. La clave de «usuario del sistema» (no caduca) sigue valiendo como alternativa: la publicación usa la conexión mientras está vigente y, si no, esa clave. El App Secret y las claves se guardan solo en tu ordenador, como la de Publora.
 - **Publora:** la clave de la API, que vale para todas las marcas, y la cuenta de Publora de la marca en cada red. La clave se comprueba antes de guardarla. Se guarda solo en tu ordenador, legible solo por tu usuario: nunca en la base de datos, en Drive ni en el repositorio.
 
 ### Dónde se saca cada dato externo
@@ -419,7 +427,7 @@ El modo Demo no tiene copias: sus datos son de ejemplo.
 
 ## 12. Reglas que siempre se cumplen
 
-- Nada se programa sin tu aprobación, sin pasar el control de calidad y sin **6 h de margen**. Nunca se publica al momento.
+- Nada se programa sin tu aprobación, sin pasar el control de calidad y sin el **margen mínimo de publicación** (30 minutos por defecto y 8 horas en TikTok, ajustables en «Encargos a Claude»). Nunca se publica al momento.
 - Nunca se simula una publicación: «Publicada» exige el enlace o el identificador.
 - Nunca se inventan cifras: lo que no se ve queda «Sin dato».
 - Claude no envía correos ni mensajes, no inicia sesión por ti, no crea cuentas y no paga nada.

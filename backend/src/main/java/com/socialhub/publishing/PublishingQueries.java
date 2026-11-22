@@ -30,11 +30,11 @@ public interface PublishingQueries {
     List<Unroutable> withoutPubloraRoute(java.time.LocalDate from, java.time.LocalDate to, java.util.function.Function<String, String> brandOfPromotion);
 
     /** Una publicación de camino a publicar cuya hora ya no deja el margen mínimo para programarla. */
-    record WithoutMargin(String promotionId, String publicationId, String title, java.time.Instant scheduledAt) {}
+    record WithoutMargin(String promotionId, String publicationId, String title, java.time.Instant scheduledAt, String platform) {}
 
     /**
      * Publicaciones de camino a publicar (en producción, borrador, en revisión o aprobadas) a las que ya no les quedan
-     * {@link Publication#MIN_MARGIN} hasta su hora (o cuya hora ya pasó), por hora de publicación.
+     * el margen mínimo de publicación hasta su hora (o cuya hora ya pasó), por hora de publicación.
      */
     List<WithoutMargin> withoutMargin(java.time.Instant now);
 

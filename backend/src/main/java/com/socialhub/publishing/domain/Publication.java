@@ -38,6 +38,9 @@ public final class Publication {
     /** Última propuesta de Claude, hasta que Raúl la corrige o la descarta. */
     private @Nullable String aiCaption;
     private @Nullable String aiHashtags;
+    /** El texto de Raúl que sustituyó un texto pedido a mano a Claude, para poder recuperarlo. */
+    private @Nullable String previousCaption;
+    private @Nullable String previousHashtags;
     private @Nullable String externalId;
     private @Nullable String confirmation;
     private @Nullable Instant publishedAt;
@@ -50,7 +53,8 @@ public final class Publication {
                        PublicationStatus status, @Nullable String route, @Nullable String flag, @Nullable String note,
                        @Nullable String externalId, @Nullable String confirmation, @Nullable Instant publishedAt,
                        boolean demo, long version, @Nullable String caption, @Nullable String hashtags,
-                       @Nullable String aiCaption, @Nullable String aiHashtags) {
+                       @Nullable String aiCaption, @Nullable String aiHashtags, @Nullable String previousCaption,
+                       @Nullable String previousHashtags) {
         this.id = Objects.requireNonNull(id);
         this.promotionId = Objects.requireNonNull(promotionId);
         this.platform = Objects.requireNonNull(platform);
@@ -72,13 +76,12 @@ public final class Publication {
         this.hashtags = hashtags;
         this.aiCaption = aiCaption;
         this.aiHashtags = aiHashtags;
+        this.previousCaption = previousCaption;
+        this.previousHashtags = previousHashtags;
         if (status == PublicationStatus.PUBLISHED && (confirmation == null || confirmation.isBlank())) {
             throw new IllegalArgumentException("Una publicación publicada necesita confirmación");
         }
     }
-
-    /** Margen mínimo entre ahora y la hora de publicación para poder programarla: nunca se publica al instante. */
-    public static final Duration MIN_MARGIN = Duration.ofHours(6);
 
     /** Estados que solo pone SocialHub al publicar, nunca a mano. */
     private static final Set<PublicationStatus> AUTOMATIC =
@@ -114,7 +117,7 @@ public final class Publication {
         return new Publication(id, promotionId, details.platform(), details.type().strip(), details.title().strip(),
                 details.scheduledOn(), details.scheduledTime(), details.timezone(), status, details.route().strip(), null,
                 blankToNull(details.note()), null, null, null, demo, 0, blankToNull(details.caption()),
-                blankToNull(details.hashtags()), null, null);
+                blankToNull(details.hashtags()), null, null, null, null);
     }
 
     /** Fecha y hora de publicación en su zona horaria. */
@@ -162,6 +165,32 @@ public final class Publication {
         this.aiHashtags = this.hashtags;
     }
 
+    /**
+     * Raúl pidió los textos a mano: el de Claude sustituye al que hubiera, incluso si era de Raúl. Ese texto queda guardado
+     * para poder recuperarlo con {@link #restorePreviousText()}.
+     */
+    public void replaceWithAiTexts(@Nullable String caption, @Nullable String hashtags) {
+        requireEditable();
+        if (hasOwnText()) {
+            previousCaption = this.caption;
+            previousHashtags = this.hashtags;
+        }
+        proposeTexts(caption, hashtags);
+    }
+
+    /** Hay un texto de Raúl guardado que Claude sustituyó. */
+    public boolean hasPreviousText() { return previousCaption != null || previousHashtags != null; }
+
+    /** Devuelve el texto de Raúl que sustituyó Claude. El de Claude se descarta (el que queda es de Raúl). */
+    public void restorePreviousText() {
+        if (!hasPreviousText()) throw new DomainException("No hay un texto anterior que recuperar.");
+        setTexts(previousCaption, previousHashtags);
+        aiCaption = null;
+        aiHashtags = null;
+        previousCaption = null;
+        previousHashtags = null;
+    }
+
     /** Hay un texto o unos hashtags que no son la propuesta de Claude sin tocar: los puso o los corrigió Raúl. */
     public boolean hasOwnText() {
         return (caption != null && !caption.equals(aiCaption)) || (hashtags != null && !hashtags.equals(aiHashtags));
@@ -198,18 +227,19 @@ public final class Publication {
     }
 
     /** Cambio de estado pedido por Raúl. Los estados de publicación los pone solo SocialHub. */
-    public void changeStatus(PublicationStatus next, Instant now) {
+    public void changeStatus(PublicationStatus next, Instant now, Duration minMargin) {
         if (AUTOMATIC.contains(next)) {
             throw new DomainException("«" + next.label() + "» solo lo pone SocialHub al publicar, con confirmación.");
         }
-        if (next == PublicationStatus.SCHEDULED) requireMargin(scheduledAt(), now);
+        if (next == PublicationStatus.SCHEDULED) requireMargin(scheduledAt(), now, minMargin);
         moveTo(next);
     }
 
-    private static void requireMargin(Instant when, Instant now) {
-        if (when.isBefore(now.plus(MIN_MARGIN))) {
+    /** Nunca al instante: la hora tiene que quedar a {@code minMargin} o más de ahora (el «Margen mínimo de publicación»). */
+    private static void requireMargin(Instant when, Instant now, Duration minMargin) {
+        if (when.isBefore(now.plus(minMargin))) {
             throw new DomainException("Para programarla, la hora de publicación debe quedar al menos a "
-                    + MIN_MARGIN.toHours() + " horas de ahora.");
+                    + com.socialhub.platform.SpanText.of(minMargin) + " de ahora.");
         }
     }
 

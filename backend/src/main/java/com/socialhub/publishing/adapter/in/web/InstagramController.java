@@ -11,6 +11,7 @@ import com.socialhub.api.model.InstagramDetectedAccountDto;
 import com.socialhub.api.model.InstagramDetectedAccountListDto;
 import com.socialhub.api.model.InstagramKeyInputDto;
 import com.socialhub.api.model.InstagramOAuthStartDto;
+import com.socialhub.api.model.InstagramRenewalDto;
 import com.socialhub.api.model.InstagramStatusDto;
 import com.socialhub.publishing.InstagramConnection;
 import com.socialhub.publishing.InstagramOAuth;
@@ -57,6 +58,14 @@ class InstagramController implements InstagramApi {
     @Override
     public ResponseEntity<InstagramOAuthStartDto> startInstagramOAuth(String requestGuard) {
         return ResponseEntity.ok(new InstagramOAuthStartDto(oauth.start()));
+    }
+
+    @Override
+    public ResponseEntity<InstagramRenewalDto> renewInstagramConnection(String requestGuard) {
+        var renewal = oauth.renew();
+        var dto = new InstagramRenewalDto(renewal.renewed(), renewal.message());
+        dto.setAuthorizationUrl(renewal.authorizationUrl());
+        return ResponseEntity.ok(dto);
     }
 
     @Override

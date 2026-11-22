@@ -47,7 +47,7 @@ class PublicationInsights {
     private final PublishJobRepository jobs;
     private final ExternalCalendarRepository external;
     private final PromotionQueries promotions;
-    private final PublishMargin margin;
+    private final com.socialhub.settings.PublishSettings settings;
     private final Clock clock;
 
     private static String key(String brand, Publication p) { return brand + "|" + p.getPlatform(); }
@@ -103,8 +103,9 @@ class PublicationInsights {
     }
 
     private Optional<MoveReason> moveReason(Publication p, Collection<Instant> others, Instant now) {
+        Duration margin = settings.minMarginFor(p.getPlatform().name());
         if (!MOVABLE.contains(p.getStatus())) return Optional.empty();
-        if (p.scheduledAt().isBefore(now.plus(margin.current()))) return Optional.of(MoveReason.LOST_MARGIN);
+        if (p.scheduledAt().isBefore(now.plus(margin))) return Optional.of(MoveReason.LOST_MARGIN);
         if (FreeSlot.clashes(p.scheduledAt(), others, FreeSlot.SPACING)) return Optional.of(MoveReason.CLASH);
         return Optional.empty();
     }
@@ -126,11 +127,12 @@ class PublicationInsights {
         var reason = moveReason(p, others, now)
                 .orElseThrow(() -> new DomainException("No hace falta moverla: tiene margen y no choca con otra publicación."));
         ZoneId zone = ZoneId.of(p.getTimezone());
-        Instant start = p.scheduledAt().isAfter(now.plus(margin.current())) ? p.scheduledAt() : now.plus(margin.current());
+        Duration margin = settings.minMarginFor(p.getPlatform().name());
+        Instant start = p.scheduledAt().isAfter(now.plus(margin)) ? p.scheduledAt() : now.plus(margin);
         var slot = FreeSlot.next(start, zone, others, FreeSlot.SPACING).atZone(zone);
         var endsOn = promotions.datesOf(p.getPromotionId()).endsOn();
         return new SlotProposal(p.getId(), reason, p.getScheduledOn(), p.getScheduledTime(), slot.toLocalDate(),
                 slot.toLocalTime(), p.getTimezone(), !slot.toLocalDate().equals(p.getScheduledOn()), endsOn,
-                endsOn != null && slot.toLocalDate().isAfter(endsOn), margin.current().toMinutes());
+                endsOn != null && slot.toLocalDate().isAfter(endsOn), margin.toMinutes());
     }
 }

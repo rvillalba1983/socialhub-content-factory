@@ -2,6 +2,7 @@
 rem Desinstala SocialHub y deja un registro detallado: msiexec /x ... /l*v
 rem Uso normal: doble clic. Para pruebas automaticas: anadir /silencioso.
 rem Los datos (%LOCALAPPDATA%\SocialHub) no se borran.
+rem Tambien quita la entrada de "abrir al iniciar sesion" del usuario (HKCU\...\Run\SocialHub): no pide administrador.
 setlocal EnableExtensions DisableDelayedExpansion
 set "MODO=%~1"
 set "QN="
@@ -10,6 +11,9 @@ if /i "%MODO%"=="/silencioso" set "QN=/qn"
 set "LOGDIR=%LOCALAPPDATA%\SocialHub\logs"
 if not exist "%LOGDIR%" mkdir "%LOGDIR%" >nul 2>&1
 if not exist "%LOGDIR%" set "LOGDIR=%TEMP%"
+
+rem Arranque con Windows: la entrada es del usuario y un .msi no puede limpiarla; si no existe, no pasa nada
+reg delete "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v SocialHub /f >nul 2>&1
 
 set "STAMP="
 for /f "usebackq delims=" %%T in (`powershell -NoProfile -Command "Get-Date -Format yyyyMMdd-HHmmss"`) do set "STAMP=%%T"

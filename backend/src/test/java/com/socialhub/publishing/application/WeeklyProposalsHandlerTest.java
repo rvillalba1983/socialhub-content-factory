@@ -37,7 +37,8 @@ class WeeklyProposalsHandlerTest {
     }
 
     private WeeklyProposalsHandler at(Instant now) {
-        return new WeeklyProposalsHandler(promotions, mock(PublishingQueriesService.class), service, Clock.fixed(now, MADRID),
+        return new WeeklyProposalsHandler(promotions, mock(PublishingQueriesService.class), service,
+                com.socialhub.settings.FixedMargin.of(com.socialhub.settings.FixedMargin.SIX_HOURS), Clock.fixed(now, MADRID),
                 mock(ExternalCalendarService.class), JSON);
     }
 
@@ -122,8 +123,25 @@ class WeeklyProposalsHandlerTest {
         assertThat(text).startsWith("2 propuestas para revisar en Publicaciones · 6 descartadas: ")
                 .contains("3 con fecha, hora, red, tipo o título no válidos")
                 .contains("2 fuera de la semana")
-                .contains("1 con fecha pasada o a menos de 6 h");
+                .contains("1 con fecha pasada o sin el margen mínimo de publicación");
         verify(service, times(2)).create(eq("lit-1"), any(), eq(PublicationStatus.PROPOSAL));
+    }
+
+    @Test
+    void tikTokHasItsOwnMinimumLeadAndBothAreInTheInputs() {
+        var handler = new WeeklyProposalsHandler(promotions, mock(PublishingQueriesService.class), service,
+                com.socialhub.settings.FixedMargin.of(java.time.Duration.ofHours(6), java.time.Duration.ofHours(8)),
+                Clock.fixed(madrid(9, 10, 0), MADRID), mock(ExternalCalendarService.class), JSON);
+        when(promotions.datesOf("lit-1")).thenReturn(new PromotionQueries.Dates(LocalDate.of(2026, 11, 3), LocalDate.of(2026, 12, 13)));
+        // Ahora 10:00: a las 16:00 (6 h) entra Instagram; TikTok necesita 8 h (18:00): a las 17:59 no entra y a las 18:00 sí
+        assertThat(handler.apply(week9(), proposals(p("2026-11-09", "16:00", "INSTAGRAM")), JSON.createObjectNode()))
+                .startsWith("1 propuesta para revisar");
+        assertThatThrownBy(() -> handler.apply(week9(), proposals(p("2026-11-09", "17:59", "TIKTOK")), JSON.createObjectNode()))
+                .hasMessageContaining("1 descartada: 1 con fecha pasada o sin el margen mínimo de publicación");
+        assertThat(handler.apply(week9(), proposals(p("2026-11-09", "18:00", "TIKTOK")), JSON.createObjectNode()))
+                .startsWith("1 propuesta para revisar");
+        var inputs = handler.inputs(week9());
+        assertThat(inputs).containsEntry("min_publish_margin_minutes", 360L).containsEntry("tiktok_min_publish_margin_minutes", 480L);
     }
 
     @Test
@@ -133,7 +151,7 @@ class WeeklyProposalsHandlerTest {
         assertThat(handler.apply(week9(), proposals(p("2026-11-09", "16:00", "INSTAGRAM")), JSON.createObjectNode()))
                 .startsWith("1 propuesta para revisar");
         assertThatThrownBy(() -> handler.apply(week9(), proposals(p("2026-11-09", "15:59", "INSTAGRAM")), JSON.createObjectNode()))
-                .hasMessageContaining("1 descartada: 1 con fecha pasada o a menos de 6 h");
+                .hasMessageContaining("1 descartada: 1 con fecha pasada o sin el margen mínimo de publicación");
     }
 
     @Test

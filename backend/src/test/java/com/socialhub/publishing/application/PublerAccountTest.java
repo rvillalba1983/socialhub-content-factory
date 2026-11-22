@@ -75,6 +75,10 @@ class PublerAccountTest {
     static final Map<String, String> PROMOTION_OF = new HashMap<>();
 
     @Autowired MockMvc mvc;
+    /** Estas pruebas se escribieron con el margen de 6 horas de antes del ajuste: lo fijan para conservar sus horarios. */
+    @Autowired com.socialhub.settings.PublishSettings margin;
+    @org.junit.jupiter.api.BeforeEach void sixHourMargin() { margin.update(360, 360); }
+    @org.junit.jupiter.api.AfterEach void defaultMargin() { margin.update(com.socialhub.settings.PublishSettings.DEFAULT_MINUTES, com.socialhub.settings.PublishSettings.TIKTOK_DEFAULT_MINUTES); }
     @Autowired PublishingEngine engine;
     private final JsonMapper json = JsonMapper.builder().build();
 

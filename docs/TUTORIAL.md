@@ -129,6 +129,8 @@ Si SocialHub no abre después de instalar, mira `arranque.log` y `instalacion-�
 
 **Nota para Mac:** descarga el `.dmg`, y la primera vez ábrelo con clic derecho (no está firmado). Datos y registros en `~/Library/Application Support/SocialHub`. El `.dmg` solo se ha probado en la máquina macOS de GitHub, no en un Mac real. Las rutas tipo `G:\` son de Windows; en Mac la carpeta de Drive es otra (pendiente de confirmar).
 
+**Después de instalar:** SocialHub se abre solo al iniciar sesión en Windows, en segundo plano y sin ventana; verás su icono junto al reloj (clic derecho: «Abrir SocialHub» y «Cerrar SocialHub»). Puedes desactivarlo en «Ajustes generales» o pulsando el número de versión. Si hay una versión nueva en GitHub, la propia web te avisa con el enlace de descarga; la instalas tú a mano.
+
 ## 4. Primeros pasos en SocialHub
 
 Las capturas usan datos ficticios (una marca de ejemplo, «Cafetería Luna») y rutas de prueba en lugar de `G:\...`. En tu PC verás tus datos y tu unidad `G:`.
@@ -743,10 +745,10 @@ Crea estas dos tareas programadas (zona horaria Europe/Madrid, aprobación autom
 
 Opciones que ves en el editor:
 - **Plataforma, Tipo, Título, Día, Hora (España) y Vía** (Publer por defecto).
-- **Texto** (máximo 2200 caracteres) y **hashtags**. **Pedir textos a Claude** lo encarga a 🤖 Claude; **Descartar texto** lo borra.
+- **Texto** (máximo 2200 caracteres) y **hashtags**. **Pedir textos a Claude** lo encarga a 🤖 Claude (si lo pides tú a mano, su texto sustituye el tuyo y puedes volver con **Recuperar mi texto anterior**); **Descartar texto** lo borra.
 - **Guardar** guarda los cambios; **Cerrar** cierra el editor.
 - **Estado** y botones para cambiarlo: **Pasar a «Pendiente de revisión»**, **Pasar a «En producción»** y **Pasar a «Cancelada»**.
-- Programar exige al menos 6 horas de margen. «Publicada» solo llega con la confirmación de la plataforma.
+- Programar exige el margen mínimo de publicación (30 minutos por defecto; 8 horas en TikTok, que se publica por Publer; se cambian en «Encargos a Claude»). Al elegir TikTok en «Plataforma», el editor te enseña su margen. «Publicada» solo llega con la confirmación de la plataforma.
 
 ![Editor: control de calidad y archivos](tutorial/14b-editor-comprobaciones.png)
 
@@ -757,7 +759,9 @@ Opciones que ves en el editor:
 6. 🤖 Se programa, se publica, se comprueba y se leen las métricas.
 7. 👤 Si algo pasa a «Necesita atención» (publicación retenida, error, hora pasada), decides tú.
 
-Regla: nunca se publica al instante; siempre hay un mínimo de 6 horas de margen.
+Si falta una imagen o un vídeo, SocialHub avisa en «Qué hacer ahora» y usa un fondo propio (el SVG de Claude, la portada `portada.jpg|png` de la marca o un fondo con su color). Puedes describir el aspecto de una promoción en su campo «Estilo visual».
+
+Regla: nunca se publica al instante; siempre hay un margen mínimo (30 minutos por defecto, y 8 horas en TikTok porque Publer lo programa Claude desde tu PC en sus pasadas; los dos se ajustan en «Encargos a Claude» entre 5 minutos y 24 horas). Cada publicación usa el de su red.
 
 ## 8. Prompts útiles para Claude
 
