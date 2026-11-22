@@ -374,13 +374,13 @@ describe('Publicaciones', () => {
     vi.spyOn(api, 'publicationFiles').mockResolvedValue({ items: [
       { id: 'aaaaaaaaaaaaaaaa', path: 'G:/DeLito/Semana 2/poema_1.jpg', kind: 'IMAGE', mime_type: 'image/jpeg', origin: 'SPEC', added_at: '2026-11-02T09:00:00Z', available: true },
     ] });
-    const change = vi.spyOn(api, 'changePublicationStatus').mockRejectedValue(new Error('al menos a 6 horas de ahora'));
+    const change = vi.spyOn(api, 'changePublicationStatus').mockRejectedValue(new Error('al menos a 30 minutos de ahora'));
     render(<PublicationEditor promotionId="p" publication={publication} onClose={() => {}} onSaved={() => {}} />);
     expect(await screen.findByText('G:/DeLito/Semana 2/poema_1.jpg')).toBeInTheDocument();
     expect(screen.getByText(/Del spec/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Publicada/ })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Pasar a «Programada»' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('6 horas');
+    expect(await screen.findByRole('alert')).toHaveTextContent('30 minutos');
     expect(change).toHaveBeenCalledWith('2026-11-10-instagram', 'SCHEDULED');
   });
 });
@@ -846,6 +846,20 @@ describe('Encargos a Claude', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Encargar a Claude' }));
     await waitFor(() => expect(onTask).toHaveBeenCalledWith('t-10'));
     expect(order).toHaveBeenCalledWith('p', { type: 'RESEARCH', title: undefined, goal: 'Salas de poesía', inputs: ['Granada', 'Jaén'] });
+  });
+
+  it('enseña y guarda el margen mínimo de publicación', async () => {
+    vi.spyOn(api, 'aiSettings').mockResolvedValue({ daily_limit: 10, used_today: 0, models: [] });
+    vi.spyOn(api, 'aiRequests').mockResolvedValue({ offset: 0, limit: 50, total: 0, items: [] });
+    const base = { default_minutes: 30, min_minutes: 5, max_minutes: 1440 };
+    vi.spyOn(api, 'publishSettings').mockResolvedValue({ ...base, min_margin_minutes: 30 });
+    const save = vi.spyOn(api, 'savePublishSettings').mockResolvedValue({ ...base, min_margin_minutes: 90 });
+    render(<Claude data={snapshot} onClose={() => {}} onTask={() => {}} onMessage={() => {}} />);
+    const input = await screen.findByLabelText(/Minutos entre ahora y la hora de publicación/);
+    expect(input).toHaveValue(30);
+    fireEvent.change(input, { target: { value: '90' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar margen' }));
+    await waitFor(() => expect(save).toHaveBeenCalledWith({ min_margin_minutes: 90 }));
   });
 });
 

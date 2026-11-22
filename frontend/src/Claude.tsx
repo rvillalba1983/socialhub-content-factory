@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api } from './api';
 import { Icon } from './icons';
 import {
-  AI_MODELS, dateTime, type AiModel, type AiRequest, type AiRequestPage, type AiRequestType, type AiSettings,
+  AI_MODELS, dateTime, type AiModel, type AiRequest, type AiRequestPage, type AiRequestType, type AiSettings, type PublishSettings,
   type Snapshot, type StatusCode,
 } from './model';
 import { Pill } from './ui';
@@ -83,6 +83,7 @@ export function Claude({ data, onClose, onTask, onMessage }: {
           {settings && <SettingsCard settings={settings} onSaved={s => { setSettings(s); onMessage('Ajustes de Claude guardados'); }} />}
           {settings && <OrderCard data={data} settings={settings} onOrdered={id => { onMessage('Encargo en cola'); void load(); onTask(id); }} />}
         </div>
+        <PublishMarginCard onMessage={onMessage} />
 
         <h3>Registro de envíos</h3>
         <div className="tbl-wrap"><table>
@@ -152,6 +153,46 @@ function SettingsCard({ settings, onSaved }: { settings: AiSettings; onSaved: (s
       <div className="form-actions">
         {error && <p className="error" role="alert">{error}</p>}
         <button className="btn primary" disabled={busy}>{busy ? 'Guardando…' : 'Guardar ajustes'}</button>
+      </div>
+    </form>
+  );
+}
+
+/** Ajuste global «Margen mínimo de publicación»: una única fuente para todos los «cuánto antes» de SocialHub. */
+function PublishMarginCard({ onMessage }: { onMessage: (m: string) => void }) {
+  const [settings, setSettings] = useState<PublishSettings | null>(null);
+  const [minutes, setMinutes] = useState(30);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    api.publishSettings().then(s => { if (alive) { setSettings(s); setMinutes(s.min_margin_minutes); } }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+  if (!settings) return null;
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      const saved = await api.savePublishSettings({ min_margin_minutes: minutes });
+      setSettings(saved);
+      onMessage('Margen mínimo de publicación guardado');
+    } catch (err) { setError(err instanceof Error ? err.message : String(err)); } finally { setBusy(false); }
+  };
+  return (
+    <form className="card form" onSubmit={save} aria-label="Margen mínimo de publicación">
+      <h3>Margen mínimo de publicación</h3>
+      <label className="field"><span>Minutos entre ahora y la hora de publicación</span>
+        <input type="number" min={settings.min_minutes} max={settings.max_minutes} required value={minutes}
+          onChange={e => setMinutes(Number(e.target.value))} /></label>
+      <p className="src">Por defecto {settings.default_minutes} minutos; entre {settings.min_minutes} minutos y {settings.max_minutes} (un día).
+        Nunca se publica al instante: una publicación solo se programa si su hora queda a este margen o más de ahora. Publer necesita
+        pasadas de Claude con Chrome en tu PC (una cada 5 h; de 08:00 a 18:00 solo las urgentes), así que con un margen corto lo
+        habitual es publicar por la API oficial con SocialHub abierto.</p>
+      <div className="form-actions">
+        {error && <p className="error" role="alert">{error}</p>}
+        <button className="btn primary" disabled={busy}>{busy ? 'Guardando…' : 'Guardar margen'}</button>
       </div>
     </form>
   );

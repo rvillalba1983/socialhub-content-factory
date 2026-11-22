@@ -1027,6 +1027,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/settings/publishing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ajustes generales de publicación (margen mínimo) */
+        get: operations["getPublishSettings"];
+        /** Cambia el margen mínimo de publicación */
+        put: operations["updatePublishSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/ai/requests": {
         parameters: {
             query?: never;
@@ -1685,6 +1703,32 @@ export interface components {
             label: string;
             configured: boolean;
         };
+        PublishSettings: {
+            /**
+             * Format: int32
+             * @description Margen mínimo de publicación, en minutos: una publicación solo se puede programar si su hora queda al menos a este margen de ahora (nunca se publica al instante). Es la única fuente: la usan las validaciones de edición y programación, el motor de publicación, «Qué hacer ahora» y los encargos a Claude
+             */
+            min_margin_minutes: number;
+            /**
+             * Format: int32
+             * @description Valor por defecto (30)
+             */
+            default_minutes: number;
+            /**
+             * Format: int32
+             * @description Mínimo permitido (5)
+             */
+            min_minutes: number;
+            /**
+             * Format: int32
+             * @description Máximo permitido (1440: un día)
+             */
+            max_minutes: number;
+        };
+        PublishSettingsInput: {
+            /** Format: int32 */
+            min_margin_minutes: number;
+        };
         AiSettings: {
             /** Format: int32 */
             daily_limit: number;
@@ -2336,6 +2380,8 @@ export type PublerAccountListInput = components['schemas']['PublerAccountListInp
 export type PublerMoveInput = components['schemas']['PublerMoveInput'];
 export type PublerMoveResult = components['schemas']['PublerMoveResult'];
 export type PublishRouteState = components['schemas']['PublishRouteState'];
+export type PublishSettings = components['schemas']['PublishSettings'];
+export type PublishSettingsInput = components['schemas']['PublishSettingsInput'];
 export type AiSettings = components['schemas']['AiSettings'];
 export type AiSettingsInput = components['schemas']['AiSettingsInput'];
 export type AiOrderInput = components['schemas']['AiOrderInput'];
@@ -4304,6 +4350,56 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AiSettings"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    getPublishSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Ajustes vigentes */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublishSettings"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    updatePublishSettings: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PublishSettingsInput"];
+            };
+        };
+        responses: {
+            /** @description Ajustes guardados */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublishSettings"];
                 };
             };
             400: components["responses"]["Problem"];

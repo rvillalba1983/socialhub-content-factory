@@ -173,7 +173,7 @@ export function PublicationEditor({ promotionId, publication, onClose, onSaved }
                 if (rejecting === 'TEXT') setTextsTouched(false);
               }} />
           )}
-          <p className="src">Programar exige al menos 6 horas de margen. «Publicada» solo llega con la confirmación de la plataforma.</p>
+          <p className="src">Programar exige el margen mínimo de publicación (30 minutos por defecto; se cambia en «Encargos a Claude»). «Publicada» solo llega con la confirmación de la plataforma.</p>
           {publication.flag && (
             <p className="flag-row" role="status"><Icon name="alert" /> <span>{publication.flag}</span>{' '}
               <button type="button" className="btn" disabled={busy}
@@ -394,7 +394,7 @@ function QualityPanel({ publication, promotionId }: { publication: Publication; 
           <li><b>Revisar con Claude</b> le pide a Claude una segunda lectura: coherencia, tono de la marca, ortografía y datos sin fuente.
             Sus avisos llegan aquí en la siguiente recogida.</li>
         </ul>
-        <p>Aparte, para programar hacen falta al menos 6 horas de margen antes de la hora de publicación.</p>
+        <p>Aparte, para programar hace falta el margen mínimo de publicación antes de la hora (30 minutos por defecto, ajustable en «Encargos a Claude»).</p>
       </details>
       {report && report.issues.length === 0 && <p className="src">Sin avisos.</p>}
       {report?.issues.map(i => (
