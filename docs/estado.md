@@ -1,6 +1,6 @@
 # SocialHub · estado actual (para retomar)
 
-Última actualización: 22 nov 2026. Cómo se trabaja: `docs/como-trabajar.md` (una fase por conversación).
+Última actualización: 22 nov 2026 (cierre de la fase 12). Cómo se trabaja: `docs/como-trabajar.md` (una fase por conversación).
 
 ## Dónde estamos
 
@@ -19,34 +19,22 @@ Las fases 0 a 12 están hechas y en `main`:
 | 9 · Copias e instaladores | `fase-9.md` | ✅ |
 | 10 · Primera semana real | `fase-10.md` | ✅ |
 | 11 · Arreglos de la primera semana | `fase-11.md` | ✅ |
-| 12 · Todo lo pendiente | `fase-12.md` | ✅ Hecha el 12 nov (PR #36 a #42). Falta la revisión de Raúl |
+| 12 · Todo lo pendiente | `fase-12.md` | ✅ Código hecho y en `main` (PR #36 a #78). Falta la «prueba de cero» con Raúl |
 
-## Fase 12 en una línea por PR
+## Fase 12: cerrada en código
 
-- #36 plan · #37 instalador de macOS (`.dmg`) y versión 1.0.0 en todos los sistemas · #38 API oficial de Instagram (vía principal; Publer de respaldo) · #39 pruebas con reloj fijo · #40 detalles visuales de «Necesita atención» y «Qué hacer ahora» · #41 TikTok y cuenta de Publer por marca y red, con el límite de 10 del plan Free · #42 métricas reales de la promoción · #45 ritmo de Claude (pasadas cada 5 h, urgencia, spec por lotes; versión 1.1.0).
-- 16 nov: rama `fase-12-material-faltante` (PR abierta): fondos por defecto y SVG de Claude, portada de marca, aviso previo, «Estilo visual» y margen mínimo de publicación ajustable (30 minutos por defecto, en lugar de 6 h). Detalle en `fase-12.md` y `decisiones.md`.
-- 22 nov: **margen mínimo de publicación en TikTok** aparte del general (480 minutos por defecto; rama `fase-12-margen-tiktok`). Las tareas programadas siguen sin tocar: la de propuestas debería leer `inputs.tiktok_min_publish_margin_minutes` (`docs/tarea-programada-encargos.md`).
-- 22 nov: **ajustes finales** (rama `fase-12-ajustes-finales`): aviso del margen de TikTok por debajo de 8 h, color de marca obligatorio (sin color no hay fondos y hay aviso) y duplicados solo desde «En producción» y con el mismo tipo. Detalle en `fase-12.md`.
-- El repositorio es público desde el 12 nov (GitHub Actions se había quedado sin minutos).
-- Configurado fuera del código: Meta (app, porfolio, usuario del sistema), carpeta `publico` de Litoques en Drive, Publer con 3 cuentas, y las tareas «Encargos de SocialHub» y «Publicar con Chrome» actualizadas. Detalle en `fase-12.md`.
+Todo el código está en `main`. Últimas PR: #69 (arranque con Windows, bandeja, métricas de Instagram, «Renovar conexión», aviso de versión, textos a mano), #73 (pantalla final del instalador y lanzadores con aviso), #74 (módulo de ajustes, margen mínimo ajustable de 5 min a 24 h, fondos SVG, fondo propio de SocialHub), #75 (margen de TikTok aparte, 8 h), #76 (estado de publicaciones, duplicados, «Mover»), #77 (respuestas de Claude, citas verificadas, enlaces, «este texto ya se usó»; migraciones V31 y V32) y #78 (aviso del margen de TikTok, color de marca obligatorio, duplicados más estrictos). Detalle en `fase-12.md` y `decisiones.md`.
 
-- Orden con la #45: **primero se instala la 1.1.0 y después se cambian las tareas programadas** (nube y PC) a los horarios y la regla de 08:00-18:00 nuevos; el detalle está en `docs/tarea-programada-encargos.md`.
+Ojo: lo que no se ha probado en real (publicaciones reales, tareas de Claude con las reglas nuevas) no está dado por hecho.
 
-## Funciones finales (16 nov)
+## Situación de las cuentas y tareas (decisiones de Raúl)
 
-PR `fase-12-funciones-finales` (pendiente de merge): arranque con Windows en segundo plano, icono en la bandeja, métricas de Instagram por la API de Meta, renovar conexión, aviso de versión nueva y «Textos» a mano que sustituyen el texto de Raúl. Detalle en `fase-12.md`.
+- Las cuentas de Instagram (@litoques, @elde_lito) y el TikTok compartido son **de prueba**. Nunca se publica al instante.
+- Se **borraron** las dos tareas programadas de Claude («Encargos de SocialHub» y «Publicar con Chrome»). Se recrearán con el texto de `docs/tarea-programada-encargos.md` y con el OK de Raúl, en la prueba de cero.
+- Se cancelaron las 27 publicaciones de prueba y las tareas de espera de la app.
 
-- Publicaciones: aviso de duplicados con «Descartar esta», resultado de cada publicación (Publicada ✓ / Falló / Retrasada / Pendiente / Sin confirmar) y «Mover a la siguiente hora libre» (PR `fase-12-publicaciones-estado`, pendiente de revisión).
+## Siguiente
 
-- Claude pregunta y Raúl contesta desde la tarjeta; las citas se comprueban contra los documentos de la promoción (PDFBox) y los enlaces https se prueban en el control de calidad (PR `fase-12-claude-preguntas-citas`, pendiente de revisión). Para que Claude use `human_answers` y `citations` basta con que el encargo llegue con las reglas nuevas (van dentro de cada encargo); el texto de la tarea programada se actualizó en `docs/tarea-programada-encargos.md` y no se ha tocado la tarea existente.
-
-## Siguiente (para Raúl)
-
-1. Instalar SocialHub 1.0.0 cuando se publique la release.
-2. Pegar la clave de Meta en «Agentes y herramientas» (mejor regenerarla antes, porque pasó por el chat).
-3. Poner en la ficha de cada marca el ID de su cuenta de Instagram y sus cuentas de Publer.
-4. Hacer la primera publicación real por la API oficial (aún no se ha probado una completa).
-5. Crear las carpetas de El DeLito en Drive y, con ellas, crear y compartir su `publico`.
-6. Pruebas funcionales completas de Raúl.
-
-Sigue pendiente de antes: carpeta base de Litoques y carpeta de copias, clave de Publora, y comprobar que las tareas programadas recogen los encargos de verdad. Fuera de fase: comparar el portátil con la torre HP de 2013 (`ficha-equipo.bat`). Buffer: descartado para siempre.
+1. **Prueba de cero, con Raúl, en la próxima conversación:** desinstalar; carpetas de Drive nuevas (las viejas, renombradas con prefijo); configurar con Chrome; recrear las tareas de Claude; publicaciones reales de prueba en Instagram y TikTok respetando el margen.
+2. Pendientes para la fase 13 o después: aviso de publicaciones a la misma hora, lectura de Word/odt y OCR de texto en imágenes.
+3. Siguen pendientes de Raúl (de antes): icono `.ico` propio del instalador y permiso `instagram_manage_insights` de Meta. Buffer: descartado para siempre.
