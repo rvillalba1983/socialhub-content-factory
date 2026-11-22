@@ -162,6 +162,9 @@ function SettingsCard({ settings, onSaved }: { settings: AiSettings; onSaved: (s
  * Ajustes «Margen mínimo de publicación» (general) y «Margen mínimo de publicación en TikTok»: una única fuente para todos
  * los «cuánto antes» de SocialHub. TikTok lleva el suyo porque se publica por Publer, que programa Claude desde el PC.
  */
+/** Con menos de 8 h (480 min) de margen, Publer no suele llegar a programar el TikTok. */
+const TIKTOK_SAFE_MARGIN_MINUTES = 480;
+
 function PublishMarginCard({ onMessage }: { onMessage: (m: string) => void }) {
   const [settings, setSettings] = useState<PublishSettings | null>(null);
   const [minutes, setMinutes] = useState(30);
@@ -202,6 +205,9 @@ function PublishMarginCard({ onMessage }: { onMessage: (m: string) => void }) {
       <p className="src">Por defecto {settings.tiktok_default_minutes} minutos ({spanText(settings.tiktok_default_minutes)}); entre {settings.min_minutes} minutos y {settings.max_minutes} (un día).
         TikTok se publica por Publer, que programa Claude desde tu PC en sus pasadas; con menos de unas 8 horas puede no llegar y
         quedará para subirla a mano.</p>
+      {tiktokMinutes < TIKTOK_SAFE_MARGIN_MINUTES && (
+        <p className="warn" role="status">Por debajo de 8 h, Publer no llega y quedará para subirla a mano</p>
+      )}
       <div className="form-actions">
         {error && <p className="error" role="alert">{error}</p>}
         <button className="btn primary" disabled={busy}>{busy ? 'Guardando…' : 'Guardar margen'}</button>

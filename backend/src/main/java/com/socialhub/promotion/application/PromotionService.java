@@ -44,8 +44,16 @@ class PromotionService implements PromotionActivation, PromotionCommands {
     private final com.socialhub.promotion.domain.FolderMaker folderMaker;
     private final com.socialhub.promotion.domain.PublicShareMemo publicShare;
 
+    /** El color de la marca es obligatorio: sin él SocialHub no genera fondos. No se inventa uno por defecto. */
+    private static void requireColor(BrandDraft draft) {
+        if (!Brand.validColor(draft.color())) {
+            throw new IllegalArgumentException("Elige el color de la marca (#RRGGBB): sin él SocialHub no genera fondos");
+        }
+    }
+
     @Override
     public Brand createBrand(BrandDraft draft) {
+        requireColor(draft);
         String id = Slugs.of(draft.name(), repository::brandIdTaken);
         Brand brand = repository.save(new Brand(id, draft.name().strip(), draft.handle().strip(), draft.color(), mode.isDemo()));
         events.publishEvent(new FactoryChanged("brand", id));
@@ -54,6 +62,7 @@ class PromotionService implements PromotionActivation, PromotionCommands {
 
     @Override
     public Brand updateBrand(String id, BrandDraft draft) {
+        requireColor(draft);
         Brand current = repository.brand(id).orElseThrow(() -> new NotFoundException("No existe la marca " + id));
         Brand brand = repository.save(new Brand(id, draft.name().strip(), draft.handle().strip(), draft.color(), current.demo()));
         events.publishEvent(new FactoryChanged("brand", id));

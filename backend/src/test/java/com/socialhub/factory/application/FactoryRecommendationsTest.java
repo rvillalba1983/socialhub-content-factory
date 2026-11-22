@@ -85,6 +85,17 @@ class FactoryRecommendationsTest {
     }
 
     @Test
+    void aBrandWithoutColorGivesAWarningThatLeadsToItsData() {
+        assertThat(kinds()).doesNotContain(Kind.BRAND_COLOR_MISSING);
+        when(promotions.brandsWithoutColor()).thenReturn(List.of(new BrandRef("litoques", "Litoques")));
+        var row = subject().compute().stream().filter(r -> r.kind() == Kind.BRAND_COLOR_MISSING).findFirst().orElseThrow();
+        assertThat(row.title()).isEqualTo("Elige el color de Litoques");
+        assertThat(row.detail()).contains("no genera fondos");
+        assertThat(row.target().screen()).isEqualTo(Screen.BRAND_DATA);
+        assertThat(row.target().brandId()).isEqualTo("litoques");
+    }
+
+    @Test
     void aDuplicateGroupGivesOneRowWithItsPublicationsAndNoBlocking() {
         when(publishing.duplicateGroups()).thenReturn(List.of(new PublishingQueries.DuplicateGroup("lit-1", "Poema",
                 LocalDate.of(2026, 11, 12), "Instagram", true, List.of("a", "b"))));

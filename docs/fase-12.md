@@ -161,6 +161,10 @@ Pendiente de Raúl: icono propio (`.ico`) para el instalador; permiso de estadí
 
 Decisión de Raúl: ajuste aparte para TikTok (480 minutos por defecto, 5 a 1440), en la misma tarjeta que el general. Se aplica por la red de cada publicación (`PublishSettings.minMarginFor`), también en los avisos de «Qué hacer ahora», el motor, la validación del editor y los encargos de propuestas (`tiktok_min_publish_margin_minutes`). Rama `fase-12-margen-tiktok`, una PR. Detalle en `decisiones.md`.
 
+## Ajustes finales (22 nov 2026, decididos por Raúl; rama `fase-12-ajustes-finales`, una PR)
+
+Aviso en el margen de TikTok por debajo de 8 h; color de marca obligatorio (sin color no se generan fondos y sale un aviso en «Qué hacer ahora»); duplicados solo desde «En producción» y, por título, con el mismo tipo; los huecos libres solo retrasan. Detalle en `decisiones.md`.
+
 ## Responder a Claude, citas solo de los documentos y enlaces (16 nov 2026, decididos por Raúl; rama `fase-12-claude-preguntas-citas`, una PR)
 
 1. **Responder a Claude desde la tarjeta:** pregunta, opciones de Claude y texto libre; el encargo se relanza con `inputs.human_answers`. Hecho, con pruebas de dominio, de intercambio con Claude y del frontal.

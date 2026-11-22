@@ -12,8 +12,9 @@ import java.util.Map;
 import java.util.function.Function;
 
 /**
- * Posibles duplicados entre publicaciones activas (no canceladas) de la misma marca y red: el mismo día con el mismo título,
- * o con exactamente la misma hora y el mismo texto. Solo avisa: no bloquea nada. Compara sin mayúsculas, sin tildes y sin
+ * Posibles duplicados entre publicaciones de la misma marca y red: el mismo día con el mismo título y el mismo tipo, o con
+ * exactamente la misma hora y el mismo texto. Solo cuentan las publicaciones desde «En producción» en adelante: las ideas,
+ * las propuestas y las canceladas se ignoran. Solo avisa: no bloquea nada. Compara sin mayúsculas, sin tildes y sin
  * diferencias de espacios.
  */
 public final class DuplicateDetector {
@@ -23,6 +24,10 @@ public final class DuplicateDetector {
     /** Dos o más publicaciones que se repiten entre sí, por orden de hora. */
     public record Group(String brandId, Platform platform, Reason reason, List<String> publicationIds, String promotionId,
                         String title, LocalDate day) {}
+
+    /** Estados que no cuentan para los duplicados: aún no son trabajo en marcha, o ya no valen. */
+    private static final java.util.Set<PublicationStatus> IGNORED = java.util.EnumSet.of(
+            PublicationStatus.IDEA, PublicationStatus.PROPOSAL, PublicationStatus.CANCELLED);
 
     private DuplicateDetector() {}
 
@@ -37,17 +42,17 @@ public final class DuplicateDetector {
      * @return los grupos, ordenados por la hora de su primera publicación
      */
     public static List<Group> find(Collection<Publication> publications, Function<String, String> brandOf) {
-        record TitleKey(String brand, Platform platform, LocalDate day, String title) {}
+        record TitleKey(String brand, Platform platform, LocalDate day, String type, String title) {}
         record TextKey(String brand, Platform platform, Instant at, String text) {}
         Map<TitleKey, List<Publication>> byTitle = new LinkedHashMap<>();
         Map<TextKey, List<Publication>> byText = new LinkedHashMap<>();
         for (Publication p : publications) {
-            if (p.getStatus() == PublicationStatus.CANCELLED) continue;
+            if (IGNORED.contains(p.getStatus())) continue;
             String brand = brandOf.apply(p.getPromotionId());
             if (brand == null) continue;
             String title = normalize(p.getTitle());
             if (!title.isEmpty()) {
-                byTitle.computeIfAbsent(new TitleKey(brand, p.getPlatform(), p.getScheduledOn(), title), k -> new ArrayList<>()).add(p);
+                byTitle.computeIfAbsent(new TitleKey(brand, p.getPlatform(), p.getScheduledOn(), p.getType() == null ? "" : normalize(p.getType()), title), k -> new ArrayList<>()).add(p);
             }
             String text = p.getCaption() == null ? "" : normalize(p.getCaption());
             if (!text.isEmpty()) {

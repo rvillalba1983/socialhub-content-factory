@@ -78,7 +78,7 @@ class PieceGeneratorTest {
     void generatesEveryPieceLikePromoPy() throws Exception {
         LoadedSpec loaded = reader.load(drive.resolve("DeLito/spec.json").toString(), List.of(drive.resolve("DeLito").toString()));
         List<String> log = new ArrayList<>();
-        PieceBatch batch = generator.generate(loaded.spec(), loaded.files(), log::add, p -> {});
+        PieceBatch batch = generator.generate(loaded.spec(), loaded.files(), new com.socialhub.pieces.domain.BrandLook("#B22222", null), log::add, p -> {});
         Path out = drive.resolve("DeLito/Semana 2").toRealPath();
         assertThat(batch.outputDir()).isEqualTo(out);
         assertThat(log).hasSize(5);
@@ -107,7 +107,7 @@ class PieceGeneratorTest {
         long before = Files.getLastModifiedTime(out.resolve("4_martes_historia.jpg")).toMillis();
         PromoSpec again = new PromoSpec(loaded.spec().out(), loaded.spec().leeme(), loaded.spec().tituloLeeme(),
                 List.of(loaded.spec().piezas().get(1)));
-        generator.generate(again, loaded.files(), s -> {}, p -> {});
+        generator.generate(again, loaded.files(), new com.socialhub.pieces.domain.BrandLook("#B22222", null), s -> {}, p -> {});
         assertThat(out.resolve("4_martes_historia_2.jpg")).exists();
         assertThat(out.resolve("0_LEEME_semana_2_2.txt")).exists();
         assertThat(Files.getLastModifiedTime(out.resolve("4_martes_historia.jpg")).toMillis()).isEqualTo(before);

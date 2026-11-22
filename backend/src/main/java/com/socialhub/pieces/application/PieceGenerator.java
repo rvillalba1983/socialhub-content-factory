@@ -62,7 +62,8 @@ class PieceGenerator {
     private Base base(Ctx ctx, @Nullable String img, @Nullable String fondoSvg, int svgW, int svgH, int genW, int genH,
                       String seed, @Nullable String drawTitle, double titleAt, String label) throws IOException {
         if (notBlank(img)) return new Base(read(ctx.files().input(img, PieceFiles.IMAGES, 60)), false);
-        if (notBlank(fondoSvg)) {
+        // Sin color de marca no se generan fondos: ni el SVG de Claude ni el de SocialHub
+        if (ctx.look().hasColor() && notBlank(fondoSvg)) {
             var drawn = svg.rasterize(fondoSvg, svgW, svgH);
             if (drawn.isPresent()) {
                 ctx.log().accept(label + ": sin imagen, se usa el fondo SVG de Claude");
@@ -79,8 +80,14 @@ class PieceGenerator {
                 ctx.log().accept(label + ": no se pudo usar la portada de la marca (" + e.getMessage() + ")");
             }
         }
+        if (!ctx.look().hasColor()) throw noColor(label);
         ctx.log().accept(label + ": sin imagen, se usa un fondo con el color de la marca");
         return new Base(FallbackBackground.render(genW, genH, ctx.look().color(), seed, drawTitle, titleAt), true);
+    }
+
+    private static IllegalArgumentException noColor(String label) {
+        return new IllegalArgumentException(label + ": la marca no tiene color, así que SocialHub no genera el fondo. "
+                + "Elige el color de la marca en «Marcas y promociones», o pon una imagen o una portada");
     }
 
     /** El título de una pieza: el suyo o, si no lo tiene, su nombre sin guiones bajos. */
@@ -124,11 +131,6 @@ class PieceGenerator {
 
     private static @Nullable String blankToNull(@Nullable String text) {
         return text == null || text.isBlank() ? null : text.strip();
-    }
-
-    PieceBatch generate(PromoSpec spec, PieceFiles files, Consumer<String> log, Consumer<Double> progress)
-            throws IOException, InterruptedException {
-        return generate(spec, files, BrandLook.DEFAULT, log, progress);
     }
 
     PieceBatch generate(PromoSpec spec, PieceFiles files, BrandLook look, Consumer<String> log, Consumer<Double> progress)

@@ -4,7 +4,7 @@ import type { Publication, Recommendation, RecommendationTarget } from './api/sc
 /** Un destino de navegación solo es válido si trae los datos que necesita su pantalla. */
 export function canOpen(t?: RecommendationTarget): t is RecommendationTarget {
   if (!t) return false;
-  if (t.screen === 'BRAND_FOLDERS' || t.screen === 'BRAND_IDENTITY' || t.screen === 'PUBLORA' || t.screen === 'PUBLER' || t.screen === 'NEW_PROMOTION') return !!t.brand_id;
+  if (t.screen === 'BRAND_FOLDERS' || t.screen === 'BRAND_IDENTITY' || t.screen === 'PUBLORA' || t.screen === 'PUBLER' || t.screen === 'NEW_PROMOTION' || t.screen === 'BRAND_DATA') return !!t.brand_id;
   if (t.screen === 'PROPOSALS' || t.screen === 'PUBLICATIONS') return !!t.promotion_id;
   return true;
 }
@@ -12,7 +12,7 @@ export function canOpen(t?: RecommendationTarget): t is RecommendationTarget {
 const BUTTON_LABEL: Record<RecommendationTarget['screen'], string> = {
   BRAND_FOLDERS: 'Ir a las carpetas de la marca', PROPOSALS: 'Ir a las propuestas', PUBLORA: 'Ir a Publora', PUBLER: 'Indicar la cuenta de Publer',
   BACKUPS: 'Ir a Copias', NEW_PROMOTION: 'Dar de alta la promoción', CLAUDE: 'Ir a Claude', INSTAGRAM: 'Renovar conexión',
-  BRAND_IDENTITY: 'Ir a la identidad de la marca', PUBLICATIONS: 'Ir a las publicaciones',
+  BRAND_IDENTITY: 'Ir a la identidad de la marca', PUBLICATIONS: 'Ir a las publicaciones', BRAND_DATA: 'Elegir el color de la marca',
 };
 
 function buttonLabel(t: RecommendationTarget): string {

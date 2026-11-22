@@ -128,6 +128,25 @@ class PieceBackgroundsTest {
     }
 
     @Test
+    void aBrandWithoutColorGeneratesNoBackgroundNeitherClaudesSvgNorSocialHubs() {
+        // Con el SVG de Claude o sin él: sin color no se dibuja nada y se dice por qué
+        for (var piece : List.of(story(null, null), story(null, SVG_RED))) {
+            assertThatThrownBy(() -> run(piece, new BrandLook(null, null)))
+                    .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("la marca no tiene color");
+        }
+        assertThat(log).noneMatch(l -> l.contains("fondo SVG de Claude")).noneMatch(l -> l.contains("fondo con el color de la marca"));
+    }
+
+    @Test
+    void aBrandWithoutColorStillUsesItsOwnImageOrItsCover() throws Exception {
+        solid("propia.png", new Color(0, 255, 0));
+        solid("portada.png", new Color(0, 0, 255));
+        assertThat(greenish(run(story("material/propia.png", SVG_RED), new BrandLook(null, null)).getRGB(20, 20))).isTrue();
+        var withCover = run(story(null, SVG_RED), new BrandLook("", drive.resolve("material/portada.png")));
+        assertThat(blueish(withCover.getRGB(20, 20))).isTrue();
+    }
+
+    @Test
     void aCoverOutsideThePromotionFoldersIsIgnoredWithoutFailing() throws Exception {
         Path outside = Files.createTempDirectory("fuera");
         BufferedImage img = new BufferedImage(10, 10, BufferedImage.TYPE_INT_RGB);

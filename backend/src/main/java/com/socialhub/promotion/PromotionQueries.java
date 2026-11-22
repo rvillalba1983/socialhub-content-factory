@@ -58,6 +58,9 @@ public interface PromotionQueries {
     /** Color de la marca (#RRGGBB); vacío si la marca no existe. */
     String colorOf(String brandId);
 
+    /** Marcas sin color válido (las anteriores a que fuera obligatorio): no generan fondos hasta que se les ponga. */
+    List<BrandRef> brandsWithoutColor();
+
     /** Carpeta con el papel «Material» de la marca (su raíz, sin las excepciones de sus promociones). */
     Optional<String> brandMaterialFolder(String brandId);
 

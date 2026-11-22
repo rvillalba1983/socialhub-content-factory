@@ -154,8 +154,10 @@ function useSave<T>(save: () => Promise<T>, onSaved: (value: T) => void) {
   return { busy, error, submit };
 }
 
+const HEX = /^#[0-9A-Fa-f]{6}$/;
+
 export function BrandForm({ brand, onCancel, onSaved }: { brand?: Brand; onCancel: () => void; onSaved: (b: Brand, note?: string) => void }) {
-  const [form, setForm] = useState<BrandInput>({ name: brand?.name ?? '', handle: brand?.handle ?? '@', color: brand?.color ?? '#D23A2E' });
+  const [form, setForm] = useState<BrandInput>({ name: brand?.name ?? '', handle: brand?.handle ?? '@', color: brand?.color ?? '' });
   const [base, setBase] = useState('');
   // Al dar de alta, con una carpeta raíz se crean sus 7 carpetas. Si eso falla, la marca ya está creada: se avisa sin repetir el alta.
   const { busy, error, submit } = useSave(async (): Promise<[Brand, string | undefined]> => {
@@ -176,9 +178,17 @@ export function BrandForm({ brand, onCancel, onSaved }: { brand?: Brand; onCance
       <Field label="Nombre"><input required maxLength={80} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></Field>
       <Field label="Cuenta"><input required maxLength={80} value={form.handle} onChange={e => setForm({ ...form, handle: e.target.value })} /></Field>
       <WhereHelp topic="brand-handle" />
-      <Field label="Color de la marca">
-        <span className="color-row"><input type="color" aria-label="Color de la marca" value={form.color} onChange={e => setForm({ ...form, color: e.target.value.toUpperCase() })} />
-          <span className="mono">{form.color}</span></span>
+      <Field label="Color de la marca (obligatorio)">
+        <span className="color-row">
+          <input type="color" aria-label="Color de la marca" value={HEX.test(form.color) ? form.color : '#000000'}
+            onChange={e => setForm({ ...form, color: e.target.value.toUpperCase() })} />
+          <input className="mono" aria-label="Color de la marca en hexadecimal" required pattern="#[0-9A-Fa-f]{6}" maxLength={7} size={9}
+            placeholder="#RRGGBB" spellCheck={false} value={form.color}
+            onChange={e => setForm({ ...form, color: e.target.value.trim().toUpperCase() })} />
+        </span>
+        <small className="src">{HEX.test(form.color)
+          ? 'SocialHub lo usa para dibujar el fondo de las piezas sin imagen.'
+          : 'Elígelo con el selector o escribe un #RRGGBB. Sin color, SocialHub no genera fondos para esta marca.'}</small>
       </Field>
       {!brand && <Field label="Carpeta raíz de Drive (opcional)">
         <input value={base} onChange={e => setBase(e.target.value)} placeholder="G:\Mi unidad\SocialHub\Litoques" spellCheck={false} />

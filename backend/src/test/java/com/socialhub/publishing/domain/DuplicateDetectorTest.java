@@ -11,8 +11,14 @@ class DuplicateDetectorTest {
 
     private static Publication pub(String id, String promo, Platform platform, String title, String day, String time,
                                    String caption, PublicationStatus status) {
-        var p = Publication.create(id, promo, new Publication.Details(platform, "Reel", title, LocalDate.parse(day),
-                LocalTime.parse(time), "Europe/Madrid", "Publer", null, caption, null), PublicationStatus.DRAFT, false);
+        return pub(id, promo, platform, "Reel", title, day, time, caption, status);
+    }
+
+    private static Publication pub(String id, String promo, Platform platform, String type, String title, String day, String time,
+                                   String caption, PublicationStatus status) {
+        var p = Publication.create(id, promo, new Publication.Details(platform, type, title, LocalDate.parse(day),
+                LocalTime.parse(time), "Europe/Madrid", "Publer", null, caption, null),
+                status == PublicationStatus.CANCELLED ? PublicationStatus.DRAFT : status, false);
         if (status == PublicationStatus.CANCELLED) p.moveTo(PublicationStatus.CANCELLED);
         return p;
     }
@@ -69,5 +75,39 @@ class DuplicateDetectorTest {
                 pub("b", "l1", Platform.INSTAGRAM, "Dos", "2026-11-25", "10:00", null, PublicationStatus.DRAFT)),
                 DuplicateDetectorTest::brand);
         assertThat(groups).isEmpty();
+    }
+
+    @Test
+    void sameTitleButDifferentTypeIsNotADuplicate() {
+        var groups = DuplicateDetector.find(List.of(
+                pub("a", "l1", Platform.INSTAGRAM, "Reel", "Poema", "2026-11-25", "10:00", null, PublicationStatus.DRAFT),
+                pub("b", "l1", Platform.INSTAGRAM, "Carrusel", "Poema", "2026-11-25", "19:00", null, PublicationStatus.DRAFT)),
+                DuplicateDetectorTest::brand);
+        assertThat(groups).isEmpty();
+    }
+
+    @Test
+    void sameTitleAndSameTypeIgnoringCaseCounts() {
+        var groups = DuplicateDetector.find(List.of(
+                pub("a", "l1", Platform.INSTAGRAM, "Reel", "Poema", "2026-11-25", "10:00", null, PublicationStatus.DRAFT),
+                pub("b", "l1", Platform.INSTAGRAM, " reel ", "Poema", "2026-11-25", "19:00", null, PublicationStatus.DRAFT)),
+                DuplicateDetectorTest::brand);
+        assertThat(groups).hasSize(1);
+    }
+
+    @Test
+    void ideasAndProposalsDoNotCountButInProductionDoes() {
+        var ideas = DuplicateDetector.find(List.of(
+                pub("a", "l1", Platform.INSTAGRAM, "Poema", "2026-11-25", "10:00", "Hola", PublicationStatus.IDEA),
+                pub("b", "l1", Platform.INSTAGRAM, "Poema", "2026-11-25", "10:00", "Hola", PublicationStatus.DRAFT),
+                pub("c", "l1", Platform.INSTAGRAM, "Poema", "2026-11-25", "10:00", "Hola", PublicationStatus.PROPOSAL)),
+                DuplicateDetectorTest::brand);
+        assertThat(ideas).isEmpty();
+
+        var inProduction = DuplicateDetector.find(List.of(
+                pub("a", "l1", Platform.INSTAGRAM, "Poema", "2026-11-25", "10:00", null, PublicationStatus.IN_PRODUCTION),
+                pub("b", "l1", Platform.INSTAGRAM, "Poema", "2026-11-25", "19:00", null, PublicationStatus.DRAFT)),
+                DuplicateDetectorTest::brand);
+        assertThat(inProduction).hasSize(1);
     }
 }

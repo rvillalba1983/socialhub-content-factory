@@ -915,3 +915,18 @@ Decisiones técnicas:
 - **Con `/qn`, `/qb` o `/passive` no sale la pantalla final** (es la interfaz completa); todas las pruebas silenciosas del workflow siguen igual con sus códigos de salida.
 - **Lanzadores `.cmd`:** al terminar abren una ventana de aviso en español según el código de salida (0, 3010, 1641, 1602, 1603, 1618, 1619, 1620, 1925, y sin `.msi` al lado). PowerShell y Windows Forms, sin librerías; solo ASCII, con marcas (`#a`, `#n`...) para los acentos. Con `/silencioso` ni ventanas ni pausa ni aviso. `/aviso-prueba` (solo CI) escribe el aviso en un archivo.
 - **Comprobación en la CI:** `comprobar-msi.ps1` lee con la API de Windows Installer las tablas Dialog, Control, ControlEvent, CustomAction, InstallUISequence, Property, Upgrade, Directory y Shortcut del `.msi` y falla si falta `ExitDialog`, si aparece un paso de asistente, si la acción de abrir no es la conservadora o si cambian la carpeta, los accesos directos o el `upgrade-uuid`. Además, `probar-interfaz.ps1` instala y desinstala con la interfaz real, la maneja con UI Automation y guarda capturas de cada pantalla (artefacto `registros-instalacion-windows`, carpeta `capturas`); es informativo (`continue-on-error`).
+
+## Fase 12 · Ajustes finales: margen de TikTok, color de marca y duplicados (decididos por Raúl el 22 nov 2026; rama `fase-12-ajustes-finales`)
+
+Decisiones de Raúl:
+- **Margen de TikTok:** en la tarjeta del ajuste, si el valor es menor de 480 minutos sale el aviso «Por debajo de 8 h, Publer no llega y quedará para subirla a mano». Sigue permitiendo guardar.
+- **Color de marca obligatorio:** una marca sin color no genera fondos (ni los SVG de Claude ni los de SocialHub) y avisa en «Qué hacer ahora». El color es obligatorio al crear y al editar una marca. No hay paleta ni color por defecto.
+- **Duplicados:** solo cuentan las publicaciones desde «En producción» en adelante (no ideas, propuestas ni canceladas). El duplicado por título exige el mismo título y el mismo tipo. Esto vale para `DuplicateDetector` y para la recomendación `DUPLICATE_PUBLICATIONS`.
+- **Huecos libres («Mover a la siguiente hora libre»):** solo retrasan, nunca adelantan. Queda documentado en `MANUAL.md`.
+
+Decisiones técnicas:
+- **Color:** `Brand.validColor` (`#RRGGBB`). El servicio rechaza un color vacío o inválido al crear y editar (además del contrato). `BrandLook.color` pasa a poder ser nulo y se elimina `BrandLook.DEFAULT` (el rojo por defecto). Sin color, `PieceGenerator` salta el `fondo_svg` y el fondo de SocialHub: sigue valiendo la imagen propia y la portada de la marca; si no hay ninguna, la pieza falla con un mensaje que dice qué hacer (no se rellena con un color inventado). El encargo del spec lleva `brand_color_missing` para que Claude no dibuje `fondo_svg`.
+- **Marcas ya existentes sin color:** no es un error. Se abren con el color vacío y piden elegirlo al guardar; mientras tanto, nueva recomendación `BRAND_COLOR_MISSING` («Elige el color de X») con destino nuevo `BRAND_DATA` (ficha de la marca). `Brand.color` en la API admite vacío solo en respuestas. Sin migración (el `color` de la tabla ya es `not null`).
+- **Formulario:** el color empieza vacío al crear; selector de color más un campo `#RRGGBB` (para poder elegir también el negro, que el selector no distingue de «sin elegir»).
+- **Duplicados:** el tipo se compara sin mayúsculas, tildes ni espacios sobrantes. El duplicado por misma hora y mismo texto también ignora ideas y propuestas. Los avisos de calidad del texto repetido entre promociones (`QualityService`) no cambian.
+- **Huecos libres:** `FreeSlot.next` ya solo retrasaba; se añade una prueba que lo fija.

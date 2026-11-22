@@ -210,6 +210,15 @@ class FactoryRecommendations {
                     Recommendation.Screen.BRAND_FOLDERS, brand.id(), null));
         }
 
+        // 3a. Marca sin color: no genera fondos (ni SVG ni los de SocialHub) hasta que se elija
+        for (var brand : promotions.brandsWithoutColor()) {
+            all.add(recommendation("brand-color:" + brand.id(), Recommendation.Kind.BRAND_COLOR_MISSING,
+                    "Elige el color de " + brand.name(),
+                    "Sin color, SocialHub no genera fondos para sus piezas (ni los SVG de Claude ni los de SocialHub): las piezas sin imagen "
+                            + "ni portada fallarán. El color es obligatorio al crear o editar una marca",
+                    Recommendation.Screen.BRAND_DATA, brand.id(), null));
+        }
+
         // 3b. Marca con promoción en marcha y sin tono o público: Claude propondría a ciegas
         for (var brand : brands) {
             if (allPromotions.stream().noneMatch(p -> p.brandId().equals(brand.id()) && (p.active() || p.plannedAhead(today)))) continue;
@@ -329,7 +338,7 @@ class FactoryRecommendations {
         return recommendation("duplicates:" + group.publicationIds().getFirst() + ":" + (sameTitle ? "title" : "text"),
                 Recommendation.Kind.DUPLICATE_PUBLICATIONS,
                 "Posible duplicado: «" + group.title() + "» (" + group.publicationIds().size() + " publicaciones de " + network + ")",
-                sameTitle ? "El " + day + ", con el mismo título. Descarta la que sobre"
+                sameTitle ? "El " + day + ", con el mismo título y el mismo tipo. Descarta la que sobre"
                         : "El " + day + " a la misma hora y con el mismo texto. Descarta la que sobre",
                 Recommendation.Screen.PUBLICATIONS, promotion.brandId(), promotion.id())
                 .promotionId(promotion.id()).publicationIds(group.publicationIds());

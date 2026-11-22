@@ -29,6 +29,6 @@ class BrandLooks {
 
     BrandLook of(String promotionId) {
         String color = promotions.colorOf(promotions.brandOf(promotionId));
-        return new BrandLook(color.isBlank() ? BrandLook.DEFAULT.color() : color, cover(promotionId).orElse(null));
+        return new BrandLook(color.matches("#[0-9A-Fa-f]{6}") ? color : null, cover(promotionId).orElse(null));
     }
 }
