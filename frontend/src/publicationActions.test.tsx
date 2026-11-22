@@ -3,7 +3,8 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { api } from './api';
 import { OutcomeBadge, outcomeCounts, usePublicationActions } from './PublicationActions';
 import { NextSteps } from './Recommendations';
-import type { Publication, Recommendation, SlotProposal } from './model';
+import type { Recommendation } from './api/schema';
+import type { Publication, SlotProposal } from './model';
 
 afterEach(() => vi.restoreAllMocks());
 
