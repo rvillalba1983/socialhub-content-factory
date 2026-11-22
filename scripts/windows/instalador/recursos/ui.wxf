@@ -7,8 +7,8 @@
     - Actualizacion:          "SocialHub se ha actualizado correctamente" (+ casilla).
     - Misma version (mantenimiento): "SocialHub ya estaba instalado".
     - Desinstalacion:         "Se ha desinstalado SocialHub. Tus datos siguen en %LOCALAPPDATA%\SocialHub".
-  Los textos estan en MsiInstallerStrings_es.wxl (!(loc.SH_...)). Sin ErrorDlg, FatalError ni UserExit a proposito: si algo falla,
-  Windows enseña su propio mensaje de error estandar. Con /qn (pruebas, sin interfaz) nada de esto se ejecuta.
+  Los textos estan en MsiInstallerStrings_es.wxl (!(loc.SH_...)). ErrorDlg, FatalError y UserExit (los de WixUI, en espanol) son obligatorios: la validacion ICE20 de light
+  da error sin ellos y jpackage no deja quitarla. Asi, un fallo sale como "El instalador ha terminado antes de tiempo" y los errores sueltos como cuadro de aviso. Con /qn (pruebas, sin interfaz) nada de esto se ejecuta.
 -->
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
   <Fragment>
@@ -21,6 +21,9 @@
       <Property Id="WixUI_Mode" Value="Minimal" />
 
       <!-- Solo lo imprescindible (como WixUI_Minimal, sin bienvenida ni licencia ni carpeta) -->
+      <DialogRef Id="ErrorDlg" />
+      <DialogRef Id="FatalError" />
+      <DialogRef Id="UserExit" />
       <DialogRef Id="FilesInUse" />
       <DialogRef Id="MsiRMFilesInUse" />
       <DialogRef Id="ProgressDlg" />

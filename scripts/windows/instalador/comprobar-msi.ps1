@@ -65,7 +65,7 @@ Exigir ($dialogos -contains 'ExitDialog') 'Existe ExitDialog (pantalla final)' '
 Exigir ($dialogos -contains 'ProgressDlg') 'Existe ProgressDlg (barra de progreso)' 'FALTA ProgressDlg'
 $extra = @($dialogos | Where-Object { $_ -in 'WelcomeDlg', 'WelcomeEulaDlg', 'LicenseAgreementDlg', 'InstallDirDlg', 'ShortcutPromptDlg', 'InstallDirNotEmptyDlg', 'VerifyReadyDlg', 'MaintenanceWelcomeDlg', 'MaintenanceTypeDlg' })
 Exigir ($extra.Count -eq 0) 'Sin pantallas de asistente antes de instalar (ni bienvenida, ni licencia, ni carpeta, ni accesos directos)' "Hay pantallas de asistente que nadie pidio: $($extra -join ', ')"
-Exigir (-not ($dialogos -contains 'FatalError') -and -not ($dialogos -contains 'ErrorDlg') -and -not ($dialogos -contains 'UserExit')) 'Sin dialogos de error propios: los errores los enseña Windows (mensaje estandar)' 'Hay un dialogo de error propio (FatalError, ErrorDlg o UserExit)'
+Exigir (($dialogos -contains 'FatalError') -and ($dialogos -contains 'ErrorDlg') -and ($dialogos -contains 'UserExit')) 'Estan FatalError, ErrorDlg y UserExit (los exige la validacion ICE20): un fallo no deja la instalacion sin pantalla' 'Faltan FatalError, ErrorDlg o UserExit'
 
 # --- Controles de la pantalla final
 $controles = @(Consultar 'SELECT `Control`, `Type`, `Property`, `Text` FROM `Control` WHERE `Dialog_`=''ExitDialog''')
