@@ -66,4 +66,13 @@ class FreeSlotTest {
         assertThat(FreeSlot.clashes(at("2026-11-25T10:00:00"), List.of(at("2026-11-25T10:30:00")), SPACING)).isFalse();
         assertThat(FreeSlot.clashes(at("2026-11-25T10:00:00"), List.of(at("2026-11-25T09:31:00")), SPACING)).isTrue();
     }
+
+    @Test
+    void neverGoesEarlierThanTheStartingMoment() {
+        // Con otra publicación justo antes o justo después, la hora nueva solo se retrasa
+        var start = at("2026-11-25T10:20:00");
+        for (var taken : List.of(at("2026-11-25T09:50:00"), at("2026-11-25T10:00:00"), at("2026-11-25T10:30:00"), at("2026-11-25T10:45:00"))) {
+            assertThat(FreeSlot.next(start, MADRID, List.of(taken), SPACING)).isAfterOrEqualTo(start);
+        }
+    }
 }
