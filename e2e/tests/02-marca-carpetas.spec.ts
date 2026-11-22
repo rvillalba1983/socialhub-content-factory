@@ -21,7 +21,7 @@ test.describe('Alta de una marca con sus carpetas de Drive', () => {
     const form = page.getByRole('form', { name: 'Nueva marca' });
     await form.getByLabel('Nombre').fill(name);
     await form.getByLabel('Cuenta', { exact: true }).fill(handle);
-    await form.getByLabel('Color de la marca').first().fill('#1f7a4d');
+    await form.getByLabel('Color de la marca en hexadecimal').fill('#1f7a4d');
     await form.getByLabel('Carpeta raíz de Drive (opcional)').fill(root);
     await form.getByRole('button', { name: 'Guardar' }).click();
 
@@ -71,6 +71,7 @@ test.describe('Alta de una marca con sus carpetas de Drive', () => {
     const form = page.getByRole('form', { name: 'Nueva marca' });
     await form.getByLabel('Nombre').fill(name);
     await form.getByLabel('Cuenta', { exact: true }).fill(`@${unique('sinunidad').toLowerCase()}`);
+    await form.getByLabel('Color de la marca en hexadecimal').fill('#1f7a4d');
     await form.getByLabel('Carpeta raíz de Drive (opcional)').fill(path.join(blocker, 'raiz'));
     await form.getByRole('button', { name: 'Guardar' }).click();
 
