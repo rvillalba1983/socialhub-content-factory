@@ -64,6 +64,9 @@ if (Get-Process SocialHub -ErrorAction SilentlyContinue) { throw 'En mantenimien
 
 # 3) Desinstalar con interfaz
 $p = Start-Process msiexec.exe -ArgumentList "/x `"$Msi`"" -PassThru
+# Windows pregunta primero, con su propio cuadro, si se quiere desinstalar (sale en el idioma de Windows)
+$si = Esperar-Boton 'Yes' 30; if (-not $si) { $si = Esperar-Boton 'Sí' 5 }
+if ($si) { Captura '04a-confirmacion-de-windows'; $si.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() }
 $fin = Esperar-Boton 'Finalizar' 180
 Captura '04-pantalla-final-desinstalacion'
 if (-not $fin) { throw 'No apareció la pantalla final al desinstalar' }
