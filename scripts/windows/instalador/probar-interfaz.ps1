@@ -62,18 +62,27 @@ if ($fin) { (Textos $fin) | Tee-Object (Join-Path $Salida 'textos-mantenimiento.
 $p.WaitForExit(60000) | Out-Null
 if (Get-Process SocialHub -ErrorAction SilentlyContinue) { throw 'En mantenimiento no tenía que abrirse SocialHub' }
 
-# 3) Desinstalar con interfaz
+# 3) Desinstalar como lo hace «Aplicaciones» de Windows (msiexec /x, interfaz basica por defecto): Windows pregunta con su propio
+#    cuadro y NO ensena las pantallas del instalador. Se comprueba que termina y desinstala, sin quedarse colgado.
 $p = Start-Process msiexec.exe -ArgumentList "/x `"$Msi`"" -PassThru
-# Windows pregunta primero, con su propio cuadro, si se quiere desinstalar (sale en el idioma de Windows)
 $si = Esperar-Boton 'Yes' 30; if (-not $si) { $si = Esperar-Boton 'Sí' 5 }
-if ($si) { Captura '04a-confirmacion-de-windows'; $si.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() }
+if ($si) { Captura '04-confirmacion-de-windows'; $si.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() }
+if (-not $p.WaitForExit(180000)) { throw 'La desinstalacion por defecto no terminó' }
+Captura '05-tras-desinstalar-por-defecto'
+if (Test-Path (Join-Path $env:ProgramFiles 'SocialHub\SocialHub.exe')) { throw 'No se desinstaló (interfaz por defecto)' }
+Write-Host "Desinstalacion por defecto: confirmacion de Windows = $([bool]$si); termina y desinstala"
+
+# 4) Desinstalar con la interfaz completa (/qf, como el lanzador con registro si se quiere ver la pantalla): sale nuestra pantalla final
+$q = Start-Process msiexec.exe -ArgumentList "/i `"$Msi`" /qn" -Wait -PassThru
+if ($q.ExitCode -ne 0) { throw "No se reinstaló para la prueba: $($q.ExitCode)" }
+$p = Start-Process msiexec.exe -ArgumentList "/x `"$Msi`" /qf" -PassThru
 $fin = Esperar-Boton 'Finalizar' 180
-Captura '04-pantalla-final-desinstalacion'
-if (-not $fin) { throw 'No apareció la pantalla final al desinstalar' }
+Captura '06-pantalla-final-desinstalacion'
+if (-not $fin) { throw 'No apareció la pantalla final al desinstalar con interfaz completa' }
 $t = Textos $fin; $t | Tee-Object (Join-Path $Salida 'textos-desinstalacion.txt')
 if (($t -join "`n") -notmatch 'Se ha desinstalado SocialHub') { throw 'La pantalla final de desinstalar no es la esperada' }
 if (($t -join "`n") -match 'Abrir SocialHub ahora') { throw 'Al desinstalar no tenía que haber casilla de abrir' }
 $fin.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
 $p.WaitForExit(60000) | Out-Null
 if (Test-Path (Join-Path $env:ProgramFiles 'SocialHub\SocialHub.exe')) { throw 'No se desinstaló' }
-Write-Host 'Interfaz probada: instalar (con abrir), mantenimiento y desinstalar'
+Write-Host 'Interfaz probada: instalar (con abrir), mantenimiento y desinstalar (por defecto y con interfaz completa)'
