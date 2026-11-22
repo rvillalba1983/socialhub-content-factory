@@ -81,4 +81,6 @@ Orden: 1, 2, 3, 4, 5, 6. Cada bloque pasa en GitHub antes de seguir y Raúl hace
 
 Resueltas por Raúl el 22 nov (decisiones 6 a 8): `video-making` en el FFmpeg de SocialHub; el carrusel de fotos de TikTok usa el carrusel de hoy; los tipos nuevos son cita, infografía y meme de texto.
 
-Pendiente: **las fuentes concretas.** Se proponen al empezar el bloque 1 y no se añade ninguna sin el OK de Raúl.
+Fuentes: Raúl aprobó el 22 nov Crimson Text, Fira Sans y Bebas Neue (todas OFL, unos 2,4 MB). Ya están en el bloque 1.
+
+No queda ninguna duda pendiente.

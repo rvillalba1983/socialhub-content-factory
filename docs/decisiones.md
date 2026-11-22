@@ -960,3 +960,11 @@ Decisiones técnicas (aprobadas con el plan):
 - **`platform-specs-and-validation`:** solo se usa su parte de tamaños y límites de Instagram y TikTok; su flujo de validación es de otro servicio.
 - **`video-making`:** se aplica como guía del montaje en el FFmpeg de SocialHub, no en la tarea de Claude (confirmado por Raúl).
 - **Sin imágenes generadas con IA** en ninguna skill.
+
+### Fase 13 · Bloque 1: fuentes y motor de plantillas (22 nov 2026)
+
+- **Fuentes (decidido por Raúl, 22 nov):** se añaden Crimson Text (Regular, Cursiva, SemiBold y Bold; serif de libro para versos y citas), Fira Sans (Regular, Medium, Bold y Cursiva; sans legible para textos, cifras e infografías) y Bebas Neue (Regular; títulos en mayúsculas). Las tres con licencia SIL OFL 1.1, cuyo texto va junto a los archivos en `backend/src/main/resources/fonts/` (`LICENSE-*.txt`). Ocupan unos 2,4 MB. Se descartaron las fuentes variables (Lora, Playfair, Montserrat…) porque Java 2D y Batik solo usan su instancia por defecto; se usan archivos TTF estáticos.
+- **Texto con Java 2D, dibujo con Batik (técnica):** el motor de plantillas pinta con Batik el dibujo de la plantilla **sin sus textos** y escribe después los textos con Java 2D y las fuentes incluidas. Razón: el validador de SVG seguro rechaza `&`, `http:` y otros caracteres dentro de un `<text>`, y los textos de las publicaciones los llevan a menudo («Rock & Roll», una dirección web). Así el validador no cambia, los textos nunca pasan por el SVG y el ajuste de líneas mide con las mismas fuentes con las que dibuja. Consecuencia: los textos van siempre encima del dibujo.
+- **Formato de plantilla (técnica):** un SVG con `viewBox`, campos `<text id="campo-nombre">` hijos directos de `<svg>` y su caja `<rect id="caja-nombre">`. El texto del campo es el ejemplo de la vista previa. Detalle en `docs/plantillas-svg.md`.
+- **Texto que no cabe (técnica):** el motor primero baja el tamaño (hasta el mínimo de la plantilla), después recorta con «…» y **siempre devuelve un aviso**; nunca recorta en silencio. Los versos se tratan igual: quien llama decide si el aviso bloquea la pieza.
+- **Sin caracteres sin glifo (técnica):** los caracteres que la fuente no tiene (emoji, por ejemplo) se quitan del texto y se avisa, en lugar de dibujar un cuadrado vacío.
