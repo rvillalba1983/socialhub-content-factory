@@ -1,6 +1,6 @@
 # Fase 13 · Skills de diseño y contenido en el flujo de Claude
 
-Estado: **plan pendiente del OK de Raúl** (22 nov 2026). Todavía no hay código.
+Estado: **plan aprobado por Raúl** (22 nov 2026, con las respuestas de abajo). Todavía no hay código: el primer paso del bloque 1 es proponer las fuentes.
 
 ## Qué pidió Raúl
 
@@ -17,6 +17,10 @@ Añadir al flujo de creación de SocialHub dentro de Claude estas skills:
 3. **Fuentes: añadir 2 o 3 libres (OFL),** incluidas en la app. Hoy solo hay DejaVu Serif Bold e Italic. Antes de añadir ninguna, Claude propone cuáles y Raúl da el OK (licencia y peso).
 4. **El kit y las plantillas viven en SocialHub, con aprobación de Raúl.** Se guardan en la base de datos de la marca, SocialHub las valida (SVG seguro, solo fuentes incluidas, campos conocidos) y en la ficha de la marca hay una vista previa de cada plantilla con textos de ejemplo. No se usan hasta que Raúl pulsa «Aprobar»; puede pedir otra versión a Claude con un comentario.
 5. **Orden: fase 13 primero y una sola «prueba de cero» después.** Las tareas programadas de Claude (hoy borradas) se recrearán una sola vez, ya con las skills.
+6. **`video-making` se aplica en el FFmpeg de SocialHub** (no en la sesión de Claude), como se proponía.
+7. **`tiktok-photo-mode`: se mantiene el carrusel de hoy.** No hay tipo nuevo para el carrusel de fotos de TikTok; usa el mismo tipo `carrusel`. (Raúl contestó «se mantiene»; se interpreta como mantener lo que hay.)
+8. **Tipos nuevos de pieza:** cita, infografía y meme de texto, además de los de hoy (carrusel, historia, reel, clip).
+9. **Plan aprobado** y PR del plan abierta para que Raúl la una.
 
 ## Cómo encaja cada skill (propuesta técnica)
 
@@ -73,9 +77,8 @@ Orden: 1, 2, 3, 4, 5, 6. Cada bloque pasa en GitHub antes de seguir y Raúl hace
 - Subir portadas de reel a las redes.
 - Cambios en la publicación (vías, márgenes) y recrear las tareas programadas (se hace en la prueba de cero, con el OK de Raúl).
 
-## Dudas abiertas (se resuelven al dar el OK)
+## Dudas resueltas y pendientes
 
-1. **`video-making`:** ¿se aplica en el FFmpeg de SocialHub, como se propone, o prefieres que Claude monte vídeos en su sesión? (Lo segundo contradice la decisión 1 y cuesta muchos más tokens.)
-2. **`tiktok-photo-mode`:** ¿el carrusel de fotos de TikTok es un tipo de pieza nuevo (por ejemplo `carrusel_tiktok`, con su proporción) o usa el carrusel de hoy? Hay que comprobar qué admite Publer para TikTok.
-3. **Fuentes concretas:** se proponen en el bloque 1, antes de añadir ninguna.
-4. **Tipos nuevos de pieza:** se propone empezar por cita, infografía y meme de texto, además de los de hoy (carrusel, historia, reel, clip).
+Resueltas por Raúl el 22 nov (decisiones 6 a 8): `video-making` en el FFmpeg de SocialHub; el carrusel de fotos de TikTok usa el carrusel de hoy; los tipos nuevos son cita, infografía y meme de texto.
+
+Pendiente: **las fuentes concretas.** Se proponen al empezar el bloque 1 y no se añade ninguna sin el OK de Raúl.

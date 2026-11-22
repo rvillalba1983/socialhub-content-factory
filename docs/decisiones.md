@@ -951,11 +951,12 @@ Respuestas de Raúl:
 - **Fuentes:** añadir 2 o 3 libres (OFL) incluidas en la app; se proponen y se pide el OK antes de añadirlas.
 - **Kit y plantillas:** en SocialHub (base de datos de la marca), con vista previa en la ficha y **aprobación de Raúl** antes de usarse.
 - **Orden:** fase 13 primero y una sola «prueba de cero» después, con las tareas de Claude recreadas una vez, ya con las skills.
+- **Plan aprobado** (22 nov, mismo día): `video-making` se aplica en el FFmpeg de SocialHub; el carrusel de fotos de TikTok (`tiktok-photo-mode`) mantiene el carrusel de hoy, sin tipo nuevo (Raúl contestó «se mantiene»); tipos nuevos de pieza: cita, infografía y meme de texto; se abre la PR del plan.
 
-Decisiones técnicas (a confirmar con el OK del plan):
+Decisiones técnicas (aprobadas con el plan):
 - **`brand-profile` sin entrevista:** parte de `inputs.brand_identity`; si falta tono o público, `needs_human`.
 - **`inputs.skills` en cada encargo:** solo las skills necesarias según los tipos de pieza, para gastar menos tokens. Si alguna no existe en la sesión de la tarea programada, el encargo sigue sin ella y lo dice en `warnings`.
 - **No se copian skills al repositorio:** `video-making` tiene licencia propietaria de Anthropic y no se puede redistribuir; el resto se cargan de la cuenta de Raúl.
 - **`platform-specs-and-validation`:** solo se usa su parte de tamaños y límites de Instagram y TikTok; su flujo de validación es de otro servicio.
-- **`video-making`:** se aplica como guía del montaje en el FFmpeg de SocialHub, no en la tarea de Claude (pendiente de confirmar con Raúl).
+- **`video-making`:** se aplica como guía del montaje en el FFmpeg de SocialHub, no en la tarea de Claude (confirmado por Raúl).
 - **Sin imágenes generadas con IA** en ninguna skill.
