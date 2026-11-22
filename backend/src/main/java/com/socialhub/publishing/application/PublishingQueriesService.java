@@ -81,11 +81,11 @@ class PublishingQueriesService implements PublishingQueries {
 
     @Override
     public List<DuplicateGroup> duplicateGroups() {
-        var all = publications.findAll();
+        var all = insights.publicationsRead();
         var byId = new java.util.HashMap<String, Publication>();
         all.forEach(p -> byId.put(p.getId(), p));
         // Solo los grupos en los que aún se puede descartar alguna (si todas están publicadas, ya no hay nada que hacer)
-        return com.socialhub.publishing.domain.DuplicateDetector.find(all, promotionQueries::brandOf).stream()
+        return com.socialhub.publishing.domain.DuplicateDetector.find(all, insights.brandsRead()::get).stream()
                 .filter(g -> g.publicationIds().stream().anyMatch(id -> byId.get(id).getStatus()
                         .canMoveTo(com.socialhub.publishing.domain.PublicationStatus.CANCELLED)))
                 .map(g -> new DuplicateGroup(g.promotionId(), g.title(), g.day(),
@@ -176,7 +176,7 @@ class PublishingQueriesService implements PublishingQueries {
         java.util.Set<String> alerted = new java.util.HashSet<>();
         alerts.forEach(a -> alerted.add(a.publicationId()));
         var byId = new java.util.HashMap<String, Publication>();
-        publications.findAll().forEach(p -> byId.put(p.getId(), p));
+        insights.publicationsRead().forEach(p -> byId.put(p.getId(), p));
         insights.all().forEach((id, insight) -> insight.outcome().filter(com.socialhub.publishing.domain.PublicationOutcome::needsAttention)
                 .filter(o -> o.result() == com.socialhub.publishing.domain.PublicationOutcome.Result.FAILED
                         || o.at() == null) // las ya publicadas con retraso tienen su propio aviso

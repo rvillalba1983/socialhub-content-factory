@@ -50,16 +50,49 @@ class PublicationInsights {
     private final com.socialhub.settings.PublishSettings settings;
     private final Clock clock;
 
+    /** Marca de cada promoción, en una sola consulta. */
+    Map<String, String> brandsByPromotion() {
+        Map<String, String> brands = new HashMap<>();
+        promotions.promotionRefs().forEach(r -> brands.put(r.id(), r.brandId()));
+        return brands;
+    }
+
     private static String key(String brand, Publication p) { return brand + "|" + p.getPlatform(); }
 
-    Map<String, Insight> all() {
+    /** Lo calculado hace un momento: una lectura de la fábrica lo pide varias veces y no hace falta rehacerlo cada vez. */
+    private record Snapshot(Instant at, Map<String, Insight> insights, List<Publication> publications,
+                          Map<String, String> brands) {}
+
+    private static final Duration FRESH = Duration.ofSeconds(2);
+    private volatile @org.jspecify.annotations.Nullable Snapshot cache;
+
+    /** Algo ha cambiado en la fábrica (ya confirmado): lo guardado deja de valer. */
+    @org.springframework.transaction.event.TransactionalEventListener(fallbackExecution = true)
+    void on(com.socialhub.platform.live.FactoryChanged changed) { cache = null; }
+
+    private Snapshot snapshot() {
         Instant now = clock.instant();
-        List<Publication> all = publications.findAll();
-        Map<String, String> brands = new HashMap<>();
-        for (Publication p : all) brands.computeIfAbsent(p.getPromotionId(), promotions::brandOf);
+        Snapshot current = cache;
+        if (current != null && !now.isBefore(current.at()) && Duration.between(current.at(), now).compareTo(FRESH) < 0) return current;
+        Snapshot fresh = compute(now);
+        cache = fresh;
+        return fresh;
+    }
+
+    Map<String, Insight> all() { return snapshot().insights(); }
+
+    /** La marca de cada promoción, tal como se leyó. */
+    Map<String, String> brandsRead() { return snapshot().brands(); }
+
+    /** Las publicaciones que se leyeron para calcularlo (solo las de promociones conocidas). */
+    List<Publication> publicationsRead() { return snapshot().publications(); }
+
+    private Snapshot compute(Instant now) {
+        Map<String, String> brands = brandsByPromotion();
+        List<Publication> all = publications.findAll().stream().filter(p -> brands.containsKey(p.getPromotionId())).toList();
         Map<String, PublishJob> jobById = new HashMap<>();
         jobs.withStatus(EnumSet.allOf(PublishJob.Status.class)).forEach(j -> jobById.put(j.getPublicationId(), j));
-        Map<String, List<ExternalCalendarRepository.Item>> outside = outside(all, brands);
+        Map<String, List<ExternalCalendarRepository.Item>> outside = outside(all, brands, now);
         Map<String, List<DuplicateRef>> duplicates = new HashMap<>();
         for (var group : DuplicateDetector.find(all, brands::get)) {
             for (String id : group.publicationIds()) {
@@ -81,16 +114,18 @@ class PublicationInsights {
             result.put(p.getId(), new Insight(outcome, duplicates.getOrDefault(p.getId(), List.of()),
                     moveReason(p, instantsOfOthers(p, same), now)));
         }
-        return result;
+        return new Snapshot(now, result, all, brands);
     }
 
     /** Lo que ha leído Claude de fuera de SocialHub, por publicación (solo lo que ya está asociado a una). */
-    private Map<String, List<ExternalCalendarRepository.Item>> outside(List<Publication> all, Map<String, String> brands) {
+    private Map<String, List<ExternalCalendarRepository.Item>> outside(List<Publication> all, Map<String, String> brands, Instant now) {
         Map<String, List<ExternalCalendarRepository.Item>> byPublication = new HashMap<>();
+        // Solo hace falta lo de fuera de las que ya salieron o ya pasaron su hora
+        all = all.stream().filter(p -> p.getStatus() == PublicationStatus.PUBLISHED || !p.scheduledAt().isAfter(now)).toList();
         if (all.isEmpty()) return byPublication;
         Instant from = all.stream().map(Publication::scheduledAt).min(Instant::compareTo).orElseThrow().minus(Duration.ofDays(1));
         Instant to = all.stream().map(Publication::scheduledAt).max(Instant::compareTo).orElseThrow().plus(Duration.ofDays(2));
-        for (String brand : Set.copyOf(brands.values())) {
+        for (String brand : all.stream().map(p -> brands.get(p.getPromotionId())).collect(java.util.stream.Collectors.toSet())) {
             for (var item : external.between(brand, from, to)) {
                 if (item.publicationId() != null) byPublication.computeIfAbsent(item.publicationId(), k -> new ArrayList<>()).add(item);
             }
