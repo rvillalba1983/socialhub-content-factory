@@ -73,9 +73,42 @@ export function StationPanel({ s, index, tasks, brandOf, onClose, onTask, onPaus
 
 const reasonTitle = (t: Task) => (t.status === 'BLOCKED' ? 'Por qué está bloqueada' : t.status === 'IDLE' ? 'Situación' : 'Motivo de la espera');
 
-export function TaskPanel({ t, station, brand, tasks, onClose, onAction, onTask, demo }: {
+/** La pregunta de Claude a Raúl: la tarjeta enseña la pregunta, las respuestas propuestas y una caja para contestar. */
+export function ClaudeQuestion({ t, onAnswer }: { t: Task; onAnswer: (answer: string) => Promise<void> }) {
+  const [text, setText] = useState('');
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const send = async (answer: string) => {
+    const value = answer.trim();
+    if (!value || sending) return;
+    setSending(true); setError(null);
+    try { await onAnswer(value); setText(''); }
+    catch (e) { setError(e instanceof Error ? e.message : 'No se pudo enviar la respuesta.'); }
+    finally { setSending(false); }
+  };
+  return (
+    <section className="claude-question"><h4>Claude pregunta</h4>
+      <p>{t.reason}</p>
+      {(t.question_options ?? []).length > 0 && (
+        <div className="acts" role="group" aria-label="Respuestas propuestas por Claude">
+          {(t.question_options ?? []).map(o => <button key={o} className="btn" disabled={sending} onClick={() => send(o)}>{o}</button>)}
+        </div>
+      )}
+      <label htmlFor="claude-answer" className="src">Tu respuesta</label>
+      <textarea id="claude-answer" rows={3} maxLength={2000} value={text} onChange={e => setText(e.target.value)}
+        placeholder="Escribe aquí lo que quieres que sepa Claude" />
+      {error && <p style={{ color: 'var(--err)' }} role="alert">{error}</p>}
+      <div className="acts">
+        <button className="btn primary" disabled={sending || !text.trim()} onClick={() => send(text)}>Enviar respuesta a Claude</button>
+      </div>
+      <p className="src">Al enviarla, el encargo vuelve a Claude con tu respuesta y no cuenta como un intento nuevo.</p>
+    </section>
+  );
+}
+
+export function TaskPanel({ t, station, brand, tasks, onClose, onAction, onAnswer, onTask, demo }: {
   t: Task; station?: Station; brand?: Brand; tasks: Task[]; demo: boolean; onClose: () => void;
-  onAction: (command: TaskCommandType, model?: AiModel) => void; onTask: (id: string) => void;
+  onAction: (command: TaskCommandType, model?: AiModel) => void; onAnswer?: (answer: string) => Promise<void>; onTask: (id: string) => void;
 }) {
   const [confirm, setConfirm] = useState<TaskCommandType | null>(null);
   const run = (id: TaskCommandType, needsConfirm: boolean) => {
@@ -84,6 +117,7 @@ export function TaskPanel({ t, station, brand, tasks, onClose, onAction, onTask,
     onAction(id);
   };
   const canChangeAgent = t.available_commands.some(a => a.type === 'CHANGE_AGENT');
+  const canAnswer = t.available_commands.some(a => a.type === 'ANSWER');
   return (
     <aside className="panel" aria-live="polite">
       <Header eyebrow={`${station?.name ?? ''} · ${brand?.name ?? 'Común'}`} title={t.title} onClose={onClose}
@@ -107,7 +141,13 @@ export function TaskPanel({ t, station, brand, tasks, onClose, onAction, onTask,
             <div className="prog"><div className="bar"><i style={{ width: `${t.progress}%` }} /></div><span className="mono">{Math.floor(t.progress)}%</span></div>
           </section>
         )}
-        {t.reason && t.status !== 'RUNNING' && <section><h4>{reasonTitle(t)}</h4><p>{t.reason}</p></section>}
+        {canAnswer && onAnswer && <ClaudeQuestion t={t} onAnswer={onAnswer} />}
+        {(t.human_answers ?? []).length > 0 && (
+          <section><h4>Lo que ya has contestado a Claude</h4>
+            <ul>{(t.human_answers ?? []).map((a, i) => <li key={i}><b>{a.question}</b><br />{a.answer}</li>)}</ul>
+          </section>
+        )}
+        {t.reason && t.status !== 'RUNNING' && !(canAnswer && onAnswer) && <section><h4>{reasonTitle(t)}</h4><p>{t.reason}</p></section>}
         {t.error && <section><h4>Error</h4><p style={{ color: 'var(--err)' }}>{t.error}</p></section>}
         {t.result && <section><h4>Resultado</h4><p>{t.result}</p></section>}
         {t.inputs.length > 0 && <section><h4>Datos de entrada</h4><ul>{t.inputs.map((x, i) => <li key={i}>{x}</li>)}</ul></section>}
@@ -146,7 +186,7 @@ export function TaskPanel({ t, station, brand, tasks, onClose, onAction, onTask,
         </section>
         <section><h4>Acciones</h4>
           <div className="acts">
-            {t.available_commands.filter(a => a.type !== 'CHANGE_AGENT').map((a, i) => (
+            {t.available_commands.filter(a => a.type !== 'CHANGE_AGENT' && a.type !== 'ANSWER').map((a, i) => (
               <button key={a.type} className={`btn ${i === 0 && !a.needs_confirmation ? 'primary' : ''} ${a.needs_confirmation ? 'danger' : ''}`} onClick={() => run(a.type, a.needs_confirmation)}>{a.label}</button>
             ))}
             {t.available_commands.length === 0 && <span className="src">No hay acciones disponibles en este estado.</span>}

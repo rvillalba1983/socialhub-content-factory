@@ -531,3 +531,7 @@ tr.op-detail td{background:var(--surface-2)}
 .pv-phone.tt .pv-tags{color:#fff;font-weight:600}
 .pv-phone.tt .src{color:#ddd}
 @media (max-width:520px){.pv-phone{width:100%}}
+
+/* Pregunta de Claude en la ficha de la tarea */
+.claude-question{border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--surface-2)}
+.claude-question textarea{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 10px;width:100%;min-width:0;resize:vertical;margin:4px 0 8px}

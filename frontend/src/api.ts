@@ -109,6 +109,8 @@ export const api = {
     post<QualityReport>(`/api/publications/${encodeURIComponent(id)}/quality-acceptances`, { key, reason }),
   taskCommand: (id: string, command: TaskCommand) =>
     post<Task>(`/api/tasks/${encodeURIComponent(id)}/commands`, command),
+  answerTask: (id: string, answer: string) =>
+    post<Task>(`/api/tasks/${encodeURIComponent(id)}/answer`, { answer }),
   stationCommand: (id: string, type: StationCommandType) =>
     post<Station>(`/api/stations/${encodeURIComponent(id)}/commands`, { type }),
   logsFolder: () => call<LogsFolder>('/api/app/logs'),
