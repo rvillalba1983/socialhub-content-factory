@@ -41,6 +41,9 @@ public class SvgTemplateRenderer implements TemplateRenderer {
     private static final Pattern COLOR = Pattern.compile("#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})");
     private static final Pattern WEIGHT = Pattern.compile("normal|bold|[1-9]00");
     private static final double RATIO_TOLERANCE = 0.01;
+    private static final int MAX_TEXT_CHARS = 2000;
+    private static final int MAX_FIELDS = 40;
+    private static final int MAX_LISTED_KEYS = 10;
 
     private final SvgRasterizer rasterizer;
 
@@ -100,7 +103,10 @@ public class SvgTemplateRenderer implements TemplateRenderer {
                 g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
                 g.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
-                g.scale(width / analysis.vbWidth(), height / analysis.vbHeight());
+                // La misma transformación que preserveAspectRatio="xMidYMid slice" con la que Batik pinta el dibujo
+                double scale = Math.max(width / analysis.vbWidth(), height / analysis.vbHeight());
+                g.translate((width - analysis.vbWidth() * scale) / 2, (height - analysis.vbHeight() * scale) / 2);
+                g.scale(scale, scale);
                 g.translate(-analysis.minX(), -analysis.minY());
                 for (Spec spec : analysis.specs()) {
                     String text = texts == null || spec.field().fixed() ? spec.field().example()
@@ -113,16 +119,22 @@ public class SvgTemplateRenderer implements TemplateRenderer {
             if (texts != null) {
                 Set<String> names = new HashSet<>();
                 analysis.specs().forEach(s -> names.add(s.field().name()));
-                for (String key : new LinkedHashSet<>(texts.keySet())) {
-                    if (!names.contains(key)) {
-                        warnings.add("Se ha enviado un texto para «" + key + "», pero la plantilla no tiene ese campo; se ignora.");
-                    }
+                List<String> unknown = texts.keySet().stream().filter(k -> !names.contains(k)).sorted().toList();
+                for (String key : unknown.stream().limit(MAX_LISTED_KEYS).toList()) {
+                    warnings.add("Se ha enviado un texto para «" + abbreviate(key) + "», pero la plantilla no tiene ese campo; se ignora.");
+                }
+                if (unknown.size() > MAX_LISTED_KEYS) {
+                    warnings.add("Hay " + (unknown.size() - MAX_LISTED_KEYS) + " textos más para campos que la plantilla no tiene; se ignoran.");
                 }
             }
             return new TemplateRender(image, warnings, List.of());
         } catch (Exception | StackOverflowError e) {
             return error("Error inesperado al pintar la plantilla: " + e);
         }
+    }
+
+    private static String abbreviate(String key) {
+        return key.length() > 40 ? key.substring(0, 40) + "…" : key;
     }
 
     private static TemplateRender error(String message) {
@@ -134,6 +146,12 @@ public class SvgTemplateRenderer implements TemplateRenderer {
     private void draw(Graphics2D g, Spec spec, String rawText, List<String> warnings) {
         TemplateField field = spec.field();
         Font base = spec.font();
+        if (rawText.length() > MAX_TEXT_CHARS) {
+            int cut = Character.isHighSurrogate(rawText.charAt(MAX_TEXT_CHARS - 1)) ? MAX_TEXT_CHARS - 1 : MAX_TEXT_CHARS;
+            warnings.add("El texto del campo «" + field.name() + "» tiene " + rawText.length() + " caracteres; se ha cortado a "
+                    + MAX_TEXT_CHARS + ".");
+            rawText = rawText.substring(0, cut);
+        }
         StringBuilder clean = new StringBuilder();
         Set<String> missing = new LinkedHashSet<>();
         String normalized = rawText.replace("\r\n", "\n").replace('\r', '\n').replace('\t', ' ');
@@ -150,6 +168,9 @@ public class SvgTemplateRenderer implements TemplateRenderer {
         if (result.truncated()) {
             warnings.add("El texto del campo «" + field.name() + "» no cabe en su caja ni al tamaño mínimo (" + spec.minSize()
                     + "); se ha recortado con «…».");
+        }
+        if (result.wordsSplit()) {
+            warnings.add("En el campo «" + field.name() + "» una palabra no cabía en el ancho de la caja y se ha partido por letras.");
         }
         if (result.lines().isEmpty()) return;
         Font font = TextFitter.derive(base, result.size(), spec.letterSpacing());
@@ -203,7 +224,7 @@ public class SvgTemplateRenderer implements TemplateRenderer {
         }
         double[] vb = viewBox(root, errors);
         List<Spec> specs = new ArrayList<>();
-        collectFields(root, specs, errors);
+        collectFields(root, vb, specs, errors);
         if (!drawingIsSafe(svg)) {
             errors.add("El dibujo de la plantilla usa elementos o atributos no permitidos (solo formas, degradados, "
                     + "título y descripción; nada de script, style, image, use ni referencias externas).");
@@ -245,6 +266,14 @@ public class SvgTemplateRenderer implements TemplateRenderer {
             return none;
         }
         double[] vb = java.util.Arrays.stream(parts).mapToDouble(Double::parseDouble).toArray();
+        if (!java.util.Arrays.stream(vb).allMatch(Double::isFinite)) {
+            errors.add("El viewBox debe tener 4 números normales (no demasiado grandes).");
+            return none;
+        }
+        if (Math.abs(vb[0]) > 4000 || Math.abs(vb[1]) > 4000) {
+            errors.add("El origen del viewBox (los dos primeros números) debe estar entre -4000 y 4000.");
+            return none;
+        }
         if (vb[2] < 100 || vb[2] > 4000 || vb[3] < 100 || vb[3] > 4000) {
             errors.add("El ancho y el alto del viewBox deben estar entre 100 y 4000.");
             return none;
@@ -252,7 +281,11 @@ public class SvgTemplateRenderer implements TemplateRenderer {
         return vb;
     }
 
-    private static void collectFields(Element root, List<Spec> specs, List<String> errors) {
+    private static void collectFields(Element root, double[] vb, List<Spec> specs, List<String> errors) {
+        if (elements(root, "text").size() > MAX_FIELDS) {
+            errors.add("La plantilla tiene más de " + MAX_FIELDS + " campos de texto (el máximo es " + MAX_FIELDS + ").");
+            return;
+        }
         Map<String, Element> boxes = new LinkedHashMap<>();
         for (Element rect : elements(root, "rect")) {
             String id = rect.getAttribute("id");
@@ -303,7 +336,7 @@ public class SvgTemplateRenderer implements TemplateRenderer {
                 usedBoxes.add(name);
             }
             int before = errors.size();
-            double[] rect = box == null ? null : boxGeometry(box, errors);
+            double[] rect = box == null ? null : boxGeometry(box, vb, errors);
             Spec spec = fieldSpec(name, text, rect, errors);
             if (errors.size() == before && spec != null && !hasChildElements) specs.add(spec);
         }
@@ -314,7 +347,7 @@ public class SvgTemplateRenderer implements TemplateRenderer {
         }
     }
 
-    private static double[] boxGeometry(Element box, List<String> errors) {
+    private static double[] boxGeometry(Element box, double[] vb, List<String> errors) {
         String id = box.getAttribute("id");
         double[] values = new double[4];
         String[] attrs = {"x", "y", "width", "height"};
@@ -325,9 +358,16 @@ public class SvgTemplateRenderer implements TemplateRenderer {
                 return new double[] {0, 0, 0, 0};
             }
             values[i] = Double.parseDouble(value);
+            if (!Double.isFinite(values[i])) {
+                errors.add("La caja «" + id + "» tiene un número demasiado grande en " + attrs[i] + ".");
+                return new double[] {0, 0, 0, 0};
+            }
         }
         if (values[2] <= 0 || values[3] <= 0) {
             errors.add("La caja «" + id + "» debe tener width y height mayores que 0.");
+        } else if (vb[2] > 0 && (values[0] < vb[0] - 1 || values[1] < vb[1] - 1 || values[0] + values[2] > vb[0] + vb[2] + 1
+                || values[1] + values[3] > vb[1] + vb[3] + 1)) {
+            errors.add("La caja «" + id + "» no cabe dentro del lienzo (viewBox).");
         }
         return values;
     }
@@ -361,7 +401,7 @@ public class SvgTemplateRenderer implements TemplateRenderer {
         String vertical = attr(text, "data-vertical", "arriba");
         if (!Set.of("arriba", "centro", "abajo").contains(vertical)) errors.add(label + "tiene un data-vertical no válido («" + vertical + "»): arriba, centro o abajo.");
         Double lineHeight = number(text, "data-interlineado", 1.2, 0.8, 2.5, label, "data-interlineado (0,8 a 2,5)", errors);
-        Double lines = number(text, "data-lineas-max", 30.0, 1, 30, label, "data-lineas-max (1 a 30)", errors);
+        Double lines = number(text, "data-lineas-max", (double) Integer.MAX_VALUE, 1, 30, label, "data-lineas-max (1 a 30)", errors);
         if (lines != null && lines != Math.floor(lines)) errors.add(label + "necesita un data-lineas-max entero (1 a 30).");
         String fixedAttr = attr(text, "data-fijo", "false");
         if (!fixedAttr.equals("true") && !fixedAttr.equals("false")) errors.add(label + "tiene un data-fijo no válido («" + fixedAttr + "»): true o false.");
@@ -369,6 +409,11 @@ public class SvgTemplateRenderer implements TemplateRenderer {
         if (size != null) {
             double defaultMin = Math.min(size, Math.max(12, size / 2));
             min = number(text, "data-tamano-min", defaultMin, 8, size, label, "data-tamano-min (8 hasta el font-size)", errors);
+        }
+        if (min != null && lineHeight != null && box != null && box[2] > 0 && box[3] > 0
+                && (box[3] < lineHeight * min || box[2] < min)) {
+            errors.add(label + "tiene una caja demasiado pequeña: su alto debe ser al menos interlineado × tamaño mínimo ("
+                    + trim(lineHeight * min) + ") y su ancho al menos el tamaño mínimo (" + trim(min) + ").");
         }
         if (errors.size() != before || font == null || size == null || box == null || min == null || opacity == null
                 || spacing == null || lineHeight == null || lines == null) return null;
@@ -395,7 +440,7 @@ public class SvgTemplateRenderer implements TemplateRenderer {
             return null;
         }
         double number = Double.parseDouble(value);
-        if (number < min || number > max) {
+        if (!Double.isFinite(number) || number < min || number > max) {
             errors.add(label + "tiene un " + description + " fuera de rango («" + value + "»).");
             return null;
         }

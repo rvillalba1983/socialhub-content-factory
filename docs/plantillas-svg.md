@@ -34,14 +34,16 @@ El texto que va dentro de cada `<text>` es el **ejemplo**: se usa en la vista pr
 ## Reglas
 
 **El SVG**
-- Raíz `<svg xmlns="http://www.w3.org/2000/svg">` con `viewBox="0 0 ANCHO ALTO"` (obligatorio, de 100 a 4000 en cada lado). La plantilla se puede pintar a cualquier tamaño con **la misma proporción** que su `viewBox` (por ejemplo 1080×1350 para 4:5, 1080×1920 para 9:16). Con otra proporción no se pinta.
+- Raíz `<svg xmlns="http://www.w3.org/2000/svg">` con `viewBox="0 0 ANCHO ALTO"` (obligatorio, de 100 a 4000 en cada lado). La plantilla se puede pintar a cualquier tamaño con **la misma proporción** que su `viewBox` (por ejemplo 1080×1350 para 4:5, 1080×1920 para 9:16). Con otra proporción (más del 1 % de diferencia) no se pinta. Con una diferencia menor, el dibujo se ajusta como `preserveAspectRatio="xMidYMid slice"` (se centra y recorta lo que sobre) y el texto sigue la misma transformación.
 - El dibujo usa solo lo que ya permite el validador de `fondo_svg`: `g`, `defs`, `rect`, `circle`, `ellipse`, `path`, `polygon`, `polyline`, `line`, `linearGradient`, `radialGradient`, `stop`, `title`, `desc` y sus atributos de dibujo. Nada de `script`, `style`, `image`, `use`, `foreignObject`, animaciones ni referencias externas. Máximo 64 KB.
 - **No puede haber `<text>` en el dibujo** salvo los campos (ver abajo). Un texto fijo (la marca, una dirección) es un campo con `data-fijo="true"`.
 
 **Cada campo**
 - `<text id="campo-NOMBRE">` hijo directo de `<svg>` (no dentro de `<g>`), con solo texto dentro (sin `<tspan>`). `NOMBRE`: minúsculas, cifras y `_`, empieza por letra, hasta 32 caracteres.
 - Su caja: `<rect id="caja-NOMBRE" x y width height>` también hijo directo de `<svg>`, con números sin unidades. La caja no se dibuja (se quita); sirve solo para colocar el texto. Si quieres un recuadro visible, añade otro `<rect>` aparte.
-- Cada campo tiene su caja y cada caja su campo. Los nombres no se repiten.
+- Cada campo tiene su caja y cada caja su campo. Los nombres no se repiten. Como máximo **40 campos** por plantilla.
+- La caja tiene que quedar **dentro del lienzo** (`viewBox`, con 1 unidad de tolerancia) y ser lo bastante grande para el tamaño mínimo: alto al menos `data-interlineado × data-tamano-min` y ancho al menos `data-tamano-min`.
+- El origen del `viewBox` (los dos primeros números) va de -4000 a 4000.
 - La `x` e `y` del propio `<text>` se ignoran: manda la caja.
 
 **Atributos del campo**
@@ -57,7 +59,7 @@ El texto que va dentro de cada `<text>` es el **ejemplo**: se usa en la vista pr
 | `letter-spacing` | no | número, de -5 a 40 | `0` |
 | `text-anchor` | no | `start`, `middle`, `end` (alineación a la izquierda, centro o derecha de la caja) | `start` |
 | `data-tamano-min` | no | tamaño mínimo (8 hasta el máximo) | la mitad del máximo, mínimo 12 |
-| `data-lineas-max` | no | 1 a 30 | sin límite (las que quepan) |
+| `data-lineas-max` | no | 1 a 30 (entero) | sin límite propio (las que quepan en el alto de la caja) |
 | `data-interlineado` | no | 0,8 a 2,5 (veces el tamaño) | `1.2` |
 | `data-vertical` | no | `arriba`, `centro`, `abajo` (dentro de la caja) | `arriba` |
 | `data-fijo` | no | `true`: siempre se escribe el texto de la plantilla y se ignora el que mande Claude | `false` |
@@ -74,12 +76,13 @@ El texto que va dentro de cada `<text>` es el **ejemplo**: se usa en la vista pr
 
 1. Se separa en párrafos por los saltos de línea (`\n`); cada uno se parte por palabras. Los saltos de línea de los versos se respetan y las líneas en blanco cuentan.
 2. Se prueba desde el tamaño máximo bajando de 1 en 1 hasta el mínimo. Vale el primer tamaño en el que todas las líneas caben en el ancho de la caja, no pasan de `data-lineas-max` y el bloque cabe en el alto.
-3. Si ni el mínimo cabe, se parten las palabras demasiado largas, se recorta el final con «…» y **se devuelve un aviso**. Nunca se recorta sin avisar.
-4. Los caracteres que la fuente no tiene (emoji, por ejemplo) se quitan y se avisa.
+3. Si ni el mínimo cabe, se parten las palabras demasiado largas (**con aviso**: «una palabra no cabía y se ha partido por letras»), se recorta el final con «…» y **se devuelve un aviso**. Nunca se recorta sin avisar.
+4. El texto de un campo tiene un tope de **2.000 caracteres**: lo que pase se corta, con aviso.
+5. Los caracteres que la fuente no tiene (emoji, por ejemplo) se quitan y se avisa.
 
 ## Avisos y errores
 
 Los mensajes están en español porque los lee Raúl en la ficha de la marca.
 
-- **Error** (la plantilla no sirve y no se pinta): XML no válido, falta `viewBox`, dibujo con elementos no permitidos, texto fuera de un campo, campo sin caja o caja sin campo, nombres repetidos, fuente no incluida, atributo con valor no válido, proporción distinta de la pedida.
-- **Aviso** (se pinta igual): texto recortado, caracteres sin glifo, un texto de Claude para un campo que no existe en la plantilla.
+- **Error** (la plantilla no sirve y no se pinta): XML no válido, falta `viewBox`, más de 40 campos, caja fuera del lienzo o demasiado pequeña, números no finitos, dibujo con elementos no permitidos, texto fuera de un campo, campo sin caja o caja sin campo, nombres repetidos, fuente no incluida, atributo con valor no válido, proporción distinta de la pedida.
+- **Aviso** (se pinta igual): texto recortado, caracteres sin glifo, palabra partida por letras, texto cortado a 2.000 caracteres, y un texto de Claude para un campo que no existe en la plantilla (se citan como mucho 10 claves y se dice cuántas más hay).

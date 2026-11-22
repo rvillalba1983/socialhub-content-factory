@@ -20,8 +20,11 @@ final class TextFitter {
 
     private static final String ELLIPSIS = "…";
 
-    /** Tamaño elegido, líneas resultantes y si hubo que recortar el final. */
-    record Result(int size, List<String> lines, boolean truncated) {}
+    /** Tamaño elegido, líneas resultantes, si se recortó el final y si hubo que partir alguna palabra por letras. */
+    record Result(int size, List<String> lines, boolean truncated, boolean wordsSplit) {}
+
+    /** Líneas de un texto y si alguna palabra se partió por letras. */
+    private record Wrapped(List<String> lines, boolean wordsSplit) {}
 
     private TextFitter() {}
 
@@ -47,24 +50,26 @@ final class TextFitter {
     static Result fit(String text, Font base, double boxWidth, double boxHeight, int maxSize, int minSize,
             double lineHeight, int maxLines, double letterSpacing) {
         int min = Math.min(minSize, maxSize);
-        List<String> plain = wrap(text, derive(base, maxSize, letterSpacing), boxWidth, false);
-        if (plain.isEmpty()) return new Result(maxSize, List.of(), false);
+        if (text.isBlank()) return new Result(maxSize, List.of(), false, false);
         for (int size = maxSize; size >= min; size--) {
             Font font = derive(base, size, letterSpacing);
-            List<String> lines = wrap(text, font, boxWidth, false);
-            if (lines.size() <= maxLines && lines.size() * lineHeight * size <= boxHeight
+            int limit = (int) Math.min(maxLines, Math.floor(boxHeight / (lineHeight * size)));
+            if (limit < 1) continue;
+            List<String> lines = wrap(text, font, boxWidth, false, limit).lines();
+            if (lines.size() <= limit && lines.size() * lineHeight * size <= boxHeight
                     && lines.stream().allMatch(l -> width(l, font) <= boxWidth)) {
-                return new Result(size, lines, false);
+                return new Result(size, lines, false, false);
             }
         }
         Font font = derive(base, min, letterSpacing);
-        List<String> lines = wrap(text, font, boxWidth, true);
         int fitting = (int) Math.floor(boxHeight / (lineHeight * min));
         int allowed = Math.max(1, Math.min(maxLines, fitting));
-        if (lines.size() <= allowed) return new Result(min, lines, false);
+        Wrapped wrapped = wrap(text, font, boxWidth, true, allowed);
+        List<String> lines = wrapped.lines();
+        if (lines.size() <= allowed) return new Result(min, lines, false, wrapped.wordsSplit());
         List<String> kept = new ArrayList<>(lines.subList(0, allowed));
         kept.set(allowed - 1, ellipsize(kept.get(allowed - 1), font, boxWidth));
-        return new Result(min, kept, true);
+        return new Result(min, kept, true, wrapped.wordsSplit());
     }
 
     /** Termina la línea con «…» quitando letras hasta que quepa en el ancho. */
@@ -76,14 +81,21 @@ final class TextFitter {
         return head + ELLIPSIS;
     }
 
+    /** Como {@link #wrap(String, Font, double, boolean, int)} sin tope de líneas. */
+    static List<String> wrap(String text, Font font, double boxWidth, boolean splitLong) {
+        return wrap(text, font, boxWidth, splitLong, Integer.MAX_VALUE).lines();
+    }
+
     /**
      * Parte el texto en líneas: por {@code \n}, y cada párrafo por palabras. Las líneas en blanco intermedias se
      * conservan; las de los extremos se quitan. Con {@code splitLong}, las palabras más anchas que la caja se parten
-     * por caracteres.
+     * por caracteres. Deja de partir en cuanto hay más de {@code limit} líneas (devuelve alguna más que el tope).
      */
-    static List<String> wrap(String text, Font font, double boxWidth, boolean splitLong) {
+    private static Wrapped wrap(String text, Font font, double boxWidth, boolean splitLong, int limit) {
         List<String> lines = new ArrayList<>();
+        boolean split = false;
         String normalized = text.replace("\r\n", "\n").replace('\r', '\n');
+        outer:
         for (String paragraph : normalized.split("\n", -1)) {
             if (paragraph.isBlank()) {
                 lines.add("");
@@ -93,6 +105,7 @@ final class TextFitter {
             for (String word : paragraph.strip().split("\\s+")) {
                 if (splitLong && width(word, font) > boxWidth) {
                     if (!current.isEmpty()) lines.add(current.toString());
+                    split = true;
                     List<String> chunks = splitWord(word, font, boxWidth);
                     lines.addAll(chunks.subList(0, chunks.size() - 1));
                     current = new StringBuilder(chunks.get(chunks.size() - 1));
@@ -104,12 +117,21 @@ final class TextFitter {
                     lines.add(current.toString());
                     current = new StringBuilder(word);
                 }
+                if (nonBlankCount(lines) > limit) break outer;
             }
             lines.add(current.toString());
+            if (nonBlankCount(lines) > limit) break;
         }
         while (!lines.isEmpty() && lines.get(0).isEmpty()) lines.remove(0);
         while (!lines.isEmpty() && lines.get(lines.size() - 1).isEmpty()) lines.remove(lines.size() - 1);
-        return lines;
+        return new Wrapped(lines, split);
+    }
+
+    /** Líneas desde la primera con texto: las de blanco iniciales se quitan al final y no cuentan para el tope. */
+    private static int nonBlankCount(List<String> lines) {
+        int first = 0;
+        while (first < lines.size() && lines.get(first).isEmpty()) first++;
+        return lines.size() - first;
     }
 
     private static List<String> splitWord(String word, Font font, double boxWidth) {
