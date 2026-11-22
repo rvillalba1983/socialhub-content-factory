@@ -329,6 +329,30 @@ describe('Altas', () => {
     expect(create).toHaveBeenCalledWith({ name: 'Litoques', handle: '@litoques', color: '#C98A1B' });
   });
 
+  it('el color de la marca es obligatorio: no hay color por defecto al crear ni se guarda sin él', async () => {
+    const create = vi.spyOn(api, 'createBrand').mockResolvedValue({ id: 'x', name: 'X', handle: '@x', color: '#112233', demo: false });
+    render(<BrandForm onCancel={() => {}} onSaved={() => {}} />);
+    const hex = screen.getByLabelText('Color de la marca en hexadecimal');
+    expect(hex).toHaveValue('');
+    expect(hex).toBeRequired();
+    expect(screen.getByText(/Sin color, SocialHub no genera fondos para esta marca/)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'X' } });
+    fireEvent.change(screen.getByLabelText('Cuenta'), { target: { value: '@x' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+    expect(create).not.toHaveBeenCalled();
+    fireEvent.change(hex, { target: { value: '#112233' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+    await waitFor(() => expect(create).toHaveBeenCalledWith({ name: 'X', handle: '@x', color: '#112233' }));
+  });
+
+  it('una marca antigua sin color se abre con el color vacío y exige elegirlo', () => {
+    const update = vi.spyOn(api, 'updateBrand').mockResolvedValue({ id: 'b', name: 'El DeLito', handle: '@elde_lito', color: '#112233', demo: false });
+    render(<BrandForm brand={{ id: 'b', name: 'El DeLito', handle: '@elde_lito', color: '', demo: false }} onCancel={() => {}} onSaved={() => {}} />);
+    expect(screen.getByLabelText('Color de la marca en hexadecimal')).toHaveValue('');
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+    expect(update).not.toHaveBeenCalled();
+  });
+
   it('edita una promoción con sus hitos y muestra el error del backend', async () => {
     const update = vi.spyOn(api, 'updatePromotion').mockRejectedValue(new Error('La promoción no puede terminar antes de empezar'));
     render(<PromotionForm data={snapshot} promotion={snapshot.promotions[0]} onCancel={() => {}} onSaved={() => {}} />);
@@ -1424,6 +1448,14 @@ describe('Qué hacer ahora', () => {
     expect(onRecommendation).toHaveBeenCalledWith({ screen: 'PROPOSALS', brand_id: 'b', promotion_id: 'p' });
     fireEvent.click(screen.getByRole('button', { name: /Crea las carpetas/ }));
     expect(onRecommendation).toHaveBeenLastCalledWith({ screen: 'BRAND_FOLDERS', brand_id: 'b' });
+  });
+
+  it('el aviso de marca sin color lleva a la ficha de la marca', () => {
+    const onRecommendation = vi.fn();
+    world(withRecs([rec({ id: 'brand-color:b', kind: 'BRAND_COLOR_MISSING', title: 'Elige el color de El DeLito',
+      target: { screen: 'BRAND_DATA', brand_id: 'b' } })]), onRecommendation);
+    fireEvent.click(screen.getByRole('button', { name: /Elige el color de El DeLito/ }));
+    expect(onRecommendation).toHaveBeenCalledWith({ screen: 'BRAND_DATA', brand_id: 'b' });
   });
 
   it('la recomendación de Publora lleva un botón «No uso Publora» aparte, sin anidar botones', () => {

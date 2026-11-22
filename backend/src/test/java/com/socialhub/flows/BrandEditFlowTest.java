@@ -74,6 +74,11 @@ class BrandEditFlowTest {
         // Lo que no vale no cambia nada
         f.put("/api/brands/el-delito", "{\"name\":\"X\",\"handle\":\"@x\",\"color\":\"rojo\"}").andExpect(status().isBadRequest());
         f.put("/api/brands/el-delito", "{\"name\":\"\",\"handle\":\"@x\",\"color\":\"#000000\"}").andExpect(status().isBadRequest());
+        // El color es obligatorio, también al editar: ni vacío ni ausente
+        f.put("/api/brands/el-delito", "{\"name\":\"X\",\"handle\":\"@x\",\"color\":\"\"}").andExpect(status().isBadRequest());
+        f.put("/api/brands/el-delito", "{\"name\":\"X\",\"handle\":\"@x\"}").andExpect(status().isBadRequest());
+        f.post("/api/brands", "{\"name\":\"Sin color\",\"handle\":\"@sc\",\"color\":\"\"}").andExpect(status().isBadRequest());
+        f.post("/api/brands", "{\"name\":\"Sin color\",\"handle\":\"@sc\"}").andExpect(status().isBadRequest());
         f.put("/api/brands/no-existe", "{\"name\":\"X\",\"handle\":\"@x\",\"color\":\"#000000\"}").andExpect(status().isNotFound());
         assertThat(brand(f.read("/api/factory"), "el-delito").get("name").asString()).isEqualTo("El DeLito (poemario)");
     }

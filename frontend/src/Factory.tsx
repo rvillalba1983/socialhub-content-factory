@@ -314,9 +314,9 @@ export function Factory({ data, live, onRefresh }: {
     setSel({ type: null, id: null }); setCc(null); setOps(false); setClaude(false); setCopias(false); setReg(false);
     if (t.screen === 'PROPOSALS' && t.promotion_id) setCc({ promo: t.promotion_id, tab: 'publicaciones', hl: null, filter: 'PROPOSAL' });
     else if (t.screen === 'PUBLICATIONS' && t.promotion_id) setCc({ promo: t.promotion_id, tab: 'publicaciones', hl: null, filter: 'pending' });
-    else if ((t.screen === 'BRAND_FOLDERS' || t.screen === 'PUBLORA' || t.screen === 'PUBLER' || t.screen === 'BRAND_IDENTITY') && t.brand_id) {
+    else if ((t.screen === 'BRAND_FOLDERS' || t.screen === 'PUBLORA' || t.screen === 'PUBLER' || t.screen === 'BRAND_IDENTITY' || t.screen === 'BRAND_DATA') && t.brand_id) {
       setReg({ kind: 'brand', id: t.brand_id,
-        focus: t.screen === 'PUBLORA' ? 'publora' : t.screen === 'PUBLER' ? 'publer' : t.screen === 'BRAND_IDENTITY' ? 'identity' : 'folders' });
+        focus: t.screen === 'PUBLORA' ? 'publora' : t.screen === 'PUBLER' ? 'publer' : t.screen === 'BRAND_IDENTITY' ? 'identity' : t.screen === 'BRAND_DATA' ? undefined : 'folders' });
     }
     // Con promotion_id (activar una planificada o en pausa) se abre esa promoción; sin él, el alta de una nueva
     else if (t.screen === 'NEW_PROMOTION' && t.brand_id) {

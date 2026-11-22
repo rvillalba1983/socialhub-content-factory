@@ -151,7 +151,7 @@ Al abrir SocialHub ves el **mapa de la fábrica**: las 8 estaciones, lo que est�
 ### 4.1 👤 Alta de marca y carpetas
 
 1. Abre **Marcas**.
-2. Da de alta la marca.
+2. Da de alta la marca. El **color es obligatorio**: elígelo con el selector o escribe un `#RRGGBB`; no hay uno por defecto. Sin color, SocialHub no genera fondos para esa marca y «Qué hacer ahora» te lo recuerda.
 
 ![Marcas y promociones](tutorial/03-marcas.png)
 
@@ -757,7 +757,7 @@ Opciones que ves en el editor:
 - **Texto** (máximo 2200 caracteres) y **hashtags**. **Pedir textos a Claude** lo encarga a 🤖 Claude (si lo pides tú a mano, su texto sustituye el tuyo y puedes volver con **Recuperar mi texto anterior**); **Descartar texto** lo borra.
 - **Guardar** guarda los cambios; **Cerrar** cierra el editor.
 - **Estado** y botones para cambiarlo: **Pasar a «Pendiente de revisión»**, **Pasar a «En producción»** y **Pasar a «Cancelada»**.
-- Programar exige el margen mínimo de publicación (30 minutos por defecto; 8 horas en TikTok, que se publica por Publer; se cambian en «Encargos a Claude»). Al elegir TikTok en «Plataforma», el editor te enseña su margen. «Publicada» solo llega con la confirmación de la plataforma.
+- Programar exige el margen mínimo de publicación (30 minutos por defecto; 8 horas en TikTok, que se publica por Publer; se cambian en «Encargos a Claude»; en TikTok, por debajo de 8 h sale un aviso pero puedes guardar). Al elegir TikTok en «Plataforma», el editor te enseña su margen. «Publicada» solo llega con la confirmación de la plataforma.
 
 ![Editor: control de calidad y archivos](tutorial/14b-editor-comprobaciones.png)
 

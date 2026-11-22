@@ -267,6 +267,11 @@ class PromotionQueriesService implements PromotionQueries {
     
 
     @Override
+    public List<BrandRef> brandsWithoutColor() {
+        return repository.brands().stream().filter(b -> !b.hasColor()).map(b -> new BrandRef(b.id(), b.name())).toList();
+    }
+
+    @Override
     public List<BrandRef> brandRefs() { return repository.brandSummaries().stream().map(b -> new BrandRef(b.id(), b.name())).toList(); }
 
     @Override

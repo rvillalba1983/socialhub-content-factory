@@ -257,8 +257,16 @@ class WeeklySpecHandler implements AiTypeHandler {
                 + "Usa rutas completas de este ordenador, dentro de las carpetas de «folders». Cada pieza que corresponda "
                 + "a una publicación lleva «publicacion» con su id.");
         inputs.put("missing_material_note", MISSING_MATERIAL_NOTE);
+        // Sin color de marca no se generan fondos: Claude no debe entregar «fondo_svg»
+        if (!looks.of(job.promotionId()).hasColor()) {
+            inputs.put("brand_color_missing", NO_COLOR_NOTE);
+        }
         return inputs;
     }
+
+    /** Cuando la marca no tiene color, SocialHub no genera fondos y Claude no los dibuja. */
+    static final String NO_COLOR_NOTE = "La marca no tiene color, así que SocialHub no genera fondos: NO entregues «fondo_svg» (se "
+            + "ignora). Las piezas sin «img» solo pueden usar la portada de la marca («brand_cover») si existe; si no, no se generarán.";
 
     /** Lo que Claude debe saber cuando falta una imagen o un vídeo (no pararse a preguntar). */
     static final String MISSING_MATERIAL_NOTE = "Si falta la imagen o el vídeo de una canción o tema, NO te pares a preguntar: "
