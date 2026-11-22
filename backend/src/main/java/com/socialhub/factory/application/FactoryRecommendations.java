@@ -321,12 +321,12 @@ class FactoryRecommendations {
 
     private static boolean isTikTok(PublishingQueries.WithoutMargin w) { return com.socialhub.settings.PublishSettings.TIKTOK.equals(w.platform()); }
 
-    private static Recommendation duplicates(com.socialhub.publishing.domain.DuplicateDetector.Group group,
+    private static Recommendation duplicates(PublishingQueries.DuplicateGroup group,
                                              PromotionQueries.PromotionRef promotion) {
-        String network = group.platform() == com.socialhub.publishing.domain.Platform.INSTAGRAM ? "Instagram" : "TikTok";
+        String network = group.network();
         String day = group.day().getDayOfMonth() + " de " + group.day().getMonth().getDisplayName(TextStyle.SHORT, Locale.of("es", "ES"));
-        boolean sameTitle = group.reason() == com.socialhub.publishing.domain.DuplicateDetector.Reason.SAME_TITLE;
-        return recommendation("duplicates:" + group.publicationIds().getFirst() + ":" + group.reason(),
+        boolean sameTitle = group.sameTitle();
+        return recommendation("duplicates:" + group.publicationIds().getFirst() + ":" + (sameTitle ? "title" : "text"),
                 Recommendation.Kind.DUPLICATE_PUBLICATIONS,
                 "Posible duplicado: «" + group.title() + "» (" + group.publicationIds().size() + " publicaciones de " + network + ")",
                 sameTitle ? "El " + day + ", con el mismo título. Descarta la que sobre"

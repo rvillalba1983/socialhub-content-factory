@@ -55,7 +55,11 @@ public interface PublishingQueries {
     java.util.Map<String, Insight> insights();
 
     /** Grupos de posibles duplicados (publicaciones activas de la misma marca y red) de todas las promociones. */
-    List<com.socialhub.publishing.domain.DuplicateDetector.Group> duplicateGroups();
+    List<DuplicateGroup> duplicateGroups();
+
+    /** Publicaciones que se repiten: {@code network} es «Instagram» o «TikTok»; {@code sameTitle}, si no, misma hora y texto. */
+    record DuplicateGroup(String promotionId, String title, java.time.LocalDate day, String network, boolean sameTitle,
+                          List<String> publicationIds) {}
 
     /** Hora propuesta para mover una publicación. */
     record SlotProposal(String publicationId, MoveReason reason, java.time.LocalDate currentDay, java.time.LocalTime currentTime,

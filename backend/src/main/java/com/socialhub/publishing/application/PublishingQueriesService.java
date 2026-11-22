@@ -80,7 +80,7 @@ class PublishingQueriesService implements PublishingQueries {
     public java.util.Map<String, Insight> insights() { return insights.all(); }
 
     @Override
-    public List<com.socialhub.publishing.domain.DuplicateDetector.Group> duplicateGroups() {
+    public List<DuplicateGroup> duplicateGroups() {
         var all = publications.findAll();
         var byId = new java.util.HashMap<String, Publication>();
         all.forEach(p -> byId.put(p.getId(), p));
@@ -88,6 +88,9 @@ class PublishingQueriesService implements PublishingQueries {
         return com.socialhub.publishing.domain.DuplicateDetector.find(all, promotionQueries::brandOf).stream()
                 .filter(g -> g.publicationIds().stream().anyMatch(id -> byId.get(id).getStatus()
                         .canMoveTo(com.socialhub.publishing.domain.PublicationStatus.CANCELLED)))
+                .map(g -> new DuplicateGroup(g.promotionId(), g.title(), g.day(),
+                        g.platform() == com.socialhub.publishing.domain.Platform.INSTAGRAM ? "Instagram" : "TikTok",
+                        g.reason() == com.socialhub.publishing.domain.DuplicateDetector.Reason.SAME_TITLE, g.publicationIds()))
                 .toList();
     }
 
