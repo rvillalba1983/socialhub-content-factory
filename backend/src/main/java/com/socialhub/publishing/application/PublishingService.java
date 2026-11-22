@@ -107,7 +107,7 @@ class PublishingService implements PublishingCommands {
             }
         }
         PublicationStatus before = publication.getStatus();
-        publication.changeStatus(status, clock.instant(), settings.minMargin());
+        publication.changeStatus(status, clock.instant(), settings.minMarginFor(publication.getPlatform().name()));
         if (!mode.isDemo()) {
             if (status == PublicationStatus.SCHEDULED) engine.start(publication);
             else if (before == PublicationStatus.SCHEDULED) engine.stop(publication, "Raúl la ha pasado a «" + status.label() + "»");

@@ -855,3 +855,18 @@ Decisiones técnicas:
 - **Publer no cambia:** sus 8 h (límite) y 7 h (espera) salen de las pasadas de Claude con Chrome en el PC (cada 5 h; de 08:00 a 18:00 solo las urgentes), no del margen. Con 30 minutos lo habitual será publicar por la API oficial de Instagram con SocialHub abierto; Publer solo llega a publicaciones con más de 8 h de antelación. El corte previo de la API oficial (cesión a Publer) tampoco depende del margen.
 - `V2__stations.sql` no se toca (checksum de Flyway): la descripción de la estación «Programación» se actualiza en V28.
 - Pruebas: `PublishSettingsApiTest`, `PublicationTest`, `FixedMargin` (ayuda de pruebas) y las pruebas de horarios con 6 h fijas ahora fijan el margen a 360 minutos para conservar sus escenarios.
+
+## Margen mínimo de publicación en TikTok (22 nov 2026)
+
+Decisión de Raúl (22 nov 2026): TikTok tiene un **ajuste aparte**, «Margen mínimo de publicación en TikTok», porque su única vía real es Publer, que programa Claude con Chrome en las pasadas de la tarea del PC (cada 5 h; de 08:00 a 18:00 solo las urgentes) y con el margen general (30 minutos) una publicación de TikTok casi nunca llegaría a Publer.
+- Minutos; mínimo 5, máximo 1440; **por defecto 480 (8 horas)**. Se edita en la misma tarjeta de la pantalla Claude, junto al general, con la ayuda «TikTok se publica por Publer, que programa Claude desde tu PC en sus pasadas; con menos de unas 8 horas puede no llegar y quedará para subirla a mano».
+- El margen aplicable a una publicación depende de su red: TIKTOK usa el de TikTok; las demás, el general.
+
+Decisiones técnicas:
+- Clave nueva `publish.tiktok_min_margin_minutes` en `app_setting` (migración V30, con 480 por defecto). La descripción de la estación «Programación» se actualiza en V30.
+- **Un único método por red:** `PublishSettings.minMarginFor(String platform)` (nombre de la red; `TIKTOK` usa el de TikTok). Recibe el nombre y no `Platform` porque `Platform` es de `publishing` y `settings` no puede depender de `publishing` (lo evita ArchUnit/Modulith: `publishing` ya depende de `settings`). `minMargin()` queda como método por defecto del margen general, solo para lo que no es de una red concreta (hueco de la primera semana en `AiAutoOrders`).
+- Se aplica por la red de la publicación en: la validación de programar (`PublishingService`), `PublishingEngine` (reintento y LEEME), `PubloraRoute.lastMoment(Publication)`, `PublishingQueriesService.withoutMargin` (ahora lleva la red) y los avisos de «Qué hacer ahora» (`FactoryRecommendations`: las de TikTok van en su propia fila, id `publication-too-soon:<promoción>:tiktok`, con su margen y su ajuste), y `WeeklyProposalsHandler` (descarta propuestas de TikTok a menos de su margen). `InstagramRoute` solo atiende Instagram y sigue con el general.
+- Encargos de propuestas: `inputs.min_publish_margin_minutes` (general, sin cambios) y `inputs.tiktok_min_publish_margin_minutes` (nuevo) para que Claude no proponga TikTok a menos de ese margen. Las tareas programadas no se han tocado: ver `docs/tarea-programada-encargos.md`.
+- API retrocompatible: `GET/PUT /api/settings/publishing` añade `tiktok_min_margin_minutes` (y `tiktok_default_minutes` en la lectura). En el PUT es opcional: si falta, el de TikTok no cambia. Si cualquiera de los dos está fuera de 5 a 1440, error 400 y no se guarda ninguno.
+- Frontal: la tarjeta tiene los dos campos; el editor de publicaciones enseña el margen de TikTok al elegir TikTok y el de la red de la publicación en sus textos de ayuda.
+- **Publer no cambia:** sus 8 h (límite) y 7 h (espera) siguen fijos; el valor por defecto de TikTok coincide con las 8 h de Publer. Bajar el margen de TikTok por debajo de 8 h no hace que Publer programe antes: la publicación quedará para subirla a mano.

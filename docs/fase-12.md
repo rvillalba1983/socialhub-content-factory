@@ -154,3 +154,7 @@ Hecho el 11-12 nov 2026. Conclusión: **la API oficial pasa a ser la vía princi
 6. **«Textos» a mano sustituye el texto de Raúl**, con «Recuperar mi texto anterior». Hecho, con pruebas.
 
 Pendiente de Raúl: icono propio (`.ico`) para el instalador; permiso de estadísticas en Meta; publicar una release para probar el aviso.
+
+## Margen mínimo de publicación en TikTok (22 nov 2026)
+
+Decisión de Raúl: ajuste aparte para TikTok (480 minutos por defecto, 5 a 1440), en la misma tarjeta que el general. Se aplica por la red de cada publicación (`PublishSettings.minMarginFor`), también en los avisos de «Qué hacer ahora», el motor, la validación del editor y los encargos de propuestas (`tiktok_min_publish_margin_minutes`). Rama `fase-12-margen-tiktok`, una PR. Detalle en `decisiones.md`.

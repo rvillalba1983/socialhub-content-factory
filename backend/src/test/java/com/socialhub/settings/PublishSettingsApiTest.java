@@ -59,6 +59,32 @@ class PublishSettingsApiTest {
     }
 
     @Test
+    void tikTokHasItsOwnMarginWithEightHoursByDefault() throws Exception {
+        mvc.perform(get("/api/settings/publishing"))
+                .andExpect(jsonPath("$.tiktok_min_margin_minutes").value(480))
+                .andExpect(jsonPath("$.tiktok_default_minutes").value(480));
+        assertThat(settings.minMarginFor("TIKTOK")).isEqualTo(Duration.ofHours(8));
+
+        // Retrocompatible: sin el campo de TikTok solo cambia el general
+        save("{\"min_margin_minutes\":45}").andExpect(status().isOk())
+                .andExpect(jsonPath("$.min_margin_minutes").value(45)).andExpect(jsonPath("$.tiktok_min_margin_minutes").value(480));
+        save("{\"min_margin_minutes\":45,\"tiktok_min_margin_minutes\":720}").andExpect(status().isOk())
+                .andExpect(jsonPath("$.tiktok_min_margin_minutes").value(720));
+        assertThat(settings.minMarginFor("TIKTOK")).isEqualTo(Duration.ofHours(12));
+        assertThat(settings.minMarginFor("INSTAGRAM")).isEqualTo(Duration.ofMinutes(45));
+        mvc.perform(get("/api/settings/publishing")).andExpect(jsonPath("$.tiktok_min_margin_minutes").value(720));
+
+        // Límites de 5 a 1440 también para TikTok, y un rechazo no cambia ninguno de los dos
+        save("{\"min_margin_minutes\":60,\"tiktok_min_margin_minutes\":4}").andExpect(status().isBadRequest());
+        save("{\"min_margin_minutes\":60,\"tiktok_min_margin_minutes\":1441}").andExpect(status().isBadRequest());
+        assertThat(settings.minMarginFor("TIKTOK")).isEqualTo(Duration.ofHours(12));
+        assertThat(settings.minMarginFor("INSTAGRAM")).isEqualTo(Duration.ofMinutes(45));
+        save("{\"min_margin_minutes\":5,\"tiktok_min_margin_minutes\":5}").andExpect(status().isOk());
+        save("{\"min_margin_minutes\":1440,\"tiktok_min_margin_minutes\":1440}").andExpect(status().isOk());
+        save("{\"min_margin_minutes\":30,\"tiktok_min_margin_minutes\":480}").andExpect(status().isOk());
+    }
+
+    @Test
     void changesNeedTheGuardHeader() throws Exception {
         mvc.perform(put("/api/settings/publishing").contentType(MediaType.APPLICATION_JSON).content("{\"min_margin_minutes\":60}"))
                 .andExpect(status().isForbidden());

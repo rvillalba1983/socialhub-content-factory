@@ -420,7 +420,7 @@ class PublishingEngine {
             }
         }
         Instant next = now.plus(RETRY);
-        if (next.isBefore(at.minus(settings.minMargin()))) {
+        if (next.isBefore(at.minus(settings.minMarginFor(p.getPlatform().name())))) {
             job.retryAt(next, now);
             return;
         }
@@ -685,7 +685,7 @@ class PublishingEngine {
         StringBuilder text = new StringBuilder()
                 .append("PUBLICAR A MANO · ").append(p.getTitle()).append("\n\n")
                 .append(lateReason == null
-                        ? "Ninguna vía pudo programarla con el margen mínimo de publicación (" + com.socialhub.platform.SpanText.of(settings.minMargin()) + "). Publícala tú a su hora.\n\n"
+                        ? "Ninguna vía pudo programarla con el margen mínimo de publicación (" + com.socialhub.platform.SpanText.of(settings.minMarginFor(p.getPlatform().name())) + "). Publícala tú a su hora.\n\n"
                         : "La API oficial de Instagram no pudo publicarla: " + lateReason + ".\nLa hora de publicación ya pasó: "
                                 + "publícala tú cuanto antes, o cámbiale la fecha en SocialHub y vuelve a programarla.\n\n")
                 .append("Red: ").append(p.getPlatform()).append(" · ").append(p.getType()).append('\n')

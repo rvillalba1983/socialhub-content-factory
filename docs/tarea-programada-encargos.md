@@ -16,7 +16,7 @@ Creada el 2 nov 2026 con el OK de Raúl. No se ha tocado ninguna de las tareas p
 
 La nota para Claude sobre material que falta ya viaja en el propio encargo (`inputs.missing_material_note`, `inputs.brand_cover`, `inputs.visual_style`) y el margen en `inputs.min_publish_margin_minutes` (propuestas y spec). Las instrucciones de la tarea «Encargos de SocialHub» no mencionan «6 h», pero convendría completar estas dos líneas de «Según type»:
 - `socialhub.weekly-spec`: añadir «Si falta imagen o vídeo no preguntes: deja `img` sin poner y, si quieres, entrega `fondo_svg` (SVG en línea de hasta 64 KB, solo formas de dibujo; sin script, foreignObject, image, use, style, @import ni href externos), siguiendo inputs.missing_material_note y inputs.visual_style. Nunca devuelvas needs_human por falta de imagen».
-- `socialhub.weekly-proposals`: añadir «no propongas nada a menos de inputs.min_publish_margin_minutes minutos de ahora».
+- `socialhub.weekly-proposals`: añadir «no propongas nada a menos de inputs.min_publish_margin_minutes minutos de ahora, y nada de TikTok a menos de inputs.tiktok_min_publish_margin_minutes minutos» (22 nov: el margen de TikTok es aparte, 480 por defecto).
 La tarea «Publicar con Chrome» no cambia: Publer sigue exigiendo 8 h por las pasadas del PC.
 
 ## Instrucciones de la tarea

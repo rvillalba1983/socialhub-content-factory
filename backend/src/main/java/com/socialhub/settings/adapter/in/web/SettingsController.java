@@ -21,10 +21,11 @@ class SettingsController implements SettingsApi {
 
     @Override
     public ResponseEntity<PublishSettingsDto> updatePublishSettings(String requestGuard, PublishSettingsInputDto input) {
-        return ResponseEntity.ok(toDto(settings.update(input.getMinMarginMinutes())));
+        return ResponseEntity.ok(toDto(settings.update(input.getMinMarginMinutes(), input.getTiktokMinMarginMinutes())));
     }
 
     private static PublishSettingsDto toDto(PublishSettings.View view) {
-        return new PublishSettingsDto(view.minMarginMinutes(), view.defaultMinutes(), view.minMinutes(), view.maxMinutes());
+        return new PublishSettingsDto(view.minMarginMinutes(), view.tiktokMinMarginMinutes(), view.defaultMinutes(),
+                view.tiktokDefaultMinutes(), view.minMinutes(), view.maxMinutes());
     }
 }

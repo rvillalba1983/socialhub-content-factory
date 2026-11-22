@@ -27,7 +27,7 @@ SocialHub es la fábrica de contenido de **El DeLito** (el poemario) y **Litoque
 - **Planifica** la semana con propuestas de Claude que tú apruebas o rechazas.
 - **Produce** las piezas (carruseles, historias, reels) con herramientas locales y los textos con Claude.
 - **Revisa** cada publicación con un control de calidad antes de que la apruebes.
-- **Programa** por la API oficial, Publer o Publora, respetando el margen mínimo de publicación (30 minutos por defecto, ajustable).
+- **Programa** por la API oficial, Publer o Publora, respetando el margen mínimo de publicación (30 minutos por defecto, y 8 horas en TikTok; los dos ajustables).
 - **Comprueba** lo publicado y lee sus métricas a los 7 días.
 - **Aprende**: los rechazos, tus correcciones y los balances vuelven a Claude en cada encargo.
 
@@ -309,6 +309,7 @@ Los resultados vuelven a la carpeta `de-claude`. SocialHub los comprueba contra 
 
 En la pantalla **Claude** se ajusta:
 - El **margen mínimo de publicación** (minutos; por defecto 30; entre 5 y 1440). Nunca se publica al instante: una publicación solo se programa si su hora queda a este margen o más de ahora. Publer y Publora dependen de las pasadas de la tarea del PC (cada 5 h; de 08:00 a 18:00 solo las urgentes), así que con 30 minutos lo habitual es publicar por la API oficial con SocialHub abierto.
+- El **margen mínimo de publicación en TikTok** (minutos; por defecto 480, es decir, 8 horas; entre 5 y 1440), justo debajo del general. TikTok solo se publica por Publer, que programa Claude con Chrome desde tu PC en sus pasadas; con menos de unas 8 horas puede no llegar y quedará para subirla a mano. Cada publicación usa el margen de su red: TikTok, el de TikTok; las demás, el general. Al elegir TikTok en el editor de una publicación se ve su margen, y Claude no propone TikTok a menos de ese margen.
 - El **límite diario** de encargos. Los de publicación con Chrome no cuentan: tienen hora fija.
 - El **modelo de cada tipo de encargo** (Haiku, Sonnet u Opus).
 - Un **encargo a mano** a Claude.
@@ -426,7 +427,7 @@ El modo Demo no tiene copias: sus datos son de ejemplo.
 
 ## 12. Reglas que siempre se cumplen
 
-- Nada se programa sin tu aprobación, sin pasar el control de calidad y sin el **margen mínimo de publicación** (30 minutos por defecto, ajustable en «Encargos a Claude»). Nunca se publica al momento.
+- Nada se programa sin tu aprobación, sin pasar el control de calidad y sin el **margen mínimo de publicación** (30 minutos por defecto y 8 horas en TikTok, ajustables en «Encargos a Claude»). Nunca se publica al momento.
 - Nunca se simula una publicación: «Publicada» exige el enlace o el identificador.
 - Nunca se inventan cifras: lo que no se ve queda «Sin dato».
 - Claude no envía correos ni mensajes, no inicia sesión por ti, no crea cuentas y no paga nada.

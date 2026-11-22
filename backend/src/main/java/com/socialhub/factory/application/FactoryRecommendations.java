@@ -128,13 +128,16 @@ class FactoryRecommendations {
         instagramOAuth.notice().ifPresent(n -> all.add(instagramExpiring(n)));
 
         // 0c. Publicaciones de camino a publicar a las que ya no les queda el margen mínimo de publicación (o cuya hora ya pasó)
+        // Cada red con su margen: TikTok tiene el suyo, así que sus avisos van aparte (otra fila por promoción)
         Map<String, List<PublishingQueries.WithoutMargin>> tooSoon = publishing.withoutMargin(now).stream()
                 .filter(w -> promotionById.containsKey(w.promotionId()))
-                .collect(Collectors.groupingBy(PublishingQueries.WithoutMargin::promotionId, LinkedHashMap::new, Collectors.toList()));
-        tooSoon.forEach((promotionId, list) -> {
-            var promotion = promotionById.get(promotionId);
+                .collect(Collectors.groupingBy(w -> w.promotionId() + (isTikTok(w) ? "|" + com.socialhub.settings.PublishSettings.TIKTOK : ""),
+                        LinkedHashMap::new, Collectors.toList()));
+        tooSoon.values().forEach(list -> {
+            var promotion = promotionById.get(list.getFirst().promotionId());
             if (!promotion.active() && !promotion.plannedAhead(today)) return;
-            all.add(noMargin(promotion, list, now, settings.minMargin()));
+            boolean tiktok = isTikTok(list.getFirst());
+            all.add(noMargin(promotion, list, now, settings.minMarginFor(list.getFirst().platform()), tiktok));
         });
 
         // 1. Propuestas retenidas, o paradas por Drive o por el límite diario
@@ -309,20 +312,23 @@ class FactoryRecommendations {
                 Recommendation.Screen.BRAND_FOLDERS, promotion.brandId(), null).promotionId(promotion.id()));
     }
 
+    private static boolean isTikTok(PublishingQueries.WithoutMargin w) { return com.socialhub.settings.PublishSettings.TIKTOK.equals(w.platform()); }
+
     private static Recommendation noMargin(PromotionQueries.PromotionRef promotion,
-                                              List<PublishingQueries.WithoutMargin> list, Instant now, java.time.Duration margin) {
+                                              List<PublishingQueries.WithoutMargin> list, Instant now, java.time.Duration margin,
+                                              boolean tiktok) {
         var first = list.getFirst();
         var when = first.scheduledAt().atZone(ClaudePickups.ZONE);
         String day = when.getDayOfMonth() + " de " + when.getMonth().getDisplayName(TextStyle.SHORT, Locale.of("es", "ES"));
         boolean past = !first.scheduledAt().isAfter(now);
         String span = com.socialhub.platform.SpanText.of(margin);
         String title = list.size() == 1 ? "«" + first.title() + "» ya no deja " + span + " de margen"
-                : list.size() + " publicaciones de «" + promotion.name() + "» ya no dejan " + span + " de margen";
+                : list.size() + (tiktok ? " publicaciones de TikTok de «" : " publicaciones de «") + promotion.name() + "» ya no dejan " + span + " de margen";
         String detail = (list.size() == 1 ? "" : "La primera, «" + first.title() + "»: ")
                 + (past ? "su hora (el " + day + " a las " + hour(when) + ") ya pasó"
                         : "sale el " + day + " a las " + hour(when) + " (faltan menos de " + span + ")")
-                + " y aún no está programada. SocialHub no programa con menos de " + span + " de margen (ajuste «Margen mínimo de publicación»): cambia la hora o publícala a mano";
-        return recommendation("publication-too-soon:" + promotion.id(), Recommendation.Kind.PUBLICATION_TOO_SOON,
+                + " y aún no está programada. SocialHub no programa con menos de " + span + " de margen (ajuste «" + (tiktok ? "Margen mínimo de publicación en TikTok" : "Margen mínimo de publicación") + "»): cambia la hora o publícala a mano";
+        return recommendation("publication-too-soon:" + promotion.id() + (tiktok ? ":tiktok" : ""), Recommendation.Kind.PUBLICATION_TOO_SOON,
                 title, detail, Recommendation.Screen.PUBLICATIONS, promotion.brandId(), promotion.id())
                 .promotionId(promotion.id());
     }

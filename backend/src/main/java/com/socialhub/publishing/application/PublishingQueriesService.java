@@ -69,9 +69,9 @@ class PublishingQueriesService implements PublishingQueries {
     @Override
     public List<WithoutMargin> withoutMargin(java.time.Instant now) {
         return publications.findAll().stream()
-                .filter(p -> ON_THE_WAY.contains(p.getStatus()) && p.scheduledAt().isBefore(now.plus(settings.minMargin())))
+                .filter(p -> ON_THE_WAY.contains(p.getStatus()) && p.scheduledAt().isBefore(now.plus(settings.minMarginFor(p.getPlatform().name()))))
                 .sorted(java.util.Comparator.comparing(Publication::scheduledAt))
-                .map(p -> new WithoutMargin(p.getPromotionId(), p.getId(), p.getTitle(), p.scheduledAt()))
+                .map(p -> new WithoutMargin(p.getPromotionId(), p.getId(), p.getTitle(), p.scheduledAt(), p.getPlatform().name()))
                 .toList();
     }
 

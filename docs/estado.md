@@ -1,6 +1,6 @@
 # SocialHub · estado actual (para retomar)
 
-Última actualización: 12 nov 2026. Cómo se trabaja: `docs/como-trabajar.md` (una fase por conversación).
+Última actualización: 22 nov 2026. Cómo se trabaja: `docs/como-trabajar.md` (una fase por conversación).
 
 ## Dónde estamos
 
@@ -25,6 +25,7 @@ Las fases 0 a 12 están hechas y en `main`:
 
 - #36 plan · #37 instalador de macOS (`.dmg`) y versión 1.0.0 en todos los sistemas · #38 API oficial de Instagram (vía principal; Publer de respaldo) · #39 pruebas con reloj fijo · #40 detalles visuales de «Necesita atención» y «Qué hacer ahora» · #41 TikTok y cuenta de Publer por marca y red, con el límite de 10 del plan Free · #42 métricas reales de la promoción · #45 ritmo de Claude (pasadas cada 5 h, urgencia, spec por lotes; versión 1.1.0).
 - 16 nov: rama `fase-12-material-faltante` (PR abierta): fondos por defecto y SVG de Claude, portada de marca, aviso previo, «Estilo visual» y margen mínimo de publicación ajustable (30 minutos por defecto, en lugar de 6 h). Detalle en `fase-12.md` y `decisiones.md`.
+- 22 nov: **margen mínimo de publicación en TikTok** aparte del general (480 minutos por defecto; rama `fase-12-margen-tiktok`). Las tareas programadas siguen sin tocar: la de propuestas debería leer `inputs.tiktok_min_publish_margin_minutes` (`docs/tarea-programada-encargos.md`).
 - El repositorio es público desde el 12 nov (GitHub Actions se había quedado sin minutos).
 - Configurado fuera del código: Meta (app, porfolio, usuario del sistema), carpeta `publico` de Litoques en Drive, Publer con 3 cuentas, y las tareas «Encargos de SocialHub» y «Publicar con Chrome» actualizadas. Detalle en `fase-12.md`.
 
