@@ -160,3 +160,12 @@ Pendiente de Raúl: icono propio (`.ico`) para el instalador; permiso de estadí
 ## Margen mínimo de publicación en TikTok (22 nov 2026)
 
 Decisión de Raúl: ajuste aparte para TikTok (480 minutos por defecto, 5 a 1440), en la misma tarjeta que el general. Se aplica por la red de cada publicación (`PublishSettings.minMarginFor`), también en los avisos de «Qué hacer ahora», el motor, la validación del editor y los encargos de propuestas (`tiktok_min_publish_margin_minutes`). Rama `fase-12-margen-tiktok`, una PR. Detalle en `decisiones.md`.
+
+## Responder a Claude, citas solo de los documentos y enlaces (16 nov 2026, decididos por Raúl; rama `fase-12-claude-preguntas-citas`, una PR)
+
+1. **Responder a Claude desde la tarjeta:** pregunta, opciones de Claude y texto libre; el encargo se relanza con `inputs.human_answers`. Hecho, con pruebas de dominio, de intercambio con Claude y del frontal.
+2. **Citas solo de los documentos:** `citations` en los resultados y specs; verificación en SocialHub de txt, md y PDF con texto (Apache PDFBox, con OK de Raúl). Sin verificar si el documento no se puede leer. Hecho, con pruebas de flujo con PDF reales.
+3. **Comprobación de enlaces** https (anti-SSRF, sin librerías) y aviso «este texto ya se usó el …». Informativo. Hecho, con pruebas con servidor local.
+
+Dudas para Raúl: ver el informe de la PR (carpeta `info` como papel propio, «sin verificar» bloqueante, Word/odt).
+

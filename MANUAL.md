@@ -223,9 +223,16 @@ SocialHub comprueba solo:
 - Que no haya expresiones prohibidas ni textos duplicados.
 - Que los archivos existan, con el formato, el peso y las proporciones de cada red.
 
+- **Citas:** si Claude cita un verso o una letra, tiene que copiarlo literal de un documento de las carpetas de la promoción (por ejemplo, la carpeta «info»). SocialHub lo busca en el documento (txt, md y PDF con texto, indicando la página; sin diferencias de espacios, saltos, comillas ni tildes). Si no aparece, sale **«Cita no encontrada en el documento»** y la publicación queda bloqueada hasta que lo corrijas o pidas otro fragmento. Si el documento no se puede leer (imagen, PDF escaneado, Word u otro formato), sale **«Sin verificar: comprueba la cita en <archivo>, <ubicación>»**: SocialHub nunca la da por verificada; la miras tú y la aceptas con tu motivo.
+- **Enlaces y texto repetido (solo informan, no bloquean):** cada enlace https del texto se prueba y sale **«Enlace OK»**, **«No responde»** o **«No comprobado»** (si no es https o apunta a una dirección local; solo se miran los 5 primeros). Si la marca ya usó exactamente ese texto en otra promoción, avisa **«Este texto ya se usó el <fecha>»**. El resultado de un enlace se recuerda un rato; pulsa «Comprobar de nuevo» para verlo actualizado.
+
 Con **Revisar con Claude**, Claude revisa además el tono, la ortografía y las afirmaciones sin fuente.
 
 Mientras quede un aviso abierto, la publicación **no pasa a «Aprobada» ni a «Programada»**. Cada aviso se corrige o se acepta con un motivo. **Aceptar solo vale mientras no cambie la publicación**: si cambias el texto, los hashtags o los archivos, las aceptaciones se anulan y los avisos se comprueban de nuevo (reaparecen si siguen fallando).
+
+**Cuando Claude te pregunta algo**
+
+Si Claude no puede seguir sin que decidas algo, la tarea queda en espera con «Claude pide a Raúl: …». Abre la tarjeta de la tarea: verás la pregunta, botones con las respuestas que propone Claude (si propuso alguna) y una caja para escribir la tuya. Al pulsar **Enviar respuesta a Claude**, SocialHub guarda la pregunta con tu respuesta y vuelve a enviar el encargo incluyéndola, así que Claude no repregunta. Una respuesta vacía no se envía y no cuenta como intento nuevo. «Marcar como hecho» y «Avisar a Raúl» siguen ahí.
 
 **Vista previa**
 

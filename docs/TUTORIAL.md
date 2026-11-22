@@ -649,7 +649,14 @@ REGLAS PARA CADA ENCARGO
   · imita las correcciones de Raúl.
 - Nunca envíes correos ni mensajes, nunca publiques, nunca programes nada y nunca pagues. No inventes datos, cifras,
   enlaces ni usuarios: lo que no puedas comprobar, dilo en «warnings».
-- Si necesitas que Raúl decida algo, devuelve status "needs_human" con la pregunta en «error».
+- Si necesitas que Raúl decida algo, devuelve status "needs_human" con la pregunta clara en «error» y, si hay respuestas
+  posibles, en «options» de 2 a 6 textos cortos. Raúl contesta desde la tarjeta de la tarea y el encargo vuelve a salir con
+  inputs.human_answers ([{question, answer, answered_at}]): úsalas como instrucciones suyas y no repreguntes lo ya contestado.
+- Citas: si una pieza o un texto lleva un fragmento (versos de El DeLito, letras…), cópialo LITERAL de un documento de las
+  carpetas de la promoción (inputs.folders, por ejemplo la carpeta «info»), nunca de memoria ni inventado. Devuelve por cada
+  pieza «citations»: [{text, source_file, location}] (en weekly-spec, dentro de cada pieza; en captions, dentro de cada
+  elemento de outputs.publications). Si no lo encuentras, no lo inventes: devuelve «needs_human» preguntando a Raúl.
+  SocialHub comprueba que cada cita aparece literal en el documento.
 - Si no puedes hacerlo, devuelve status "failed" con el motivo en «error».
 - Según «type»:
   · socialhub.weekly-spec → outputs.spec: spec de piezas que cumpla contracts/promo-spec.v1 (carrusel, historia,

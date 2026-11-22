@@ -45,21 +45,24 @@ public final class CitationMatcher {
         return OptionalInt.empty();
     }
 
+    private static final int WINDOW = 12;
+
     /** Número de línea (desde 1) donde empieza la cita dentro de un texto plano, o 0 si no se encuentra línea a línea. */
     public static int lineOf(String text, String citation) {
         String needle = normalize(citation);
         String[] lines = text.split("\\R", -1);
-        // Se prueba con ventanas de líneas, por si la cita ocupa varias
-        for (int i = 0; i < lines.length; i++) {
-            StringBuilder window = new StringBuilder();
-            for (int j = i; j < Math.min(lines.length, i + 12); j++) {
-                window.append(lines[j]).append('\n');
-                String w = normalize(window.toString());
-                if (w.contains(needle)) {
-                    return normalize(lines[i]).isEmpty() ? i + 2 : i + 1;
-                }
-            }
+        int first = -1;
+        for (int i = 0; i < lines.length && first < 0; i++) {
+            if (window(lines, i).contains(needle)) first = i;
         }
-        return 0;
+        if (first < 0) return 0;
+        // La cita empieza en la última línea desde la que todavía se encuentra entera
+        int start = first;
+        while (start + 1 < lines.length && start + 1 < first + WINDOW && window(lines, start + 1).contains(needle)) start++;
+        return start + 1;
+    }
+
+    private static String window(String[] lines, int from) {
+        return normalize(String.join("\n", java.util.Arrays.copyOfRange(lines, from, Math.min(lines.length, from + WINDOW))));
     }
 }
