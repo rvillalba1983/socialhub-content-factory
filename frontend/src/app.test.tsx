@@ -994,6 +994,28 @@ describe('Control de calidad', () => {
     expect(screen.getByText(/1 aviso abierto/)).toBeInTheDocument();
   });
 
+  it('enseña citas y enlaces como información que no se acepta ni cuenta como abierta', async () => {
+    const publication: Publication = {
+      id: 'p-1', promotion_id: 'p', platform: 'INSTAGRAM', type: 'Post', title: 'Poema 1',
+      scheduled_on: '2026-11-10', scheduled_time: '19:00', timezone: 'Europe/Madrid', status: 'IN_PRODUCTION', route: 'Publer', demo: false,
+    };
+    vi.spyOn(api, 'publicationFiles').mockResolvedValue({ items: [] });
+    vi.spyOn(api, 'publicationQuality').mockResolvedValue({ open: 1, issues: [
+      { key: 'CITATION:ab12cd34', source: 'CODE', message: 'Sin verificar: comprueba la cita en poemario.pdf, página 4.', accepted: false },
+      { key: 'LINK:https://litoques.es', source: 'CODE', level: 'INFO', message: 'Enlace OK: https://litoques.es', accepted: false },
+      { key: 'LINK:https://roto.example', source: 'CODE', level: 'INFO', message: 'No responde: https://roto.example', accepted: false },
+      { key: 'REUSED:p-0', source: 'CODE', level: 'INFO', message: 'Este texto ya se usó el 3 nov 2026 (publicación p-0).', accepted: false },
+    ] });
+    render(<PublicationEditor promotionId="p" publication={publication} onClose={() => {}} onSaved={() => {}} />);
+    expect(await screen.findByText('Enlace OK: https://litoques.es')).toBeInTheDocument();
+    expect(screen.getByText('No responde: https://roto.example')).toBeInTheDocument();
+    expect(screen.getByText(/Este texto ya se usó el 3 nov 2026/)).toBeInTheDocument();
+    expect(screen.getByText(/Sin verificar: comprueba la cita en poemario.pdf/)).toBeInTheDocument();
+    // Solo el aviso de la cita se puede aceptar; los informativos no llevan botón
+    expect(screen.getAllByRole('button', { name: 'Aceptar' })).toHaveLength(1);
+    expect(screen.getByText(/1 aviso abierto/)).toBeInTheDocument();
+  });
+
   it('explica qué es y qué hacer con cada aviso, sin jerga', async () => {
     const publication: Publication = {
       id: 'p-1', promotion_id: 'p', platform: 'INSTAGRAM', type: 'Carrusel', title: 'Poema 1',

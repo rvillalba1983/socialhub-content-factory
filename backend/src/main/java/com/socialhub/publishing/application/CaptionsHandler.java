@@ -4,6 +4,7 @@ import com.socialhub.ai.AiTypeHandler;
 import com.socialhub.ai.domain.AiJob;
 import com.socialhub.ai.domain.AiRequestType;
 import com.socialhub.publishing.PublishingCommands;
+import com.socialhub.publishing.PublicationCitations;
 import com.socialhub.publishing.domain.Publication;
 import com.socialhub.publishing.domain.PublicationStatus;
 import java.util.ArrayList;
@@ -28,6 +29,7 @@ class CaptionsHandler implements AiTypeHandler {
 
     private final PublishingQueriesService queries;
     private final PublishingService service;
+    private final PublicationCitations citations;
 
     @Override public AiRequestType type() { return AiRequestType.CAPTIONS; }
 
@@ -65,6 +67,7 @@ class CaptionsHandler implements AiTypeHandler {
         if (!items.isArray() || items.isEmpty()) throw new IllegalArgumentException("Faltan los textos («outputs.publications»)");
         Set<String> asked = new HashSet<>(job.inputs());
         List<PublishingService.Texts> texts = new ArrayList<>();
+        Map<String, List<PublicationCitations.Declared>> cited = citationsOf(items, result);
         for (JsonNode item : items) {
             String id = item.path("id").asString("");
             String caption = item.path("caption").asString("").strip();
@@ -78,6 +81,10 @@ class CaptionsHandler implements AiTypeHandler {
         // Se comprueba antes de guardar, para no fallar dentro de la transacción del servicio
         validateOrder(job.promotionId(), texts.stream().map(PublishingService.Texts::publicationId).toList());
         PublishingCommands.TextsOutcome outcome = service.applyTexts(job.promotionId(), texts, job.manual());
+        // Las citas solo se guardan de los textos que se aplicaron (no de los que Raúl ya había escrito)
+        cited.forEach((id, list) -> {
+            if (!outcome.kept().contains(id)) citations.declare(id, list);
+        });
         int kept = outcome.kept().size();
         int replaced = outcome.replaced().size();
         int saved = texts.size() - kept;
@@ -88,5 +95,25 @@ class CaptionsHandler implements AiTypeHandler {
                 + (kept == 0 ? "" : " · " + kept + (kept == 1 ? " no se aplicó" : " no se aplicaron")
                         + " porque ya tenían texto tuyo (queda en la incidencia de la publicación)")
                 + (summary.isEmpty() ? "" : " · " + summary);
+    }
+
+    /**
+     * Citas por publicación: las de cada elemento de {@code outputs.publications[].citations} y las de la raíz del
+     * resultado ({@code citations[]} con {@code publication}). Una lista vacía en un elemento borra las anteriores.
+     */
+    private static Map<String, List<PublicationCitations.Declared>> citationsOf(JsonNode items, JsonNode result) {
+        Map<String, List<PublicationCitations.Declared>> byId = new java.util.LinkedHashMap<>();
+        for (JsonNode item : items) {
+            String id = item.path("id").asString("");
+            if (id.isEmpty()) continue;
+            byId.computeIfAbsent(id, k -> new ArrayList<>()).addAll(PublicationCitations.parse(item.path("citations")));
+        }
+        for (JsonNode c : result.path("citations")) {
+            String id = c.path("publication").asString("");
+            PublicationCitations.Declared d = byId.containsKey(id) ? PublicationCitations.parseOne(c) : null;
+            if (d != null) byId.get(id).add(d);
+        }
+        byId.replaceAll((id, list) -> list.stream().distinct().toList());
+        return byId;
     }
 }

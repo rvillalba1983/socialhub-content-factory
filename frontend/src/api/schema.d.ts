@@ -2497,6 +2497,12 @@ export interface components {
             accepted_reason?: string;
             /** Format: date-time */
             accepted_at?: string;
+            /**
+             * @description BLOCKING (por defecto): impide aprobar y programar hasta corregirlo o aceptarlo. INFO: solo informa (estado de los
+             *     enlaces, texto ya usado, cita verificada); no cuenta en `open` ni se acepta.
+             * @enum {string}
+             */
+            level?: "BLOCKING" | "INFO";
         };
         QualityReport: {
             issues: components["schemas"]["QualityIssue"][];

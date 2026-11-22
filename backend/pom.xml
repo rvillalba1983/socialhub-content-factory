@@ -38,6 +38,7 @@
     <!-- Pruebas de mutación (PIT): `mvn test-compile org.pitest:pitest-maven:mutationCoverage`. No va en `verify`.
          Umbral de mutantes matados: 0 por defecto; la PR lo sube con -Dpit.threshold=75 (ver .github/workflows/mutacion.yml) -->
     <batik.version>1.19</batik.version>
+    <pdfbox.version>3.0.5</pdfbox.version>
     <pitest.version>1.30.2</pitest.version>
     <pitest-junit5.version>1.2.3</pitest-junit5.version>
     <pit.threshold>0</pit.threshold>
@@ -205,6 +206,14 @@
           <artifactId>xml-apis</artifactId>
         </exclusion>
       </exclusions>
+    </dependency>
+
+    <!-- Lee el texto de los PDF para comprobar las citas (sin OCR). Apache 2.0. Solo el módulo pdfbox (trae fontbox,
+         pdfbox-io y commons-logging). OK de Raúl (16 nov 2026) -->
+    <dependency>
+      <groupId>org.apache.pdfbox</groupId>
+      <artifactId>pdfbox</artifactId>
+      <version>${pdfbox.version}</version>
     </dependency>
 
     <!-- PostgreSQL incluido -->

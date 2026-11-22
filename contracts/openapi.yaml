@@ -3236,6 +3236,12 @@ components:
         accepted: { type: boolean }
         accepted_reason: { type: string }
         accepted_at: { type: string, format: date-time }
+        level:
+          type: string
+          enum: [BLOCKING, INFO]
+          description: |
+            BLOCKING (por defecto): impide aprobar y programar hasta corregirlo o aceptarlo. INFO: solo informa (estado de los
+            enlaces, texto ya usado, cita verificada); no cuenta en `open` ni se acepta.
 
     QualityReport:
       type: object

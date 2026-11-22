@@ -27,6 +27,20 @@
           "caption": { "type": "string" },
           "fondo_svg": { "$ref": "#/$defs/fondoSvg" },
           "hashtags": { "type": "string" },
+          "citations": {
+            "type": "array",
+            "maxItems": 20,
+            "description": "Opcional. Fragmentos citados en la pieza (versos, letras), copiados LITERALES de un documento de las carpetas de la promoción; nunca de memoria. SocialHub comprueba que aparecen en el documento.",
+            "items": {
+              "type": "object",
+              "required": ["text", "source_file"],
+              "properties": {
+                "text": { "type": "string", "minLength": 1, "maxLength": 2000 },
+                "source_file": { "type": "string", "minLength": 1, "maxLength": 500, "description": "Ruta del documento (completa o relativa a una carpeta de la promoción)" },
+                "location": { "type": "string", "maxLength": 200, "description": "Página o línea, si la conoces" }
+              }
+            }
+          },
           "slides": {
             "type": "array",
             "maxItems": 10,
