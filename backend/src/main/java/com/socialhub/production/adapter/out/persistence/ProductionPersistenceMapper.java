@@ -1,6 +1,7 @@
 package com.socialhub.production.adapter.out.persistence;
 
 import com.socialhub.production.domain.Agent;
+import com.socialhub.production.domain.HumanAnswer;
 import com.socialhub.production.domain.Station;
 import com.socialhub.production.domain.Task;
 import com.socialhub.production.domain.TaskCheck;
@@ -38,6 +39,10 @@ interface ProductionPersistenceMapper {
     TaskCheck toDomain(TaskCheckEmbeddable check);
 
     TaskCheckEmbeddable toEntity(TaskCheck check);
+
+    HumanAnswer toDomain(HumanAnswerEmbeddable answer);
+
+    HumanAnswerEmbeddable toEntity(HumanAnswer answer);
 
     TaskHistoryEntry toDomain(TaskEventEntity event);
 }

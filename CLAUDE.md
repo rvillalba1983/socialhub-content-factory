@@ -27,6 +27,6 @@
 - **Herramientas y secretos:** solo herramientas gratuitas; nada de pago sin autorización expresa. No se suben secretos.
 - **Cuentas y publicación:**
   - No crees cuentas, no inicies sesión por Raúl y no envíes correos ni mensajes; solo borradores.
-  - Nunca publiques al instante: deja un mínimo de 6 horas de margen.
+  - Nunca publiques al instante: respeta el «Margen mínimo de publicación» (por defecto 30 minutos, ajustable entre 5 minutos y 24 horas; nunca baja de 5 minutos).
 - **Comprobar:** no marques nada como hecho sin probarlo. No simules publicaciones.
 - **Tareas programadas:** no toques las que ya existen sin el OK de Raúl.

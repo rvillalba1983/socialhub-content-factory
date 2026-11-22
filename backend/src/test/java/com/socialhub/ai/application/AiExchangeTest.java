@@ -170,11 +170,29 @@ class AiExchangeTest {
     void needsHumanAndUnknownResults() throws Exception {
         result(research3, """
                 {"contract":"socialhub.task-result","version":1,"taskId":"%s","status":"needs_human","outputs":{},
-                 "error":"¿Incluyo clubes de fuera de Granada?","agent":{"runtime":"tarea programada en la nube"}}"""
+                 "error":"¿Incluyo clubes de fuera de Granada?","options":["Solo Granada"," También Málaga ","Solo Granada",""],
+                 "agent":{"runtime":"tarea programada en la nube"}}"""
                 .formatted(research3));
         waitFor(() -> task(research3).get("human").asBoolean(), "Claude pide a Raúl");
         assertThat(task(research3).get("status").asString()).isEqualTo("WAITING");
         assertThat(task(research3).get("reason").asString()).isEqualTo("¿Incluyo clubes de fuera de Granada?");
+        assertThat(task(research3).get("question_options")).extracting(JsonNode::asString).containsExactly("Solo Granada", "También Málaga");
+        assertThat(task(research3).get("available_commands")).extracting(c -> c.get("type").asString()).contains("ANSWER");
+
+        // Una respuesta vacía no se envía; una con texto guarda pregunta y respuesta y relanza el encargo con ella
+        write(post("/api/tasks/{id}/answer", research3), "{\"answer\":\"   \"}").andExpect(status().isConflict());
+        assertThat(task(research3).get("human").asBoolean()).isTrue();
+        write(post("/api/tasks/{id}/answer", research3), "{\"answer\":\"Solo Granada\"}").andExpect(status().isOk());
+        waitFor(() -> "WAITING".equals(task(research3).get("status").asString()) && !task(research3).get("human").asBoolean(),
+                "el encargo vuelve a Claude con la respuesta");
+        assertThat(task(research3).get("human_answers").get(0).get("answer").asString()).isEqualTo("Solo Granada");
+        assertThat(task(research3).get("human_answers").get(0).get("question").asString()).isEqualTo("¿Incluyo clubes de fuera de Granada?");
+        Path resent = files(orders.resolve("para-claude")).stream().filter(f -> f.getFileName().toString().startsWith(research3 + "-1_"))
+                .findFirst().orElseThrow();
+        JsonNode request = json.readTree(Files.readString(resent));
+        assertThat(request.get("inputs").get("human_answers").get(0).get("answer").asString()).isEqualTo("Solo Granada");
+        assertThat(request.get("rules")).extracting(JsonNode::asString).anyMatch(r -> r.contains("human_answers"));
+        write(post("/api/tasks/{id}/answer", research3), "{\"answer\":\"otra\"}").andExpect(status().isConflict());
 
         // Un resultado repetido o de una tarea que no lo espera no cambia nada
         result("00000000-0000-0000-0000-000000000000", failed("00000000-0000-0000-0000-000000000000", "x"));

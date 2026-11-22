@@ -8,9 +8,9 @@ Estado: **preguntas respondidas** · 3 nov 2026. No hay código todavía.
 |---|---|---|
 | 1 | Vías, por orden | 1) Publer; si falla, 2) Publora; si falla, 3) API oficial de Instagram o TikTok. El calendario tiene en cuenta lo que haya programado o publicado en las tres |
 | 2 | Cómo se programa en Publer | La API de Publer es de pago (planes Business y Enterprise), así que SocialHub no la usa. SocialHub deja un encargo «Programar en Publer» y una tarea programada de Claude con Chrome en el PC de Raúl lo programa en la web de Publer, como las tareas de ahora. Necesita el PC encendido |
-| 3 | Cuándo se programa | Solo cuando Raúl pasa la publicación a «Programada»: ya aprobada, con el control de calidad pasado y 6 h de margen |
+| 3 | Cuándo se programa | Solo cuando Raúl pasa la publicación a «Programada»: ya aprobada, con el control de calidad pasado y el margen mínimo de publicación (antes 6 h fijas; desde el 16 nov 2026, 30 minutos por defecto y ajustable) |
 | 4 | Confirmar «Publicada» | Claude lo comprueba después de la hora en Publer, Publora o la red y deja el enlace o el identificador. Si no la encuentra, queda en «Error de publicación» |
-| 5 | Si fallan las tres vías | Se reintenta más tarde mientras quede el margen de 6 h. Después pasa a manual con LEEME y aviso |
+| 5 | Si fallan las tres vías | Se reintenta más tarde mientras quede el margen mínimo de publicación (antes 6 h). Después pasa a manual con LEEME y aviso |
 
 Datos comprobados:
 - **Publer:** API solo en Business y Enterprise ([Publer · planes](https://publer.com/help/en/article/1sge3f7/)).

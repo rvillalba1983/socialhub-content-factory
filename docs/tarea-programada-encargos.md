@@ -12,6 +12,13 @@ Creada el 2 nov 2026 con el OK de Raúl. No se ha tocado ninguna de las tareas p
 - **Avisos:** notificación en el móvil al terminar, solo si hubo encargos.
 - **Actualizada el 3 nov 2026** (con el OK de Raúl): revisión de calidad, identidad de la marca, memoria editorial y propuestas de la semana. Ese mismo día, también con su OK, se le añadió que ignore las carpetas «para-claude-pc». El texto de abajo resume las instrucciones; el texto completo vigente está en la propia tarea programada.
 
+## Cambios pendientes en las tareas (16 nov 2026, sin aplicar: lo decide Raúl)
+
+La nota para Claude sobre material que falta ya viaja en el propio encargo (`inputs.missing_material_note`, `inputs.brand_cover`, `inputs.visual_style`) y el margen en `inputs.min_publish_margin_minutes` (propuestas y spec). Las instrucciones de la tarea «Encargos de SocialHub» no mencionan «6 h», pero convendría completar estas dos líneas de «Según type»:
+- `socialhub.weekly-spec`: añadir «Si falta imagen o vídeo no preguntes: deja `img` sin poner y, si quieres, entrega `fondo_svg` (SVG en línea de hasta 64 KB, solo formas de dibujo; sin script, foreignObject, image, use, style, @import ni href externos), siguiendo inputs.missing_material_note y inputs.visual_style. Nunca devuelvas needs_human por falta de imagen».
+- `socialhub.weekly-proposals`: añadir «no propongas nada a menos de inputs.min_publish_margin_minutes minutos de ahora, y nada de TikTok a menos de inputs.tiktok_min_publish_margin_minutes minutos» (22 nov: el margen de TikTok es aparte, 480 por defecto).
+La tarea «Publicar con Chrome» no cambia: Publer sigue exigiendo 8 h por las pasadas del PC.
+
 ## Instrucciones de la tarea
 
 ```
@@ -52,7 +59,14 @@ REGLAS PARA CADA ENCARGO
   · imita las correcciones de Raúl.
 - Nunca envíes correos ni mensajes, nunca publiques, nunca programes nada y nunca pagues. No inventes datos, cifras,
   enlaces ni usuarios: lo que no puedas comprobar, dilo en «warnings».
-- Si necesitas que Raúl decida algo, devuelve status "needs_human" con la pregunta en «error».
+- Si necesitas que Raúl decida algo, devuelve status "needs_human" con la pregunta clara en «error» y, si hay respuestas
+  posibles, en «options» de 2 a 6 textos cortos. Raúl contesta desde la tarjeta de la tarea y el encargo vuelve a salir con
+  inputs.human_answers ([{question, answer, answered_at}]): úsalas como instrucciones suyas y no repreguntes lo ya contestado.
+- Citas: si una pieza o un texto lleva un fragmento (versos de El DeLito, letras…), cópialo LITERAL de un documento de las
+  carpetas de la promoción (inputs.folders, por ejemplo la carpeta «info»), nunca de memoria ni inventado. Devuelve por cada
+  pieza «citations»: [{text, source_file, location}] (en weekly-spec, dentro de cada pieza; en captions, dentro de cada
+  elemento de outputs.publications). Si no lo encuentras, no lo inventes: devuelve «needs_human» preguntando a Raúl.
+  SocialHub comprueba que cada cita aparece literal en el documento.
 - Si no puedes hacerlo, devuelve status "failed" con el motivo en «error».
 - Según «type»:
   · socialhub.weekly-spec → outputs.spec: spec de piezas que cumpla contracts/promo-spec.v1 (carrusel, historia,

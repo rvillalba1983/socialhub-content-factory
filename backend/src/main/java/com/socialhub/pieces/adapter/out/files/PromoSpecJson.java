@@ -18,24 +18,26 @@ record PromoSpecJson(@Nullable String out, @Nullable String leeme,
                  @Nullable String gancho, @Nullable List<String> versos,
                  @JsonProperty("final") @Nullable List<String> finalLines, @Nullable String audio,
                  @JsonProperty("audio_inicio") @Nullable Double audioInicio, @Nullable String video,
-                 @Nullable Double inicio, @Nullable Double duracion) {
+                 @Nullable Double inicio, @Nullable Double duracion,
+                 @JsonProperty("fondo_svg") @Nullable String fondoSvg) {
 
         PromoSpec.Piece toDomain() {
             return new PromoSpec.Piece(tipo, nombre, dia, publicacion, caption, hashtags,
                     slides == null ? null : slides.stream().map(Slide::toDomain).toList(),
                     cierre == null ? null : cierre.toDomain(), img, titulo, texto, cta, crop, gancho, versos, finalLines,
-                    audio, audioInicio, video, inicio, duracion);
+                    audio, audioInicio, video, inicio, duracion, fondoSvg);
         }
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    record Slide(String img, String texto, @Nullable String titulo, @Nullable List<Double> crop) {
+    record Slide(@Nullable String img, @Nullable String texto, @Nullable String titulo, @Nullable List<Double> crop,
+                 @JsonProperty("fondo_svg") @Nullable String fondoSvg) {
 
-        PromoSpec.Slide toDomain() { return new PromoSpec.Slide(img, texto, titulo, crop); }
+        PromoSpec.Slide toDomain() { return new PromoSpec.Slide(img, texto, titulo, crop, fondoSvg); }
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    record Closing(String img, List<String> lineas) {
+    record Closing(@Nullable String img, List<String> lineas) {
 
         PromoSpec.Closing toDomain() { return new PromoSpec.Closing(img, lineas); }
     }

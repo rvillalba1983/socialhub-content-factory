@@ -13,7 +13,7 @@ import org.jspecify.annotations.Nullable;
  */
 @AggregateRoot
 public record Promotion(@Identity String id, String brandId, String name, String description, String scope,
-                        String cadence, LocalDate startsOn, LocalDate endsOn, String status, String metricsSource,
+                        String cadence, String visualStyle, LocalDate startsOn, LocalDate endsOn, String status, String metricsSource,
                         List<String> goals, List<String> rules, List<String> humanTodos, List<Milestone> milestones,
                         List<Resource> resources, List<Automation> automations, List<Route> routes,
                         List<Setting> settings, boolean demo) {

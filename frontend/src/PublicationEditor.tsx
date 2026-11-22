@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { ApiError, api } from './api';
 import { Icon } from './icons';
 import {
-  PUBLICATION_NEXT, PUBLICATION_STATUS, PUBLICATION_TYPES, REJECTION_REASONS, routesFor, dateTime, type RejectionReason, type Publication, type PublicationMetrics, type PublishJob, type QualityReport, type PublicationFile, type PublicationInput,
-  type PublicationStatus, type StatusCode,
+  PUBLICATION_NEXT, PUBLICATION_STATUS, PUBLICATION_TYPES, REJECTION_REASONS, routesFor, dateTime, marginFor, spanText, type RejectionReason, type Publication, type PublicationMetrics, type PublishJob, type QualityReport, type PublicationFile, type PublicationInput,
+  type PublicationStatus, type PublishSettings, type StatusCode,
 } from './model';
 import { Pill } from './ui';
 import { WhereHelp } from './WhereHelp';
@@ -20,11 +20,26 @@ const toInput = (p?: Publication): PublicationInput => ({
   caption: p?.caption ?? '', hashtags: p?.hashtags ?? '',
 });
 
+/** Los márgenes mínimos de publicación vigentes (general y de TikTok), para los textos del editor. */
+function usePublishSettings(): PublishSettings | null {
+  const [settings, setSettings] = useState<PublishSettings | null>(null);
+  useEffect(() => {
+    let alive = true;
+    api.publishSettings().then(s => { if (alive) setSettings(s); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+  return settings;
+}
+
+/** El margen mínimo que vale para la red elegida, con palabras («30 minutos», «8 horas»). */
+const marginText = (settings: PublishSettings | null, platform: string) => spanText(marginFor(settings, platform));
+
 /** Alta y edición de una publicación, su estado y sus archivos. */
 export function PublicationEditor({ promotionId, publication, onClose, onSaved }: {
   promotionId: string; publication?: Publication; onClose: () => void; onSaved: (p: Publication, message: string) => void;
 }) {
   const [form, setForm] = useState<PublicationInput>(toInput(publication));
+  const publishSettings = usePublishSettings();
   const [initial, setInitial] = useState<Initial>('IDEA');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -76,7 +91,9 @@ export function PublicationEditor({ promotionId, publication, onClose, onSaved }
         type: 'CAPTIONS', title: `Textos · ${publication.title}`, inputs: [publication.id],
         goal: `Escribe el texto y los hashtags de «${publication.title}» (${publication.type}, ${publication.platform === 'TIKTOK' ? 'TikTok' : 'Instagram'}).`,
       });
-      setAsked('Pedido a Claude: los textos llegarán aquí para que los revises.');
+      setAsked(publication.caption || publication.hashtags
+        ? 'Pedido a Claude: su texto sustituirá al actual (podrás recuperar el tuyo).'
+        : 'Pedido a Claude: los textos llegarán aquí para que los revises.');
     } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
   };
 
@@ -122,6 +139,10 @@ export function PublicationEditor({ promotionId, publication, onClose, onSaved }
                 {INITIAL.map(s => <option key={s} value={s}>{PUBLICATION_STATUS[s].label}</option>)}</select></label>
           )}
         </div>
+        {form.platform === 'TIKTOK' && (
+          <p className="src" role="note">Margen mínimo de publicación en TikTok: {marginText(publishSettings, 'TIKTOK')}. TikTok se publica por
+            Publer, que programa Claude desde tu PC en sus pasadas; con menos de unas 8 horas puede no llegar y quedará para subirla a mano.</p>
+        )}
         <label className="field"><span>Texto ({(form.caption ?? '').length} / 2200)</span>
           <textarea rows={4} disabled={locked} maxLength={2200} value={form.caption ?? ''}
             onChange={e => { setTextsTouched(true); set('caption', e.target.value); }} /></label>
@@ -130,7 +151,14 @@ export function PublicationEditor({ promotionId, publication, onClose, onSaved }
             onChange={e => { setTextsTouched(true); set('hashtags', e.target.value); }} /></label>
         {publication && !locked && (
           <p className="src">
-            <button type="button" className="btn" onClick={() => void askClaude()}>Pedir textos a Claude</button>{' '}
+            <button type="button" className="btn" title={publication.caption || publication.hashtags
+              ? 'Si ya hay texto, el de Claude lo sustituirá; podrás recuperar el tuyo.' : undefined}
+              onClick={() => void askClaude()}>Pedir textos a Claude</button>{' '}
+            {(publication.previous_caption || publication.previous_hashtags) && (
+              <><button type="button" className="btn" disabled={busy}
+                onClick={() => { setTextsTouched(false); void run(() => api.restorePublicationText(publication.id), 'Texto anterior recuperado'); }}>
+                Recuperar mi texto anterior</button>{' '}</>
+            )}
             {(publication.caption || publication.hashtags) && (
               <button type="button" className="btn" onClick={() => setRejecting('TEXT')}>Descartar texto</button>
             )}
@@ -173,7 +201,7 @@ export function PublicationEditor({ promotionId, publication, onClose, onSaved }
                 if (rejecting === 'TEXT') setTextsTouched(false);
               }} />
           )}
-          <p className="src">Programar exige al menos 6 horas de margen. «Publicada» solo llega con la confirmación de la plataforma.</p>
+          <p className="src">Programar exige el margen mínimo de publicación{publication.platform === 'TIKTOK' ? ' en TikTok' : ''} ({marginText(publishSettings, publication.platform)}; se cambia en «Encargos a Claude»). «Publicada» solo llega con la confirmación de la plataforma.</p>
           {publication.flag && (
             <p className="flag-row" role="status"><Icon name="alert" /> <span>{publication.flag}</span>{' '}
               <button type="button" className="btn" disabled={busy}
@@ -181,7 +209,7 @@ export function PublicationEditor({ promotionId, publication, onClose, onSaved }
           )}
           <PublishPanel publication={publication} />
           <MetricsPanel publication={publication} />
-          <QualityPanel publication={publication} promotionId={promotionId} />
+          <QualityPanel publication={publication} promotionId={promotionId} margin={marginText(publishSettings, publication.platform)} />
           <fieldset className="rows" aria-label="Vista previa">
             <legend>Vista previa</legend>
             <HowItLooks publication={publication} files={files} />
@@ -308,7 +336,7 @@ function MetricsPanel({ publication }: { publication: Publication }) {
     <fieldset className="rows" aria-label="Métricas">
       <legend>Métricas</legend>
       {!m && <p className="src">Se leen solas a los 7 días de publicarse.</p>}
-      {m?.status === 'REQUESTED' && <p className="src">Pedidas a Claude el {dateTime(m.requested_at)}.</p>}
+      {m?.status === 'REQUESTED' && <p className="src">Pedidas a Claude el {dateTime(m.requested_at)}.{m.note ? ` ${m.note}` : ''}</p>}
       {m?.status === 'FAILED' && <p className="src">No se pudieron leer{m.note ? `: ${m.note}` : ''}. Se reintenta al día siguiente (máximo 3 veces).</p>}
       {m?.status === 'DONE' && (
         <>
@@ -343,14 +371,24 @@ export function whatToDo(key: string, source: string): string {
     case 'CAROUSEL_COUNT': return 'ajusta el número de imágenes del carrusel a lo que admite la red.';
     case 'CAROUSEL_MIX': return 'usa solo fotos o solo vídeos en esta publicación.';
     case 'VIDEO_MISSING': return 'añade el archivo de vídeo en «Archivos».';
+    case 'CITATION': return 'corrige la cita para que sea literal del documento o pide a Claude otro fragmento. Si dice «sin verificar» y ya la has comprobado tú en el documento, acéptala con tu motivo.';
     default: return source === 'CLAUDE'
       ? 'léelo y corrige lo que señala; si no estás de acuerdo, acéptalo con tu motivo.'
       : 'corrígelo o, si lo das por bueno así, acéptalo con tu motivo.';
   }
 }
 
+/** Los avisos informativos no bloquean: enlaces, texto ya usado y citas verificadas. */
+const infoLabel = (i: { key: string; message: string }) => {
+  if (i.key.startsWith('LINK:')) return i.message.startsWith('Enlace OK') ? 'Enlace OK' : i.message.startsWith('No responde') ? 'No responde' : 'No comprobado';
+  if (i.key.startsWith('REUSED:')) return 'Texto repetido';
+  if (i.key.startsWith('CITATION:')) return 'Cita verificada';
+  return 'Información';
+};
+const infoClass = (i: { key: string; message: string }) => (i.message.startsWith('No responde') ? 's-block' : i.message.startsWith('Enlace OK') || i.key.startsWith('CITATION:') ? 's-ok' : '');
+
 /** Control de calidad: avisos del código y de Claude. Cada uno se corrige o se acepta con su motivo. */
-function QualityPanel({ publication, promotionId }: { publication: Publication; promotionId: string }) {
+function QualityPanel({ publication, promotionId, margin }: { publication: Publication; promotionId: string; margin: string }) {
   const [report, setReport] = useState<QualityReport | null>(null);
   const [accepting, setAccepting] = useState<string | null>(null);
   const [reason, setReason] = useState('');
@@ -390,14 +428,23 @@ function QualityPanel({ publication, promotionId }: { publication: Publication; 
         <ul>
           <li><b>Aceptar</b> significa «lo doy por bueno aunque falle». Escribes el motivo, el aviso deja de bloquear y queda anotado.
             Solo vale mientras no cambie la publicación: si cambias el texto, los hashtags o los archivos, las aceptaciones se anulan y los avisos se comprueban de nuevo (reaparecen si siguen fallando).</li>
+          <li><b>Citas y enlaces:</b> si Claude cita un verso o una letra, SocialHub comprueba que aparece literal en un documento de las carpetas de la
+            promoción (txt, md y PDF con texto); si no aparece, bloquea; si el documento no se puede leer, avisa «sin verificar» y tienes que comprobarlo tú.
+            Los enlaces https del texto se prueban aparte («Enlace OK», «No responde» o «No comprobado») y el aviso «este texto ya se usó el…» sale si la marca
+            repitió el texto: estos avisos solo informan y no bloquean.</li>
           <li><b>Comprobar de nuevo</b> vuelve a pasar las comprobaciones. Úsalo después de corregir algo (añadir un archivo, cambiar el texto…).</li>
           <li><b>Revisar con Claude</b> le pide a Claude una segunda lectura: coherencia, tono de la marca, ortografía y datos sin fuente.
             Sus avisos llegan aquí en la siguiente recogida.</li>
         </ul>
-        <p>Aparte, para programar hacen falta al menos 6 horas de margen antes de la hora de publicación.</p>
+        <p>Aparte, para programar hace falta el margen mínimo de publicación antes de la hora ({margin} en esta publicación, ajustable en «Encargos a Claude»).</p>
       </details>
       {report && report.issues.length === 0 && <p className="src">Sin avisos.</p>}
-      {report?.issues.map(i => (
+      {report?.issues.map(i => i.level === 'INFO' ? (
+        <div key={i.key} className="quality-row quality-info">
+          <span className={`pill ${infoClass(i)}`}>{infoLabel(i)}</span>
+          <span>{i.message}</span>
+        </div>
+      ) : (
         <div key={i.key} className="quality-row">
           <span className={`pill ${i.accepted ? 's-ok' : 's-block'}`}>{i.source === 'CLAUDE' ? 'Claude' : 'Comprobación'}</span>
           <span>{i.message}{i.accepted && <small className="src"> · Aceptado: {i.accepted_reason} (vale mientras no cambie la publicación)</small>}

@@ -4,6 +4,7 @@ rem Uso normal: doble clic. Al terminar abre una ventana de aviso con el resulta
 rem Para pruebas automaticas: anadir /silencioso (sin ventanas, sin pausa y sin aviso).
 rem   /aviso-prueba: como /silencioso pero SI prepara el aviso; escribe su texto en el archivo de la variable SOCIALHUB_AVISO_ARCHIVO en vez de abrir la ventana.
 rem Los datos (%LOCALAPPDATA%\SocialHub) no se borran.
+rem Tambien quita la entrada de "abrir al iniciar sesion" del usuario (HKCU\...\Run\SocialHub): no pide administrador.
 rem Solo ASCII: los acentos del aviso se escriben con marcas (#a #e #i #o #u #n #! #?) que PowerShell convierte al abrir la ventana.
 setlocal EnableExtensions DisableDelayedExpansion
 set "MODO=%~1"
@@ -16,6 +17,9 @@ if /i "%MODO%"=="/aviso-prueba" set "QN=/qn" & set "PRUEBA=1"
 set "LOGDIR=%LOCALAPPDATA%\SocialHub\logs"
 if not exist "%LOGDIR%" mkdir "%LOGDIR%" >nul 2>&1
 if not exist "%LOGDIR%" set "LOGDIR=%TEMP%"
+
+rem Arranque con Windows: la entrada es del usuario y un .msi no puede limpiarla; si no existe, no pasa nada
+reg delete "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v SocialHub /f >nul 2>&1
 
 set "STAMP="
 for /f "usebackq delims=" %%T in (`powershell -NoProfile -Command "Get-Date -Format yyyyMMdd-HHmmss"`) do set "STAMP=%%T"

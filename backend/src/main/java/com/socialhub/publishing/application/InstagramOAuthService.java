@@ -45,7 +45,7 @@ class InstagramOAuthService implements InstagramOAuth {
     /** Lo que dura la clave de larga duración si Meta no dice otra cosa. */
     static final Duration DEFAULT_LIFETIME = Duration.ofDays(60);
     /** Desde cuándo se avisa de que la conexión va a caducar. */
-    public static final int WARN_DAYS = 7;
+    public static final int WARN_DAYS = 10;
     static final Duration STATE_LIFETIME = Duration.ofMinutes(10);
     private static final int MAX_STATES = 20;
 
@@ -245,6 +245,43 @@ class InstagramOAuthService implements InstagramOAuth {
             out.add(new Detected(page.igUserId(), page.username(), page.pageName(), brandId));
         }
         return out;
+    }
+
+    /** Renueva la clave vigente con las credenciales de la app ya guardadas; si no se puede, lleva al flujo completo. */
+    @Override
+    public Renewal renew() {
+        String appId = credentials.appId().orElse(null);
+        String secret = credentials.appSecret().orElse(null);
+        if (appId == null || secret == null) {
+            throw new IllegalArgumentException("Primero guarda el App ID y el App Secret de tu app de Meta");
+        }
+        Instant now = clock.instant();
+        var current = credentials.validConnection().orElse(null);
+        if (current == null) {
+            return new Renewal(false, "La conexión ya caducó (o no existe): te llevo a Meta para darla de nuevo.", start());
+        }
+        MetaOAuthGateway.Token renewed;
+        try {
+            renewed = oauth.toLongLived(appId, secret, current.token());
+        } catch (InstagramException e) {
+            if (e.kind() == InstagramException.Kind.UNCERTAIN) {
+                throw new IllegalArgumentException("No se ha podido renovar (Meta no responde): " + e.getMessage() + ". La conexión sigue como estaba.");
+            }
+            log.info("Meta no aceptó renovar la conexión: {}", e.getMessage());
+            return new Renewal(false, "Meta no acepta renovar la clave (" + e.getMessage() + "): te llevo a Meta para darla de nuevo.", start());
+        }
+        Instant expires = now.plus(renewed.expiresInSeconds() == null ? DEFAULT_LIFETIME : Duration.ofSeconds(renewed.expiresInSeconds()));
+        List<String> usernames = current.usernames();
+        try {
+            var found = oauth.pages(renewed.value()).stream().filter(MetaOAuthGateway.PageAccount::hasInstagram).toList();
+            if (!found.isEmpty()) usernames = found.stream().map(MetaOAuthGateway.PageAccount::username).distinct().toList();
+        } catch (InstagramException e) {
+            log.info("Conexión renovada, pero no se pudieron releer las cuentas: {}", e.getMessage());
+        }
+        credentials.saveConnection(new InstagramCredentials.Connection(renewed.value(), expires, current.name(), usernames));
+        service.refresh();
+        long days = Duration.between(now, expires).toDays();
+        return new Renewal(true, "Conexión renovada: dura otros " + days + " días.", null);
     }
 
     /** Borra la conexión (no toca la clave de usuario del sistema ni las cuentas de las marcas). */

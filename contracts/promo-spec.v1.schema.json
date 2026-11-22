@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "socialhub.promo-spec.v1",
   "title": "Encargo de piezas de Instagram (compatible con el spec.json de promo.py)",
-  "description": "Las rutas pueden ser absolutas o relativas a la carpeta del spec. Todas deben estar dentro de las carpetas de la promoción. Nunca se sobrescribe un archivo: si existe, se usa otro nombre.",
+  "description": "Las rutas pueden ser absolutas o relativas a la carpeta del spec. Todas deben estar dentro de las carpetas de la promoción. Nunca se sobrescribe un archivo: si existe, se usa otro nombre. Imagen de fondo de una pieza (carrusel, historia o reel), por orden: su «img» > su «fondo_svg» > la portada de la marca (portada.jpg, .jpeg o .png en la raíz de Material) > un fondo que genera SocialHub con el color de la marca y el título. Por eso «img» es opcional: no hace falta parar a preguntar si falta material.",
   "type": "object",
   "required": ["piezas"],
   "properties": {
@@ -25,15 +25,31 @@
             "description": "Identificador de la publicación de SocialHub a la que se asocian los archivos de esta pieza"
           },
           "caption": { "type": "string" },
+          "fondo_svg": { "$ref": "#/$defs/fondoSvg" },
           "hashtags": { "type": "string" },
+          "citations": {
+            "type": "array",
+            "maxItems": 20,
+            "description": "Opcional. Fragmentos citados en la pieza (versos, letras), copiados LITERALES de un documento de las carpetas de la promoción; nunca de memoria. SocialHub comprueba que aparecen en el documento.",
+            "items": {
+              "type": "object",
+              "required": ["text", "source_file"],
+              "properties": {
+                "text": { "type": "string", "minLength": 1, "maxLength": 2000 },
+                "source_file": { "type": "string", "minLength": 1, "maxLength": 500, "description": "Ruta del documento (completa o relativa a una carpeta de la promoción)" },
+                "location": { "type": "string", "maxLength": 200, "description": "Página o línea, si la conoces" }
+              }
+            }
+          },
           "slides": {
             "type": "array",
             "maxItems": 10,
             "items": {
               "type": "object",
-              "required": ["img", "texto"],
+              "anyOf": [ { "required": ["texto"] }, { "required": ["titulo"] } ],
               "properties": {
                 "img": { "type": "string" },
+                "fondo_svg": { "$ref": "#/$defs/fondoSvg" },
                 "texto": { "type": "string" },
                 "titulo": { "type": "string" },
                 "crop": { "$ref": "#/$defs/crop" }
@@ -42,7 +58,7 @@
           },
           "cierre": {
             "type": "object",
-            "required": ["img", "lineas"],
+            "required": ["lineas"],
             "properties": { "img": { "type": "string" }, "lineas": { "type": "array", "items": { "type": "string" } } }
           },
           "img": { "type": "string" },
@@ -63,6 +79,11 @@
     }
   },
   "$defs": {
+    "fondoSvg": {
+      "description": "Fondo dibujado como SVG en línea (máx. 64 KB), que SocialHub rasteriza a 1080x1350 (carrusel) o 1080x1920 (historia y reel). Solo formas de dibujo (svg, g, defs, rect, circle, ellipse, path, polygon, polyline, line, linearGradient, radialGradient, stop, text, tspan, title, desc). Sin script, foreignObject, image, use, style, @import, entidades ni referencias externas; solo valen url(#id) internas. Si no cumple, SocialHub lo ignora y usa el siguiente fondo sin dar error. Los carruseles enseñan la parte de arriba (1080x900) en cada slide.",
+      "type": "string",
+      "maxLength": 65536
+    },
     "crop": {
       "description": "Punto de encuadre horizontal y vertical, de 0 a 1",
       "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "number", "minimum": 0, "maximum": 1 }

@@ -4,6 +4,8 @@ Estado: **hecha** (unida a `main` el 12 nov 2026). Falta la revisión de Raúl c
 
 Raúl pidió seguir sin él y revisar todo al final con pruebas funcionales completas. Sobre SocialHub 0.9.3 no contestó qué había visto: se toma «nada».
 
+**Añadido después:** PR `fase-12-publicaciones-estado`: aviso de duplicados, resultado de cada publicación a la vista (con hora real, vía y enlace, solo con datos reales) y «Mover a la siguiente hora libre» con confirmación. Detalle en `docs/decisiones.md`.
+
 ## Orden propuesto de los bloques
 
 Una rama y una PR por bloque.
@@ -92,6 +94,10 @@ Una rama y una PR por bloque.
 17. **¿Tienes un Mac** para probar el `.dmg`? (a) **no: se genera y se prueba solo en la máquina macOS de GitHub (instalar, arrancar y abrir la web)** / (b) sí, lo pruebas tú.
 18. **PostgreSQL y FFmpeg para macOS:** (a) **meterlos en el `.dmg` con la versión de macOS (Apple Silicon)**. Hay que añadir sus binarios: pide tu OK como librería nueva / (b) pedir al usuario que los instale con Homebrew.
 
+## Material faltante y margen de publicación (16 nov 2026, `fase-12-material-faltante`)
+
+Encargo de Raúl, registrado en `decisiones.md`: fondo por defecto (Java 2D, plantillas deterministas por título), fondos SVG de Claude (`fondo_svg`, Apache Batik con OK de Raúl), portada de marca (`portada.jpg|jpeg|png`), orden material propio > SVG > portada > fondo de SocialHub, aviso previo en «Qué hacer ahora», «Estilo visual» de la promoción (V27) y **margen mínimo de publicación** como ajuste global (por defecto 30 minutos, 5 a 1440; V28; módulo `settings`) en lugar de las 6 h fijas. Publer sigue necesitando 8 h por las pasadas del PC.
+
 ## Cómo sabremos que está bien
 
 Se concreta por bloque al aprobar el plan. Como mínimo: cada PR pasa en GitHub (backend en Windows; frontal en Linux; el `.dmg` en macOS solo en el bloque 5), y lo visual se comprueba con Playwright en modo real sin errores en la consola. Al final, Raúl hace las pruebas funcionales completas.
@@ -139,3 +145,27 @@ Hecho el 11-12 nov 2026. Conclusión: **la API oficial pasa a ser la vía princi
 ### Sin comprobar
 
 - Nada de FFmpeg: probado en la máquina macOS de GitHub (herramientas locales por la API y una pieza de 2 s). No hay Mac real de Raúl.
+
+## Funciones finales (16 nov 2026, decididas por Raúl; rama `fase-12-funciones-finales`, una PR)
+
+1. **Abrirse con Windows en segundo plano** con interruptor (Ajustes generales y detalle de la versión): clave `HKCU\...\Run`, sin administrador. Hecho.
+2. **Icono en la bandeja** con «Abrir SocialHub» y «Cerrar SocialHub» (cierre ordenado). Sin entorno gráfico no falla. Hecho.
+3. **Métricas de Instagram por la API de Meta**, con respaldo de Chrome y sin inventar cifras. Hecho. Necesita el permiso `instagram_manage_insights` en la clave (pendiente de Raúl).
+4. **«Conectar con Instagram» y «Renovar conexión»**, con aviso a los 10 días de caducar. Hecho.
+5. **Aviso de versión nueva** de GitHub Releases, sin autoinstalar y sin enviar datos. Hecho; para que haya aviso hay que publicar una release (workflow Instaladores con «publicar»).
+6. **«Textos» a mano sustituye el texto de Raúl**, con «Recuperar mi texto anterior». Hecho, con pruebas.
+
+Pendiente de Raúl: icono propio (`.ico`) para el instalador; permiso de estadísticas en Meta; publicar una release para probar el aviso.
+
+## Margen mínimo de publicación en TikTok (22 nov 2026)
+
+Decisión de Raúl: ajuste aparte para TikTok (480 minutos por defecto, 5 a 1440), en la misma tarjeta que el general. Se aplica por la red de cada publicación (`PublishSettings.minMarginFor`), también en los avisos de «Qué hacer ahora», el motor, la validación del editor y los encargos de propuestas (`tiktok_min_publish_margin_minutes`). Rama `fase-12-margen-tiktok`, una PR. Detalle en `decisiones.md`.
+
+## Responder a Claude, citas solo de los documentos y enlaces (16 nov 2026, decididos por Raúl; rama `fase-12-claude-preguntas-citas`, una PR)
+
+1. **Responder a Claude desde la tarjeta:** pregunta, opciones de Claude y texto libre; el encargo se relanza con `inputs.human_answers`. Hecho, con pruebas de dominio, de intercambio con Claude y del frontal.
+2. **Citas solo de los documentos:** `citations` en los resultados y specs; verificación en SocialHub de txt, md y PDF con texto (Apache PDFBox, con OK de Raúl). Sin verificar si el documento no se puede leer. Hecho, con pruebas de flujo con PDF reales.
+3. **Comprobación de enlaces** https (anti-SSRF, sin librerías) y aviso «este texto ya se usó el …». Informativo. Hecho, con pruebas con servidor local.
+
+Dudas para Raúl: ver el informe de la PR (carpeta `info` como papel propio, «sin verificar» bloqueante, Word/odt).
+

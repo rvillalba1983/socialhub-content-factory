@@ -30,6 +30,16 @@
       }
     },
     "warnings": { "type": "array", "items": { "type": "string" } },
+    "options": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Opcional (añadido sin cambiar de versión). Con status needs_human: respuestas cortas para elegir a la pregunta de «error». Textos cortos (SocialHub muestra como mucho 6 de hasta 120 caracteres). Raúl también puede contestar con texto libre. SocialHub vuelve a enviar el encargo con la respuesta en inputs.human_answers [{question, answer, answered_at}]."
+    },
+    "citations": {
+      "type": "array",
+      "description": "Opcional (añadido sin cambiar de versión). Fragmentos citados (versos, letras, textos), copiados LITERALES de un documento de los recursos de la promoción, nunca de memoria. También pueden ir dentro de cada publicación de outputs.publications[].citations (tipo socialhub.captions) o de cada pieza del spec (promo-spec.v1, piezas[].citations). SocialHub comprueba que aparecen literalmente en el documento.",
+      "items": { "$ref": "#/$defs/citation" }
+    },
     "error": { "type": ["string", "null"] },
     "agent": {
       "type": "object",
@@ -39,5 +49,18 @@
     },
     "startedAt": { "type": "string", "format": "date-time" },
     "finishedAt": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "citation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text", "source_file"],
+      "properties": {
+        "publication": { "type": "string", "description": "Identificador de la publicación de SocialHub a la que pertenece la cita (obligatorio en citations de la raíz; en las de cada publicación o pieza se sobreentiende)" },
+        "text": { "type": "string", "minLength": 1, "description": "El fragmento, tal cual aparece en el documento" },
+        "source_file": { "type": "string", "minLength": 1, "description": "Ruta del documento dentro de las carpetas de la promoción (completa, o relativa a una de ellas)" },
+        "location": { "type": "string", "description": "Página o línea donde aparece, si la conoce" }
+      }
+    }
   }
 }

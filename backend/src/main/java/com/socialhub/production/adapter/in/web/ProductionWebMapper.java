@@ -2,6 +2,7 @@ package com.socialhub.production.adapter.in.web;
 
 import com.socialhub.api.model.AiModelDto;
 import com.socialhub.api.model.AvailableCommandDto;
+import com.socialhub.api.model.HumanAnswerDto;
 import com.socialhub.api.model.StationCommandTypeDto;
 import com.socialhub.api.model.StationDto;
 import com.socialhub.api.model.TaskCountsDto;
@@ -9,6 +10,7 @@ import com.socialhub.api.model.TaskDto;
 import com.socialhub.api.model.TaskEventDto;
 import com.socialhub.production.domain.AiModel;
 import com.socialhub.production.domain.AvailableCommand;
+import com.socialhub.production.domain.HumanAnswer;
 import com.socialhub.production.domain.Station;
 import com.socialhub.production.domain.StationCommandType;
 import com.socialhub.production.domain.StationSummary;
@@ -40,6 +42,9 @@ interface ProductionWebMapper {
     TaskCountsDto toDto(TaskCounts counts);
 
     TaskEventDto toDto(TaskHistoryEntry entry);
+
+    @Mapping(target = "answeredAt", source = "at")
+    HumanAnswerDto toDto(HumanAnswer answer);
 
     List<AvailableCommandDto> toCommandDtos(List<AvailableCommand> commands);
 

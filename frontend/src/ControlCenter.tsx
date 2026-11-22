@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from './icons';
 import {
-  PROMOTION_STATUS, PUBLICATION_STATUS, STATUS, addDays, dateTime, dayLabel, hhmm, isoDay, parseDay, shortDate, statusClass, weekday,
+  PROMOTION_STATUS, PUBLICATION_NEXT, PUBLICATION_STATUS, STATUS, addDays, dateTime, dayLabel, hhmm, isoDay, parseDay, shortDate, statusClass, weekday,
   type Brand, type ExternalCalendar, type ExternalPost, type ExternalSource, type Promotion, type Publication,
   type PublicationStatus, type Snapshot,
 } from './model';
@@ -9,6 +9,7 @@ import { AgentChip, Dot, Pill } from './ui';
 import { FolderRoles } from './Folders';
 import { PublicationEditor, ReasonForm } from './PublicationEditor';
 import { api } from './api';
+import { OutcomeBadge, outcomeCounts, usePublicationActions } from './PublicationActions';
 import { PromotionMetricsTab } from './PromotionMetrics';
 import { scrollToId } from './scrollTo';
 
@@ -43,6 +44,7 @@ export function ControlCenter({ p, brand, data, initialTab, initialFilter = 'all
   const [filter, setFilter] = useState(initialFilter);
   const [hl, setHl] = useState<string | null>(highlight);
   const today = data.now.slice(0, 10);
+  const actions = usePublicationActions(data.publications, m => onMessage?.(m));
   const pubs = data.publications.filter(x => x.promotion_id === p.id);
   const weeks = useMemo(() => {
     const start = parseDay(p.starts_on), end = parseDay(p.ends_on);
@@ -96,6 +98,7 @@ export function ControlCenter({ p, brand, data, initialTab, initialFilter = 'all
             <h1>{p.name}</h1>
             <p>{shortDate(p.starts_on)} – {shortDate(p.ends_on)} · {p.cadence}</p>
             <p>{p.description}</p>
+            {p.visual_style ? <p className="src">Estilo visual: {p.visual_style}</p> : null}
           </div>
           <div className="promo-row"><Pill s={PROMOTION_STATUS[p.status].s} label={PROMOTION_STATUS[p.status].label} /><span className="pill s-wait"><Icon name="human" /><span>Supervisada</span></span>
             <button className="btn" onClick={onEdit}>Editar</button></div>
@@ -116,6 +119,17 @@ export function ControlCenter({ p, brand, data, initialTab, initialFilter = 'all
                   <li key={i}><time>{shortDate(m.starts_on)}{m.ends_on ? `–${shortDate(m.ends_on)}` : ''}</time><span>{m.label}</span></li>
                 ))}</ul>
               </div>
+              <div className="card"><h3>Resultado de las publicaciones</h3>
+                {(() => {
+                  const c = outcomeCounts(pubs);
+                  return (
+                    <ul className="outcome-summary">
+                      <li>Publicadas ✓: <b>{c.PUBLISHED}</b></li><li>Fallaron: <b>{c.FAILED}</b></li>
+                      <li>Retrasadas: <b>{c.DELAYED}</b></li><li>Pendientes: <b>{c.PENDING}</b></li><li>Sin confirmar: <b>{c.UNCONFIRMED}</b></li>
+                    </ul>
+                  );
+                })()}
+                <p className="src">Solo datos reales: sin confirmación de la vía o de la red, «Sin confirmar».</p></div>
               <div className="card"><h3>Próximas publicaciones</h3>{next.length ? next.map(x => <PubEvent key={x.id} x={x} onClick={() => jump(x.id)} />) : <p>Nada pendiente.</p>}</div>
               <div className="card"><h3>Incidencias</h3>
                 {incidents.length ? incidents.map(t => (
@@ -194,7 +208,7 @@ export function ControlCenter({ p, brand, data, initialTab, initialFilter = 'all
                   onSaved={(saved, message) => { setEditing(saved.id); setHl(saved.id); backToRow(saved.id); onMessage?.(message); }} />
               )}
               <div className="tbl-wrap"><table>
-                <thead><tr><th>Fecha</th><th>Plataforma</th><th>Tipo</th><th>Pieza</th><th>Estado</th><th>Vía</th><th>Observaciones</th><th /></tr></thead>
+                <thead><tr><th>Fecha</th><th>Plataforma</th><th>Tipo</th><th>Pieza</th><th>Estado</th><th>Resultado</th><th>Vía</th><th>Observaciones</th><th /></tr></thead>
                 <tbody>
                   {list.map(x => {
                     const st = PUBLICATION_STATUS[x.status];
@@ -202,22 +216,36 @@ export function ControlCenter({ p, brand, data, initialTab, initialFilter = 'all
                       <tr key={x.id} id={`row-${x.id}`} className={hl === x.id ? 'hl' : ''}>
                         <td className="nowrap mono">{dayLabel(parseDay(x.scheduled_on))} {hhmm(x.scheduled_time)}</td>
                         <td>{x.platform === 'TIKTOK' ? 'TikTok' : 'Instagram'}</td><td>{x.type}</td><td>{x.title}</td>
-                        <td><Pill s={st.s} label={st.label} /></td><td>{x.route}</td>
-                        <td>{x.flag ?? x.note ?? ''}</td>
+                        <td><Pill s={st.s} label={st.label} /></td>
+                        <td><OutcomeBadge outcome={x.outcome} /></td><td>{x.route}</td>
+                        <td>{x.flag ?? x.note ?? ''}
+                          {(x.duplicates?.length ?? 0) > 0 && (
+                            <span className="dup-flag" role="note"><b>Posible duplicado</b> de {x.duplicates!.map(d => pubs.find(o => o.id === d.publication_id)?.title ?? d.publication_id).join(', ')}
+                              {' '}({x.duplicates![0].reason === 'SAME_TITLE' ? 'mismo título el mismo día' : 'misma hora y mismo texto'})</span>
+                          )}
+                          {x.move_reason && (
+                            <span className="dup-flag" role="note">{x.move_reason === 'LOST_MARGIN' ? 'Ya no deja el margen mínimo' : 'Choca con otra publicación'}</span>
+                          )}
+                        </td>
                         <td className="nowrap">
                           {x.status === 'PROPOSAL' && <>
                             <button className="btn" aria-label={`Aprobar ${x.title}`}
                               onClick={() => void act(() => api.changePublicationStatus(x.id, 'IN_PRODUCTION'), `Propuesta aprobada · ${x.title}`)}>Aprobar</button>{' '}
                             <button className="btn" aria-label={`Rechazar ${x.title}`} onClick={() => setRejecting(x.id)}>Rechazar</button>{' '}
                           </>}
+                          {x.move_reason && <button className="btn" aria-label={`Mover ${x.title} a la siguiente hora libre`}
+                            onClick={() => actions.move(x.id)}>Mover a la siguiente hora libre</button>}{' '}
+                          {(x.duplicates?.length ?? 0) > 0 && PUBLICATION_NEXT[x.status].includes('CANCELLED') && <button className="btn" aria-label={`Descartar esta: ${x.title}`}
+                            onClick={() => actions.discard(x.id)}>Descartar esta</button>}{' '}
                           <button className="btn" aria-label={`Editar ${x.title}`} onClick={() => openEditor(x.id)}>Editar</button>
                         </td>
                       </tr>
                     );
                   })}
-                  {list.length === 0 && <tr><td colSpan={8}>Ninguna publicación con este filtro.</td></tr>}
+                  {list.length === 0 && <tr><td colSpan={9}>Ninguna publicación con este filtro.</td></tr>}
                 </tbody>
               </table></div>
+              {actions.dialogs}
               <p className="src">Una publicación solo pasa a «Publicada» cuando se confirma en la plataforma o en la vista semanal de Publer, nunca porque se haya generado el archivo.</p>
             </>
           );

@@ -44,9 +44,10 @@ export function InstagramKeyCard({ onChanged }: { onChanged?: () => void }) {
     catch (e) { setError(e instanceof Error ? e.message : String(e)); return false; } finally { setBusy(false); }
   };
 
+  const [renewed, setRenewed] = useState<string | null>(null);
   const connection = status?.connection;
   const appReady = !!status?.app_id && !!status.app_secret_saved;
-  const expiring = !!connection && !connection.expired && connection.days_left <= 7;
+  const expiring = !!connection && !connection.expired && connection.days_left <= 10;
 
   const copyRedirect = async () => {
     if (!status?.redirect_uri) return;
@@ -100,8 +101,15 @@ export function InstagramKeyCard({ onChanged }: { onChanged?: () => void }) {
           <button type="button" className="btn primary" disabled={busy || !appReady}
             title={appReady ? undefined : 'Primero guarda el App ID y el App Secret'}
             onClick={() => void run(async () => {
-              const { authorization_url } = await api.startInstagramOAuth();
-              window.open(authorization_url, '_self');
+              if (!connection) {
+                const { authorization_url } = await api.startInstagramOAuth();
+                window.open(authorization_url, '_self');
+                return;
+              }
+              // Renovar: sin volver a pedir el App ID ni el App Secret; solo si ya caducó, lleva a Meta
+              const renewal = await api.renewInstagramConnection();
+              if (renewal.renewed) setRenewed(renewal.message);
+              else if (renewal.authorization_url) window.open(renewal.authorization_url, '_self');
             })}>{connection ? 'Renovar conexión' : 'Conectar con Instagram'}</button>
           {!appReady && (
             <span className="src"> Para conectar, primero guarda el App ID y el App Secret de tu app de Meta (arriba).
@@ -113,6 +121,7 @@ export function InstagramKeyCard({ onChanged }: { onChanged?: () => void }) {
           )}
         </div>
       )}
+      {renewed && <p className="src" role="status">{renewed}</p>}
       {expiring && connection && (
         <p className="error" role="status">
           La conexión caduca {connection.days_left === 0 ? 'hoy' : `en ${connection.days_left} ${connection.days_left === 1 ? 'día' : 'días'}`}:

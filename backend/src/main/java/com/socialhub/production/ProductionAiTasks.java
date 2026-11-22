@@ -66,5 +66,8 @@ public interface ProductionAiTasks {
 
     void aiFailed(String taskId, String error);
 
-    void aiNeedsHuman(String taskId, String reason);
+    default void aiNeedsHuman(String taskId, String reason) { aiNeedsHuman(taskId, reason, List.of()); }
+
+    /** Claude pide a Raúl que decida algo; {@code options} son las respuestas cortas que propone (puede no haber). */
+    void aiNeedsHuman(String taskId, String reason, List<String> options);
 }

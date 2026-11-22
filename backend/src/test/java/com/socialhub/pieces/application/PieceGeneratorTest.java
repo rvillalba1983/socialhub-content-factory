@@ -42,7 +42,7 @@ class PieceGeneratorTest {
     static void prepare() throws Exception {
         ffmpeg = new FfmpegTool(new SafeProcess(ExternalCalls.unobserved()),
                 new AppPaths(new SocialHubProperties(data.toString(), null, null, null)));
-        generator = new PieceGenerator(new FfmpegService(ffmpeg));
+        generator = new PieceGenerator(new FfmpegService(ffmpeg), new com.socialhub.pieces.adapter.out.svg.BatikSvgRasterizer());
         reader = new SpecReader(new SpecFileLoader(JsonMapper.builder().build()), generator);
         Path media = Files.createDirectories(drive.resolve("DeLito/material"));
         image(media.resolve("page 46.png"), 1600, 1200, new Color(180, 60, 40), new Color(250, 230, 200));

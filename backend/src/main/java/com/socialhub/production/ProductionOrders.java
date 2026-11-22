@@ -15,6 +15,13 @@ public interface ProductionOrders {
     /** Ejecuta una orden sobre una tarea. Lanza DomainException si no está permitida. */
     Task execute(String taskId, TaskCommandType command, @Nullable AiModel model);
 
+    /**
+     * Raúl contesta a la pregunta de Claude: se guarda y el encargo vuelve a salir con la respuesta.
+     *
+     * @throws com.socialhub.platform.DomainException si la tarea no espera una respuesta o la respuesta está vacía
+     */
+    Task answer(String taskId, String answer);
+
     /** Pausa o reanuda una estación (y con ella lo que tiene en curso). */
     Station execute(String stationId, StationCommandType command);
 }

@@ -37,15 +37,28 @@ public interface PublishingCommands {
     /** Texto y hashtags de una publicación, para guardarlos juntos. */
     record Texts(String publicationId, String caption, String hashtags) {}
 
+    /** Qué pasó con los textos guardados: cuáles no se aplicaron y cuáles sustituyeron un texto de Raúl. */
+    record TextsOutcome(List<String> kept, List<String> replaced) {}
+
     /**
      * Guarda los textos propuestos. Comprueba todas las publicaciones antes de cambiar ninguna. Si la publicación ya
-     * tiene un texto de Raúl (escrito o corregido), no se toca: el de Claude queda en la incidencia de la publicación para
-     * que lo copie si quiere.
-     *
-     * @return los identificadores de las publicaciones que no se tocaron por tener ya texto de Raúl
+     * tiene un texto de Raúl (escrito o corregido) y el encargo lo hizo SocialHub solo, no se toca: el de Claude queda en
+     * la incidencia de la publicación para que lo copie si quiere. Si lo pidió Raúl a mano ({@code replaceOwn}), el de
+     * Claude lo sustituye y el de Raúl queda guardado para recuperarlo.
      */
-    List<String> applyTexts(String promotionId, List<Texts> texts);
+    TextsOutcome applyTexts(String promotionId, List<Texts> texts, boolean replaceOwn);
+
+    /** Raúl recupera el texto suyo que sustituyó Claude. */
+    Publication restorePreviousText(String id);
 
     /** Raúl descarta el texto de la publicación con su motivo: queda en la memoria editorial. */
     Publication discardTexts(String id, com.socialhub.publishing.domain.RejectionReason reason, @Nullable String note);
+
+    /**
+     * Mueve la publicación a la hora que Raúl ha confirmado. Vuelve a calcular la siguiente hora libre y falla si ya no es
+     * esa (otra publicación ha ocupado el hueco o ha pasado el tiempo); nunca mueve sin {@code confirmed}.
+     *
+     * @param acceptAfterEnd Raúl acepta que quede después de la fecha final de la promoción
+     */
+    Publication moveToFreeSlot(String id, java.time.LocalDate day, java.time.LocalTime time, boolean confirmed, boolean acceptAfterEnd);
 }

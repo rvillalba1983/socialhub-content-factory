@@ -241,6 +241,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/system/autostart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * ¿Se abre SocialHub al iniciar sesión?
+         * @description Solo en Windows con SocialHub instalado (available). Es una entrada del usuario en HKCU Run: no pide administrador. Se abre en segundo plano, sin abrir el navegador; el icono de la bandeja indica que está corriendo.
+         */
+        get: operations["getAutostart"];
+        /** Activa o desactiva abrir SocialHub al iniciar sesión (por defecto, activado) */
+        put: operations["setAutostart"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/system/updates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * ¿Hay una versión nueva publicada?
+         * @description Compara la versión instalada con la última release publicada en GitHub (rvillalba1983/socialhub-content-factory). Mira GitHub como mucho una vez al día (y una hora después de un fallo), sin enviar datos del usuario. Sin red o sin releases no falla: devuelve state UNKNOWN con «No hay información de versiones nuevas». Instalar sigue siendo manual.
+         */
+        get: operations["getUpdateStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/system/version": {
         parameters: {
             query?: never;
@@ -464,6 +505,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/instagram/oauth/renewal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * «Renovar conexión» sin volver a pedir el App ID ni el App Secret
+         * @description Cambia la clave vigente por otra de larga duración (unos 60 días) con el App ID y el App Secret ya guardados. Si la conexión ya caducó o Meta no acepta la clave, devuelve renewed = false y la dirección del inicio de sesión completo (authorization_url). Si Meta no responde, 400 y la conexión sigue como estaba. Nunca devuelve ni registra claves.
+         */
+        post: operations["renewInstagramConnection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/instagram/oauth/callback": {
         parameters: {
             query?: never;
@@ -618,7 +679,7 @@ export interface paths {
         put?: never;
         /**
          * Pasa a Publora las publicaciones retenidas por el límite de una cuenta de Publer
-         * @description Solo pasan las retenidas de esa cuenta y red (de todas las marcas que la comparten) cuya marca tiene Publora configurada para esa red. Cada una sigue el flujo normal de Publora (su margen de 6 h; si ya no llega, lo de siempre). 400 si ninguna tiene Publora.
+         * @description Solo pasan las retenidas de esa cuenta y red (de todas las marcas que la comparten) cuya marca tiene Publora configurada para esa red. Cada una sigue el flujo normal de Publora (su margen mínimo de publicación; si ya no llega, lo de siempre). 400 si ninguna tiene Publora.
          */
         post: operations["moveHeldToPublora"];
         delete?: never;
@@ -821,7 +882,7 @@ export interface paths {
         get?: never;
         /**
          * Edita los datos de una publicación
-         * @description No cambia el estado. No se puede editar una publicación que se está publicando o ya publicada; si está programada, la nueva hora debe quedar al menos a 6 horas de ahora.
+         * @description No cambia el estado. No se puede editar una publicación que se está publicando o ya publicada; si está programada, la nueva hora debe quedar al menos al margen mínimo de publicación (30 minutos por defecto, ajustable) de ahora.
          */
         put: operations["updatePublication"];
         post?: never;
@@ -953,6 +1014,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/publications/{publication_id}/next-free-slot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * La siguiente hora libre de una publicación que ha perdido el margen o choca con otra
+         * @description Primera hora (en el cuarto de hora) que no queda antes de «ahora + margen» ni antes de la hora actual de la publicación y sin otra publicación activa de la misma marca y red a menos de 30 minutos. No cambia nada. 409 si no se puede mover (programada, publicada…) o no hace falta.
+         */
+        get: operations["getNextFreeSlot"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/publications/{publication_id}/moves": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mueve la publicación a la siguiente hora libre confirmada
+         * @description Nunca mueve sin «confirmed». Vuelve a calcular la hora y falla (409) si ya no es la confirmada, y si cae después del fin de la promoción exige «accept_after_end».
+         */
+        post: operations["moveToFreeSlot"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/publications/{publication_id}/quality-acceptances": {
         parameters: {
             query?: never;
@@ -990,6 +1091,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/publications/{publication_id}/previous-text-restorations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Recupera el texto anterior de Raúl, el que sustituyó un texto pedido a mano a Claude
+         * @description Cuando Raúl pide los textos a mano sobre una publicación que ya tenía texto suyo, el de Claude lo sustituye y el suyo queda guardado (previous_caption, previous_hashtags). Aquí lo recupera: el de Claude se descarta.
+         */
+        post: operations["restorePublicationText"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/publications/{publication_id}/status-changes": {
         parameters: {
             query?: never;
@@ -1001,7 +1122,7 @@ export interface paths {
         put?: never;
         /**
          * Cambia el estado de una publicación
-         * @description Para cancelar hace falta «reason»: el rechazo queda en la memoria editorial de la marca. Solo transiciones permitidas por su ciclo de vida. «Publicando», «Publicada» y «Error de publicación» los pone SocialHub al publicar, nunca a mano. Para programarla, la hora debe quedar al menos a 6 horas de ahora.
+         * @description Para cancelar hace falta «reason»: el rechazo queda en la memoria editorial de la marca. Solo transiciones permitidas por su ciclo de vida. «Publicando», «Publicada» y «Error de publicación» los pone SocialHub al publicar, nunca a mano. Para programarla, la hora debe quedar al menos al margen mínimo de publicación (30 minutos por defecto, ajustable) de ahora.
          */
         post: operations["changePublicationStatus"];
         delete?: never;
@@ -1020,6 +1141,24 @@ export interface paths {
         /** Límite diario y modelo de cada tipo de encargo */
         get: operations["getAiSettings"];
         put: operations["updateAiSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/publishing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ajustes generales de publicación (márgenes mínimos: general y TikTok) */
+        get: operations["getPublishSettings"];
+        /** Cambia los márgenes mínimos de publicación (general y, si se envía, el de TikTok) */
+        put: operations["updatePublishSettings"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1113,6 +1252,28 @@ export interface paths {
          * @description Solo se aceptan los comandos que la tarea ofrece en `available_commands`. Si no, responde 409.
          */
         post: operations["executeTaskCommand"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tasks/{task_id}/answer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Contesta a la pregunta que Claude hizo en un encargo
+         * @description Solo si la tarea ofrece `ANSWER` en `available_commands` (encargo a Claude en espera de Raúl). Guarda la
+         *     pregunta con la respuesta y relanza el encargo: la respuesta sale en `inputs.human_answers` (acumulada con las
+         *     de intentos anteriores). Una respuesta vacía responde 409 y no se envía nada.
+         */
+        post: operations["answerTask"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1226,7 +1387,7 @@ export interface components {
         /** @enum {string} */
         TaskStatus: "IDLE" | "QUEUED" | "RUNNING" | "WAITING" | "BLOCKED" | "FAILED" | "COMPLETED" | "CANCELLED";
         /** @enum {string} */
-        TaskCommandType: "PAUSE" | "RESUME" | "CANCEL" | "DISCARD" | "RETRY" | "SWITCH_TO_MANUAL" | "RUN_NOW" | "RESCHEDULE" | "RECHECK" | "START" | "RERUN" | "REOPEN" | "APPROVE" | "MARK_DONE" | "REMIND" | "CHANGE_AGENT";
+        TaskCommandType: "PAUSE" | "RESUME" | "CANCEL" | "DISCARD" | "RETRY" | "SWITCH_TO_MANUAL" | "RUN_NOW" | "RESCHEDULE" | "RECHECK" | "START" | "RERUN" | "REOPEN" | "APPROVE" | "MARK_DONE" | "REMIND" | "ANSWER" | "CHANGE_AGENT";
         /** @enum {string} */
         AgentKind: "AI" | "LOCAL" | "HUMAN" | "BROWSER" | "CONNECTOR";
         /** @enum {string} */
@@ -1257,10 +1418,10 @@ export interface components {
             /** @description Estable mientras la recomendación siga haciendo falta (por ejemplo, brand-folders:litoques) */
             id: string;
             /**
-             * @description Por orden de prioridad: marca sin forma de publicar (NO_PUBLISHING_ROUTE) y tarea del PC «Publicar con Chrome» sin contestar (PC_TASK_SILENT), que van primero porque bloquean publicaciones reales (también salen como aviso en «Necesita atención»); marca sin cuenta de Publer para una red con publicaciones retenidas (PUBLER_ACCOUNT_MISSING, con botón a la tarjeta «Cuenta en Publer»); conexión con Instagram que caduca en 7 días o menos, o ya caducada (INSTAGRAM_CONNECTION_EXPIRING, con botón a la tarjeta «Instagram · API oficial», donde está «Renovar conexión»); propuestas retenidas (por la carpeta de Encargos, Drive cerrado o el límite diario), propuestas por revisar, marca sin todas sus carpetas, encargos sin recoger, marca sin cuenta de Publora, sin carpeta de copias, marca sin promoción activa, propuestas pedidas en camino y, la última, promoción activada sola hoy (PROMOTION_AUTO_STARTED, informativa: solo el día en que se activa). CONTENT_MISSING: publicación en producción sin contenido (sin piezas y fuera de cualquier spec abierto) que sale en menos de 3 días; con «publication_ids» y «promotion_id», el botón «Pedir contenido ya» pide un spec urgente a mano de esas publicaciones (sin target: no navega). IDENTITY_MISSING: marca con promoción en marcha a la que le falta el tono o el público (botón a su identidad; los temas que no se tocan vacíos son válidos). PUBLICATION_TOO_SOON: publicaciones de camino a publicar a las que ya no quedan 6 horas de margen, o cuya hora ya pasó, y aún no están programadas (botón a las pendientes de la promoción). SPEC_WAITING ya no se calcula (el spec se pide por lotes, no por semana) y se conserva solo por compatibilidad
+             * @description Por orden de prioridad: marca sin forma de publicar (NO_PUBLISHING_ROUTE) y tarea del PC «Publicar con Chrome» sin contestar (PC_TASK_SILENT), que van primero porque bloquean publicaciones reales (también salen como aviso en «Necesita atención»); marca sin cuenta de Publer para una red con publicaciones retenidas (PUBLER_ACCOUNT_MISSING, con botón a la tarjeta «Cuenta en Publer»); conexión con Instagram que caduca en 7 días o menos, o ya caducada (INSTAGRAM_CONNECTION_EXPIRING, con botón a la tarjeta «Instagram · API oficial», donde está «Renovar conexión»); propuestas retenidas (por la carpeta de Encargos, Drive cerrado o el límite diario), propuestas por revisar, marca sin todas sus carpetas, encargos sin recoger, marca sin cuenta de Publora, sin carpeta de copias, marca sin promoción activa, propuestas pedidas en camino y, la última, promoción activada sola hoy (PROMOTION_AUTO_STARTED, informativa: solo el día en que se activa). CONTENT_MISSING: publicación en producción sin contenido (sin piezas y fuera de cualquier spec abierto) que sale en menos de 3 días; con «publication_ids» y «promotion_id», el botón «Pedir contenido ya» pide un spec urgente a mano de esas publicaciones (sin target: no navega). IDENTITY_MISSING: marca con promoción en marcha a la que le falta el tono o el público (botón a su identidad; los temas que no se tocan vacíos son válidos). PUBLICATION_TOO_SOON: publicaciones de camino a publicar a las que ya no queda el margen mínimo de publicación, o cuya hora ya pasó, y aún no están programadas (botón a las pendientes de la promoción; con «publication_ids», las afectadas por hora, y el botón «Mover a la siguiente hora libre» actúa sobre la primera). DUPLICATE_PUBLICATIONS: posible duplicado (dos o más publicaciones activas de la misma marca y red el mismo día con el mismo título, o con la misma hora y el mismo texto); con «publication_ids», cada una tiene su «Descartar esta». SPEC_WAITING ya no se calcula (el spec se pide por lotes, no por semana) y se conserva solo por compatibilidad. MATERIAL_MISSING: aviso informativo (no bloquea) de las publicaciones de una promoción a las que les falta imagen o vídeo en las carpetas de Material; dice qué fondo se usará (la portada de la marca, o un fondo con su color) y, si la promoción tiene «Estilo visual», que Claude lo usará; si la carpeta no está disponible, avisa de que no se ha podido comprobar (botón a las carpetas de la marca)
              * @enum {string}
              */
-            kind: "HELD_PROPOSALS" | "PROPOSALS_TO_REVIEW" | "BRAND_FOLDERS_MISSING" | "ORDERS_NOT_COLLECTED" | "PUBLORA_MISSING" | "BACKUP_FOLDER_MISSING" | "NO_ACTIVE_PROMOTION" | "PROPOSALS_PENDING" | "SPEC_WAITING" | "PC_TASK_SILENT" | "NO_PUBLISHING_ROUTE" | "PUBLER_ACCOUNT_MISSING" | "INSTAGRAM_CONNECTION_EXPIRING" | "PROMOTION_AUTO_STARTED" | "CONTENT_MISSING" | "IDENTITY_MISSING" | "PUBLICATION_TOO_SOON";
+            kind: "HELD_PROPOSALS" | "PROPOSALS_TO_REVIEW" | "BRAND_FOLDERS_MISSING" | "ORDERS_NOT_COLLECTED" | "PUBLORA_MISSING" | "BACKUP_FOLDER_MISSING" | "NO_ACTIVE_PROMOTION" | "PROPOSALS_PENDING" | "SPEC_WAITING" | "PC_TASK_SILENT" | "NO_PUBLISHING_ROUTE" | "PUBLER_ACCOUNT_MISSING" | "INSTAGRAM_CONNECTION_EXPIRING" | "PROMOTION_AUTO_STARTED" | "CONTENT_MISSING" | "IDENTITY_MISSING" | "PUBLICATION_TOO_SOON" | "MATERIAL_MISSING" | "DUPLICATE_PUBLICATIONS";
             /** @description Texto en español */
             title: string;
             /** @description Más información (por ejemplo, el motivo de un encargo retenido) */
@@ -1529,6 +1690,13 @@ export interface components {
         InstagramOAuthStart: {
             authorization_url: string;
         };
+        InstagramRenewal: {
+            /** @description Se renovó sin salir de SocialHub */
+            renewed: boolean;
+            message: string;
+            /** @description Solo si renewed es false: el inicio de sesión completo de Meta */
+            authorization_url?: string;
+        };
         InstagramDetectedAccount: {
             ig_user_id: string;
             username: string;
@@ -1684,6 +1852,47 @@ export interface components {
             id: "PUBLER" | "PUBLORA" | "OFFICIAL";
             label: string;
             configured: boolean;
+        };
+        PublishSettings: {
+            /**
+             * Format: int32
+             * @description Margen mínimo de publicación general (el de todas las redes menos TikTok), en minutos: una publicación solo se puede programar si su hora queda al menos a este margen de ahora (nunca se publica al instante). Es una de las dos únicas fuentes: la usan las validaciones de edición y programación, el motor de publicación, «Qué hacer ahora» y los encargos a Claude
+             */
+            min_margin_minutes: number;
+            /**
+             * Format: int32
+             * @description Margen mínimo de publicación en TikTok, en minutos. Aparte del general porque TikTok se publica por Publer, que programa Claude con Chrome desde el PC en sus pasadas. Se aplica a las publicaciones de TikTok en lugar del general
+             */
+            tiktok_min_margin_minutes: number;
+            /**
+             * Format: int32
+             * @description Valor por defecto del margen general (30)
+             */
+            default_minutes: number;
+            /**
+             * Format: int32
+             * @description Valor por defecto del margen de TikTok (480: 8 horas)
+             */
+            tiktok_default_minutes: number;
+            /**
+             * Format: int32
+             * @description Mínimo permitido en los dos (5)
+             */
+            min_minutes: number;
+            /**
+             * Format: int32
+             * @description Máximo permitido en los dos (1440: un día)
+             */
+            max_minutes: number;
+        };
+        PublishSettingsInput: {
+            /** Format: int32 */
+            min_margin_minutes: number;
+            /**
+             * Format: int32
+             * @description Si falta, el margen de TikTok se queda como estaba (compatible con quien solo envía el general)
+             */
+            tiktok_min_margin_minutes?: number;
         };
         AiSettings: {
             /** Format: int32 */
@@ -1842,6 +2051,32 @@ export interface components {
              */
             build_time: string;
         };
+        Autostart: {
+            /** @description Este sistema lo permite (Windows con SocialHub instalado) */
+            available: boolean;
+            enabled: boolean;
+        };
+        AutostartInput: {
+            enabled: boolean;
+        };
+        UpdateStatus: {
+            /** @example 1.2.7 */
+            installed_version: string;
+            /** @enum {string} */
+            state: "UP_TO_DATE" | "UPDATE_AVAILABLE" | "UNKNOWN";
+            /** @description La última versión publicada, si se sabe */
+            latest_version?: string;
+            /** @description Enlace directo al instalador de este sistema (si la release lo trae) */
+            installer_url?: string;
+            /** @description Página de la release en GitHub */
+            release_url?: string;
+            /**
+             * Format: date-time
+             * @description Última comprobación con éxito
+             */
+            checked_at?: string;
+            message: string;
+        };
         LogsFolder: {
             /**
              * @description Ruta completa de la carpeta de registros
@@ -1868,6 +2103,8 @@ export interface components {
             description?: string;
             scope?: string;
             cadence?: string;
+            /** @description Estilo visual de la promoción, en texto libre corto (por ejemplo «Navidad: rojo, dorado, nieve y estrellas»). Opcional. Claude lo usa para diseñar los fondos de las piezas que no tienen imagen ni vídeo. */
+            visual_style?: string;
             /** Format: date */
             starts_on: string;
             /** Format: date */
@@ -1915,6 +2152,8 @@ export interface components {
             description: string;
             scope: string;
             cadence: string;
+            /** @description Estilo visual de la promoción; vacío si no lo tiene */
+            visual_style?: string;
             /** Format: date */
             starts_on: string;
             /** Format: date */
@@ -2042,12 +2281,26 @@ export interface components {
             /** Format: date-time */
             started_at?: string;
             inputs: string[];
+            /** @description Respuestas cortas que Claude propuso para su pregunta (la pregunta es `reason`). Puede estar vacía. */
+            question_options?: string[];
+            /** @description Lo que Claude preguntó y lo que Raúl contestó, de más antigua a más reciente */
+            human_answers?: components["schemas"]["HumanAnswer"][];
             steps: components["schemas"]["TaskStep"][];
             checks: components["schemas"]["TaskCheck"][];
             depends_on: string[];
             events: components["schemas"]["TaskEvent"][];
             available_commands: components["schemas"]["AvailableCommand"][];
             demo: boolean;
+        };
+        HumanAnswer: {
+            question: string;
+            answer: string;
+            /** Format: date-time */
+            answered_at: string;
+        };
+        TaskAnswer: {
+            /** @description Texto de la respuesta. No puede estar vacío ni en blanco (responde 409) */
+            answer: string;
         };
         Agent: {
             kind: components["schemas"]["AgentKind"];
@@ -2105,9 +2358,80 @@ export interface components {
             /** @description Texto de la publicación */
             caption?: string;
             hashtags?: string;
+            /** @description Texto de Raúl que sustituyó Claude al pedirlo a mano; se recupera con previous-text-restorations */
+            previous_caption?: string;
+            previous_hashtags?: string;
             /** @description Prueba de que se ha publicado de verdad */
             confirmation?: string;
             demo: boolean;
+            outcome?: components["schemas"]["PublicationOutcome"];
+            /** @description Otras publicaciones activas con las que se repite (aviso, no bloquea) */
+            duplicates?: components["schemas"]["DuplicateRef"][];
+            /**
+             * @description Presente si puede moverse a la siguiente hora libre, y por qué (perdió el margen o choca con otra)
+             * @enum {string}
+             */
+            move_reason?: "LOST_MARGIN" | "CLASH";
+        };
+        /** @description Cómo ha acabado o va la publicación, solo con datos reales (su estado, su trabajo de publicación y el calendario leído por Claude). Ausente si está cancelada. Sin confirmación, UNCONFIRMED. */
+        PublicationOutcome: {
+            /** @enum {string} */
+            result: "PUBLISHED" | "FAILED" | "DELAYED" | "PENDING" | "UNCONFIRMED";
+            /** @description Publicada / Falló / Retrasada / Pendiente / Sin confirmar */
+            label: string;
+            /**
+             * Format: date-time
+             * @description Hora real de publicación
+             */
+            at?: string;
+            /**
+             * @description CALENDAR, la hora que dice la vía; CONFIRMATION, cuando SocialHub la confirmó
+             * @enum {string}
+             */
+            at_source?: "CALENDAR" | "CONFIRMATION";
+            /** @description API oficial, Publer, Publora o Manual */
+            route?: string;
+            /** @description Enlace al post, si existe */
+            url?: string;
+            /** @description Por qué falló, se retrasó o no se confirma */
+            reason?: string;
+            /** @description Qué hacer */
+            advice?: string;
+        };
+        DuplicateRef: {
+            publication_id: string;
+            /** @enum {string} */
+            reason: "SAME_TITLE" | "SAME_TIME_AND_TEXT";
+        };
+        SlotProposal: {
+            publication_id: string;
+            /** @enum {string} */
+            reason: "LOST_MARGIN" | "CLASH";
+            /** Format: date */
+            current_on: string;
+            /** @example 19:00 */
+            current_time: string;
+            /** Format: date */
+            new_on: string;
+            /** @example 19:30 */
+            new_time: string;
+            timezone: string;
+            changes_day: boolean;
+            /** Format: date */
+            promotion_ends_on?: string;
+            /** @description La nueva fecha pasa del fin de la promoción */
+            after_promotion_end: boolean;
+            /** Format: int64 */
+            margin_minutes: number;
+        };
+        SlotMove: {
+            /** Format: date */
+            new_on: string;
+            new_time: string;
+            /** @description Raúl ha visto la hora actual y la nueva y lo confirma */
+            confirmed: boolean;
+            /** @default false */
+            accept_after_end: boolean;
         };
         PublicationInput: {
             platform: components["schemas"]["Platform"];
@@ -2173,6 +2497,12 @@ export interface components {
             accepted_reason?: string;
             /** Format: date-time */
             accepted_at?: string;
+            /**
+             * @description BLOCKING (por defecto): impide aprobar y programar hasta corregirlo o aceptarlo. INFO: solo informa (estado de los
+             *     enlaces, texto ya usado, cita verificada); no cuenta en `open` ni se acepta.
+             * @enum {string}
+             */
+            level?: "BLOCKING" | "INFO";
         };
         QualityReport: {
             issues: components["schemas"]["QualityIssue"][];
@@ -2303,6 +2633,7 @@ export type InstagramStatus = components['schemas']['InstagramStatus'];
 export type InstagramConnection = components['schemas']['InstagramConnection'];
 export type InstagramAppInput = components['schemas']['InstagramAppInput'];
 export type InstagramOAuthStart = components['schemas']['InstagramOAuthStart'];
+export type InstagramRenewal = components['schemas']['InstagramRenewal'];
 export type InstagramDetectedAccount = components['schemas']['InstagramDetectedAccount'];
 export type InstagramDetectedAccountList = components['schemas']['InstagramDetectedAccountList'];
 export type InstagramKeyInput = components['schemas']['InstagramKeyInput'];
@@ -2332,6 +2663,8 @@ export type PublerAccountListInput = components['schemas']['PublerAccountListInp
 export type PublerMoveInput = components['schemas']['PublerMoveInput'];
 export type PublerMoveResult = components['schemas']['PublerMoveResult'];
 export type PublishRouteState = components['schemas']['PublishRouteState'];
+export type PublishSettings = components['schemas']['PublishSettings'];
+export type PublishSettingsInput = components['schemas']['PublishSettingsInput'];
 export type AiSettings = components['schemas']['AiSettings'];
 export type AiSettingsInput = components['schemas']['AiSettingsInput'];
 export type AiOrderInput = components['schemas']['AiOrderInput'];
@@ -2347,6 +2680,9 @@ export type Brand = components['schemas']['Brand'];
 export type AppMode = components['schemas']['AppMode'];
 export type AppModeState = components['schemas']['AppModeState'];
 export type AppVersion = components['schemas']['AppVersion'];
+export type Autostart = components['schemas']['Autostart'];
+export type AutostartInput = components['schemas']['AutostartInput'];
+export type UpdateStatus = components['schemas']['UpdateStatus'];
 export type LogsFolder = components['schemas']['LogsFolder'];
 export type AppModeChange = components['schemas']['AppModeChange'];
 export type BrandList = components['schemas']['BrandList'];
@@ -2370,6 +2706,8 @@ export type StationCommandType = components['schemas']['StationCommandType'];
 export type StationCommand = components['schemas']['StationCommand'];
 export type TaskList = components['schemas']['TaskList'];
 export type Task = components['schemas']['Task'];
+export type HumanAnswer = components['schemas']['HumanAnswer'];
+export type TaskAnswer = components['schemas']['TaskAnswer'];
 export type Agent = components['schemas']['Agent'];
 export type TaskStep = components['schemas']['TaskStep'];
 export type TaskCheck = components['schemas']['TaskCheck'];
@@ -2378,6 +2716,10 @@ export type AvailableCommand = components['schemas']['AvailableCommand'];
 export type TaskCommand = components['schemas']['TaskCommand'];
 export type PublicationPage = components['schemas']['PublicationPage'];
 export type Publication = components['schemas']['Publication'];
+export type PublicationOutcome = components['schemas']['PublicationOutcome'];
+export type DuplicateRef = components['schemas']['DuplicateRef'];
+export type SlotProposal = components['schemas']['SlotProposal'];
+export type SlotMove = components['schemas']['SlotMove'];
 export type PublicationInput = components['schemas']['PublicationInput'];
 export type PublicationFile = components['schemas']['PublicationFile'];
 export type PublicationFileList = components['schemas']['PublicationFileList'];
@@ -2815,6 +3157,77 @@ export interface operations {
             default: components["responses"]["Problem"];
         };
     };
+    getAutostart: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Estado del arranque con el sistema */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Autostart"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    setAutostart: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AutostartInput"];
+            };
+        };
+        responses: {
+            /** @description Estado nuevo */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Autostart"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    getUpdateStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Estado de las versiones */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpdateStatus"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
     getAppVersion: {
         parameters: {
             query?: never;
@@ -3156,6 +3569,31 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["InstagramOAuthStart"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    renewInstagramConnection: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Resultado de la renovación */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InstagramRenewal"];
                 };
             };
             400: components["responses"]["Problem"];
@@ -4160,6 +4598,64 @@ export interface operations {
             default: components["responses"]["Problem"];
         };
     };
+    getNextFreeSlot: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                publication_id: components["parameters"]["PublicationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Hora propuesta */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SlotProposal"];
+                };
+            };
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    moveToFreeSlot: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path: {
+                publication_id: components["parameters"]["PublicationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SlotMove"];
+            };
+        };
+        responses: {
+            /** @description Publicación movida */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Publication"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
     acceptQualityIssue: {
         parameters: {
             query?: never;
@@ -4211,6 +4707,34 @@ export interface operations {
         };
         responses: {
             /** @description Publicación sin texto */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Publication"];
+                };
+            };
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    restorePublicationText: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path: {
+                publication_id: components["parameters"]["PublicationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Publicación con su texto anterior */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -4300,6 +4824,56 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AiSettings"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    getPublishSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Ajustes vigentes */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublishSettings"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    updatePublishSettings: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PublishSettingsInput"];
+            };
+        };
+        responses: {
+            /** @description Ajustes guardados */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublishSettings"];
                 };
             };
             400: components["responses"]["Problem"];
@@ -4432,6 +5006,39 @@ export interface operations {
         };
         responses: {
             /** @description Tarea tras aplicar el comando */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Task"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    answerTask: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path: {
+                task_id: components["parameters"]["TaskId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskAnswer"];
+            };
+        };
+        responses: {
+            /** @description Tarea tras responder (vuelve a la cola) */
             200: {
                 headers: {
                     [name: string]: unknown;

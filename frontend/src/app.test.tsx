@@ -184,6 +184,63 @@ describe('TaskPanel', () => {
   });
 });
 
+describe('Pregunta de Claude en la tarjeta', () => {
+  const waiting = (o: Partial<Task> = {}) => task({
+    status: 'WAITING', human: true, reason: '¿Incluyo clubes de fuera de Granada?', question_options: ['Solo Granada', 'También Málaga'],
+    available_commands: [
+      { type: 'ANSWER', label: 'Responder a Claude', needs_confirmation: false },
+      { type: 'MARK_DONE', label: 'Marcar como hecho', needs_confirmation: false },
+    ], ...o,
+  });
+
+  it('enseña la pregunta, las opciones y envía la opción elegida', async () => {
+    const onAnswer = vi.fn().mockResolvedValue(undefined);
+    render(<TaskPanel t={waiting()} tasks={[]} demo onClose={() => {}} onTask={() => {}} onAction={() => {}} onAnswer={onAnswer} />);
+    expect(screen.getByText('¿Incluyo clubes de fuera de Granada?')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Responder a Claude' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'También Málaga' }));
+    await waitFor(() => expect(onAnswer).toHaveBeenCalledWith('También Málaga'));
+  });
+
+  it('envía el texto libre y no deja enviar una respuesta vacía', async () => {
+    const onAnswer = vi.fn().mockResolvedValue(undefined);
+    render(<TaskPanel t={waiting({ question_options: [] })} tasks={[]} demo onClose={() => {}} onTask={() => {}} onAction={() => {}} onAnswer={onAnswer} />);
+    const send = screen.getByRole('button', { name: 'Enviar respuesta a Claude' });
+    expect(send).toBeDisabled();
+    fireEvent.change(screen.getByLabelText('Tu respuesta'), { target: { value: '   ' } });
+    expect(send).toBeDisabled();
+    fireEvent.change(screen.getByLabelText('Tu respuesta'), { target: { value: ' Solo Granada ' } });
+    fireEvent.click(send);
+    await waitFor(() => expect(onAnswer).toHaveBeenCalledWith('Solo Granada'));
+    expect(onAnswer).toHaveBeenCalledTimes(1);
+  });
+
+  it('enseña el error del backend junto a la caja y conserva lo escrito', async () => {
+    const onAnswer = vi.fn().mockRejectedValue(new Error('Esta tarea no está esperando una respuesta tuya para Claude.'));
+    render(<TaskPanel t={waiting()} tasks={[]} demo onClose={() => {}} onTask={() => {}} onAction={() => {}} onAnswer={onAnswer} />);
+    fireEvent.change(screen.getByLabelText('Tu respuesta'), { target: { value: 'Sí' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar respuesta a Claude' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('no está esperando');
+    expect(screen.getByLabelText('Tu respuesta')).toHaveValue('Sí');
+  });
+
+  it('recuerda lo ya contestado y no enseña la caja si no hay pregunta abierta', () => {
+    render(<TaskPanel t={task({ status: 'WAITING', human_answers: [{ question: '¿Qué verso?', answer: 'El segundo', answered_at: '2026-11-16T10:00:00Z' }] })}
+      tasks={[]} demo onClose={() => {}} onTask={() => {}} onAction={() => {}} onAnswer={vi.fn()} />);
+    expect(screen.getByText('¿Qué verso?')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Tu respuesta')).not.toBeInTheDocument();
+  });
+
+  it('envía la respuesta a /answer con la cabecera de protección', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify(task({})), { status: 200 }));
+    await api.answerTask('t1', 'Solo Granada');
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('/api/tasks/t1/answer');
+    expect((init?.headers as Record<string, string>)['X-SocialHub-Request']).toBe('1');
+    expect(JSON.parse(String(init?.body))).toEqual({ answer: 'Solo Granada' });
+  });
+});
+
 describe('api', () => {
   it('envía las órdenes a /commands con la cabecera de protección', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify(task({})), { status: 200 }));
@@ -335,6 +392,18 @@ describe('Publicaciones', () => {
     scheduled_on: '2026-11-10', scheduled_time: '19:00', timezone: 'Europe/Madrid', status: 'APPROVED', route: 'Publer', demo: false,
   };
 
+  it('al elegir TikTok enseña el margen mínimo de TikTok, y en Instagram no', async () => {
+    vi.spyOn(api, 'publishSettings').mockResolvedValue({
+      min_margin_minutes: 30, tiktok_min_margin_minutes: 480, default_minutes: 30, tiktok_default_minutes: 480, min_minutes: 5, max_minutes: 1440,
+    });
+    render(<PublicationEditor promotionId="p" onClose={() => {}} onSaved={() => {}} />);
+    expect(screen.queryByText(/Margen mínimo de publicación en TikTok/)).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Plataforma'), { target: { value: 'TIKTOK' } });
+    expect(await screen.findByText(/Margen mínimo de publicación en TikTok: 8 horas/)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Plataforma'), { target: { value: 'INSTAGRAM' } });
+    expect(screen.queryByText(/Margen mínimo de publicación en TikTok/)).not.toBeInTheDocument();
+  });
+
   it('da de alta una publicación con el estado inicial elegido', async () => {
     const create = vi.spyOn(api, 'createPublication').mockResolvedValue({ ...publication, status: 'DRAFT' });
     const onSaved = vi.fn();
@@ -374,13 +443,13 @@ describe('Publicaciones', () => {
     vi.spyOn(api, 'publicationFiles').mockResolvedValue({ items: [
       { id: 'aaaaaaaaaaaaaaaa', path: 'G:/DeLito/Semana 2/poema_1.jpg', kind: 'IMAGE', mime_type: 'image/jpeg', origin: 'SPEC', added_at: '2026-11-02T09:00:00Z', available: true },
     ] });
-    const change = vi.spyOn(api, 'changePublicationStatus').mockRejectedValue(new Error('al menos a 6 horas de ahora'));
+    const change = vi.spyOn(api, 'changePublicationStatus').mockRejectedValue(new Error('al menos a 30 minutos de ahora'));
     render(<PublicationEditor promotionId="p" publication={publication} onClose={() => {}} onSaved={() => {}} />);
     expect(await screen.findByText('G:/DeLito/Semana 2/poema_1.jpg')).toBeInTheDocument();
     expect(screen.getByText(/Del spec/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Publicada/ })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Pasar a «Programada»' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('6 horas');
+    expect(await screen.findByRole('alert')).toHaveTextContent('30 minutos');
     expect(change).toHaveBeenCalledWith('2026-11-10-instagram', 'SCHEDULED');
   });
 });
@@ -691,7 +760,7 @@ describe('Instagram · API oficial', () => {
     await waitFor(() => expect(writeText).toHaveBeenCalledWith('http://localhost:8686/api/instagram/oauth/callback'));
   });
 
-  it('conectado: enseña como quién y cuándo caduca, avisa a 7 días o menos y permite renovar', async () => {
+  it('conectado: enseña como quién y cuándo caduca, avisa a 10 días o menos y permite renovar', async () => {
     const connection = { name: 'Raúl', usernames: ['elde_lito', 'litoques'], expires_at: '2027-01-14T10:00:00Z', days_left: 5, expired: false };
     vi.spyOn(api, 'instagram').mockResolvedValue({ configured: true, source: 'OAUTH', app_id: '1234567890123', app_secret_saved: true,
       redirect_uri: 'http://localhost:8686/api/instagram/oauth/callback', connection });
@@ -707,6 +776,14 @@ describe('Instagram · API oficial', () => {
     const found = await screen.findByRole('group', { name: 'Cuentas de Instagram encontradas' });
     expect(within(found).getByText(/asignada a el-delito/)).toBeInTheDocument();
     expect(within(found).getByText(/sin marca/)).toBeInTheDocument();
+    // Renovar no pide nada más ni sale de SocialHub si Meta acepta la clave
+    const renew = vi.spyOn(api, 'renewInstagramConnection').mockResolvedValue({ renewed: true, message: 'Conexión renovada: dura otros 60 días.' });
+    fireEvent.click(screen.getByRole('button', { name: 'Renovar conexión' }));
+    await waitFor(() => expect(renew).toHaveBeenCalled());
+    expect(await screen.findByText('Conexión renovada: dura otros 60 días.')).toBeInTheDocument();
+    expect(open).not.toHaveBeenCalled();
+    // Si ya no vale, lleva al inicio de sesión completo de Meta
+    renew.mockResolvedValue({ renewed: false, message: 'caducó', authorization_url: 'https://www.facebook.com/dialog' });
     fireEvent.click(screen.getByRole('button', { name: 'Renovar conexión' }));
     await waitFor(() => expect(open).toHaveBeenCalledWith('https://www.facebook.com/dialog', '_self'));
   });
@@ -847,6 +924,25 @@ describe('Encargos a Claude', () => {
     await waitFor(() => expect(onTask).toHaveBeenCalledWith('t-10'));
     expect(order).toHaveBeenCalledWith('p', { type: 'RESEARCH', title: undefined, goal: 'Salas de poesía', inputs: ['Granada', 'Jaén'] });
   });
+
+  it('enseña y guarda el margen mínimo de publicación', async () => {
+    vi.spyOn(api, 'aiSettings').mockResolvedValue({ daily_limit: 10, used_today: 0, models: [] });
+    vi.spyOn(api, 'aiRequests').mockResolvedValue({ offset: 0, limit: 50, total: 0, items: [] });
+    const base = { default_minutes: 30, tiktok_default_minutes: 480, min_minutes: 5, max_minutes: 1440 };
+    vi.spyOn(api, 'publishSettings').mockResolvedValue({ ...base, min_margin_minutes: 30, tiktok_min_margin_minutes: 480 });
+    const save = vi.spyOn(api, 'savePublishSettings').mockResolvedValue({ ...base, min_margin_minutes: 90, tiktok_min_margin_minutes: 720 });
+    render(<Claude data={snapshot} onClose={() => {}} onTask={() => {}} onMessage={() => {}} />);
+    const input = await screen.findByLabelText(/Minutos entre ahora y la hora de publicación/);
+    expect(input).toHaveValue(30);
+    // El ajuste de TikTok va junto al general, con su frase de ayuda y 8 horas por defecto
+    const tiktok = screen.getByLabelText(/Margen mínimo de publicación en TikTok/);
+    expect(tiktok).toHaveValue(480);
+    expect(screen.getByText(/con menos de unas 8 horas puede no llegar y quedará para subirla a mano/)).toBeInTheDocument();
+    fireEvent.change(input, { target: { value: '90' } });
+    fireEvent.change(tiktok, { target: { value: '720' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar margen' }));
+    await waitFor(() => expect(save).toHaveBeenCalledWith({ min_margin_minutes: 90, tiktok_min_margin_minutes: 720 }));
+  });
 });
 
 describe('Textos de una publicación', () => {
@@ -898,6 +994,28 @@ describe('Control de calidad', () => {
     expect(screen.getByText(/1 aviso abierto/)).toBeInTheDocument();
   });
 
+  it('enseña citas y enlaces como información que no se acepta ni cuenta como abierta', async () => {
+    const publication: Publication = {
+      id: 'p-1', promotion_id: 'p', platform: 'INSTAGRAM', type: 'Post', title: 'Poema 1',
+      scheduled_on: '2026-11-10', scheduled_time: '19:00', timezone: 'Europe/Madrid', status: 'IN_PRODUCTION', route: 'Publer', demo: false,
+    };
+    vi.spyOn(api, 'publicationFiles').mockResolvedValue({ items: [] });
+    vi.spyOn(api, 'publicationQuality').mockResolvedValue({ open: 1, issues: [
+      { key: 'CITATION:ab12cd34', source: 'CODE', message: 'Sin verificar: comprueba la cita en poemario.pdf, página 4.', accepted: false },
+      { key: 'LINK:https://litoques.es', source: 'CODE', level: 'INFO', message: 'Enlace OK: https://litoques.es', accepted: false },
+      { key: 'LINK:https://roto.example', source: 'CODE', level: 'INFO', message: 'No responde: https://roto.example', accepted: false },
+      { key: 'REUSED:p-0', source: 'CODE', level: 'INFO', message: 'Este texto ya se usó el 3 nov 2026 (publicación p-0).', accepted: false },
+    ] });
+    render(<PublicationEditor promotionId="p" publication={publication} onClose={() => {}} onSaved={() => {}} />);
+    expect(await screen.findByText('Enlace OK: https://litoques.es')).toBeInTheDocument();
+    expect(screen.getByText('No responde: https://roto.example')).toBeInTheDocument();
+    expect(screen.getByText(/Este texto ya se usó el 3 nov 2026/)).toBeInTheDocument();
+    expect(screen.getByText(/Sin verificar: comprueba la cita en poemario.pdf/)).toBeInTheDocument();
+    // Solo el aviso de la cita se puede aceptar; los informativos no llevan botón
+    expect(screen.getAllByRole('button', { name: 'Aceptar' })).toHaveLength(1);
+    expect(screen.getByText(/1 aviso abierto/)).toBeInTheDocument();
+  });
+
   it('explica qué es y qué hacer con cada aviso, sin jerga', async () => {
     const publication: Publication = {
       id: 'p-1', promotion_id: 'p', platform: 'INSTAGRAM', type: 'Carrusel', title: 'Poema 1',
@@ -939,6 +1057,14 @@ describe('Memoria editorial', () => {
     // El primero abre el formulario; el último es el del formulario
     fireEvent.click(screen.getAllByRole('button', { name: 'Descartar texto' }).at(-1)!);
     await waitFor(() => expect(discard).toHaveBeenCalledWith('p-2', 'TONE', 'Muy serio'));
+  });
+
+  it('recupera el texto anterior de Raúl si Claude lo sustituyó', async () => {
+    vi.spyOn(api, 'publicationFiles').mockResolvedValue({ items: [] });
+    const restore = vi.spyOn(api, 'restorePublicationText').mockResolvedValue({ ...publication, caption: 'Mi texto' });
+    render(<PublicationEditor promotionId="p" publication={{ ...publication, previous_caption: 'Mi texto' }} onClose={() => {}} onSaved={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Recuperar mi texto anterior' }));
+    await waitFor(() => expect(restore).toHaveBeenCalledWith('p-2'));
   });
 
   it('muestra la memoria de la marca y añade decisiones', async () => {
@@ -1039,6 +1165,53 @@ describe('Versión de SocialHub', () => {
     expect(pop).toHaveTextContent('Real');
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByRole('dialog', { name: 'Versión de SocialHub' })).toBeNull();
+  });
+
+  it('avisa de una versión nueva con el enlace al instalador y el recordatorio de instalar con registro', async () => {
+    vi.spyOn(api, 'appVersion').mockResolvedValue({ version: '1.2.7', commit: 'a1b2c3d', build_time: '2026-11-15T10:30:00Z' });
+    vi.spyOn(api, 'updateStatus').mockResolvedValue({ installed_version: '1.2.7', state: 'UPDATE_AVAILABLE', latest_version: '1.3.0',
+      installer_url: 'https://github.com/x/y/releases/download/v1.3.0/SocialHub-1.3.0.msi',
+      release_url: 'https://github.com/x/y/releases/tag/v1.3.0', message: 'Hay una versión nueva: 1.3.0 (tienes la 1.2.7)' });
+    render(<VersionBadge demo={false} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Nueva versión 1.3.0' }));
+    const pop = screen.getByRole('dialog', { name: 'Versión de SocialHub' });
+    expect(pop).toHaveTextContent('Instalada');
+    expect(pop).toHaveTextContent('1.3.0');
+    expect(within(pop).getByRole('link', { name: 'Descargar el instalador' })).toHaveAttribute('href', expect.stringContaining('.msi'));
+    expect(pop).toHaveTextContent('Instalar SocialHub (con registro)');
+  });
+
+  it('sin información de versiones nuevas lo dice sin error', async () => {
+    vi.spyOn(api, 'appVersion').mockResolvedValue({ version: '1.2.7', commit: 'a1b2c3d', build_time: '2026-11-15T10:30:00Z' });
+    vi.spyOn(api, 'updateStatus').mockResolvedValue({ installed_version: '1.2.7', state: 'UNKNOWN', message: 'No hay información de versiones nuevas' });
+    render(<VersionBadge demo={false} />);
+    fireEvent.click(await screen.findByRole('button', { name: '1.2.7 · a1b2c3d' }));
+    expect(screen.queryByRole('button', { name: /Nueva versión/ })).toBeNull();
+    expect(screen.getByRole('dialog', { name: 'Versión de SocialHub' })).toHaveTextContent('No hay información de versiones nuevas');
+  });
+
+  it('el interruptor de abrir con Windows aparece si está disponible, se apaga y se enciende', async () => {
+    vi.spyOn(api, 'appVersion').mockResolvedValue({ version: '1.2.7', commit: 'a1b2c3d', build_time: '2026-11-15T10:30:00Z' });
+    vi.spyOn(api, 'updateStatus').mockResolvedValue({ installed_version: '1.2.7', state: 'UNKNOWN', message: 'No hay información de versiones nuevas' });
+    vi.spyOn(api, 'autostart').mockResolvedValue({ available: true, enabled: true });
+    const set = vi.spyOn(api, 'setAutostart').mockResolvedValue({ available: true, enabled: false });
+    render(<VersionBadge demo={false} />);
+    fireEvent.click(await screen.findByRole('button', { name: '1.2.7 · a1b2c3d' }));
+    const box = await screen.findByRole('checkbox', { name: /Abrir SocialHub al iniciar sesión/ });
+    expect(box).toBeChecked();
+    fireEvent.click(box);
+    await waitFor(() => expect(set).toHaveBeenCalledWith(false));
+    await waitFor(() => expect(box).not.toBeChecked());
+  });
+
+  it('si el sistema no permite abrir con Windows no enseña el interruptor', async () => {
+    vi.spyOn(api, 'appVersion').mockResolvedValue({ version: '1.2.7', commit: 'a1b2c3d', build_time: '2026-11-15T10:30:00Z' });
+    vi.spyOn(api, 'updateStatus').mockResolvedValue({ installed_version: '1.2.7', state: 'UNKNOWN', message: 'No hay información de versiones nuevas' });
+    vi.spyOn(api, 'autostart').mockResolvedValue({ available: false, enabled: false });
+    render(<VersionBadge demo={false} />);
+    fireEvent.click(await screen.findByRole('button', { name: '1.2.7 · a1b2c3d' }));
+    await screen.findByRole('dialog', { name: 'Versión de SocialHub' });
+    expect(screen.queryByRole('checkbox')).toBeNull();
   });
 
   it('en modo demo lo dice en el detalle y, si falla la consulta, no enseña nada', async () => {

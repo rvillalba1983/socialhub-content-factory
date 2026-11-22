@@ -42,8 +42,17 @@ class AiAutoOrdersTest {
         @Override public void executeWithoutResult(java.util.function.Consumer<TransactionStatus> action) { action.accept(null); }
     };
 
+    private static java.util.Optional<AiAutoOrders.FirstWeek> firstWeek(ZonedDateTime now, LocalDate startsOn, LocalDate endsOn) {
+        return AiAutoOrders.firstWeek(now, startsOn, endsOn, com.socialhub.settings.FixedMargin.SIX_HOURS);
+    }
+
+    private static java.util.Optional<AiAutoOrders.FirstWeek> firstWeek(ZonedDateTime now, LocalDate startsOn, LocalDate endsOn, String cadence) {
+        return AiAutoOrders.firstWeek(now, startsOn, endsOn, cadence, com.socialhub.settings.FixedMargin.SIX_HOURS);
+    }
+
     private AiAutoOrders at(ZonedDateTime now) {
-        return new AiAutoOrders(promotions, promotionService, orders, handlers, done, transactions, Clock.fixed(now.toInstant(), MADRID));
+        return new AiAutoOrders(promotions, promotionService, orders, handlers, done, transactions, Clock.fixed(now.toInstant(), MADRID),
+                com.socialhub.settings.FixedMargin.of(com.socialhub.settings.FixedMargin.SIX_HOURS));
     }
 
     @Test
@@ -141,34 +150,34 @@ class AiAutoOrdersTest {
     void aFirstWindowThatStartsOnADayWithoutCadenceIsExtendedToTheFirstCadenceDateWithMargin() {
         LocalDate week = LocalDate.of(2026, 11, 9), end = LocalDate.of(2026, 12, 31);
         // Empieza el domingo 15 (x/v 19:00) y se pide ese mismo día: del 15 al miércoles 18
-        assertThat(AiAutoOrders.firstWeek(at(15, 10), LocalDate.of(2026, 11, 15), end, "x/v a las 19:00"))
+        assertThat(firstWeek(at(15, 10), LocalDate.of(2026, 11, 15), end, "x/v a las 19:00"))
                 .contains(new AiAutoOrders.FirstWeek(week, LocalDate.of(2026, 11, 15), LocalDate.of(2026, 11, 18)));
         // Empieza en día de cadencia (viernes 13) y con margen (a las 2:00 la recogida es a las 5:30): no se extiende
-        assertThat(AiAutoOrders.firstWeek(at(13, 2), LocalDate.of(2026, 11, 13), end, "x/v a las 19:00"))
+        assertThat(firstWeek(at(13, 2), LocalDate.of(2026, 11, 13), end, "x/v a las 19:00"))
                 .contains(new AiAutoOrders.FirstWeek(week, LocalDate.of(2026, 11, 13), LocalDate.of(2026, 11, 15)));
         // Empieza el viernes 13 pero sin margen (a las 10:00 la recogida es a las 20:30): hasta el miércoles 18
-        assertThat(AiAutoOrders.firstWeek(at(13, 10), LocalDate.of(2026, 11, 13), end, "x/v a las 19:00"))
+        assertThat(firstWeek(at(13, 10), LocalDate.of(2026, 11, 13), end, "x/v a las 19:00"))
                 .contains(new AiAutoOrders.FirstWeek(week, LocalDate.of(2026, 11, 13), LocalDate.of(2026, 11, 18)));
         // Termina antes de su primera fecha de cadencia: la ventana no cambia (y Claude contestará sin propuestas)
-        assertThat(AiAutoOrders.firstWeek(at(15, 10), LocalDate.of(2026, 11, 15), LocalDate.of(2026, 11, 17), "x/v a las 19:00"))
+        assertThat(firstWeek(at(15, 10), LocalDate.of(2026, 11, 15), LocalDate.of(2026, 11, 17), "x/v a las 19:00"))
                 .contains(new AiAutoOrders.FirstWeek(week, LocalDate.of(2026, 11, 15), LocalDate.of(2026, 11, 15)));
         // Sin cadencia legible: la ventana de siempre
-        assertThat(AiAutoOrders.firstWeek(at(15, 10), LocalDate.of(2026, 11, 15), end, "a menudo"))
+        assertThat(firstWeek(at(15, 10), LocalDate.of(2026, 11, 15), end, "a menudo"))
                 .contains(new AiAutoOrders.FirstWeek(week, LocalDate.of(2026, 11, 15), LocalDate.of(2026, 11, 15)));
     }
 
     @Test
     void aNewPromotionAsksForItsFirstWeekIfTheUsualMondayHasPassed() {
         // Empieza el lunes 9 y se da de alta el domingo 8: el lunes 2 a las 18:00 ya pasó, así que se pide ya
-        assertThat(AiAutoOrders.firstWeek(at(8, 19), LocalDate.of(2026, 11, 9), LocalDate.of(2026, 12, 31)))
+        assertThat(firstWeek(at(8, 19), LocalDate.of(2026, 11, 9), LocalDate.of(2026, 12, 31)))
                 .contains(new AiAutoOrders.FirstWeek(LocalDate.of(2026, 11, 9), LocalDate.of(2026, 11, 9), LocalDate.of(2026, 11, 15)));
         // Empieza el miércoles 11 y se da de alta el jueves 12: solo los días que quedan
-        assertThat(AiAutoOrders.firstWeek(at(12, 10), LocalDate.of(2026, 11, 11), LocalDate.of(2026, 11, 13)))
+        assertThat(firstWeek(at(12, 10), LocalDate.of(2026, 11, 11), LocalDate.of(2026, 11, 13)))
                 .contains(new AiAutoOrders.FirstWeek(LocalDate.of(2026, 11, 9), LocalDate.of(2026, 11, 12), LocalDate.of(2026, 11, 13)));
         // Empieza dentro de tres semanas: se pedirá sola el lunes anterior
-        assertThat(AiAutoOrders.firstWeek(at(8, 19), LocalDate.of(2026, 11, 30), LocalDate.of(2026, 12, 31))).isEmpty();
+        assertThat(firstWeek(at(8, 19), LocalDate.of(2026, 11, 30), LocalDate.of(2026, 12, 31))).isEmpty();
         // Su primera semana ya terminó
-        assertThat(AiAutoOrders.firstWeek(at(16, 10), LocalDate.of(2026, 11, 9), LocalDate.of(2026, 12, 31))).isEmpty();
+        assertThat(firstWeek(at(16, 10), LocalDate.of(2026, 11, 9), LocalDate.of(2026, 12, 31))).isEmpty();
     }
 
     @Test

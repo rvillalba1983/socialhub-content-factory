@@ -30,6 +30,54 @@ async function openClaude(page: Page) {
 }
 
 test.describe('Claude: ajustes, encargos y ritmo', () => {
+  test('margen mínimo de publicación: 30 minutos por defecto, ajustable y nunca por debajo de 5', async ({ page, api }) => {
+    const brand = await api.createBrandWithFolders(unique('Marca Claude margen'), `@${unique('margen').toLowerCase()}`, path.join(makeTempDir('claude-margen'), 'raiz'));
+    await api.createPromotion(brand.id, unique('Promoción Claude margen'));
+    await openClaude(page);
+
+    const card = page.getByRole('form', { name: 'Margen mínimo de publicación' });
+    const input = card.getByLabel(/Minutos entre ahora y la hora de publicación/);
+    await expect(input).toHaveValue('30');
+    await input.fill('90');
+    await card.getByRole('button', { name: 'Guardar margen' }).click();
+    await expect(toast(page)).toHaveText('Margen mínimo de publicación guardado');
+    expect((await api.get<{ min_margin_minutes: number }>('/api/settings/publishing')).min_margin_minutes).toBe(90);
+
+    // Fuera de límites no se guarda (el campo ya lo impide en el navegador; la API también lo rechaza)
+    await expect(input).toHaveAttribute('min', '5');
+    await input.fill('30');
+    await card.getByRole('button', { name: 'Guardar margen' }).click();
+    await expect(toast(page)).toHaveText('Margen mínimo de publicación guardado');
+  });
+
+  test('margen mínimo de publicación en TikTok: 8 horas por defecto, aparte del general y con sus límites', async ({ page, api }) => {
+    const brand = await api.createBrandWithFolders(unique('Marca Claude TikTok'), `@${unique('tiktok').toLowerCase()}`, path.join(makeTempDir('claude-tiktok'), 'raiz'));
+    await api.createPromotion(brand.id, unique('Promoción Claude TikTok'));
+    await openClaude(page);
+
+    const card = page.getByRole('form', { name: 'Margen mínimo de publicación' });
+    const general = card.getByLabel(/Minutos entre ahora y la hora de publicación/);
+    const tiktok = card.getByLabel(/Margen mínimo de publicación en TikTok/);
+    await expect(tiktok).toHaveValue('480');
+    await expect(card.getByText(/con menos de unas 8 horas puede no llegar y quedará para subirla a mano/)).toBeVisible();
+    await expect(tiktok).toHaveAttribute('min', '5');
+    await expect(tiktok).toHaveAttribute('max', '1440');
+
+    await tiktok.fill('720');
+    await card.getByRole('button', { name: 'Guardar margen' }).click();
+    await expect(toast(page)).toHaveText('Margen mínimo de publicación guardado');
+    const saved = await api.get<{ min_margin_minutes: number; tiktok_min_margin_minutes: number }>('/api/settings/publishing');
+    expect(saved.tiktok_min_margin_minutes).toBe(720);
+    expect(saved.min_margin_minutes).toBe(30);
+    await expect(general).toHaveValue('30');
+
+    // Vuelve al valor por defecto para no afectar a otras pruebas
+    await tiktok.fill('480');
+    await card.getByRole('button', { name: 'Guardar margen' }).click();
+    await expect(toast(page)).toHaveText('Margen mínimo de publicación guardado');
+    expect((await api.get<{ tiktok_min_margin_minutes: number }>('/api/settings/publishing')).tiktok_min_margin_minutes).toBe(480);
+  });
+
   test('ajustes del límite y de los modelos, y los avisos de cada tipo de encargo', async ({ page, api }) => {
     const brand = await api.createBrandWithFolders(unique('Marca Claude ajustes'), `@${unique('ajustes').toLowerCase()}`, path.join(makeTempDir('claude-ajustes'), 'raiz'));
     await api.createPromotion(brand.id, unique('Promoción Claude ajustes'));

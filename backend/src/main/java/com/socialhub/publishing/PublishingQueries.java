@@ -30,13 +30,48 @@ public interface PublishingQueries {
     List<Unroutable> withoutPubloraRoute(java.time.LocalDate from, java.time.LocalDate to, java.util.function.Function<String, String> brandOfPromotion);
 
     /** Una publicación de camino a publicar cuya hora ya no deja el margen mínimo para programarla. */
-    record WithoutMargin(String promotionId, String publicationId, String title, java.time.Instant scheduledAt) {}
+    record WithoutMargin(String promotionId, String publicationId, String title, java.time.Instant scheduledAt, String platform) {}
 
     /**
      * Publicaciones de camino a publicar (en producción, borrador, en revisión o aprobadas) a las que ya no les quedan
-     * {@link Publication#MIN_MARGIN} hasta su hora (o cuya hora ya pasó), por hora de publicación.
+     * el margen mínimo de publicación hasta su hora (o cuya hora ya pasó), por hora de publicación.
      */
     List<WithoutMargin> withoutMargin(java.time.Instant now);
+
+    /** Por qué una publicación puede moverse a la siguiente hora libre. */
+    enum MoveReason { LOST_MARGIN, CLASH }
+
+    /** Aviso de posible duplicado: la otra publicación y por qué se parecen. */
+    record DuplicateRef(String publicationId, com.socialhub.publishing.domain.DuplicateDetector.Reason reason) {}
+
+    /**
+     * Lo que se ve de cada publicación además de sus datos: cómo ha acabado (vacío si está cancelada), con qué otras se
+     * repite y por qué puede moverse a la siguiente hora libre (vacío si no hace falta o no se puede mover).
+     */
+    record Insight(java.util.Optional<com.socialhub.publishing.domain.PublicationOutcome> outcome, List<DuplicateRef> duplicates,
+                   java.util.Optional<MoveReason> move) {}
+
+    /** Lo anterior de todas las publicaciones, por identificador. */
+    java.util.Map<String, Insight> insights();
+
+    /** Grupos de posibles duplicados (publicaciones activas de la misma marca y red) de todas las promociones. */
+    List<DuplicateGroup> duplicateGroups();
+
+    /** Publicaciones que se repiten: {@code network} es «Instagram» o «TikTok»; {@code sameTitle}, si no, misma hora y texto. */
+    record DuplicateGroup(String promotionId, String title, java.time.LocalDate day, String network, boolean sameTitle,
+                          List<String> publicationIds) {}
+
+    /** Hora propuesta para mover una publicación. */
+    record SlotProposal(String publicationId, MoveReason reason, java.time.LocalDate currentDay, java.time.LocalTime currentTime,
+                        java.time.LocalDate newDay, java.time.LocalTime newTime, String timezone, boolean changesDay,
+                        java.time.@org.jspecify.annotations.Nullable LocalDate promotionEndsOn, boolean afterPromotionEnd,
+                        long marginMinutes) {}
+
+    /**
+     * La siguiente hora libre de una publicación que ha perdido el margen o choca con otra. Falla (409) si no se puede
+     * mover (programada, publicada…) o no hace falta.
+     */
+    SlotProposal nextFreeSlot(String publicationId);
 
     /** Métricas de la publicación, si ya se pidieron. */
     java.util.Optional<com.socialhub.publishing.domain.MetricsRepository.Metrics> metrics(String publicationId);

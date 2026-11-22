@@ -7,6 +7,8 @@ import com.socialhub.ai.domain.AiRequestType;
 import com.socialhub.platform.AppMode;
 import com.socialhub.platform.AppModeHolder;
 import com.socialhub.platform.live.FactoryChanged;
+import com.socialhub.publishing.PublishRouteId;
+import com.socialhub.publishing.domain.InstagramGateway;
 import com.socialhub.publishing.domain.MetricsRepository;
 import com.socialhub.publishing.domain.MetricsRepository.Metrics;
 import com.socialhub.publishing.domain.MetricsRepository.Status;
@@ -35,6 +37,10 @@ import tools.jackson.databind.JsonNode;
  * Métricas (fase 8, bloque 3): cada publicación se mide una vez, a los 7 días de publicarse. Sin Metricool, y la
  * API de Publora solo da estadísticas de Mastodon y Bluesky en planes de pago: las lee Claude con Chrome en el PC
  * de Raúl, con el encargo «Leer métricas». Lo que no se ve queda sin dato.
+ *
+ * <p>Instagram, primero por la API oficial de Meta (Insights): si la publicación salió por la API oficial y hay clave,
+ * SocialHub las lee directamente y no pide nada a Claude. Si la API falla (o la clave no tiene permisos de insights), cae
+ * al encargo de Chrome y deja el motivo visible en la nota de las métricas. TikTok sigue siempre por Chrome.
  */
 @Slf4j
 @Component
@@ -53,9 +59,17 @@ class PublicationMetrics implements AiTypeHandler {
     private final TransactionTemplate transactions;
     private final ApplicationEventPublisher events;
     private final Clock clock;
+    private final InstagramGateway instagram;
+    private final InstagramCredentials credentials;
+
+    /** Principio de la nota cuando la API de Meta no pudo y se pidió a Claude con Chrome. */
+    static final String API_FAILED = "La API de Meta no pudo: ";
 
     PublicationMetrics(PublicationRepository publications, MetricsRepository metrics, PublishJobRepository jobs,
-                       AiOrders orders, TransactionTemplate transactions, ApplicationEventPublisher events, Clock clock) {
+                       AiOrders orders, TransactionTemplate transactions, ApplicationEventPublisher events, Clock clock,
+                       InstagramGateway instagram, InstagramCredentials credentials) {
+        this.instagram = instagram;
+        this.credentials = credentials;
         this.publications = publications;
         this.metrics = metrics;
         this.jobs = jobs;
@@ -93,6 +107,18 @@ class PublicationMetrics implements AiTypeHandler {
                     && !now.isBefore(m.requestedAt().plus(RETRY_AFTER));
             if (m == null || retry) due.computeIfAbsent(p.getPromotionId(), k -> new ArrayList<>()).add(p);
         }
+        // Instagram por la API oficial, fuera de cualquier transacción (son llamadas de red). Lo que falla va a Chrome
+        Map<String, String> apiReasons = new LinkedHashMap<>();
+        for (var entry : due.entrySet()) {
+            List<Publication> rest = new ArrayList<>();
+            for (Publication p : entry.getValue()) {
+                String reason = readByApi(p, known.get(p.getId()), now);
+                if (reason == null) continue;
+                if (!reason.isEmpty()) apiReasons.put(p.getId(), reason);
+                rest.add(p);
+            }
+            entry.setValue(rest);
+        }
         int n = 0;
         for (var entry : due.entrySet()) {
             List<Publication> all = entry.getValue();
@@ -106,8 +132,10 @@ class PublicationMetrics implements AiTypeHandler {
                                 "Lee las estadísticas de estas publicaciones de hace una semana en Instagram o TikTok.", ids);
                         for (Publication p : batch) {
                             Metrics before = known.get(p.getId());
+                            String why = apiReasons.get(p.getId());
                             metrics.save(new Metrics(p.getId(), Status.REQUESTED, task, before == null ? 1 : before.attempts() + 1,
-                                    now, null, null, null, null, null, null, null, null));
+                                    now, null, null, null, null, null, null, null,
+                                    why == null ? null : trimNote(API_FAILED + why + ". Se pide a Claude con Chrome.")));
                         }
                     });
                     n++;
@@ -118,6 +146,36 @@ class PublicationMetrics implements AiTypeHandler {
         }
         return n;
     }
+
+    /**
+     * Intenta leer las métricas por la API oficial de Meta.
+     *
+     * @return {@code null} si ya están guardadas; vacío si esta publicación no es de la API (va a Chrome sin más); o el motivo
+     *         por el que la API no pudo (va a Chrome con ese motivo)
+     */
+    private @Nullable String readByApi(Publication p, @Nullable Metrics before, Instant now) {
+        if (p.getPlatform() != com.socialhub.publishing.domain.Platform.INSTAGRAM) return "";
+        var job = jobs.find(p.getId()).orElse(null);
+        if (job == null || job.getExternalId() == null || !PublishRouteId.OFFICIAL.label().equals(job.getRoute())) return "";
+        String key = credentials.activeToken().orElse(null);
+        if (key == null) return "no hay clave de la API de Instagram";
+        try {
+            InstagramGateway.MediaInsights in = instagram.mediaInsights(key, job.getExternalId());
+            int attempts = before == null ? 1 : before.attempts() + 1;
+            metrics.save(new Metrics(p.getId(), Status.DONE, null, attempts, before == null ? now : before.requestedAt(), now,
+                    in.views(), in.reach(), in.likes(), in.comments(), in.saves(), in.shares(),
+                    "Leídas por la API oficial de Meta; lo que Meta no devuelve queda sin dato"));
+            events.publishEvent(new FactoryChanged("publication", p.getId()));
+            return null;
+        } catch (RuntimeException e) {
+            // El motivo ya viene traducido para Raúl y nunca lleva la clave
+            log.info("Métricas de {} por la API de Meta: {}", p.getId(), e.getMessage());
+            String reason = e.getMessage() == null || e.getMessage().isBlank() ? "error desconocido" : e.getMessage().strip();
+            return reason.endsWith(".") ? reason.substring(0, reason.length() - 1) : reason;
+        }
+    }
+
+    private static String trimNote(String note) { return note.length() > 500 ? note.substring(0, 500) : note; }
 
     // ------------------------------------------------------------------ Encargo «Leer métricas»
 
@@ -167,7 +225,11 @@ class PublicationMetrics implements AiTypeHandler {
             if (!asked.contains(id)) throw new IllegalArgumentException("Métricas de una publicación que no se pidió: «" + id + "»");
             if (!seen.add(id)) throw new IllegalArgumentException("Métricas repetidas de «" + id + "»");
             int attempts = metrics.find(id).map(Metrics::attempts).orElse(1);
-            String note = i.path("note").isString() ? i.path("note").asString().strip() : null;
+            String claudeNote = i.path("note").isString() ? i.path("note").asString().strip() : null;
+            // Si antes falló la API de Meta, el motivo se queda a la vista junto a la nota de Claude
+            String apiNote = metrics.find(id).map(Metrics::note).filter(n -> n != null && n.startsWith(API_FAILED)).orElse(null);
+            String note = apiNote == null ? claudeNote
+                    : trimNote(claudeNote == null || claudeNote.isEmpty() ? apiNote : apiNote + " · " + claudeNote);
             read.add(new Metrics(id, Status.DONE, job.taskId(), attempts, metrics.find(id).map(Metrics::requestedAt).orElse(now), now,
                     count(i, "views", id), count(i, "reach", id), count(i, "likes", id), count(i, "comments", id),
                     count(i, "saves", id), count(i, "shares", id), note == null || note.isEmpty() ? null : note));

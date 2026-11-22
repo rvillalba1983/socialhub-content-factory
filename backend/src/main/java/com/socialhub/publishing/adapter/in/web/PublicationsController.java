@@ -63,7 +63,7 @@ class PublicationsController implements PublicationsApi {
                 : status.stream().map(mapper::toDomain).collect(Collectors.toUnmodifiableSet());
         var page = queries.page(new PublicationFilter(promotionId, statuses, mapper.toDomain(platform), from, to, flagged),
                 offset, limit);
-        return ResponseEntity.ok(new PublicationPageDto(mapper.toDtos(page.items()), offset, limit, page.total()));
+        return ResponseEntity.ok(new PublicationPageDto(mapper.toDtos(page.items(), queries.insights()), offset, limit, page.total()));
     }
 
     @Override
@@ -89,6 +89,19 @@ class PublicationsController implements PublicationsApi {
                 : com.socialhub.publishing.domain.RejectionReason.valueOf(change.getReason().name());
         return ResponseEntity.ok(mapper.toDto(service.changeStatus(publicationId, mapper.toDomain(change.getStatus()),
                 reason, change.getNote())));
+    }
+
+    @Override
+    public ResponseEntity<com.socialhub.api.model.SlotProposalDto> getNextFreeSlot(String publicationId) {
+        return ResponseEntity.ok(mapper.toDto(queries.nextFreeSlot(publicationId)));
+    }
+
+    @Override
+    public ResponseEntity<PublicationDto> moveToFreeSlot(String publicationId, String requestGuard,
+                                                         com.socialhub.api.model.SlotMoveDto move) {
+        var moved = service.moveToFreeSlot(publicationId, move.getNewOn(), java.time.LocalTime.parse(move.getNewTime(), PublicationWebMapper.HH_MM),
+                Boolean.TRUE.equals(move.getConfirmed()), Boolean.TRUE.equals(move.getAcceptAfterEnd()));
+        return ResponseEntity.ok(mapper.toDto(moved));
     }
 
     @Override
@@ -225,7 +238,8 @@ class PublicationsController implements PublicationsApi {
     private static QualityReportDto report(List<QualityIssue> issues) {
         List<QualityIssueDto> dtos = issues.stream().map(i -> {
             QualityIssueDto dto = new QualityIssueDto(i.key(), QualityIssueDto.SourceEnum.valueOf(i.source().name()),
-                    i.message(), !i.open());
+                    i.message(), i.acceptedReason() != null);
+            dto.setLevel(QualityIssueDto.LevelEnum.valueOf(i.level().name()));
             dto.setAcceptedReason(i.acceptedReason());
             dto.setAcceptedAt(i.acceptedAt() == null ? null : i.acceptedAt().atOffset(ZoneOffset.UTC));
             return dto;
@@ -238,6 +252,11 @@ class PublicationsController implements PublicationsApi {
                                                                 com.socialhub.api.model.TextRejectionDto rejection) {
         return ResponseEntity.ok(mapper.toDto(service.discardTexts(publicationId,
                 com.socialhub.publishing.domain.RejectionReason.valueOf(rejection.getReason().name()), rejection.getNote())));
+    }
+
+    @Override
+    public ResponseEntity<PublicationDto> restorePublicationText(String publicationId, String requestGuard) {
+        return ResponseEntity.ok(mapper.toDto(service.restorePreviousText(publicationId)));
     }
 
     @Override
