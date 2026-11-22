@@ -940,3 +940,22 @@ Respuestas de Raúl:
 - **22 nov · Dudas del programador:** se dejan como están. Las mayúsculas cuentan en las citas; el aviso de color vale para toda marca sin color; los avisos de texto repetido entre promociones siguen contando ideas y propuestas.
 
 Pendiente para la fase 13 o después (sin decidir cómo): aviso de publicaciones a la misma hora, lectura de Word/odt, OCR de texto en imágenes y la «prueba de cero» con Raúl.
+
+## Fase 13 · Skills de diseño y contenido en el flujo de Claude (decididas por Raúl el 22 nov 2026)
+
+Petición de Raúl: añadir al flujo de Claude las skills `video-making`, `carousel-writer`, `quote-cards-and-text-graphics`, `infographic-and-data-viz`, `thumbnail-design`, `pinterest-pin-design`, `story-writer`, `tiktok-photo-mode`, `meme-and-culture`, `brand-profile`, `design-and-templates`, `platform-specs-and-validation`, `caption-writer`, `hook-writer`, `dataviz` y `frontend-design`. De `carousel-writer` ignora su parte de prompts para generadores de imagen. Plan en `docs/fase-13.md`.
+
+Respuestas de Raúl:
+- **Quién dibuja** (tras preguntar por el gasto de tokens): Claude diseña **una vez por marca** un kit y unas plantillas SVG; en cada publicación solo rellena textos en el spec y **SocialHub dibuja en local** (Batik y FFmpeg). Descartado que Claude entregue PNG/MP4: unas 10 a 20 veces más tokens por pieza (estimación, no medida).
+- **Pinterest y miniaturas, fuera por ahora:** `pinterest-pin-design` y `thumbnail-design` no se usan hasta que Pinterest o YouTube sean una red de SocialHub (hoy solo Instagram y TikTok).
+- **Fuentes:** añadir 2 o 3 libres (OFL) incluidas en la app; se proponen y se pide el OK antes de añadirlas.
+- **Kit y plantillas:** en SocialHub (base de datos de la marca), con vista previa en la ficha y **aprobación de Raúl** antes de usarse.
+- **Orden:** fase 13 primero y una sola «prueba de cero» después, con las tareas de Claude recreadas una vez, ya con las skills.
+
+Decisiones técnicas (a confirmar con el OK del plan):
+- **`brand-profile` sin entrevista:** parte de `inputs.brand_identity`; si falta tono o público, `needs_human`.
+- **`inputs.skills` en cada encargo:** solo las skills necesarias según los tipos de pieza, para gastar menos tokens. Si alguna no existe en la sesión de la tarea programada, el encargo sigue sin ella y lo dice en `warnings`.
+- **No se copian skills al repositorio** (`video-making`, `dataviz` y `frontend-design` no son de Raúl ni tienen licencia para redistribuirse).
+- **`platform-specs-and-validation`:** solo se usa su parte de tamaños y límites de Instagram y TikTok; su flujo de validación es de otro servicio.
+- **`video-making`:** se aplica como guía del montaje en el FFmpeg de SocialHub, no en la tarea de Claude (pendiente de confirmar con Raúl).
+- **Sin imágenes generadas con IA** en ninguna skill.

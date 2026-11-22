@@ -1,6 +1,6 @@
 # SocialHub · estado actual (para retomar)
 
-Última actualización: 22 nov 2026 (cierre de la fase 12). Cómo se trabaja: `docs/como-trabajar.md` (una fase por conversación).
+Última actualización: 22 nov 2026 (cierre de la fase 12 y plan de la fase 13). Cómo se trabaja: `docs/como-trabajar.md` (una fase por conversación).
 
 ## Dónde estamos
 
@@ -35,6 +35,7 @@ Ojo: lo que no se ha probado en real (publicaciones reales, tareas de Claude con
 
 ## Siguiente
 
-1. **Prueba de cero, con Raúl, en la próxima conversación:** desinstalar; carpetas de Drive nuevas (las viejas, renombradas con prefijo); configurar con Chrome; recrear las tareas de Claude; publicaciones reales de prueba en Instagram y TikTok respetando el margen.
-2. Pendientes para la fase 13 o después: aviso de publicaciones a la misma hora, lectura de Word/odt y OCR de texto en imágenes.
-3. Siguen pendientes de Raúl (de antes): icono `.ico` propio del instalador y permiso `instagram_manage_insights` de Meta. Buffer: descartado para siempre.
+1. **Fase 13 · Skills de diseño y contenido en el flujo de Claude** (`fase-13.md`): el plan está escrito y **pendiente del OK de Raúl** (22 nov 2026). Después, sus 6 bloques.
+2. **Prueba de cero, con Raúl, al acabar la fase 13** (una sola, con todo): desinstalar; carpetas de Drive nuevas (las viejas, renombradas con prefijo); configurar con Chrome; recrear las tareas de Claude ya con las skills; comprobar si las skills están disponibles en las tareas programadas y medir los tokens de un kit y de un spec; publicaciones reales de prueba en Instagram y TikTok respetando el margen.
+3. Pendientes para después: aviso de publicaciones a la misma hora, lectura de Word/odt y OCR de texto en imágenes.
+4. Siguen pendientes de Raúl (de antes): icono `.ico` propio del instalador y permiso `instagram_manage_insights` de Meta. Buffer: descartado para siempre.
