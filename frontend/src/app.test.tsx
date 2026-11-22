@@ -938,10 +938,28 @@ describe('Encargos a Claude', () => {
     const tiktok = screen.getByLabelText(/Margen mínimo de publicación en TikTok/);
     expect(tiktok).toHaveValue(480);
     expect(screen.getByText(/con menos de unas 8 horas puede no llegar y quedará para subirla a mano/)).toBeInTheDocument();
+    // Con 8 h o más no hay aviso
+    const warning = 'Por debajo de 8 h, Publer no llega y quedará para subirla a mano';
+    expect(screen.queryByText(warning)).not.toBeInTheDocument();
     fireEvent.change(input, { target: { value: '90' } });
     fireEvent.change(tiktok, { target: { value: '720' } });
+    expect(screen.queryByText(warning)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Guardar margen' }));
     await waitFor(() => expect(save).toHaveBeenCalledWith({ min_margin_minutes: 90, tiktok_min_margin_minutes: 720 }));
+  });
+
+  it('avisa si el margen de TikTok baja de 8 h y deja guardar', async () => {
+    vi.spyOn(api, 'aiSettings').mockResolvedValue({ daily_limit: 10, used_today: 0, models: [] });
+    vi.spyOn(api, 'aiRequests').mockResolvedValue({ offset: 0, limit: 50, total: 0, items: [] });
+    const base = { default_minutes: 30, tiktok_default_minutes: 480, min_minutes: 5, max_minutes: 1440 };
+    vi.spyOn(api, 'publishSettings').mockResolvedValue({ ...base, min_margin_minutes: 30, tiktok_min_margin_minutes: 480 });
+    const save = vi.spyOn(api, 'savePublishSettings').mockResolvedValue({ ...base, min_margin_minutes: 30, tiktok_min_margin_minutes: 479 });
+    render(<Claude data={snapshot} onClose={() => {}} onTask={() => {}} onMessage={() => {}} />);
+    const tiktok = await screen.findByLabelText(/Margen mínimo de publicación en TikTok/);
+    fireEvent.change(tiktok, { target: { value: '479' } });
+    expect(screen.getByText('Por debajo de 8 h, Publer no llega y quedará para subirla a mano')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar margen' }));
+    await waitFor(() => expect(save).toHaveBeenCalledWith({ min_margin_minutes: 30, tiktok_min_margin_minutes: 479 }));
   });
 });
 
