@@ -141,7 +141,8 @@ class WeeklyProposalsHandler implements AiTypeHandler {
         LocalDate end = windowEnd(job);
         inputs.put("week", Map.of("from", from.toString(), "to", end.toString()));
         inputs.put("promotion", promotions.summaryForAi(job.promotionId()));
-        inputs.put("min_publish_margin_minutes", settings.minMargin().toMinutes());
+        inputs.put("min_publish_margin_minutes", settings.minMarginFor(Platform.INSTAGRAM.name()).toMinutes());
+        inputs.put("tiktok_min_publish_margin_minutes", settings.minMarginFor(Platform.TIKTOK.name()).toMinutes());
         inputs.put("already_planned", queries.forAi(job.promotionId(), from, end));
         // Lo programado o publicado fuera de SocialHub (Publer, Publora o la red) también ocupa la semana
         List<Map<String, Object>> outside = external.forAi(job.promotionId(), from, end);
@@ -176,7 +177,7 @@ class WeeklyProposalsHandler implements AiTypeHandler {
         LocalDate from = windowStart(job);
         LocalDate to = windowEnd(job);
         PromotionQueries.Dates dates = promotions.datesOf(job.promotionId());
-        Instant earliest = clock.instant().plus(settings.minMargin());
+        Instant now = clock.instant();
         List<Publication.Details> proposals = new ArrayList<>();
         Map<Discard, Integer> discarded = new EnumMap<>(Discard.class);
         for (JsonNode item : items) {
@@ -194,7 +195,7 @@ class WeeklyProposalsHandler implements AiTypeHandler {
                     reason = Discard.OUT_OF_WEEK;
                 } else if (day.isBefore(dates.startsOn()) || (dates.endsOn() != null && day.isAfter(dates.endsOn()))) {
                     reason = Discard.OUT_OF_PROMOTION;
-                } else if (day.atTime(time).atZone(MADRID).toInstant().isBefore(earliest)) {
+                } else if (day.atTime(time).atZone(MADRID).toInstant().isBefore(now.plus(settings.minMarginFor(platform.name())))) {
                     reason = Discard.TOO_SOON;
                 } else {
                     String idea = item.path("idea").asString("").strip();

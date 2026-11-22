@@ -1,6 +1,6 @@
 {
   "commonRules": [
-    "Nunca publicar al instante: respeta siempre el margen mínimo de publicación (30 minutos por defecto, ajustable)",
+    "Nunca publicar al instante: respeta siempre el margen mínimo de publicación (30 minutos por defecto; 8 horas en TikTok; ambos ajustables)",
     "Correos y mensajes directos: solo borradores; los envía Raúl",
     "Nada de pago ni suscripciones",
     "No crear cuentas ni iniciar sesión por Raúl",
@@ -460,7 +460,7 @@
       "id": "prog",
       "name": "Programación",
       "status": "BLOCKED",
-      "description": "Programa por la API oficial (con SocialHub abierto), Publer o Publora, respetando el margen mínimo de publicación (30 minutos por defecto, ajustable).",
+      "description": "Programa por la API oficial (con SocialHub abierto), Publer o Publora, respetando el margen mínimo de publicación (30 minutos por defecto; 8 horas en TikTok; ambos ajustables).",
       "tools": [
         "Publer · Chrome",
         "API oficial (respaldo)",

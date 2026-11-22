@@ -335,6 +335,18 @@ describe('Publicaciones', () => {
     scheduled_on: '2026-11-10', scheduled_time: '19:00', timezone: 'Europe/Madrid', status: 'APPROVED', route: 'Publer', demo: false,
   };
 
+  it('al elegir TikTok enseña el margen mínimo de TikTok, y en Instagram no', async () => {
+    vi.spyOn(api, 'publishSettings').mockResolvedValue({
+      min_margin_minutes: 30, tiktok_min_margin_minutes: 480, default_minutes: 30, tiktok_default_minutes: 480, min_minutes: 5, max_minutes: 1440,
+    });
+    render(<PublicationEditor promotionId="p" onClose={() => {}} onSaved={() => {}} />);
+    expect(screen.queryByText(/Margen mínimo de publicación en TikTok/)).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Plataforma'), { target: { value: 'TIKTOK' } });
+    expect(await screen.findByText(/Margen mínimo de publicación en TikTok: 8 horas/)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Plataforma'), { target: { value: 'INSTAGRAM' } });
+    expect(screen.queryByText(/Margen mínimo de publicación en TikTok/)).not.toBeInTheDocument();
+  });
+
   it('da de alta una publicación con el estado inicial elegido', async () => {
     const create = vi.spyOn(api, 'createPublication').mockResolvedValue({ ...publication, status: 'DRAFT' });
     const onSaved = vi.fn();
@@ -859,15 +871,20 @@ describe('Encargos a Claude', () => {
   it('enseña y guarda el margen mínimo de publicación', async () => {
     vi.spyOn(api, 'aiSettings').mockResolvedValue({ daily_limit: 10, used_today: 0, models: [] });
     vi.spyOn(api, 'aiRequests').mockResolvedValue({ offset: 0, limit: 50, total: 0, items: [] });
-    const base = { default_minutes: 30, min_minutes: 5, max_minutes: 1440 };
-    vi.spyOn(api, 'publishSettings').mockResolvedValue({ ...base, min_margin_minutes: 30 });
-    const save = vi.spyOn(api, 'savePublishSettings').mockResolvedValue({ ...base, min_margin_minutes: 90 });
+    const base = { default_minutes: 30, tiktok_default_minutes: 480, min_minutes: 5, max_minutes: 1440 };
+    vi.spyOn(api, 'publishSettings').mockResolvedValue({ ...base, min_margin_minutes: 30, tiktok_min_margin_minutes: 480 });
+    const save = vi.spyOn(api, 'savePublishSettings').mockResolvedValue({ ...base, min_margin_minutes: 90, tiktok_min_margin_minutes: 720 });
     render(<Claude data={snapshot} onClose={() => {}} onTask={() => {}} onMessage={() => {}} />);
     const input = await screen.findByLabelText(/Minutos entre ahora y la hora de publicación/);
     expect(input).toHaveValue(30);
+    // El ajuste de TikTok va junto al general, con su frase de ayuda y 8 horas por defecto
+    const tiktok = screen.getByLabelText(/Margen mínimo de publicación en TikTok/);
+    expect(tiktok).toHaveValue(480);
+    expect(screen.getByText(/con menos de unas 8 horas puede no llegar y quedará para subirla a mano/)).toBeInTheDocument();
     fireEvent.change(input, { target: { value: '90' } });
+    fireEvent.change(tiktok, { target: { value: '720' } });
     fireEvent.click(screen.getByRole('button', { name: 'Guardar margen' }));
-    await waitFor(() => expect(save).toHaveBeenCalledWith({ min_margin_minutes: 90 }));
+    await waitFor(() => expect(save).toHaveBeenCalledWith({ min_margin_minutes: 90, tiktok_min_margin_minutes: 720 }));
   });
 });
 

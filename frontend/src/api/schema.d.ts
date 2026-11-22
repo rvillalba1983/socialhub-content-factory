@@ -1115,9 +1115,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Ajustes generales de publicación (margen mínimo) */
+        /** Ajustes generales de publicación (márgenes mínimos: general y TikTok) */
         get: operations["getPublishSettings"];
-        /** Cambia el margen mínimo de publicación */
+        /** Cambia los márgenes mínimos de publicación (general y, si se envía, el de TikTok) */
         put: operations["updatePublishSettings"];
         post?: never;
         delete?: never;
@@ -1794,28 +1794,43 @@ export interface components {
         PublishSettings: {
             /**
              * Format: int32
-             * @description Margen mínimo de publicación, en minutos: una publicación solo se puede programar si su hora queda al menos a este margen de ahora (nunca se publica al instante). Es la única fuente: la usan las validaciones de edición y programación, el motor de publicación, «Qué hacer ahora» y los encargos a Claude
+             * @description Margen mínimo de publicación general (el de todas las redes menos TikTok), en minutos: una publicación solo se puede programar si su hora queda al menos a este margen de ahora (nunca se publica al instante). Es una de las dos únicas fuentes: la usan las validaciones de edición y programación, el motor de publicación, «Qué hacer ahora» y los encargos a Claude
              */
             min_margin_minutes: number;
             /**
              * Format: int32
-             * @description Valor por defecto (30)
+             * @description Margen mínimo de publicación en TikTok, en minutos. Aparte del general porque TikTok se publica por Publer, que programa Claude con Chrome desde el PC en sus pasadas. Se aplica a las publicaciones de TikTok en lugar del general
+             */
+            tiktok_min_margin_minutes: number;
+            /**
+             * Format: int32
+             * @description Valor por defecto del margen general (30)
              */
             default_minutes: number;
             /**
              * Format: int32
-             * @description Mínimo permitido (5)
+             * @description Valor por defecto del margen de TikTok (480: 8 horas)
+             */
+            tiktok_default_minutes: number;
+            /**
+             * Format: int32
+             * @description Mínimo permitido en los dos (5)
              */
             min_minutes: number;
             /**
              * Format: int32
-             * @description Máximo permitido (1440: un día)
+             * @description Máximo permitido en los dos (1440: un día)
              */
             max_minutes: number;
         };
         PublishSettingsInput: {
             /** Format: int32 */
             min_margin_minutes: number;
+            /**
+             * Format: int32
+             * @description Si falta, el margen de TikTok se queda como estaba (compatible con quien solo envía el general)
+             */
+            tiktok_min_margin_minutes?: number;
         };
         AiSettings: {
             /** Format: int32 */

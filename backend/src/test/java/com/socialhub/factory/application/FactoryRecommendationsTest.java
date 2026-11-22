@@ -380,8 +380,23 @@ class FactoryRecommendationsTest {
     }
 
     @Test
+    void aTikTokPublicationUsesItsOwnMarginAndItsOwnRow() {
+        var tiktok = new PublishingQueries.WithoutMargin("lit-1", "2026-11-09-tiktok", "Vídeo 1", madrid(11, 9, 14, 0), "TIKTOK");
+        var instagram = new PublishingQueries.WithoutMargin("lit-1", "2026-11-09-instagram", "Poema 1", madrid(11, 9, 14, 0), "INSTAGRAM");
+        when(publishing.withoutMargin(now)).thenReturn(List.of(tiktok, instagram));
+        var subject = new FactoryRecommendations(held, sent, promotions, publishing, publora, publer, backups, autoStarted,
+                contentGaps, missingMaterial, instagramOAuth, Clock.fixed(now, ClaudePickups.ZONE),
+                com.socialhub.settings.FixedMargin.of(java.time.Duration.ofHours(6), java.time.Duration.ofHours(8)));
+        var rows = subject.compute().stream().filter(x -> x.kind() == Kind.PUBLICATION_TOO_SOON).toList();
+        assertThat(rows).extracting(x -> x.title()).containsExactlyInAnyOrder(
+                "«Vídeo 1» ya no deja 8 horas de margen", "«Poema 1» ya no deja 6 horas de margen");
+        assertThat(rows.stream().filter(x -> x.title().startsWith("«Vídeo"))).singleElement()
+                .satisfies(x -> assertThat(x.detail()).contains("Margen mínimo de publicación en TikTok"));
+    }
+
+    @Test
     void aPublicationOnItsWayWithoutSixHoursOfMarginAsksToChangeItsTime() {
-        var soon = new PublishingQueries.WithoutMargin("lit-1", "2026-11-09-instagram", "Poema 1", madrid(11, 9, 14, 0));
+        var soon = new PublishingQueries.WithoutMargin("lit-1", "2026-11-09-instagram", "Poema 1", madrid(11, 9, 14, 0), "INSTAGRAM");
         when(publishing.withoutMargin(now)).thenReturn(List.of(soon));
         var r = subject().compute().getFirst();
         assertThat(r.kind()).isEqualTo(Kind.PUBLICATION_TOO_SOON);
@@ -391,7 +406,7 @@ class FactoryRecommendationsTest {
         assertThat(r.target().promotionId()).isEqualTo("lit-1");
         // Si su hora ya pasó, lo dice
         when(publishing.withoutMargin(now)).thenReturn(List.of(
-                new PublishingQueries.WithoutMargin("lit-1", "x", "Poema 1", madrid(11, 8, 19, 0))));
+                new PublishingQueries.WithoutMargin("lit-1", "x", "Poema 1", madrid(11, 8, 19, 0), "INSTAGRAM")));
         assertThat(subject().compute().getFirst().detail()).contains("ya pasó");
         // Una promoción pausada no avisa
         when(promotions.promotionRefs()).thenReturn(List.of(ref("PAUSED", LocalDate.of(2026, 11, 1), LocalDate.of(2026, 12, 31))));

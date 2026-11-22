@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api } from './api';
 import { Icon } from './icons';
 import {
-  AI_MODELS, dateTime, type AiModel, type AiRequest, type AiRequestPage, type AiRequestType, type AiSettings, type PublishSettings,
+  AI_MODELS, dateTime, spanText, type AiModel, type AiRequest, type AiRequestPage, type AiRequestType, type AiSettings, type PublishSettings,
   type Snapshot, type StatusCode,
 } from './model';
 import { Pill } from './ui';
@@ -158,15 +158,21 @@ function SettingsCard({ settings, onSaved }: { settings: AiSettings; onSaved: (s
   );
 }
 
-/** Ajuste global «Margen mínimo de publicación»: una única fuente para todos los «cuánto antes» de SocialHub. */
+/**
+ * Ajustes «Margen mínimo de publicación» (general) y «Margen mínimo de publicación en TikTok»: una única fuente para todos
+ * los «cuánto antes» de SocialHub. TikTok lleva el suyo porque se publica por Publer, que programa Claude desde el PC.
+ */
 function PublishMarginCard({ onMessage }: { onMessage: (m: string) => void }) {
   const [settings, setSettings] = useState<PublishSettings | null>(null);
   const [minutes, setMinutes] = useState(30);
+  const [tiktokMinutes, setTiktokMinutes] = useState(480);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     let alive = true;
-    api.publishSettings().then(s => { if (alive) { setSettings(s); setMinutes(s.min_margin_minutes); } }).catch(() => {});
+    api.publishSettings().then(s => {
+      if (alive) { setSettings(s); setMinutes(s.min_margin_minutes); setTiktokMinutes(s.tiktok_min_margin_minutes); }
+    }).catch(() => {});
     return () => { alive = false; };
   }, []);
   if (!settings) return null;
@@ -175,7 +181,7 @@ function PublishMarginCard({ onMessage }: { onMessage: (m: string) => void }) {
     setBusy(true);
     setError(null);
     try {
-      const saved = await api.savePublishSettings({ min_margin_minutes: minutes });
+      const saved = await api.savePublishSettings({ min_margin_minutes: minutes, tiktok_min_margin_minutes: tiktokMinutes });
       setSettings(saved);
       onMessage('Margen mínimo de publicación guardado');
     } catch (err) { setError(err instanceof Error ? err.message : String(err)); } finally { setBusy(false); }
@@ -187,9 +193,15 @@ function PublishMarginCard({ onMessage }: { onMessage: (m: string) => void }) {
         <input type="number" min={settings.min_minutes} max={settings.max_minutes} required value={minutes}
           onChange={e => setMinutes(Number(e.target.value))} /></label>
       <p className="src">Por defecto {settings.default_minutes} minutos; entre {settings.min_minutes} minutos y {settings.max_minutes} (un día).
-        Nunca se publica al instante: una publicación solo se programa si su hora queda a este margen o más de ahora. Publer necesita
-        pasadas de Claude con Chrome en tu PC (una cada 5 h; de 08:00 a 18:00 solo las urgentes), así que con un margen corto lo
-        habitual es publicar por la API oficial con SocialHub abierto.</p>
+        Nunca se publica al instante: una publicación solo se programa si su hora queda a este margen o más de ahora. Vale para
+        todas las redes menos TikTok. Publer necesita pasadas de Claude con Chrome en tu PC (una cada 5 h; de 08:00 a 18:00 solo
+        las urgentes), así que con un margen corto lo habitual es publicar por la API oficial con SocialHub abierto.</p>
+      <label className="field"><span>Margen mínimo de publicación en TikTok (minutos)</span>
+        <input type="number" min={settings.min_minutes} max={settings.max_minutes} required value={tiktokMinutes}
+          onChange={e => setTiktokMinutes(Number(e.target.value))} /></label>
+      <p className="src">Por defecto {settings.tiktok_default_minutes} minutos ({spanText(settings.tiktok_default_minutes)}); entre {settings.min_minutes} minutos y {settings.max_minutes} (un día).
+        TikTok se publica por Publer, que programa Claude desde tu PC en sus pasadas; con menos de unas 8 horas puede no llegar y
+        quedará para subirla a mano.</p>
       <div className="form-actions">
         {error && <p className="error" role="alert">{error}</p>}
         <button className="btn primary" disabled={busy}>{busy ? 'Guardando…' : 'Guardar margen'}</button>

@@ -59,6 +59,9 @@ class PubloraRoute implements PublishRoute {
 
     @Override public Instant lastMoment(Instant scheduledAt) { return scheduledAt.minus(settings.minMargin()); }
 
+    /** El margen depende de la red de la publicación (TikTok tiene el suyo). */
+    @Override public Instant lastMoment(Publication p) { return p.scheduledAt().minus(settings.minMarginFor(p.getPlatform().name())); }
+
     @Override
     public Outcome schedule(Publication p, PublishJob job, Instant now) {
         String key = secrets.get(KEY).orElse(null);

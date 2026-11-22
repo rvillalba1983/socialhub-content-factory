@@ -50,7 +50,11 @@ class PublishingModuleTest {
     }
 
     private Publication publication(String promotionId, PublicationStatus status) {
-        return publishing.create(promotionId, new Publication.Details(Platform.INSTAGRAM, "Reel", "Poema",
+        return publication(promotionId, status, Platform.INSTAGRAM);
+    }
+
+    private Publication publication(String promotionId, PublicationStatus status, Platform platform) {
+        return publishing.create(promotionId, new Publication.Details(platform, "Reel", "Poema",
                 LocalDate.now().plusDays(5), LocalTime.NOON, "Europe/Madrid", "Publer", null, "Texto", "#poesia"), status);
     }
 
@@ -75,6 +79,22 @@ class PublishingModuleTest {
         var later = java.time.Instant.now().plus(java.time.Duration.ofDays(6));
         assertThat(queries.withoutMargin(later)).extracting(PublishingQueriesService.WithoutMargin::publicationId).contains(id);
         assertThat(queries.withoutMargin(later).stream().filter(w -> w.promotionId().equals(promotion))).hasSize(1);
+    }
+
+    @Test
+    void theMarginDependsOnTheNetworkOfThePublication() {
+        String promotion = promotion();
+        String instagram = publication(promotion, PublicationStatus.IN_PRODUCTION, Platform.INSTAGRAM).getId();
+        var tiktokPublication = publication(promotion, PublicationStatus.IN_PRODUCTION, Platform.TIKTOK);
+        // Dos horas antes de su hora: a Instagram (30 min) aún le queda margen; a TikTok (8 h por defecto) ya no
+        var twoHoursBefore = tiktokPublication.scheduledAt().minus(java.time.Duration.ofHours(2));
+        assertThat(queries.withoutMargin(twoHoursBefore).stream().filter(w -> w.promotionId().equals(promotion)))
+                .extracting(PublishingQueriesService.WithoutMargin::publicationId, PublishingQueriesService.WithoutMargin::platform)
+                .containsExactly(org.assertj.core.api.Assertions.tuple(tiktokPublication.getId(), "TIKTOK"));
+        // Diez minutos antes: ya no le queda a ninguna de las dos
+        var tenMinutesBefore = tiktokPublication.scheduledAt().minus(java.time.Duration.ofMinutes(10));
+        assertThat(queries.withoutMargin(tenMinutesBefore).stream().filter(w -> w.promotionId().equals(promotion)))
+                .extracting(PublishingQueriesService.WithoutMargin::publicationId).contains(instagram, tiktokPublication.getId());
     }
 
     @Test
