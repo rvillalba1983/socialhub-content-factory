@@ -1,6 +1,6 @@
 # Fase 13 · Skills de diseño y contenido en el flujo de Claude
 
-Estado: **plan aprobado por Raúl** (22 nov 2026, con las respuestas de abajo). Todavía no hay código: el primer paso del bloque 1 es proponer las fuentes.
+Estado: **plan aprobado por Raúl** (22 nov 2026, con las respuestas de abajo). Bloque 1 programado en la rama `fase-13-plantillas` (fuentes aprobadas y motor de plantillas con pruebas); falta la revisión, la CI y el merge de Raúl.
 
 ## Qué pidió Raúl
 
@@ -61,7 +61,7 @@ Reglas fijas para todas:
 
 | # | Bloque | Rama | Qué incluye |
 |---|---|---|---|
-| 1 | Fuentes y motor de plantillas | `fase-13-plantillas` | Proponer y añadir las 2-3 fuentes libres (con OK). Motor de plantillas SVG: campos con nombre, texto que ajusta líneas y tamaño para no salirse de la caja, Batik con las fuentes incluidas. Vista previa. Reutiliza la validación de SVG seguro de `fondo_svg` |
+| 1 | Fuentes y motor de plantillas | `fase-13-plantillas` | Proponer y añadir las 2-3 fuentes libres (con OK). Motor de plantillas SVG: campos con nombre, texto que ajusta líneas y tamaño para no salirse de la caja, Batik para el dibujo y Java 2D para el texto con las fuentes incluidas. Vista previa. Reutiliza la validación de SVG seguro de `fondo_svg`. Formato en `docs/plantillas-svg.md` |
 | 2 | Kit de marca | `fase-13-kit-marca` | Tabla nueva (migración), contrato del kit, encargo `socialhub.brand-kit` y su manejador, vista previa en la ficha de la marca con «Aprobar» y «Pedir otra versión», recomendación «Genera el kit de X» en «Qué hacer ahora» |
 | 3 | Spec con plantillas y piezas nuevas | `fase-13-spec` | `promo-spec` ampliado sin cambiar de versión: piezas nuevas (cita, infografía, meme) y `plantilla` + campos. `PieceGenerator` usa las plantillas aprobadas. Sin kit aprobado, todo sigue como hoy |
 | 4 | Skills en los encargos | `fase-13-skills` | `inputs.skills` por encargo, reglas fijas, `caption-writer` y `hook-writer` en los textos, y texto de las tareas programadas en `docs/tarea-programada-encargos.md` (sin tocar las tareas) |
@@ -81,4 +81,6 @@ Orden: 1, 2, 3, 4, 5, 6. Cada bloque pasa en GitHub antes de seguir y Raúl hace
 
 Resueltas por Raúl el 22 nov (decisiones 6 a 8): `video-making` en el FFmpeg de SocialHub; el carrusel de fotos de TikTok usa el carrusel de hoy; los tipos nuevos son cita, infografía y meme de texto.
 
-Pendiente: **las fuentes concretas.** Se proponen al empezar el bloque 1 y no se añade ninguna sin el OK de Raúl.
+Fuentes: Raúl aprobó el 22 nov Crimson Text, Fira Sans y Bebas Neue (todas OFL, unos 2,4 MB). Ya están en el bloque 1.
+
+No queda ninguna duda pendiente.

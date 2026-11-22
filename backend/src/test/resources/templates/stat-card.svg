@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1350">
+  <rect width="1080" height="1350" fill="#0F3D3E"/>
+  <circle cx="900" cy="200" r="260" fill="#14595A"/>
+  <rect x="80" y="620" width="240" height="10" fill="#F2B138"/>
+
+  <rect id="caja-cifra" x="80" y="260" width="920" height="340" fill="none"/>
+  <text id="campo-cifra" font-family="Bebas Neue" font-size="360" data-tamano-min="120" data-vertical="abajo"
+        data-lineas-max="1" data-interlineado="1" fill="#F2B138">87%</text>
+
+  <rect id="caja-titulo" x="80" y="680" width="920" height="260" fill="none"/>
+  <text id="campo-titulo" font-family="Fira Sans" font-weight="bold" font-size="76" data-tamano-min="40"
+        data-lineas-max="3" fill="#FFFFFF">de los lectores terminan el libro</text>
+
+  <rect id="caja-detalle" x="80" y="980" width="920" height="240" fill="none"/>
+  <text id="campo-detalle" font-family="Fira Sans" font-size="40" data-tamano-min="28" data-interlineado="1.4"
+        fill="#CFE3E3">Encuesta propia entre lectores de El DeLito, 2026 &amp; 2027.</text>
+</svg>
