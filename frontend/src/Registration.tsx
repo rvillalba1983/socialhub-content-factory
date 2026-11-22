@@ -227,6 +227,10 @@ export function PromotionForm({ data, promotion, brandId, onCancel, onSaved }: {
         </Field>
         <Field label="Cadencia"><input maxLength={500} placeholder="Posts L/X/V 19:00 · historias M/J 13:00" value={form.cadence ?? ''} onChange={e => set('cadence', e.target.value)} /></Field>
       </div>
+      <Field label="Estilo visual (opcional)">
+        <input maxLength={300} placeholder="Navidad: rojo, dorado, nieve y estrellas" value={form.visual_style ?? ''} onChange={e => set('visual_style', e.target.value)} />
+        <small className="src">Cuéntale a Claude cómo debe verse esta promoción: colores, motivos, temporada. Lo usa para dibujar el fondo de las piezas que no tienen imagen ni vídeo (si el estilo no cambia los colores, respeta los de la marca). Máximo 300 caracteres.</small>
+      </Field>
       <Field label="Descripción"><textarea rows={2} maxLength={2000} value={form.description ?? ''} onChange={e => set('description', e.target.value)} /></Field>
       <Field label="Alcance"><textarea rows={2} maxLength={2000} value={form.scope ?? ''} onChange={e => set('scope', e.target.value)} /></Field>
       <Field label="De dónde salen las métricas"><input maxLength={500} value={form.metrics_source ?? ''} onChange={e => set('metrics_source', e.target.value)} /></Field>

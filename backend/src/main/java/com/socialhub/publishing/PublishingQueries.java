@@ -34,7 +34,7 @@ public interface PublishingQueries {
 
     /**
      * Publicaciones de camino a publicar (en producción, borrador, en revisión o aprobadas) a las que ya no les quedan
-     * {@link Publication#MIN_MARGIN} hasta su hora (o cuya hora ya pasó), por hora de publicación.
+     * el margen mínimo de publicación hasta su hora (o cuya hora ya pasó), por hora de publicación.
      */
     List<WithoutMargin> withoutMargin(java.time.Instant now);
 

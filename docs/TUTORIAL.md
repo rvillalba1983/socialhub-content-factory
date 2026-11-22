@@ -748,7 +748,7 @@ Opciones que ves en el editor:
 - **Texto** (máximo 2200 caracteres) y **hashtags**. **Pedir textos a Claude** lo encarga a 🤖 Claude (si lo pides tú a mano, su texto sustituye el tuyo y puedes volver con **Recuperar mi texto anterior**); **Descartar texto** lo borra.
 - **Guardar** guarda los cambios; **Cerrar** cierra el editor.
 - **Estado** y botones para cambiarlo: **Pasar a «Pendiente de revisión»**, **Pasar a «En producción»** y **Pasar a «Cancelada»**.
-- Programar exige al menos 6 horas de margen. «Publicada» solo llega con la confirmación de la plataforma.
+- Programar exige el margen mínimo de publicación (30 minutos por defecto; se cambia en «Encargos a Claude»). «Publicada» solo llega con la confirmación de la plataforma.
 
 ![Editor: control de calidad y archivos](tutorial/14b-editor-comprobaciones.png)
 
@@ -759,7 +759,9 @@ Opciones que ves en el editor:
 6. 🤖 Se programa, se publica, se comprueba y se leen las métricas.
 7. 👤 Si algo pasa a «Necesita atención» (publicación retenida, error, hora pasada), decides tú.
 
-Regla: nunca se publica al instante; siempre hay un mínimo de 6 horas de margen.
+Si falta una imagen o un vídeo, SocialHub avisa en «Qué hacer ahora» y usa un fondo propio (el SVG de Claude, la portada `portada.jpg|png` de la marca o un fondo con su color). Puedes describir el aspecto de una promoción en su campo «Estilo visual».
+
+Regla: nunca se publica al instante; siempre hay un margen mínimo (30 minutos por defecto, ajustable en «Encargos a Claude» entre 5 minutos y 24 horas).
 
 ## 8. Prompts útiles para Claude
 

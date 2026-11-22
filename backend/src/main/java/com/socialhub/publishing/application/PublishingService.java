@@ -47,6 +47,7 @@ class PublishingService implements PublishingCommands {
     private final QualityService quality;
     private final com.socialhub.publishing.domain.EditorialMemoryRepository memory;
     private final PublishingEngine engine;
+    private final com.socialhub.settings.PublishSettings settings;
 
     /** Alta desde el centro de control. El identificador es la fecha y la plataforma: «2026-11-10-instagram». */
     @Transactional
@@ -106,7 +107,7 @@ class PublishingService implements PublishingCommands {
             }
         }
         PublicationStatus before = publication.getStatus();
-        publication.changeStatus(status, clock.instant());
+        publication.changeStatus(status, clock.instant(), settings.minMargin());
         if (!mode.isDemo()) {
             if (status == PublicationStatus.SCHEDULED) engine.start(publication);
             else if (before == PublicationStatus.SCHEDULED) engine.stop(publication, "Raúl la ha pasado a «" + status.label() + "»");

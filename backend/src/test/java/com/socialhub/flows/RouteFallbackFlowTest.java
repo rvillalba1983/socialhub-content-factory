@@ -62,6 +62,10 @@ class RouteFallbackFlowTest {
     static volatile String postStatus = "scheduled";
 
     @Autowired MockMvc mvc;
+    /** Estas pruebas se escribieron con el margen de 6 horas de antes del ajuste: lo fijan para conservar sus horarios. */
+    @Autowired com.socialhub.settings.PublishSettings margin;
+    @org.junit.jupiter.api.BeforeEach void sixHourMargin() { margin.update(360); }
+    @org.junit.jupiter.api.AfterEach void defaultMargin() { margin.update(com.socialhub.settings.PublishSettings.DEFAULT_MINUTES); }
     @Autowired FlowClock clock;
 
     private Flow flow;

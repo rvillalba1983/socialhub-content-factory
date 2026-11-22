@@ -92,6 +92,10 @@ Una rama y una PR por bloque.
 17. **¿Tienes un Mac** para probar el `.dmg`? (a) **no: se genera y se prueba solo en la máquina macOS de GitHub (instalar, arrancar y abrir la web)** / (b) sí, lo pruebas tú.
 18. **PostgreSQL y FFmpeg para macOS:** (a) **meterlos en el `.dmg` con la versión de macOS (Apple Silicon)**. Hay que añadir sus binarios: pide tu OK como librería nueva / (b) pedir al usuario que los instale con Homebrew.
 
+## Material faltante y margen de publicación (16 nov 2026, `fase-12-material-faltante`)
+
+Encargo de Raúl, registrado en `decisiones.md`: fondo por defecto (Java 2D, plantillas deterministas por título), fondos SVG de Claude (`fondo_svg`, Apache Batik con OK de Raúl), portada de marca (`portada.jpg|jpeg|png`), orden material propio > SVG > portada > fondo de SocialHub, aviso previo en «Qué hacer ahora», «Estilo visual» de la promoción (V27) y **margen mínimo de publicación** como ajuste global (por defecto 30 minutos, 5 a 1440; V28; módulo `settings`) en lugar de las 6 h fijas. Publer sigue necesitando 8 h por las pasadas del PC.
+
 ## Cómo sabremos que está bien
 
 Se concreta por bloque al aprobar el plan. Como mínimo: cada PR pasa en GitHub (backend en Windows; frontal en Linux; el `.dmg` en macOS solo en el bloque 5), y lo visual se comprueba con Playwright en modo real sin errores en la consola. Al final, Raúl hace las pruebas funcionales completas.

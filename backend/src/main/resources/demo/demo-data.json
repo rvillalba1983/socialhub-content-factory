@@ -1,6 +1,6 @@
 {
   "commonRules": [
-    "Nunca publicar al instante: mínimo 6 h de margen",
+    "Nunca publicar al instante: respeta siempre el margen mínimo de publicación (30 minutos por defecto, ajustable)",
     "Correos y mensajes directos: solo borradores; los envía Raúl",
     "Nada de pago ni suscripciones",
     "No crear cuentas ni iniciar sesión por Raúl",
@@ -460,7 +460,7 @@
       "id": "prog",
       "name": "Programación",
       "status": "BLOCKED",
-      "description": "Programa en Publer con 6 h de margen como mínimo; la API oficial queda de respaldo.",
+      "description": "Programa por la API oficial (con SocialHub abierto), Publer o Publora, respetando el margen mínimo de publicación (30 minutos por defecto, ajustable).",
       "tools": [
         "Publer · Chrome",
         "API oficial (respaldo)",

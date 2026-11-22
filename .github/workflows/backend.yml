@@ -50,6 +50,12 @@ jobs:
           npm run build
       - name: Empaquetar SocialHub con la web
         run: mvn -B -DskipTests clean package
+      # Los fondos SVG de Claude se pintan con Apache Batik: tiene que ir dentro del jar (y de ahí al instalador, que usa ese jar)
+      - name: Comprobar que el jar lleva Apache Batik
+        shell: bash
+        run: |
+          jar tf target/socialhub.jar | grep -q 'BOOT-INF/lib/batik-transcoder-' || { echo "::error::El jar no incluye batik-transcoder"; exit 1; }
+          jar tf target/socialhub.jar | grep -q 'BOOT-INF/lib/xmlgraphics-commons-' || { echo "::error::El jar no incluye xmlgraphics-commons"; exit 1; }
       - name: Arrancar SocialHub y comprobar que responde
         shell: bash
         run: |

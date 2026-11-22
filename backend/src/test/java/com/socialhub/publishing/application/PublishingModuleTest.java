@@ -44,7 +44,7 @@ class PublishingModuleTest {
 
     private String promotion() {
         var brand = promotionService.createBrand(new BrandDraft("Marca de prueba", "@prueba", "#336699"));
-        return promotionService.createPromotion(new PromotionDraft(brand.id(), "Promoción de prueba", null, null, null,
+        return promotionService.createPromotion(new PromotionDraft(brand.id(), "Promoción de prueba", null, null, null, null,
                 LocalDate.now().plusDays(1), LocalDate.now().plusDays(30), "ACTIVE", null, null, null, null, null, null,
                 null, null, null)).id();
     }

@@ -73,7 +73,8 @@ class AiProposalsOnSaveTest {
 
     private AiProposalsOnSave onSave(ZonedDateTime now) {
         Clock clock = Clock.fixed(now.toInstant(), MADRID);
-        var auto = new AiAutoOrders(promotions, promotionService, orders, handlers, done, transactions, clock);
+        var auto = new AiAutoOrders(promotions, promotionService, orders, handlers, done, transactions, clock,
+                com.socialhub.settings.FixedMargin.of(com.socialhub.settings.FixedMargin.SIX_HOURS));
         autoOrders = auto;
         return new AiProposalsOnSave(auto, promotions, settings, mode, clock);
     }
