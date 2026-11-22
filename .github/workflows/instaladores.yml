@@ -125,7 +125,7 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force "$env:RUNNER_TEMP\registros" | Out-Null
           $msi = Get-ChildItem salida\*.msi | Select-Object -First 1
-          & scripts/windows/instalador/comprobar-msi.ps1 -Msi $msi.FullName -Version $env:VERSION -UpgradeCode $env:UPGRADE_UUID -Informe "$env:RUNNER_TEMP\registros\interfaz-msi.txt"
+          pwsh -NoProfile -File scripts/windows/instalador/comprobar-msi.ps1 -Msi $msi.FullName -Version $env:VERSION -UpgradeCode $env:UPGRADE_UUID -Informe "$env:RUNNER_TEMP\registros\interfaz-msi.txt"
           if ($LASTEXITCODE -ne 0) { throw "La interfaz del .msi no es la esperada" }
       # Junto al .msi, los lanzadores que instalan y desinstalan dejando un registro (un .msi no lo deja solo)
       - name: Lanzadores con registro
@@ -346,7 +346,8 @@ jobs:
         shell: pwsh
         run: |
           $msi = Get-ChildItem salida\*.msi | Select-Object -First 1
-          & scripts/windows/instalador/probar-interfaz.ps1 -Msi $msi.FullName -Salida "$env:RUNNER_TEMP\registros\capturas"
+          pwsh -NoProfile -File scripts/windows/instalador/probar-interfaz.ps1 -Msi $msi.FullName -Salida "$env:RUNNER_TEMP\registros\capturas"
+          if ($LASTEXITCODE -ne 0) { throw "La prueba de interfaz falló" }
       - name: Quitar SocialHub si la prueba de interfaz lo dejó instalado
         if: always()
         shell: pwsh
