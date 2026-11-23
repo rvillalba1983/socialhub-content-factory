@@ -995,3 +995,17 @@ Todas son de Raúl salvo que se diga otra cosa. Detalle y contexto en `docs/fase
 - **27 · Bloque 8: se decide al empezar el bloque** (Raúl, 23 nov, opción recomendada). Qué de lo «por decidir» (8.3, incluidos 25 a 27) entra en la fase 13 y qué falta en el aviso de publicaciones a la misma hora (8.1).
 - **28 · Orden de bloques sin cambios: 2, 3, 4, 5, 7, 8 y 6** (Raúl, 23 nov). Se revisa el 24 nov con la tanda delante: si sale algo que duela cada semana, se adelanta el bloque 7.
 - **29 · Paso automático de «En producción» a «Borrador»** (Raúl, 23 nov, opción recomendada). Las publicaciones pasan solas cuando tienen piezas y texto; solo ese paso (no publica nada). Pendiente de revisión, Aprobada y Programada siguen siendo manuales. Entra en el bloque 7.
+
+### Fase 13 · Decisiones 30 a 32 (23 nov 2026, noche)
+
+- **30 · Aprobación de la tanda del martes 24 nov** (10 publicaciones: 5 de Instagram por la API oficial y 5 de TikTok por Publer).
+  - Raúl pidió que Claude hiciera con Chrome la revisión y aprobación y eligió «aprobar y programar las 10» (respuesta de Raúl).
+  - Raúl confirmó dos afirmaciones de los textos: «Mi perro se llama Pachi» es un verso del libro (Pachi es además su perro) y @enebrobar es una cuenta real (la dueña dio permiso) (respuesta de Raúl).
+  - Claude quitó «sin música» (tiktok-3) y «sin sonido» (instagram-5) del texto público; las notas internas no se tocaron (decisión técnica de Claude).
+  - Los avisos bloqueantes de proporción 4:5 de los carruseles de TikTok se aceptaron uno a uno con el motivo: «Claude, con el OK de Raúl para aprobar la tanda (23 nov): 4:5 en TikTok, el mismo caso que Raúl aceptó el 22 nov; se arregla en la fase 13 (hallazgo B)» (decisión técnica de Claude, con el OK de Raúl a la aprobación).
+  - Resultado comprobado por la API: las 10 están en «Programada» (19:00, 19:30, 20:00, 20:30 y 21:00; una de Instagram y una de TikTok en cada hora), sin avisos de calidad abiertos ni alertas. Ninguna lleva música de Litoques (decisión 23). Defecto visual anotado y aceptado: la historia instagram-4 («busca a Lito y a Pachi») tiene la llamada a la acción en rojo encima de la letra manuscrita y se lee mal.
+- **31 · Perfiles de Instagram y TikTok.**
+  - Raúl dio permiso a Claude para revisar y mejorar los perfiles de Instagram (@elde_lito y @litoques) y de TikTok (@litoques.eldelito) y rellenar lo que falte: «eres libre de mejorar los perfiles como mejor creas» (respuesta de Raúl).
+  - Cambios hechos por Claude (decisión técnica): (a) TikTok: foto de perfil cambiada por la de @litoques en Instagram; descripción nueva «🎸 Litoques, guitarra: lito6.bandcamp.com / 📖 El DeLito: books2read.com/u/3kxoo8» (79/80; antes tenía una «a» sobrante); el editor web de TikTok no ofrece campo de enlace en esta cuenta. (b) Instagram @litoques: descripción nueva «Guitarra española instrumental · Granada 🎸 / Disco autoeditado, cada tema en una toma: flamenca, acústica y looper / Spanish acoustic guitar · Spotify ↓» (149/150); los enlaces solo se editan desde el móvil. (c) @elde_lito: solo revisado desde fuera porque la sesión de Chrome estaba en @litoques; sin cambios, todo correcto.
+  - No se pasó TikTok a cuenta de empresa, para no arriesgar la conexión con Publer de las publicaciones de mañana (decisión técnica de Claude).
+- **32 · Pendiente de Raúl: ¿pasar TikTok a cuenta de empresa para poder poner enlaces?** Sin decidir. Permitiría poner enlaces en el perfil, pero puede afectar a la conexión con Publer; mejor decidirlo cuando acabe la tanda.
