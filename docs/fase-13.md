@@ -59,7 +59,7 @@ Respuestas del 23 nov, ~21:30 a ~22:00 (cierre del plan en la conversación nuev
 28. **Orden de bloques sin cambios: 2, 3, 4, 5, 7, 8 y 6** (Raúl, 23 nov). Se revisa el 24 nov con la tanda delante: si sale algo que duela cada semana, se adelanta el bloque 7.
 29. **Las publicaciones pasan solas de «En producción» a «Borrador» cuando tienen piezas y texto** (Raúl, 23 nov, opción recomendada). Solo ese paso (no publica nada): Pendiente de revisión, Aprobada y Programada siguen siendo manuales. Entra en el bloque 7.
 30. **Tanda del martes 24 nov aprobada y programada** (Raúl, 23 nov, noche: «aprobar y programar las 10»; 10 en «Programada», sin avisos abiertos; quitado «sin música/sin sonido» del texto público y aceptados los avisos 4:5 de TikTok por decisión técnica de Claude). Ver `decisiones.md`.
-31. **Perfiles de Instagram y TikTok** (Raúl, 23 nov, noche: «eres libre de mejorar los perfiles como mejor creas»). Claude cambió foto y descripción de TikTok y la descripción de @litoques; @elde_lito sin cambios. TikTok no se pasa a cuenta de empresa (decisión técnica).
+31. **Perfiles de Instagram y TikTok** (Raúl, 23 nov, noche: «eres libre de mejorar los perfiles como mejor creas»). Claude cambió foto y descripción de TikTok y la descripción de @litoques y de @elde_lito (con el permiso de Raúl para cambiar de cuenta en Chrome, 23 nov, 22:34). TikTok no se pasa a cuenta de empresa (decisión técnica).
 32. **Pendiente de Raúl: cuenta de empresa en TikTok para poder poner enlaces.** Sin decidir.
 
 ## Cómo encaja cada skill (propuesta técnica)
