@@ -42,7 +42,7 @@ const task = (o: Partial<Task>): Task => ({
 
 const snapshot: Snapshot = {
   now: '2026-10-26T10:00:00+01:00', demo: true,
-  brands: [{ id: 'b', name: 'El DeLito', handle: '@elde_lito', color: '#D23A2E', demo: true }],
+  brands: [{ id: 'b', name: 'El DeLito', handle: '@elde_lito', color: '#D23A2E', demo: true, kit_pieces: ['cierre', 'historia'] }],
   promotions: [{
     id: 'p', brand_id: 'b', name: 'Lanzamiento del poemario', description: '', scope: '', cadence: '', starts_on: '2026-10-27',
     ends_on: '2027-01-18', status: 'ACTIVE', metrics_source: '', goals: [], rules: [], human_todos: [], milestones: [],
@@ -318,7 +318,7 @@ describe('Modo real vacío', () => {
 
 describe('Altas', () => {
   it('crea una marca con el color elegido', async () => {
-    const create = vi.spyOn(api, 'createBrand').mockResolvedValue({ id: 'litoques', name: 'Litoques', handle: '@litoques', color: '#C98A1B', demo: false });
+    const create = vi.spyOn(api, 'createBrand').mockResolvedValue({ id: 'litoques', name: 'Litoques', handle: '@litoques', color: '#C98A1B', demo: false, kit_pieces: ['cierre', 'historia'] });
     const onSaved = vi.fn();
     render(<BrandForm onCancel={() => {}} onSaved={onSaved} />);
     fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Litoques' } });
@@ -330,7 +330,7 @@ describe('Altas', () => {
   });
 
   it('el color de la marca es obligatorio: no hay color por defecto al crear ni se guarda sin él', async () => {
-    const create = vi.spyOn(api, 'createBrand').mockResolvedValue({ id: 'x', name: 'X', handle: '@x', color: '#112233', demo: false });
+    const create = vi.spyOn(api, 'createBrand').mockResolvedValue({ id: 'x', name: 'X', handle: '@x', color: '#112233', demo: false, kit_pieces: ['cierre', 'historia'] });
     render(<BrandForm onCancel={() => {}} onSaved={() => {}} />);
     const hex = screen.getByLabelText('Color de la marca en hexadecimal');
     expect(hex).toHaveValue('');
@@ -346,8 +346,8 @@ describe('Altas', () => {
   });
 
   it('una marca antigua sin color se abre con el color vacío y exige elegirlo', () => {
-    const update = vi.spyOn(api, 'updateBrand').mockResolvedValue({ id: 'b', name: 'El DeLito', handle: '@elde_lito', color: '#112233', demo: false });
-    render(<BrandForm brand={{ id: 'b', name: 'El DeLito', handle: '@elde_lito', color: '', demo: false }} onCancel={() => {}} onSaved={() => {}} />);
+    const update = vi.spyOn(api, 'updateBrand').mockResolvedValue({ id: 'b', name: 'El DeLito', handle: '@elde_lito', color: '#112233', demo: false, kit_pieces: ['cierre', 'historia'] });
+    render(<BrandForm brand={{ id: 'b', name: 'El DeLito', handle: '@elde_lito', color: '', demo: false, kit_pieces: ['cierre', 'historia'] }} onCancel={() => {}} onSaved={() => {}} />);
     expect(screen.getByLabelText('Color de la marca en hexadecimal')).toHaveValue('');
     fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
     expect(update).not.toHaveBeenCalled();
@@ -1458,6 +1458,18 @@ describe('Qué hacer ahora', () => {
     expect(onRecommendation).toHaveBeenCalledWith({ screen: 'BRAND_DATA', brand_id: 'b' });
   });
 
+  it('las recomendaciones del kit de marca llevan a la ficha de la marca', () => {
+    const onRecommendation = vi.fn();
+    world(withRecs([
+      rec({ id: 'brand-kit:b', kind: 'BRAND_KIT_MISSING', title: 'Genera el kit de El DeLito', target: { screen: 'BRAND_KIT', brand_id: 'b' } }),
+      rec({ id: 'brand-kit-pending:b', kind: 'BRAND_KIT_PENDING', title: 'Revisa el kit de El DeLito', target: { screen: 'BRAND_KIT', brand_id: 'b' } }),
+    ]), onRecommendation);
+    fireEvent.click(screen.getByRole('button', { name: /Genera el kit de El DeLito/ }));
+    expect(onRecommendation).toHaveBeenCalledWith({ screen: 'BRAND_KIT', brand_id: 'b' });
+    fireEvent.click(screen.getByRole('button', { name: /Revisa el kit de El DeLito/ }));
+    expect(onRecommendation).toHaveBeenLastCalledWith({ screen: 'BRAND_KIT', brand_id: 'b' });
+  });
+
   it('la recomendación de Publora lleva un botón «No uso Publora» aparte, sin anidar botones', () => {
     const onDismiss = vi.fn(), onOpen = vi.fn();
     const publora = rec({ id: 'publora:b', kind: 'PUBLORA_MISSING', title: 'Conecta Publora para El DeLito', target: { screen: 'PUBLORA', brand_id: 'b' } });
@@ -1769,7 +1781,7 @@ describe('Mensajes al guardar', () => {
     await waitFor(() => expect(onSaved).toHaveBeenCalledWith('Promoción guardada · Lanzamiento del poemario', { promotionId: 'p', status: 'ACTIVE' }));
   });
   it('el alta de promoción desde una recomendación preselecciona la marca', () => {
-    const two = { ...snapshot, brands: [...snapshot.brands, { id: 'l', name: 'Litoques', handle: '@l', color: '#C98A1B', demo: false }] };
+    const two = { ...snapshot, brands: [...snapshot.brands, { id: 'l', name: 'Litoques', handle: '@l', color: '#C98A1B', demo: false, kit_pieces: ['cierre', 'historia'] }] };
     render(<Registration data={two} initial={{ kind: 'promotion', id: null, brandId: 'l' }} onClose={() => {}} onSaved={() => {}} />);
     expect(screen.getByLabelText('Marca')).toHaveValue('l');
   });

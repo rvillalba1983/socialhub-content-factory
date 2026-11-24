@@ -705,6 +705,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/brands/{brand_id}/kit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Kit de marca aprobado y pendiente, con vista previa de cada plantilla
+         * @description La vista previa es la plantilla pintada con sus textos de ejemplo (PNG en base64, 540 px de ancho). Si una plantilla no se puede pintar, no lleva imagen y explica el motivo en «errors».
+         */
+        get: operations["getBrandKit"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/brands/{brand_id}/kit/request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pide a Claude el kit de la marca
+         * @description Crea el encargo «Kit de marca», que cuelga de una promoción de la marca (si tiene varias, hay que elegirla; una marca sin promociones no puede pedirlo). Sin piezas indicadas se piden las que lleva la marca (`kit_pieces`). Solo se pueden pedir piezas de `kit_pieces`. Responde 409 si la marca ya tiene un kit pendiente de aprobación o un encargo de kit abierto en cualquiera de sus promociones (en cola, enviado, retenido o esperando respuesta de Raúl).
+         */
+        post: operations["requestBrandKit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/brands/{brand_id}/kit/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Aprueba el kit pendiente (pasa a ser el kit en vigor de la marca)
+         * @description Lleva el id del kit que Raúl está viendo. Responde 409 («Ese kit ya no es el pendiente; recarga») si ese kit ya no es el pendiente de la marca (llegó otro nuevo, ya se aprobó o se rechazó), y también si alguna plantilla del kit no se pinta.
+         */
+        post: operations["approveBrandKit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/brands/{brand_id}/kit/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rechaza el kit pendiente con un comentario («Pedir otra versión»)
+         * @description Rechaza el kit pendiente y, salvo que se pida lo contrario (`request_another` falso), crea ya un encargo nuevo con ese comentario y las mismas piezas, de la misma promoción del encargo anterior (o la que se indique). Lleva el id del kit que Raúl está viendo: responde 409 («Ese kit ya no es el pendiente; recarga») si ya no es el pendiente de la marca, y también si pide otra versión y la marca ya tiene un encargo de kit abierto.
+         */
+        post: operations["rejectBrandKit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/brands/{brand_id}/decisions": {
         parameters: {
             query?: never;
@@ -1197,7 +1277,7 @@ export interface paths {
         put?: never;
         /**
          * Encarga un trabajo a Claude
-         * @description Crea la tarea en cola. Sale hacia «<Encargos de la marca>/para-claude» en el siguiente envío (cada 30 s), si no se ha llegado al límite diario. La tarea programada «Encargos de SocialHub» deja el resultado en «de-claude».
+         * @description Crea la tarea en cola. Sale hacia «<Encargos de la marca>/para-claude» en el siguiente envío (cada 30 s), si no se ha llegado al límite diario. La tarea programada «Encargos de SocialHub» deja el resultado en «de-claude». Responde 409 si el encargo no se puede pedir ahora (por ejemplo, un kit de marca cuando la marca ya tiene un kit pendiente de aprobación o un encargo de kit abierto en cualquiera de sus promociones).
          */
         post: operations["createAiOrder"];
         delete?: never;
@@ -1418,10 +1498,10 @@ export interface components {
             /** @description Estable mientras la recomendación siga haciendo falta (por ejemplo, brand-folders:litoques) */
             id: string;
             /**
-             * @description Por orden de prioridad: marca sin forma de publicar (NO_PUBLISHING_ROUTE) y tarea del PC «Publicar con Chrome» sin contestar (PC_TASK_SILENT), que van primero porque bloquean publicaciones reales (también salen como aviso en «Necesita atención»); marca sin cuenta de Publer para una red con publicaciones retenidas (PUBLER_ACCOUNT_MISSING, con botón a la tarjeta «Cuenta en Publer»); conexión con Instagram que caduca en 7 días o menos, o ya caducada (INSTAGRAM_CONNECTION_EXPIRING, con botón a la tarjeta «Instagram · API oficial», donde está «Renovar conexión»); propuestas retenidas (por la carpeta de Encargos, Drive cerrado o el límite diario), propuestas por revisar, marca sin todas sus carpetas, encargos sin recoger, marca sin cuenta de Publora, sin carpeta de copias, marca sin promoción activa, propuestas pedidas en camino y, la última, promoción activada sola hoy (PROMOTION_AUTO_STARTED, informativa: solo el día en que se activa). CONTENT_MISSING: publicación en producción sin contenido (sin piezas y fuera de cualquier spec abierto) que sale en menos de 3 días; con «publication_ids» y «promotion_id», el botón «Pedir contenido ya» pide un spec urgente a mano de esas publicaciones (sin target: no navega). IDENTITY_MISSING: marca con promoción en marcha a la que le falta el tono o el público (botón a su identidad; los temas que no se tocan vacíos son válidos). PUBLICATION_TOO_SOON: publicaciones de camino a publicar a las que ya no queda el margen mínimo de publicación, o cuya hora ya pasó, y aún no están programadas (botón a las pendientes de la promoción; con «publication_ids», las afectadas por hora, y el botón «Mover a la siguiente hora libre» actúa sobre la primera). DUPLICATE_PUBLICATIONS: posible duplicado (dos o más publicaciones desde «En producción» en adelante, sin contar ideas, propuestas ni canceladas, de la misma marca y red: el mismo día con el mismo título y el mismo tipo, o con la misma hora y el mismo texto). BRAND_COLOR_MISSING: marca sin color (anterior a que fuera obligatorio): no genera fondos hasta que se elija; lleva a BRAND_DATA (brand_id); con «publication_ids», cada una tiene su «Descartar esta». SPEC_WAITING ya no se calcula (el spec se pide por lotes, no por semana) y se conserva solo por compatibilidad. MATERIAL_MISSING: aviso informativo (no bloquea) de las publicaciones de una promoción a las que les falta imagen o vídeo en las carpetas de Material; dice qué fondo se usará (la portada de la marca, o un fondo con su color) y, si la promoción tiene «Estilo visual», que Claude lo usará; si la carpeta no está disponible, avisa de que no se ha podido comprobar (botón a las carpetas de la marca)
+             * @description Por orden de prioridad: marca sin forma de publicar (NO_PUBLISHING_ROUTE) y tarea del PC «Publicar con Chrome» sin contestar (PC_TASK_SILENT), que van primero porque bloquean publicaciones reales (también salen como aviso en «Necesita atención»); marca sin cuenta de Publer para una red con publicaciones retenidas (PUBLER_ACCOUNT_MISSING, con botón a la tarjeta «Cuenta en Publer»); conexión con Instagram que caduca en 7 días o menos, o ya caducada (INSTAGRAM_CONNECTION_EXPIRING, con botón a la tarjeta «Instagram · API oficial», donde está «Renovar conexión»); propuestas retenidas (por la carpeta de Encargos, Drive cerrado o el límite diario), propuestas por revisar, marca sin todas sus carpetas, encargos sin recoger, marca sin cuenta de Publora, sin carpeta de copias, marca sin promoción activa, propuestas pedidas en camino y, la última, promoción activada sola hoy (PROMOTION_AUTO_STARTED, informativa: solo el día en que se activa). CONTENT_MISSING: publicación en producción sin contenido (sin piezas y fuera de cualquier spec abierto) que sale en menos de 3 días; con «publication_ids» y «promotion_id», el botón «Pedir contenido ya» pide un spec urgente a mano de esas publicaciones (sin target: no navega). IDENTITY_MISSING: marca con promoción en marcha a la que le falta el tono o el público (botón a su identidad; los temas que no se tocan vacíos son válidos). PUBLICATION_TOO_SOON: publicaciones de camino a publicar a las que ya no queda el margen mínimo de publicación, o cuya hora ya pasó, y aún no están programadas (botón a las pendientes de la promoción; con «publication_ids», las afectadas por hora, y el botón «Mover a la siguiente hora libre» actúa sobre la primera). DUPLICATE_PUBLICATIONS: posible duplicado (dos o más publicaciones desde «En producción» en adelante, sin contar ideas, propuestas ni canceladas, de la misma marca y red: el mismo día con el mismo título y el mismo tipo, o con la misma hora y el mismo texto). BRAND_COLOR_MISSING: marca sin color (anterior a que fuera obligatorio): no genera fondos hasta que se elija; lleva a BRAND_DATA (brand_id); con «publication_ids», cada una tiene su «Descartar esta». BRAND_KIT_MISSING: marca con alguna promoción y sin kit aprobado, pendiente ni encargo de kit abierto («Genera el kit de X»); BRAND_KIT_PENDING: kit pendiente de aprobación («Revisa el kit de X»); los dos llevan a BRAND_KIT (brand_id). SPEC_WAITING ya no se calcula (el spec se pide por lotes, no por semana) y se conserva solo por compatibilidad. MATERIAL_MISSING: aviso informativo (no bloquea) de las publicaciones de una promoción a las que les falta imagen o vídeo en las carpetas de Material; dice qué fondo se usará (la portada de la marca, o un fondo con su color) y, si la promoción tiene «Estilo visual», que Claude lo usará; si la carpeta no está disponible, avisa de que no se ha podido comprobar (botón a las carpetas de la marca)
              * @enum {string}
              */
-            kind: "HELD_PROPOSALS" | "PROPOSALS_TO_REVIEW" | "BRAND_FOLDERS_MISSING" | "ORDERS_NOT_COLLECTED" | "PUBLORA_MISSING" | "BACKUP_FOLDER_MISSING" | "NO_ACTIVE_PROMOTION" | "PROPOSALS_PENDING" | "SPEC_WAITING" | "PC_TASK_SILENT" | "NO_PUBLISHING_ROUTE" | "PUBLER_ACCOUNT_MISSING" | "INSTAGRAM_CONNECTION_EXPIRING" | "PROMOTION_AUTO_STARTED" | "CONTENT_MISSING" | "IDENTITY_MISSING" | "PUBLICATION_TOO_SOON" | "MATERIAL_MISSING" | "DUPLICATE_PUBLICATIONS" | "BRAND_COLOR_MISSING";
+            kind: "HELD_PROPOSALS" | "PROPOSALS_TO_REVIEW" | "BRAND_FOLDERS_MISSING" | "ORDERS_NOT_COLLECTED" | "PUBLORA_MISSING" | "BACKUP_FOLDER_MISSING" | "NO_ACTIVE_PROMOTION" | "PROPOSALS_PENDING" | "SPEC_WAITING" | "PC_TASK_SILENT" | "NO_PUBLISHING_ROUTE" | "PUBLER_ACCOUNT_MISSING" | "INSTAGRAM_CONNECTION_EXPIRING" | "PROMOTION_AUTO_STARTED" | "CONTENT_MISSING" | "IDENTITY_MISSING" | "PUBLICATION_TOO_SOON" | "MATERIAL_MISSING" | "DUPLICATE_PUBLICATIONS" | "BRAND_COLOR_MISSING" | "BRAND_KIT_MISSING" | "BRAND_KIT_PENDING";
             /** @description Texto en español */
             title: string;
             /** @description Más información (por ejemplo, el motivo de un encargo retenido) */
@@ -1437,10 +1517,10 @@ export interface components {
         /** @description A qué pantalla lleva el botón. Sin target, la recomendación es solo un texto. */
         RecommendationTarget: {
             /**
-             * @description BRAND_FOLDERS: Marcas → Carpetas de Drive de la marca (brand_id). PROPOSALS: publicaciones en estado Propuesta de la promoción (promotion_id). PUBLORA: tarjeta de Publora de la marca (brand_id). PUBLER: tarjeta «Cuenta en Publer» de la marca (brand_id). BACKUPS: ajuste de la carpeta de copias. NEW_PROMOTION: alta de promoción de la marca (brand_id); con promotion_id, abre esa promoción (planificada o en pausa) para activarla. CLAUDE: pantalla «Claude», donde se cambia el límite diario de encargos (sin brand_id). INSTAGRAM: tarjeta «Instagram · API oficial» de «Agentes y herramientas» (sin brand_id). BRAND_IDENTITY: tarjeta de identidad de la marca (brand_id). PUBLICATIONS: publicaciones pendientes de la promoción (promotion_id). BRAND_DATA: ficha de la marca, con su nombre, cuenta y color (brand_id)
+             * @description BRAND_FOLDERS: Marcas → Carpetas de Drive de la marca (brand_id). PROPOSALS: publicaciones en estado Propuesta de la promoción (promotion_id). PUBLORA: tarjeta de Publora de la marca (brand_id). PUBLER: tarjeta «Cuenta en Publer» de la marca (brand_id). BACKUPS: ajuste de la carpeta de copias. NEW_PROMOTION: alta de promoción de la marca (brand_id); con promotion_id, abre esa promoción (planificada o en pausa) para activarla. CLAUDE: pantalla «Claude», donde se cambia el límite diario de encargos (sin brand_id). INSTAGRAM: tarjeta «Instagram · API oficial» de «Agentes y herramientas» (sin brand_id). BRAND_IDENTITY: tarjeta de identidad de la marca (brand_id). PUBLICATIONS: publicaciones pendientes de la promoción (promotion_id). BRAND_DATA: ficha de la marca, con su nombre, cuenta y color (brand_id). BRAND_KIT: tarjeta «Kit de marca» de la ficha (brand_id)
              * @enum {string}
              */
-            screen: "BRAND_FOLDERS" | "PROPOSALS" | "PUBLORA" | "PUBLER" | "BACKUPS" | "NEW_PROMOTION" | "CLAUDE" | "INSTAGRAM" | "BRAND_IDENTITY" | "PUBLICATIONS" | "BRAND_DATA";
+            screen: "BRAND_FOLDERS" | "PROPOSALS" | "PUBLORA" | "PUBLER" | "BACKUPS" | "NEW_PROMOTION" | "CLAUDE" | "INSTAGRAM" | "BRAND_IDENTITY" | "PUBLICATIONS" | "BRAND_DATA" | "BRAND_KIT";
             brand_id?: string;
             promotion_id?: string;
         };
@@ -1505,7 +1585,7 @@ export interface components {
          * @description Tipo de encargo a Claude
          * @enum {string}
          */
-        AiRequestType: "WEEKLY_SPEC" | "CAPTIONS" | "WEEKLY_BALANCE" | "RESEARCH" | "QUALITY_REVIEW" | "WEEKLY_PROPOSALS" | "PUBLER_SCHEDULE" | "PUBLISH_CHECK" | "CALENDAR_READ" | "METRICS_READ" | "PUBLIC_LINK";
+        AiRequestType: "WEEKLY_SPEC" | "CAPTIONS" | "WEEKLY_BALANCE" | "RESEARCH" | "QUALITY_REVIEW" | "WEEKLY_PROPOSALS" | "PUBLER_SCHEDULE" | "PUBLISH_CHECK" | "CALENDAR_READ" | "METRICS_READ" | "PUBLIC_LINK" | "BRAND_KIT";
         AiTypeModel: {
             type: components["schemas"]["AiRequestType"];
             label: string;
@@ -1808,6 +1888,88 @@ export interface components {
             /** @description Raúl ha marcado «No uso Publora» para esta marca (no se le recomienda conectarla) */
             dismissed: boolean;
         };
+        BrandKitView: {
+            approved?: components["schemas"]["BrandKitVersion"];
+            pending?: components["schemas"]["BrandKitVersion"];
+        };
+        BrandKitVersion: {
+            /** Format: int64 */
+            id: number;
+            /** @description Número de la versión dentro de la marca */
+            version: number;
+            /** @enum {string} */
+            status: "PENDING" | "APPROVED" | "SUPERSEDED" | "REJECTED";
+            palette: components["schemas"]["BrandKitColor"][];
+            /** @description Texto de Claude para Raúl */
+            notes?: string | null;
+            /** @description Comentario de «Pedir otra versión» */
+            comment?: string | null;
+            source_task_id?: string | null;
+            templates: components["schemas"]["BrandKitTemplate"][];
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            approved_at?: string | null;
+        };
+        BrandKitColor: {
+            name: string;
+            hex: string;
+        };
+        BrandKitTemplate: {
+            id: string;
+            /** @enum {string} */
+            piece: "cita" | "cierre" | "historia" | "infografia" | "meme";
+            name: string;
+            svg: string;
+            /** @description Dónde va la ilustración, en unidades del viewBox de la plantilla */
+            image?: {
+                /** Format: double */
+                x: number;
+                /** Format: double */
+                y: number;
+                /** Format: double */
+                width: number;
+                /** Format: double */
+                height: number;
+            } | null;
+            /** @description Vista previa con textos de ejemplo (PNG en base64) */
+            preview_png_base64?: string | null;
+            warnings: string[];
+            errors: string[];
+        };
+        BrandKitRequestInput: {
+            /** @description Promoción de la marca de la que cuelga el encargo; obligatoria si la marca tiene varias */
+            promotion_id?: string;
+            /** @description Piezas que pedir; deben estar en `kit_pieces` de la marca. Sin ellas, todas las de `kit_pieces` */
+            pieces?: ("cita" | "cierre" | "historia")[];
+        };
+        BrandKitApproveInput: {
+            /**
+             * Format: int64
+             * @description Id del kit pendiente que Raúl está viendo (`pending.id` de la vista del kit)
+             */
+            kit_id: number;
+        };
+        BrandKitRejectInput: {
+            /**
+             * Format: int64
+             * @description Id del kit pendiente que Raúl está viendo (`pending.id` de la vista del kit)
+             */
+            kit_id: number;
+            comment: string;
+            /**
+             * @description Pedir ya otra versión con ese comentario
+             * @default true
+             */
+            request_another: boolean;
+            /** @description Solo si se pide otra versión y se quiere otra promoción distinta de la del encargo anterior */
+            promotion_id?: string;
+        };
+        BrandKitRejection: {
+            kit: components["schemas"]["BrandKitVersion"];
+            /** @description Tarea del encargo nuevo, si se pidió otra versión */
+            task_id?: string | null;
+        };
         PublicShare: {
             shared: boolean;
         };
@@ -2025,6 +2187,8 @@ export interface components {
             /** @description Color de la marca (#RRGGBB). Vacío solo en marcas anteriores a que fuera obligatorio, que no generan fondos hasta que se elija. */
             color: string;
             demo: boolean;
+            /** @description Códigos (cita, cierre, historia) de las piezas que puede llevar el kit de marca de esta marca (decisiones 13, 50 y 51). El DeLito: cita, cierre del carrusel e historia; Litoques y las demás: cierre del carrusel e historia. Solo lectura: se asigna al crear la marca (cierre e historia) y la migración fija las de El DeLito. */
+            kit_pieces: string[];
         };
         /** @enum {string} */
         AppMode: "REAL" | "DEMO";
@@ -2652,6 +2816,14 @@ export type PubloraConnection = components['schemas']['PubloraConnection'];
 export type PubloraKeyInput = components['schemas']['PubloraKeyInput'];
 export type PubloraAccount = components['schemas']['PubloraAccount'];
 export type PubloraAccountList = components['schemas']['PubloraAccountList'];
+export type BrandKitView = components['schemas']['BrandKitView'];
+export type BrandKitVersion = components['schemas']['BrandKitVersion'];
+export type BrandKitColor = components['schemas']['BrandKitColor'];
+export type BrandKitTemplate = components['schemas']['BrandKitTemplate'];
+export type BrandKitRequestInput = components['schemas']['BrandKitRequestInput'];
+export type BrandKitApproveInput = components['schemas']['BrandKitApproveInput'];
+export type BrandKitRejectInput = components['schemas']['BrandKitRejectInput'];
+export type BrandKitRejection = components['schemas']['BrandKitRejection'];
 export type PublicShare = components['schemas']['PublicShare'];
 export type PublicShareInput = components['schemas']['PublicShareInput'];
 export type PubloraDismissedInput = components['schemas']['PubloraDismissedInput'];
@@ -3953,6 +4125,128 @@ export interface operations {
             default: components["responses"]["Problem"];
         };
     };
+    getBrandKit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                brand_id: components["parameters"]["BrandId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Los dos kits de la marca; nulos si no hay */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrandKitView"];
+                };
+            };
+            404: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    requestBrandKit: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path: {
+                brand_id: components["parameters"]["BrandId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BrandKitRequestInput"];
+            };
+        };
+        responses: {
+            /** @description Encargo en cola */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiOrder"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    approveBrandKit: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path: {
+                brand_id: components["parameters"]["BrandId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BrandKitApproveInput"];
+            };
+        };
+        responses: {
+            /** @description Kit aprobado */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrandKitVersion"];
+                };
+            };
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    rejectBrandKit: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path: {
+                brand_id: components["parameters"]["BrandId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BrandKitRejectInput"];
+            };
+        };
+        responses: {
+            /** @description Kit rechazado; lleva la tarea del encargo nuevo si se pidió */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrandKitRejection"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
     listBrandDecisions: {
         parameters: {
             query?: never;
@@ -4934,6 +5228,7 @@ export interface operations {
             };
             400: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
             default: components["responses"]["Problem"];
         };
     };

@@ -43,6 +43,8 @@ class FactoryRecommendationsTest {
     private final com.socialhub.pieces.MissingMaterial missingMaterial = mock(com.socialhub.pieces.MissingMaterial.class);
     private final com.socialhub.publishing.InstagramOAuth instagramOAuth = mock(com.socialhub.publishing.InstagramOAuth.class);
 
+    private final com.socialhub.brandkit.BrandKits kits = mock(com.socialhub.brandkit.BrandKits.class);
+
     /** Lunes 9 de noviembre de 2026, 11:00 en España. */
     private Instant now = madrid(11, 9, 11, 0);
 
@@ -57,7 +59,7 @@ class FactoryRecommendationsTest {
     private FactoryRecommendations subject() {
         return new FactoryRecommendations(held, sent, promotions, publishing, publora, publer, backups, autoStarted,
                 contentGaps, missingMaterial, instagramOAuth, Clock.fixed(now, ClaudePickups.ZONE),
-                com.socialhub.settings.FixedMargin.of(com.socialhub.settings.FixedMargin.SIX_HOURS));
+                com.socialhub.settings.FixedMargin.of(com.socialhub.settings.FixedMargin.SIX_HOURS), kits);
     }
 
     /** Una marca «Litoques» con una promoción activa, todo en orden. */
@@ -71,6 +73,8 @@ class FactoryRecommendationsTest {
         when(publishing.proposalCounts()).thenReturn(Map.of());
         when(held.current()).thenReturn(List.of());
         when(sent.waiting()).thenReturn(List.of());
+        when(kits.approved(any())).thenReturn(java.util.Optional.of(kit(com.socialhub.brandkit.domain.KitStatus.APPROVED)));
+        when(kits.pending(any())).thenReturn(java.util.Optional.empty());
         when(missingMaterial.of(any())).thenReturn(new com.socialhub.pieces.MissingMaterial.Report(true, 0, List.of(), null, ""));
     }
 
@@ -414,7 +418,7 @@ class FactoryRecommendationsTest {
         when(publishing.withoutMargin(now)).thenReturn(List.of(tiktok, instagram));
         var subject = new FactoryRecommendations(held, sent, promotions, publishing, publora, publer, backups, autoStarted,
                 contentGaps, missingMaterial, instagramOAuth, Clock.fixed(now, ClaudePickups.ZONE),
-                com.socialhub.settings.FixedMargin.of(java.time.Duration.ofHours(6), java.time.Duration.ofHours(8)));
+                com.socialhub.settings.FixedMargin.of(java.time.Duration.ofHours(6), java.time.Duration.ofHours(8)), kits);
         var rows = subject.compute().stream().filter(x -> x.kind() == Kind.PUBLICATION_TOO_SOON).toList();
         assertThat(rows).extracting(x -> x.title()).containsExactlyInAnyOrder(
                 "«Vídeo 1» ya no deja 8 horas de margen", "«Poema 1» ya no deja 6 horas de margen");
@@ -731,5 +735,67 @@ class FactoryRecommendationsTest {
         // Una promoción pausada no avisa
         when(promotions.promotionRefs()).thenReturn(List.of(ref("PAUSED", LocalDate.of(2026, 11, 1), LocalDate.of(2026, 12, 31))));
         assertThat(kinds()).doesNotContain(Kind.MATERIAL_MISSING);
+    }
+
+    private static com.socialhub.brandkit.domain.BrandKit kit(com.socialhub.brandkit.domain.KitStatus status) {
+        return new com.socialhub.brandkit.domain.BrandKit(1L, "litoques", 1, status, null, "{}", null, null, Instant.now(), null);
+    }
+
+    private java.util.Optional<Recommendation> kitRow() {
+        return subject().compute().stream().filter(r -> r.kind() == Kind.BRAND_KIT_MISSING || r.kind() == Kind.BRAND_KIT_PENDING).findFirst();
+    }
+
+    @Test
+    void aBrandWithAnApprovedKitGetsNoKitRecommendation() {
+        assertThat(kitRow()).isEmpty();
+    }
+
+    @Test
+    void aBrandWithPromotionsAndNoKitIsAskedToGenerateIt() {
+        when(kits.approved("litoques")).thenReturn(java.util.Optional.empty());
+        var row = kitRow().orElseThrow();
+        assertThat(row.kind()).isEqualTo(Kind.BRAND_KIT_MISSING);
+        assertThat(row.title()).isEqualTo("Genera el kit de Litoques");
+        assertThat(row.target().screen()).isEqualTo(Screen.BRAND_KIT);
+        assertThat(row.target().brandId()).isEqualTo("litoques");
+    }
+
+    @Test
+    void aBrandWithoutPromotionsIsNotAskedForAKit() {
+        when(kits.approved("litoques")).thenReturn(java.util.Optional.empty());
+        when(promotions.promotionRefs()).thenReturn(List.of());
+        assertThat(kitRow()).isEmpty();
+    }
+
+    @Test
+    void anOpenKitOrderSilencesTheRecommendation() {
+        when(kits.approved("litoques")).thenReturn(java.util.Optional.empty());
+        // El criterio de «encargo abierto» es el de la API (en cola sin enviar, enviado, retenido o esperando respuesta de Raúl):
+        // la recomendación solo lo consulta, no mira los encargos enviados ni los retenidos por su cuenta
+        when(kits.openOrderPromotion("litoques")).thenReturn(java.util.Optional.of("lit-1"));
+        assertThat(kitRow()).isEmpty();
+        when(kits.openOrderPromotion("litoques")).thenReturn(java.util.Optional.empty());
+        assertThat(kitRow()).isPresent();
+    }
+
+    @Test
+    void aKitOrderWaitingForRaulsAnswerAlsoSilencesTheRecommendation() {
+        when(kits.approved("litoques")).thenReturn(java.util.Optional.empty());
+        // Ni enviado ni retenido (no sale en esas listas): sigue abierto porque espera la respuesta de Raúl
+        when(sent.waiting()).thenReturn(List.of());
+        when(held.current()).thenReturn(List.of());
+        when(kits.openOrderPromotion("litoques")).thenReturn(java.util.Optional.of("lit-1"));
+        assertThat(kitRow()).isEmpty();
+    }
+
+    @Test
+    void aPendingKitTurnsItIntoAReviewRecommendation() {
+        when(kits.approved("litoques")).thenReturn(java.util.Optional.empty());
+        when(kits.pending("litoques")).thenReturn(java.util.Optional.of(kit(com.socialhub.brandkit.domain.KitStatus.PENDING)));
+        when(sent.waiting()).thenReturn(List.of(sentOrder(AiRequestType.BRAND_KIT, now)));
+        var row = kitRow().orElseThrow();
+        assertThat(row.kind()).isEqualTo(Kind.BRAND_KIT_PENDING);
+        assertThat(row.title()).isEqualTo("Revisa el kit de Litoques");
+        assertThat(row.target().screen()).isEqualTo(Screen.BRAND_KIT);
     }
 }

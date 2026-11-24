@@ -9,6 +9,6 @@
  *   <li>{@code adapter.in.web}: el controlador, que traduce a los DTO del contrato. {@code adapter.in.scheduling}: el reloj.</li>
  * </ul>
  */
-@org.springframework.modulith.ApplicationModule(allowedDependencies = {"promotion", "promotion::web", "production", "production::web", "publishing", "publishing::web", "settings", "armory", "armory::web", "ai", "ai::domain", "backup", "pieces", "platform", "api"})
+@org.springframework.modulith.ApplicationModule(allowedDependencies = {"promotion", "promotion::web", "production", "production::web", "publishing", "publishing::web", "settings", "armory", "armory::web", "ai", "ai::domain", "backup", "brandkit", "pieces", "platform", "api"})
 @org.jspecify.annotations.NullMarked
 package com.socialhub.factory;

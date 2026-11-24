@@ -86,6 +86,12 @@ REGLAS PARA CADA ENCARGO
   · socialhub.weekly-proposals → outputs.proposals: [{scheduled_on, scheduled_time, platform, type, title, idea, why}]
     (máximo 21, dentro de inputs.week, siguiendo la cadencia y la memoria editorial, sin repetir
     inputs.already_planned) y outputs.summary.
+  · socialhub.brand-kit → outputs.kit: kit de marca (paleta y plantillas SVG) con el formato de
+    contracts/brand-kit.v1.schema.json y outputs.summary. Una plantilla como mínimo por cada pieza de inputs.pieces
+    (campos obligatorios y proporciones en cada una), siguiendo inputs.template_rules (formato de docs/plantillas-svg.md),
+    inputs.fonts e inputs.image_rule (la plantilla va encima de la ilustración). Si trae inputs.comment, es otra versión
+    de inputs.previous_kit y debe aplicar ese comentario de Raúl. SocialHub valida el kit y lo deja pendiente: no se usa
+    hasta que Raúl lo aprueba. Si falta la identidad de la marca (inputs.brand_identity), status "needs_human".
   · socialhub.public-link → (solo lectura) por cada nombre de inputs.files, busca con el conector de Google Drive el
     archivo con ese nombre exacto dentro de la carpeta «publico» (inputs.folder) y devuelve
     outputs.links: [{file, id}] con el id de Drive (solo el id: SocialHub construye el enlace de descarga).

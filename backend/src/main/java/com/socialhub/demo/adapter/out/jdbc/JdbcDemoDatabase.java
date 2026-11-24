@@ -53,8 +53,11 @@ class JdbcDemoDatabase implements DemoDatabase {
         }
         for (int i = 0; i < data.brands().size(); i++) {
             var b = data.brands().get(i);
-            jdbc.sql("insert into brand (id, name, handle, color, position, is_demo) values (?, ?, ?, ?, ?, true)")
-                    .params(b.id(), b.name(), b.handle(), b.color(), i).update();
+            jdbc.sql("insert into brand (id, name, handle, color, position, is_demo, kit_pieces) values (?, ?, ?, ?, ?, true, "
+                    + "string_to_array(?, ','))")
+                    .params(b.id(), b.name(), b.handle(), b.color(), i,
+                            String.join(",", b.kitPieces() == null || b.kitPieces().isEmpty() ? java.util.List.of("cierre", "historia") : b.kitPieces()))
+                    .update();
         }
         for (int i = 0; i < data.promotions().size(); i++) {
             insertPromotion(data.promotions().get(i), i, today);

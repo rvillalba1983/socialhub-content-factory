@@ -13,11 +13,12 @@ import { InstagramAccountCard } from './Instagram';
 import { FolderRoles } from './Folders';
 import { IdentityForm } from './Identity';
 import { MemoryCard } from './Memory';
+import { BrandKitCard } from './BrandKit';
 import { BrandNotices } from './BrandNotices';
 import type { SavedRef } from './Recommendations';
 
 /** `focus`: tarjeta de la marca a la que bajar al abrir (desde una recomendación). */
-type Editing = { kind: 'brand'; id: string | null; focus?: 'folders' | 'publora' | 'publer' | 'identity' } | { kind: 'promotion'; id: string | null; brandId?: string } | null;
+type Editing = { kind: 'brand'; id: string | null; focus?: 'folders' | 'publora' | 'publer' | 'identity' | 'kit' } | { kind: 'promotion'; id: string | null; brandId?: string } | null;
 
 const PROMOTION_STATUS: [PromotionInput['status'], string][] = [
   ['PLANNED', 'Planificada'], ['ACTIVE', 'Activa'], ['PAUSED', 'En pausa'], ['FINISHED', 'Terminada'],
@@ -93,6 +94,7 @@ export function Registration({ data, initial, onClose, onSaved, onBrandOpen }: {
             onSaved={(b, note) => { setEditing(null); onSaved(`Marca guardada · ${b.name}${note ? ` · ${note}` : ''}`, { brandId: b.id }); }} />
         )}
         {editing?.kind === 'brand' && editing.id && <IdentityForm brandId={editing.id} brand={brands.get(editing.id)} onSaved={cardSaved} />}
+        {editing?.kind === 'brand' && editing.id && <BrandKitCard brandId={editing.id} brandName={brands.get(editing.id)?.name ?? editing.id} data={data} onChanged={cardSaved} />}
         {editing?.kind === 'brand' && editing.id && <MemoryCard brandId={editing.id} onSaved={cardSaved} />}
         {editing?.kind === 'brand' && editing.id && <FolderRoles owner="brand" id={editing.id} onSaved={cardSaved} />}
         {editing?.kind === 'brand' && editing.id && <PublerCard brandId={editing.id} onSaved={cardSaved} />}

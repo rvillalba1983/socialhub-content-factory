@@ -72,6 +72,15 @@ El texto que va dentro de cada `<text>` es el **ejemplo**: se usa en la vista pr
 | `Fira Sans` | 400, 400 cursiva, 500, 700 |
 | `Bebas Neue` | 400 (todo en mayúsculas) |
 
+## Zona de la ilustración (plantillas del kit de marca)
+
+Las plantillas del kit van **encima** de la ilustración de la publicación (decisión 53). Cada plantilla del kit declara en `image`
+(fuera del SVG, en el JSON del kit) un rectángulo `{x, y, width, height}` en unidades de su `viewBox` con el sitio de la ilustración,
+y deja esa zona libre o semitransparente.
+
+- **Cierre del carrusel e historia:** `image` es **obligatorio** (un objeto). Sin él, el kit se rechaza.
+- **Cita** (verso sobre fondo): `image` puede ser `null`.
+
 ## Cómo se ajusta un texto
 
 1. Se separa en párrafos por los saltos de línea (`\n`); cada uno se parte por palabras. Los saltos de línea de los versos se respetan y las líneas en blanco cuentan.

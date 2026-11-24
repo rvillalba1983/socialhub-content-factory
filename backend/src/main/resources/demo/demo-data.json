@@ -11,13 +11,15 @@
       "id": "delito",
       "name": "El DeLito",
       "handle": "@elde_lito",
-      "color": "#D23A2E"
+      "color": "#D23A2E",
+      "kitPieces": ["cita", "cierre", "historia"]
     },
     {
       "id": "litoques",
       "name": "Litoques",
       "handle": "@litoques",
-      "color": "#C47619"
+      "color": "#C47619",
+      "kitPieces": ["cierre", "historia"]
     }
   ],
   "promotions": [

@@ -16,7 +16,9 @@ public enum AiRequestType {
     CALENDAR_READ("Leer calendario de Publer y la red", "prog", "socialhub.calendar-read", true),
     METRICS_READ("Leer métricas", "ana", "socialhub.metrics-read", true),
     /** Lo hace Claude en la nube (conector de Drive), pero lo encarga SocialHub y no cuenta en el límite diario. */
-    PUBLIC_LINK("Enlaces públicos de imágenes", "prog", "socialhub.public-link", false, true);
+    PUBLIC_LINK("Enlaces públicos de imágenes", "prog", "socialhub.public-link", false, true),
+    /** Lo pide Raúl desde la ficha de la marca (cuelga de una promoción suya): paleta y plantillas SVG que luego aprueba. */
+    BRAND_KIT("Kit de marca", "gen", "socialhub.brand-kit");
 
     private final String label;
     private final String stationId;

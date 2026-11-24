@@ -12,7 +12,7 @@ function aliveWith(dataDir: string): string[] {
   return out === '' ? [] : out.split('\n');
 }
 
-// Este recorrido tiene que ser el último: cierra la app de todos los demás (por eso su nombre empieza por 08)
+// Este recorrido tiene que ser el último: cierra la app de todos los demás (por eso su nombre sigue a todos los demás: 09)
 test.describe('Cierre de la app', () => {
   test('el botón «Cerrar» pide confirmación, para el servidor y apaga PostgreSQL', async ({ page, request, allowConsole }) => {
     // Al cerrarse el servidor, las peticiones que la web aún lanza fallan: es lo esperado
