@@ -1044,3 +1044,12 @@ Raúl pidió apuntar estos puntos para la fase 13 mientras revisaba la tanda del
   - A hacer: alerta visible cuando un encargo vuelva `failed` o `needs_human` por archivos no accesibles, y el resultado de la comprobación diaria (41) visible en SocialHub, no solo en el resultado de la tarea, y en la vista de fábrica. A concretar cómo lo sabe SocialHub (motivo estructurado en el resultado o fichero «latido» por carpeta).
   - Al recrear una tarea programada hay que repasar que conserva las carpetas (checklist de regeneración, para el manual).
   - **Las dos tareas siguen activas, sin permiso sobre G: y sin tocar**: cambiarlas requiere el OK de Raúl (decisiones 15 y 25).
+
+### Fase 13 · Decisiones 43 a 45 (24 nov 2026, noche; respuestas de Raúl al empezar la conversación de desarrollo)
+
+- **43 · Orden de bloques sin cambios** (Raúl, 24 nov): 2, 3, 4, 5, 7, 8 y 6. Tenía delante tres opciones: adelantar solo lo urgente del bloque 7 (recomendada por Claude), adelantar el 7 entero o mantener el orden; eligió mantenerlo. Responde a la revisión que dejó dicha la decisión 28. Consecuencia: los fallos de Instagram por la API oficial, de estados y de acceso a carpetas no se arreglan hasta el bloque 7.
+- **44 · Se deja salir la copia del carrusel «un poema corto» programada en Publer para el 25 nov a las 19:00** (Raúl, 24 nov): eligió «dejarla salir mañana» entre borrarla él a mano, dejarla o decidirlo al día siguiente. No se borra nada en Publer. Con las tareas desactivadas (45) nadie comprobará que salió ni la marcará «Publicada».
+- **45 · Las dos tareas programadas se desactivan ahora** (Raúl, 24 nov, decisión 25 aplicada): eligió «desactivarlas ahora» entre darles permiso sobre G: y dejarlas activas, desactivarlas, o dejarlas como estaban hasta el final de la fase.
+  - «Encargos de SocialHub» ya constaba desactivada desde las 21:41 (cambio que no hizo Claude). Claude desactivó «Publicar con Chrome (SocialHub)» a las 21:47 con el OK de Raúl, solo con el interruptor de activada: no se tocó su texto, su programación ni sus carpetas. Comprobado con la lista de tareas: ninguna recurrente activa (decisión técnica de Claude sobre cómo hacerlo).
+  - Se actualizan y reactivan al terminar la fase 13 (decisión 15), con permiso sobre `generados` entera (decisión 42).
+  - Mientras tanto SocialHub no programa en Publer ni marca «Publicada», y los encargos nuevos de TikTok esperan sin que nadie los haga.
