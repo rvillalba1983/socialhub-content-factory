@@ -136,6 +136,11 @@ class PromotionQueriesService implements PromotionQueries {
     }
 
     @Override
+    public List<String> kitPiecesOf(String brandId) {
+        return repository.brand(brandId).map(b -> b.kitPieces()).orElse(List.of());
+    }
+
+    @Override
     public Optional<String> brandMaterialFolder(String brandId) {
         return Optional.ofNullable(folderRepository.brandFolders(brandId).get(FolderRole.MATERIAL));
     }

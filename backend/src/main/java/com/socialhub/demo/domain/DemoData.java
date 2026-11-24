@@ -6,7 +6,11 @@ import java.util.List;
 public record DemoData(List<String> commonRules, List<BrandSeed> brands, List<PromotionSeed> promotions,
                 List<StationSeed> stations, List<TaskSeed> tasks, List<ArmorySeed> armory) {
 
-    public record BrandSeed(String id, String name, String handle, String color) {}
+    public record BrandSeed(String id, String name, String handle, String color,
+                            java.util.@org.jspecify.annotations.Nullable List<String> kitPieces) {
+
+        public BrandSeed(String id, String name, String handle, String color) { this(id, name, handle, color, null); }
+    }
 
     public record MilestoneSeed(int start, Integer end, String label) {}
 

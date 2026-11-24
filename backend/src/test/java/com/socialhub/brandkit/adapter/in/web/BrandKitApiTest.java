@@ -59,6 +59,7 @@ class BrandKitApiTest {
 
     @Autowired MockMvc mvc;
     @Autowired KitCodec codec;
+    @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
     private final JsonMapper json = JsonMapper.builder().build();
 
     @BeforeAll
@@ -92,8 +93,18 @@ class BrandKitApiTest {
         mvc.perform(get("/api/brands/no-existe/kit")).andExpect(status().isNotFound());
         mvc.perform(get("/api/brands/sin-promo/kit")).andExpect(status().isOk())
                 .andExpect(jsonPath("$.approved").doesNotExist()).andExpect(jsonPath("$.pending").doesNotExist());
-        write(post("/api/brands/marca-kit/kit/approve"), null).andExpect(status().isConflict());
-        write(post("/api/brands/marca-kit/kit/reject"), "{\"comment\":\"Más oscuro\"}").andExpect(status().isConflict());
+        // Sin kit pendiente no hay nada que aprobar ni rechazar: 409 con el mensaje de recargar
+        write(post("/api/brands/marca-kit/kit/approve"), "{\"kit_id\":1}").andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value("Ese kit ya no es el pendiente; recarga."));
+        write(post("/api/brands/marca-kit/kit/reject"), "{\"kit_id\":1,\"comment\":\"Más oscuro\"}").andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value("Ese kit ya no es el pendiente; recarga."));
+        write(post("/api/brands/marca-kit/kit/approve"), "{}").andExpect(status().isBadRequest());
+        // La marca informa de las piezas que lleva su kit (valor por defecto de las marcas nuevas)
+        for (JsonNode brand : fetch("/api/brands").get("items")) {
+            if ("marca-kit".equals(brand.get("id").asString())) {
+                assertThat(brand.get("kit_pieces")).extracting(JsonNode::asString).containsExactly("cierre", "historia");
+            }
+        }
     }
 
     @Test
@@ -101,6 +112,10 @@ class BrandKitApiTest {
     void theOrderHangsFromAPromotionAndCarriesTheRulesOfEachPiece() throws Exception {
         write(post("/api/brands/marca-kit/kit/request"), "{\"promotion_id\":\"otra\"}").andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("no es de esta marca")));
+        // Marca nueva: lleva cierre e historia; la cita se rechaza
+        write(post("/api/brands/marca-kit/kit/request"), "{\"pieces\":[\"cita\"]}").andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("no lleva cita")));
+        setPieces("marca-kit", "cita,cierre,historia");
         String task = requestKit("{\"pieces\":[\"cita\",\"cierre\",\"historia\"]}");
         JsonNode request = request(task);
         assertThat(request.get("type").asString()).isEqualTo("socialhub.brand-kit");
@@ -122,6 +137,16 @@ class BrandKitApiTest {
 
     @Test
     @Order(4)
+    void aSecondKitCannotBeAskedWhileOneOrderIsOpenNeitherByTheKitNorByTheGenericOrder() throws Exception {
+        write(post("/api/brands/marca-kit/kit/request"), "{\"pieces\":[\"cierre\"]}").andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("encargo de kit abierto")));
+        // «Nuevo encargo» de la pantalla de Claude: mismo criterio
+        write(post("/api/promotions/lanzamiento/ai-orders"), "{\"type\":\"BRAND_KIT\",\"goal\":\"Diseña el kit\"}")
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("encargo de kit abierto")));
+    }
+
+    @Test
+    @Order(5)
     void aValidResultIsPendingWithPreviewsAndNothingIsApprovedYet() throws Exception {
         String task = lastTask;
         result(task, completed(task, kitOutputs()));
@@ -148,32 +173,29 @@ class BrandKitApiTest {
     }
 
     @Test
-    @Order(5)
-    void anInvalidKitFailsTheOrderWithTheReasonsAndKeepsThePendingOne() throws Exception {
-        String task = requestKit("{\"pieces\":[\"cierre\"]}");
-        String broken = codec.write(KitFixtures.with(List.of(KitFixtures.template("cierre-4x5", KitPiece.CIERRE,
-                KitFixtures.cita(1080, 1350), null))));
-        result(task, completed(task, "{\"kit\":" + broken + "}"));
-        waitFor(() -> "FAILED".equals(task(task).get("status").asString()), "kit que no sirve");
-        assertThat(task(task).get("error").asString()).contains("El resultado no sirve").contains("El kit no es válido");
-        assertThat(fetch("/api/brands/marca-kit/kit").get("pending").get("version").asInt()).isEqualTo(1);
-
-        // Sin «kit» en los resultados tampoco vale
-        String none = requestKit("{\"pieces\":[\"cierre\"]}");
-        result(none, completed(none, "{\"summary\":\"nada\"}"));
-        waitFor(() -> "FAILED".equals(task(none).get("status").asString()), "resultado sin kit");
-        assertThat(task(none).get("error").asString()).contains("outputs.kit");
-    }
-
-    @Test
     @Order(6)
-    void approvingMakesItTheKitInForceAndApprovingAgainIsAConflict() throws Exception {
-        write(post("/api/brands/marca-kit/kit/approve"), null).andExpect(status().isOk())
+    void aPendingKitBlocksNewOrdersAndApprovingNeedsTheKitRaulIsLookingAt() throws Exception {
+        // Con un kit pendiente no se puede pedir otro (ni por la ficha ni por el encargo genérico)
+        write(post("/api/brands/marca-kit/kit/request"), "{\"pieces\":[\"cierre\"]}").andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("kit pendiente")));
+        write(post("/api/promotions/lanzamiento/ai-orders"), "{\"type\":\"BRAND_KIT\",\"goal\":\"Diseña el kit\"}")
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("kit pendiente")));
+        // Aprobar otro id (por ejemplo, una versión que ya no es la pendiente) no aprueba el pendiente
+        long pendingId = fetch("/api/brands/marca-kit/kit").get("pending").get("id").asLong();
+        write(post("/api/brands/marca-kit/kit/approve"), "{\"kit_id\":" + (pendingId + 1000) + "}").andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value("Ese kit ya no es el pendiente; recarga."));
+        write(post("/api/brands/marca-kit/kit/reject"), "{\"kit_id\":" + (pendingId + 1000) + ",\"comment\":\"No\"}")
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.detail").value("Ese kit ya no es el pendiente; recarga."));
+        assertThat(fetch("/api/brands/marca-kit/kit").get("pending").get("id").asLong()).isEqualTo(pendingId);
+
+        write(post("/api/brands/marca-kit/kit/approve"), "{\"kit_id\":" + pendingId + "}").andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("APPROVED")).andExpect(jsonPath("$.approved_at").exists());
         JsonNode view = fetch("/api/brands/marca-kit/kit");
         assertThat(view.get("approved").get("version").asInt()).isEqualTo(1);
         assertThat(gone(view, "pending")).isTrue();
-        write(post("/api/brands/marca-kit/kit/approve"), null).andExpect(status().isConflict());
+        // Aprobar otra vez la misma versión (la pantalla estaba desfasada) es un conflicto
+        write(post("/api/brands/marca-kit/kit/approve"), "{\"kit_id\":" + pendingId + "}").andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("Ese kit ya no es el pendiente; recarga.")));
     }
 
     @Test
@@ -186,14 +208,18 @@ class BrandKitApiTest {
         JsonNode pending = fetch("/api/brands/marca-kit/kit").get("pending");
         assertThat(pending.get("version").asInt()).isEqualTo(2);
         assertThat(pending.get("templates")).hasSize(3);
+        long id = pending.get("id").asLong();
 
-        write(post("/api/brands/marca-kit/kit/reject"), "{\"comment\":\"  \"}").andExpect(status().isBadRequest());
-        String body = write(post("/api/brands/marca-kit/kit/reject"), "{\"comment\":\"Más oscuro y con menos marco\"}")
+        write(post("/api/brands/marca-kit/kit/reject"), "{\"kit_id\":" + id + ",\"comment\":\"  \"}").andExpect(status().isBadRequest());
+        write(post("/api/brands/marca-kit/kit/reject"), "{\"kit_id\":" + (id - 1) + ",\"comment\":\"Más oscuro\"}")
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.detail").value("Ese kit ya no es el pendiente; recarga."));
+        String body = write(post("/api/brands/marca-kit/kit/reject"), "{\"kit_id\":" + id + ",\"comment\":\"Más oscuro y con menos marco\"}")
                 .andExpect(status().isOk()).andExpect(jsonPath("$.kit.status").value("REJECTED"))
                 .andExpect(jsonPath("$.kit.comment").value("Más oscuro y con menos marco")).andExpect(jsonPath("$.task_id").exists())
                 .andReturn().getResponse().getContentAsString();
         String next = json.readTree(body).get("task_id").asString();
         waitFor(() -> "WAITING".equals(task(next).get("status").asString()), "encargo de otra versión enviado");
+        lastTask = next;
 
         JsonNode request = request(next);
         assertThat(request.get("promotion").asString()).isEqualTo("lanzamiento");
@@ -201,7 +227,11 @@ class BrandKitApiTest {
         JsonNode inputs = request.get("inputs");
         assertThat(inputs.get("comment").asString()).isEqualTo("Más oscuro y con menos marco");
         assertThat(inputs.get("pieces")).extracting(p -> p.get("piece").asString()).containsExactly("cierre", "historia");
-        assertThat(inputs.get("previous_kit").get("templates")).hasSize(3);
+        // El kit anterior va resumido: paleta, ids y piezas, y el SVG solo de las piezas pedidas (no el de la cita)
+        JsonNode previous = inputs.get("previous_kit");
+        assertThat(previous.get("palette")).hasSize(4);
+        assertThat(previous.get("templates")).hasSize(3);
+        for (JsonNode t : previous.get("templates")) assertThat(t.get("svg").asString()).startsWith("<svg");
         assertThat(inputs.has("approved_kit")).isFalse();
         // El kit aprobado sigue en vigor y no hay pendiente hasta que Claude conteste
         JsonNode view = fetch("/api/brands/marca-kit/kit");
@@ -212,18 +242,19 @@ class BrandKitApiTest {
     @Test
     @Order(8)
     void rejectingWithoutAskingForAnotherVersionOrdersNothing() throws Exception {
-        String task = requestKit("{\"pieces\":[\"cierre\"]}");
+        String task = lastTask;
         result(task, completed(task, kitOutputsOf(KitFixtures.with(KitFixtures.delitoTemplates().stream()
-                .filter(t -> t.piece() == KitPiece.CIERRE).toList()))));
-        waitFor(() -> "COMPLETED".equals(task(task).get("status").asString()), "kit con solo cierre");
-        write(post("/api/brands/marca-kit/kit/reject"), "{\"comment\":\"No me gusta\",\"request_another\":false}")
+                .filter(t -> t.piece() == KitPiece.CIERRE || t.piece() == KitPiece.HISTORIA).toList()))));
+        waitFor(() -> "COMPLETED".equals(task(task).get("status").asString()), "kit con cierre e historia");
+        long id = fetch("/api/brands/marca-kit/kit").get("pending").get("id").asLong();
+        write(post("/api/brands/marca-kit/kit/reject"), "{\"kit_id\":" + id + ",\"comment\":\"No me gusta\",\"request_another\":false}")
                 .andExpect(status().isOk()).andExpect(jsonPath("$.kit.status").value("REJECTED")).andExpect(jsonPath("$.task_id").doesNotExist());
         assertThat(gone(fetch("/api/brands/marca-kit/kit"), "pending")).isTrue();
     }
 
     @Test
     @Order(9)
-    void withSeveralPromotionsRaulChoosesAndAnotherVersionKeepsThePromotionOfTheRejectedOne() throws Exception {
+    void withSeveralPromotionsRaulChoosesAndAnOpenOrderInAnyOfThemBlocksTheOthers() throws Exception {
         write(post("/api/promotions"), """
                 {"brand_id":"marca-kit","name":"Segunda","starts_on":"2026-12-01","ends_on":"2027-01-25","status":"ACTIVE"}""")
                 .andExpect(status().isCreated());
@@ -231,17 +262,42 @@ class BrandKitApiTest {
                 .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("tiene 2")));
         String task = requestKit("{\"promotion_id\":\"segunda\",\"pieces\":[\"cierre\"]}");
         assertThat(request(task).get("promotion").asString()).isEqualTo("segunda");
+        // El encargo abierto cuelga de «segunda», pero la marca es una: tampoco se puede pedir otro desde «lanzamiento»
+        write(post("/api/brands/marca-kit/kit/request"), "{\"promotion_id\":\"lanzamiento\",\"pieces\":[\"cierre\"]}")
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("«segunda»")));
+        write(post("/api/promotions/lanzamiento/ai-orders"), "{\"type\":\"BRAND_KIT\",\"goal\":\"Diseña el kit\"}")
+                .andExpect(status().isConflict());
         result(task, completed(task, kitOutputsOf(KitFixtures.with(KitFixtures.delitoTemplates().stream()
                 .filter(t -> t.piece() == KitPiece.CIERRE).toList()))));
         waitFor(() -> "COMPLETED".equals(task(task).get("status").asString()), "kit de la segunda promoción");
-        String body = write(post("/api/brands/marca-kit/kit/reject"), "{\"comment\":\"Otra paleta\"}").andExpect(status().isOk())
+        long id = fetch("/api/brands/marca-kit/kit").get("pending").get("id").asLong();
+        String body = write(post("/api/brands/marca-kit/kit/reject"), "{\"kit_id\":" + id + ",\"comment\":\"Otra paleta\"}").andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
         String next = json.readTree(body).get("task_id").asString();
         waitFor(() -> "WAITING".equals(task(next).get("status").asString()), "otra versión enviada");
         assertThat(request(next).get("promotion").asString()).isEqualTo("segunda");
+        lastTask = next;
+    }
+
+    @Test
+    @Order(10)
+    void anInvalidKitFailsTheOrderWithTheReasonsAndKeepsTheKitInForce() throws Exception {
+        String task = lastTask;
+        // Cierre sin la zona de la imagen y con los campos de una cita: no sirve
+        String broken = codec.write(KitFixtures.with(List.of(KitFixtures.template("cierre-4x5", KitPiece.CIERRE,
+                KitFixtures.cita(1080, 1350), null))));
+        result(task, completed(task, "{\"kit\":" + broken + "}"));
+        waitFor(() -> "FAILED".equals(task(task).get("status").asString()), "kit que no sirve");
+        assertThat(task(task).get("error").asString()).contains("El resultado no sirve").contains("El kit no es válido");
+        assertThat(gone(fetch("/api/brands/marca-kit/kit"), "pending")).isTrue();
+        assertThat(fetch("/api/brands/marca-kit/kit").get("approved").get("version").asInt()).isEqualTo(1);
     }
 
     // ---------------------------------------------------------------- utilidades
+
+    private void setPieces(String brand, String pieces) {
+        jdbc.update("update brand set kit_pieces = string_to_array(?, ',') where id = ?", pieces, brand);
+    }
 
     private static String lastTask;
 

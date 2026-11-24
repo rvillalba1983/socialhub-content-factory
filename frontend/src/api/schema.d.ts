@@ -736,7 +736,7 @@ export interface paths {
         put?: never;
         /**
          * Pide a Claude el kit de la marca
-         * @description Crea el encargo «Kit de marca», que cuelga de una promoción de la marca (si tiene varias, hay que elegirla; una marca sin promociones no puede pedirlo). Sin piezas indicadas se piden el cierre del carrusel y la historia.
+         * @description Crea el encargo «Kit de marca», que cuelga de una promoción de la marca (si tiene varias, hay que elegirla; una marca sin promociones no puede pedirlo). Sin piezas indicadas se piden las que lleva la marca (`kit_pieces`). Solo se pueden pedir piezas de `kit_pieces`. Responde 409 si la marca ya tiene un kit pendiente de aprobación o un encargo de kit abierto en cualquiera de sus promociones (en cola, enviado, retenido o esperando respuesta de Raúl).
          */
         post: operations["requestBrandKit"];
         delete?: never;
@@ -754,7 +754,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Aprueba el kit pendiente (pasa a ser el kit en vigor de la marca) */
+        /**
+         * Aprueba el kit pendiente (pasa a ser el kit en vigor de la marca)
+         * @description Lleva el id del kit que Raúl está viendo. Responde 409 («Ese kit ya no es el pendiente; recarga») si ese kit ya no es el pendiente de la marca (llegó otro nuevo, ya se aprobó o se rechazó), y también si alguna plantilla del kit no se pinta.
+         */
         post: operations["approveBrandKit"];
         delete?: never;
         options?: never;
@@ -773,7 +776,7 @@ export interface paths {
         put?: never;
         /**
          * Rechaza el kit pendiente con un comentario («Pedir otra versión»)
-         * @description Rechaza el kit pendiente y, salvo que se pida lo contrario (`request_another` falso), crea ya un encargo nuevo con ese comentario y las mismas piezas, de la misma promoción del encargo anterior (o la que se indique).
+         * @description Rechaza el kit pendiente y, salvo que se pida lo contrario (`request_another` falso), crea ya un encargo nuevo con ese comentario y las mismas piezas, de la misma promoción del encargo anterior (o la que se indique). Lleva el id del kit que Raúl está viendo: responde 409 («Ese kit ya no es el pendiente; recarga») si ya no es el pendiente de la marca, y también si pide otra versión y la marca ya tiene un encargo de kit abierto.
          */
         post: operations["rejectBrandKit"];
         delete?: never;
@@ -1274,7 +1277,7 @@ export interface paths {
         put?: never;
         /**
          * Encarga un trabajo a Claude
-         * @description Crea la tarea en cola. Sale hacia «<Encargos de la marca>/para-claude» en el siguiente envío (cada 30 s), si no se ha llegado al límite diario. La tarea programada «Encargos de SocialHub» deja el resultado en «de-claude».
+         * @description Crea la tarea en cola. Sale hacia «<Encargos de la marca>/para-claude» en el siguiente envío (cada 30 s), si no se ha llegado al límite diario. La tarea programada «Encargos de SocialHub» deja el resultado en «de-claude». Responde 409 si el encargo no se puede pedir ahora (por ejemplo, un kit de marca cuando la marca ya tiene un kit pendiente de aprobación o un encargo de kit abierto en cualquiera de sus promociones).
          */
         post: operations["createAiOrder"];
         delete?: never;
@@ -1937,10 +1940,22 @@ export interface components {
         BrandKitRequestInput: {
             /** @description Promoción de la marca de la que cuelga el encargo; obligatoria si la marca tiene varias */
             promotion_id?: string;
-            /** @description Piezas que pedir. Sin ellas, cierre del carrusel e historia (la cita solo se pide para El DeLito) */
+            /** @description Piezas que pedir; deben estar en `kit_pieces` de la marca. Sin ellas, todas las de `kit_pieces` */
             pieces?: ("cita" | "cierre" | "historia")[];
         };
+        BrandKitApproveInput: {
+            /**
+             * Format: int64
+             * @description Id del kit pendiente que Raúl está viendo (`pending.id` de la vista del kit)
+             */
+            kit_id: number;
+        };
         BrandKitRejectInput: {
+            /**
+             * Format: int64
+             * @description Id del kit pendiente que Raúl está viendo (`pending.id` de la vista del kit)
+             */
+            kit_id: number;
             comment: string;
             /**
              * @description Pedir ya otra versión con ese comentario
@@ -2172,6 +2187,8 @@ export interface components {
             /** @description Color de la marca (#RRGGBB). Vacío solo en marcas anteriores a que fuera obligatorio, que no generan fondos hasta que se elija. */
             color: string;
             demo: boolean;
+            /** @description Códigos (cita, cierre, historia) de las piezas que puede llevar el kit de marca de esta marca (decisiones 13, 50 y 51). El DeLito: cita, cierre del carrusel e historia; Litoques y las demás: cierre del carrusel e historia. Solo lectura: se asigna al crear la marca (cierre e historia) y la migración fija las de El DeLito. */
+            kit_pieces: string[];
         };
         /** @enum {string} */
         AppMode: "REAL" | "DEMO";
@@ -2804,6 +2821,7 @@ export type BrandKitVersion = components['schemas']['BrandKitVersion'];
 export type BrandKitColor = components['schemas']['BrandKitColor'];
 export type BrandKitTemplate = components['schemas']['BrandKitTemplate'];
 export type BrandKitRequestInput = components['schemas']['BrandKitRequestInput'];
+export type BrandKitApproveInput = components['schemas']['BrandKitApproveInput'];
 export type BrandKitRejectInput = components['schemas']['BrandKitRejectInput'];
 export type BrandKitRejection = components['schemas']['BrandKitRejection'];
 export type PublicShare = components['schemas']['PublicShare'];
@@ -4160,6 +4178,7 @@ export interface operations {
             };
             400: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
             default: components["responses"]["Problem"];
         };
     };
@@ -4175,7 +4194,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BrandKitApproveInput"];
+            };
+        };
         responses: {
             /** @description Kit aprobado */
             200: {
@@ -5205,6 +5228,7 @@ export interface operations {
             };
             400: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
             default: components["responses"]["Problem"];
         };
     };

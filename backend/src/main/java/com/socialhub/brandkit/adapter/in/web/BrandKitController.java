@@ -2,6 +2,7 @@ package com.socialhub.brandkit.adapter.in.web;
 
 import com.socialhub.api.BrandKitApi;
 import com.socialhub.api.model.AiOrderDto;
+import com.socialhub.api.model.BrandKitApproveInputDto;
 import com.socialhub.api.model.BrandKitColorDto;
 import com.socialhub.api.model.BrandKitRejectInputDto;
 import com.socialhub.api.model.BrandKitRejectionDto;
@@ -49,18 +50,19 @@ class BrandKitController implements BrandKitApi {
     }
 
     @Override
-    public ResponseEntity<BrandKitVersionDto> approveBrandKit(String brandId, String requestGuard) {
+    public ResponseEntity<BrandKitVersionDto> approveBrandKit(String brandId, String requestGuard, BrandKitApproveInputDto input) {
         promotions.requireBrand(brandId);
-        BrandKit pending = kits.pending(brandId).orElseThrow(() -> new DomainException("No hay ningún kit pendiente de esta marca."));
+        // Raúl aprueba el kit que está viendo: si ya no es el pendiente de la marca, 409 y no se aprueba otro por él
+        BrandKit pending = kits.pending(brandId).filter(k -> id(k) == input.getKitId())
+                .orElseThrow(() -> new DomainException(BrandKit.NOT_PENDING));
         return ResponseEntity.ok(toDto(kits.approve(id(pending))));
     }
 
     @Override
     public ResponseEntity<BrandKitRejectionDto> rejectBrandKit(String brandId, String requestGuard, BrandKitRejectInputDto input) {
         boolean another = input.getRequestAnother() == null || input.getRequestAnother();
-        BrandKit before = kits.pending(brandId).orElse(null);
-        var taskId = requests.reject(brandId, input.getComment(), input.getPromotionId(), another);
-        BrandKit rejected = kits.find(id(java.util.Objects.requireNonNull(before))).orElseThrow();
+        var taskId = requests.reject(brandId, input.getKitId(), input.getComment(), input.getPromotionId(), another);
+        BrandKit rejected = kits.find(input.getKitId()).orElseThrow();
         BrandKitRejectionDto out = new BrandKitRejectionDto(toDto(rejected));
         out.setTaskId(taskId.orElse(null));
         return ResponseEntity.ok(out);

@@ -18,6 +18,7 @@ import com.socialhub.brandkit.domain.BrandKit;
 import com.socialhub.brandkit.domain.KitContent;
 import com.socialhub.brandkit.domain.KitPiece;
 import com.socialhub.brandkit.domain.KitStatus;
+import com.socialhub.platform.DomainException;
 import com.socialhub.promotion.PromotionQueries;
 import java.time.Instant;
 import java.util.List;
@@ -62,16 +63,49 @@ class BrandKitHandlerTest {
         return new BrandKit(7L, "el-delito", version, KitStatus.PENDING, KitFixtures.delito(), "{}", null, "t1", Instant.now(), null);
     }
 
+    private void brand(String promotion, String brand, String... pieces) {
+        when(promotions.brandOf(promotion)).thenReturn(brand);
+        when(promotions.kitPiecesOf(brand)).thenReturn(List.of(pieces));
+    }
+
     @Test
-    void withoutPiecesTheOrderAsksForTheClosingAndTheStory() {
-        assertThat(handler.completeInputs("poemario", List.of())).containsExactly("pieza:cierre", "pieza:historia");
-        assertThat(handler.completeInputs("poemario", List.of("pieza:cita"))).containsExactly("pieza:cita");
-        assertThat(handler.completeInputs("poemario", List.of("comentario:más oscuro"))).contains("pieza:cierre", "pieza:historia");
+    void withoutPiecesTheOrderAsksForAllThePiecesTheBrandCarries() {
+        brand("poemario", "el-delito", "cita", "cierre", "historia");
+        assertThat(handler.completeInputs("poemario", List.of())).containsExactly("pieza:cita", "pieza:cierre", "pieza:historia");
+        assertThat(handler.completeInputs("poemario", List.of("pieza:cierre"))).containsExactly("pieza:cierre");
+        assertThat(handler.completeInputs("poemario", List.of("comentario:más oscuro")))
+                .contains("pieza:cita", "pieza:cierre", "pieza:historia");
+        brand("disco", "litoques", "cierre", "historia");
+        assertThat(handler.completeInputs("disco", List.of())).containsExactly("pieza:cierre", "pieza:historia");
+        // Sin saber las piezas de la marca, lo común a todas
+        assertThat(handler.completeInputs(List.of())).containsExactly("pieza:cierre", "pieza:historia");
+    }
+
+    @Test
+    void aPieceTheBrandDoesNotCarryIsRejected() {
+        brand("disco", "litoques", "cierre", "historia");
+        assertThatThrownBy(() -> handler.validateOrder("disco", List.of("pieza:cita", "pieza:cierre")))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("no lleva cita").hasMessageContaining("cierre, historia");
+        handler.validateOrder("disco", List.of("pieza:cierre"));
+    }
+
+    @Test
+    void aSecondKitIsABlockedConflictWhileOneIsPendingOrAnOrderIsOpenInAnyPromotionOfTheBrand() {
+        brand("poemario", "el-delito", "cita", "cierre", "historia");
+        handler.validateOrder("poemario", List.of("pieza:cierre"));
+        when(kits.pending("el-delito")).thenReturn(java.util.Optional.of(saved(1)));
+        assertThatThrownBy(() -> handler.validateOrder("poemario", List.of("pieza:cierre")))
+                .isInstanceOf(DomainException.class).hasMessageContaining("kit pendiente");
+        when(kits.pending("el-delito")).thenReturn(java.util.Optional.empty());
+        // Un encargo abierto en OTRA promoción de la misma marca también cuenta
+        when(kits.openOrderPromotion("el-delito")).thenReturn(java.util.Optional.of("segunda"));
+        assertThatThrownBy(() -> handler.validateOrder("poemario", List.of("pieza:cierre")))
+                .isInstanceOf(DomainException.class).hasMessageContaining("encargo de kit abierto").hasMessageContaining("segunda");
     }
 
     @Test
     void orderInputsMustBeKnownPiecesCommentsOrAPreviousKit() {
-        when(promotions.brandOf("poemario")).thenReturn("el-delito");
+        brand("poemario", "el-delito", "cita", "cierre", "historia");
         handler.validateOrder("poemario", List.of("pieza:cita", "cierre", "comentario:más claro"));
         assertThatThrownBy(() -> handler.validateOrder("poemario", List.of("pieza:infografia")))
                 .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("«pieza:infografia»").hasMessageContaining("cita, cierre, historia");
@@ -87,7 +121,7 @@ class BrandKitHandlerTest {
 
     @Test
     void thePreviousKitMustBeOfTheSameBrand() {
-        when(promotions.brandOf("poemario")).thenReturn("litoques");
+        brand("poemario", "litoques", "cierre", "historia");
         when(kits.find(7L)).thenReturn(java.util.Optional.of(saved(1)));
         assertThatThrownBy(() -> handler.validateOrder("poemario", List.of("cierre", "kit-anterior:7")))
                 .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("no es de la marca");
@@ -142,7 +176,7 @@ class BrandKitHandlerTest {
     @Test
     void anInvalidKitFailsTheOrderWithTheReasonsAndSavesNothing() {
         when(kits.check(anyString())).thenReturn(List.of("La plantilla «cita-4x5» no tiene campo-cita.", "Otro motivo."));
-        assertThatThrownBy(() -> handler.apply(job("pieza:cita"), outputs(KitFixtures.delito()), JSON.createObjectNode()))
+        assertThatThrownBy(() -> handler.apply(job("pieza:cita", "pieza:cierre", "pieza:historia"), outputs(KitFixtures.delito()), JSON.createObjectNode()))
                 .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("El kit no es válido")
                 .hasMessageContaining("no tiene campo-cita").hasMessageContaining("Otro motivo");
         verify(kits, never()).propose(anyString(), anyString(), any());
@@ -156,5 +190,58 @@ class BrandKitHandlerTest {
         assertThatThrownBy(() -> handler.apply(job("pieza:cierre"), JSON.createObjectNode().put("summary", "x"), JSON.createObjectNode()))
                 .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("outputs.kit");
         verify(kits, never()).propose(anyString(), anyString(), any());
+    }
+
+    @Test
+    void aKitWithPiecesNobodyAskedForIsRejected() {
+        brand("poemario", "el-delito", "cierre", "historia");
+        assertThatThrownBy(() -> handler.apply(job("pieza:cierre", "pieza:historia"), outputs(KitFixtures.delito()), JSON.createObjectNode()))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("no se pidieron: cita")
+                .hasMessageContaining("Piezas pedidas: cierre, historia").hasMessageContaining("la marca solo lleva cierre, historia");
+        // Una pieza permitida pero no pedida también sobra
+        brand("poemario", "el-delito", "cita", "cierre", "historia");
+        assertThatThrownBy(() -> handler.apply(job("pieza:cierre"), outputs(KitFixtures.delito()), JSON.createObjectNode()))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("no se pidieron: cita, historia");
+        verify(kits, never()).propose(anyString(), anyString(), any());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void theReferenceKitCarriesThePaletteAndIdsButTheSvgOnlyOfTheRequestedPieces() {
+        when(promotions.brandRefs()).thenReturn(List.of());
+        when(promotions.folderMap("poemario")).thenReturn(Map.of());
+        when(promotions.colorOf("el-delito")).thenReturn("");
+        when(promotions.visualStyleOf("poemario")).thenReturn("");
+        when(kits.approved("el-delito")).thenReturn(java.util.Optional.of(new BrandKit(5L, "el-delito", 2, KitStatus.APPROVED,
+                KitFixtures.delito(), "{}", null, "t0", Instant.now(), Instant.now())));
+        JsonNode reference = (JsonNode) handler.inputs(job("pieza:cierre")).get("approved_kit");
+        assertThat(reference.get("version").asInt()).isEqualTo(2);
+        assertThat(reference.get("palette")).hasSize(4);
+        assertThat(reference.get("templates")).hasSize(5);
+        for (JsonNode t : reference.get("templates")) {
+            assertThat(t.get("id").asString()).isNotBlank();
+            assertThat(t.has("svg")).as(t.get("id").asString()).isEqualTo("cierre".equals(t.get("piece").asString()));
+        }
+    }
+
+    @Test
+    void whenTheOrderWouldBeTooBigTheReferenceKitLosesItsSvgAndSaysSo() {
+        when(promotions.brandRefs()).thenReturn(List.of());
+        when(promotions.folderMap("poemario")).thenReturn(Map.of());
+        when(promotions.colorOf("el-delito")).thenReturn("");
+        when(promotions.visualStyleOf("poemario")).thenReturn("");
+        List<com.socialhub.brandkit.domain.KitTemplate> big = new java.util.ArrayList<>();
+        for (int i = 0; i < 11; i++) {
+            big.add(KitFixtures.template("cierre-" + i, KitPiece.CIERRE, "<svg>" + "x".repeat(60_000) + "</svg>",
+                    new com.socialhub.brandkit.domain.ImageArea(0, 0, 1080, 700)));
+        }
+        when(kits.approved("el-delito")).thenReturn(java.util.Optional.of(new BrandKit(5L, "el-delito", 2, KitStatus.APPROVED,
+                KitFixtures.with(big), "{}", null, "t0", Instant.now(), Instant.now())));
+        Map<String, Object> inputs = handler.inputs(job("pieza:cierre"));
+        JsonNode reference = (JsonNode) inputs.get("approved_kit");
+        assertThat(reference.get("templates")).hasSize(11);
+        reference.get("templates").forEach(t -> assertThat(t.has("svg")).isFalse());
+        assertThat(inputs.get("reference_note").toString()).contains("no lleva los SVG");
+        assertThat(JSON.writeValueAsString(inputs).length()).isLessThan(BrandKitHandler.MAX_INPUTS_BYTES);
     }
 }

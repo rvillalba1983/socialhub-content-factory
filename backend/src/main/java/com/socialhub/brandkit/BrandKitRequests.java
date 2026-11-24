@@ -14,7 +14,9 @@ public interface BrandKitRequests {
      * sin promociones no puede pedirlo.
      *
      * @param promotionId promoción de la marca; puede faltar si la marca solo tiene una
-     * @param pieces códigos de pieza ({@code cita}, {@code cierre}, {@code historia}); vacío: cierre del carrusel e historia
+     * @param pieces códigos de pieza ({@code cita}, {@code cierre}, {@code historia}) de las que lleva la marca; vacío: todas
+     *               las que lleva la marca
+     * @throws com.socialhub.platform.DomainException (409) si ya hay un kit pendiente o un encargo de kit abierto
      * @return identificador de la tarea
      */
     String request(String brandId, @Nullable String promotionId, List<String> pieces);
@@ -23,7 +25,8 @@ public interface BrandKitRequests {
      * Rechaza el kit pendiente con el comentario de Raúl y, si {@code another}, pide ya otra versión con ese comentario
      * (las mismas piezas que el kit rechazado y, por defecto, su misma promoción).
      *
+     * @param kitId el kit que Raúl está viendo: si ya no es el pendiente de la marca, lanza {@code DomainException} (409)
      * @return identificador de la tarea nueva, si se pidió
      */
-    Optional<String> reject(String brandId, String comment, @Nullable String promotionId, boolean another);
+    Optional<String> reject(String brandId, long kitId, String comment, @Nullable String promotionId, boolean another);
 }

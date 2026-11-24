@@ -65,9 +65,13 @@ class JacksonKitCodec implements KitCodec {
     }
 
     private static @Nullable KitTemplate template(JsonNode node, List<String> errors) {
-        String id = text(node, "id", "una plantilla", errors);
-        String label = "La plantilla «" + id + "»";
-        unknown(node, TEMPLATE_KEYS, "la plantilla «" + id + "»", errors);
+        JsonNode idNode = node.get("id");
+        String id = idNode != null && idNode.isString() ? idNode.asString() : "";
+        // Sin «id» no hay forma de nombrarla: se identifica por su nombre (si lo tiene) para que Claude sepa cuál corregir
+        String named = id.isEmpty() ? withoutId(node) : "«" + id + "»";
+        if (id.isEmpty()) errors.add("Falta «id» (un texto, por ejemplo «cierre-4x5») en la plantilla " + named + ".");
+        String label = "La plantilla " + named;
+        unknown(node, TEMPLATE_KEYS, "la plantilla " + named, errors);
         String pieceCode = text(node, "piece", label, errors);
         KitPiece piece = KitPiece.fromCode(pieceCode).orElse(null);
         if (piece == null && !pieceCode.isEmpty()) {
@@ -77,6 +81,11 @@ class JacksonKitCodec implements KitCodec {
         String svg = text(node, "svg", label, errors);
         ImageArea image = image(node.get("image"), label, errors);
         return piece == null ? null : new KitTemplate(id, piece, name, svg, image);
+    }
+
+    private static String withoutId(JsonNode node) {
+        JsonNode name = node.get("name");
+        return name != null && name.isString() && !name.asString().isBlank() ? "sin «id» (llamada «" + name.asString() + "»)" : "sin «id»";
     }
 
     private static @Nullable ImageArea image(@Nullable JsonNode node, String label, List<String> errors) {

@@ -236,17 +236,6 @@ class FactoryRecommendations {
         }
 
         // 3c. Kit de marca: sin kit aprobado, la marca (con alguna promoción) lo pide; con uno pendiente, a revisarlo
-        Set<String> brandsWithKitOrder = new java.util.HashSet<>();
-        for (var s : sent) {
-            if (s.type() == AiRequestType.BRAND_KIT && s.promotionId() != null && promotionById.containsKey(s.promotionId())) {
-                brandsWithKitOrder.add(promotionById.get(s.promotionId()).brandId());
-            }
-        }
-        for (var h : heldOrders.current()) {
-            if (h.type() == AiRequestType.BRAND_KIT && h.promotionId() != null && promotionById.containsKey(h.promotionId())) {
-                brandsWithKitOrder.add(promotionById.get(h.promotionId()).brandId());
-            }
-        }
         for (var brand : brands) {
             if (brandKits.approved(brand.id()).isPresent()) continue;
             if (brandKits.pending(brand.id()).isPresent()) {
@@ -256,7 +245,8 @@ class FactoryRecommendations {
                         Recommendation.Screen.BRAND_KIT, brand.id(), null));
                 continue;
             }
-            if (brandsWithKitOrder.contains(brand.id())) continue;
+            // Encargo de kit abierto en cualquier promoción de la marca (el mismo criterio que usa la API para no pedir otro)
+            if (brandKits.openOrderPromotion(brand.id()).isPresent()) continue;
             if (allPromotions.stream().noneMatch(p -> p.brandId().equals(brand.id()))) continue;
             all.add(recommendation("brand-kit:" + brand.id(), Recommendation.Kind.BRAND_KIT_MISSING,
                     "Genera el kit de " + brand.name(),

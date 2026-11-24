@@ -43,6 +43,10 @@ test.describe('Kit de marca', () => {
 
     // El encargo está abierto: la fábrica ya no vuelve a recomendarlo y la API sigue sin kit (nada se usa hasta aprobar)
     await expect.poll(async () => (await api.factory()).recommendations.map(r => r.id)).not.toContain(`brand-kit:${brand.id}`);
+    // Con el encargo abierto no se puede pedir otro kit de la marca: la API responde 409
+    const duplicate = await page.request.post(`/api/brands/${brand.id}/kit/request`, { data: { pieces: ['cierre'] }, headers: { 'X-SocialHub-Request': '1' } });
+    expect(duplicate.status()).toBe(409);
+    expect((await duplicate.json()).detail).toContain('encargo de kit abierto');
     const kit = await api.get(`/api/brands/${brand.id}/kit`);
     expect(kit.approved ?? null).toBeNull();
     expect(kit.pending ?? null).toBeNull();

@@ -13,7 +13,18 @@ const promotion = (id: string, brand: string, name = id) => ({
   routes: [], settings: [], demo: false,
 }) as Snapshot['promotions'][number];
 
-const data = (promotions: Snapshot['promotions'], tasks: Task[] = []): Snapshot => ({ promotions, tasks }) as Snapshot;
+const brand = (id: string, kit_pieces: string[]) => ({ id, name: id, handle: '@x', color: '#D23A2E', demo: false, kit_pieces }) as Snapshot['brands'][number];
+
+const data = (promotions: Snapshot['promotions'], tasks: Task[] = [], brands: Snapshot['brands'] = []): Snapshot =>
+  ({ promotions, tasks, brands }) as Snapshot;
+
+/** Un kit pendiente cuyas plantillas se pintan bien (el de `version()` lleva una con errores). */
+const clean = (o: Partial<BrandKitVersion> = {}): BrandKitVersion => version({
+  templates: [
+    { id: 'cierre-1', piece: 'cierre', name: 'Cierre claro', svg: '<svg/>', preview_png_base64: 'AAAA', warnings: [], errors: [] },
+    { id: 'historia-1', piece: 'historia', name: 'Historia', svg: '<svg/>', preview_png_base64: 'BBBB', warnings: [], errors: [] },
+  ], ...o,
+});
 
 const version = (o: Partial<BrandKitVersion> = {}): BrandKitVersion => ({
   id: 7, version: 2, status: 'PENDING', palette: [{ name: 'Rojo tinta', hex: '#D23A2E' }, { name: 'Crema', hex: '#F4EBDD' }],
@@ -43,32 +54,66 @@ describe('Kit de marca en la ficha', () => {
     expect(screen.queryByRole('button', { name: 'Aprobar' })).toBeNull();
   });
 
-  it('el kit pendiente se aprueba con «Aprobar»', async () => {
+  it('el kit pendiente se aprueba con «Aprobar», con el id del kit que se ve', async () => {
     const approve = vi.spyOn(api, 'approveBrandKit').mockResolvedValue(version({ status: 'APPROVED' }));
-    const brandKit = vi.spyOn(api, 'brandKit').mockResolvedValueOnce({ pending: version() })
+    const brandKit = vi.spyOn(api, 'brandKit').mockResolvedValueOnce({ pending: clean() })
       .mockResolvedValue({ approved: version({ status: 'APPROVED' }) });
     const onChanged = vi.fn();
     draw('litoques', 'Litoques', data([promotion('p1', 'litoques')]), onChanged);
     await screen.findByRole('region', { name: 'Kit pendiente de aprobación' });
     fireEvent.click(screen.getByRole('button', { name: 'Aprobar' }));
-    await waitFor(() => expect(approve).toHaveBeenCalledWith('litoques'));
+    await waitFor(() => expect(approve).toHaveBeenCalledWith('litoques', 7));
     expect(await screen.findByRole('region', { name: 'Kit aprobado' })).toBeInTheDocument();
     expect(brandKit).toHaveBeenCalledTimes(2);
     expect(onChanged).toHaveBeenCalledWith('Kit de marca aprobado · Litoques');
   });
 
+  it('con una plantilla que no se pinta, «Aprobar» queda desactivado y explica por qué; «Pedir otra versión» sigue disponible', async () => {
+    const approve = vi.spyOn(api, 'approveBrandKit').mockResolvedValue(version({ status: 'APPROVED' }));
+    vi.spyOn(api, 'brandKit').mockResolvedValue({ pending: version() });
+    draw('litoques', 'Litoques', data([promotion('p1', 'litoques')]));
+    const pending = await screen.findByRole('region', { name: 'Kit pendiente de aprobación' });
+    expect(within(pending).getByRole('button', { name: 'Aprobar' })).toBeDisabled();
+    expect(within(pending).getByText(/No se puede aprobar: una plantilla no se pinta \(Historia con zona libre\)/)).toBeInTheDocument();
+    fireEvent.click(within(pending).getByRole('button', { name: 'Aprobar' }));
+    expect(approve).not.toHaveBeenCalled();
+    expect(within(pending).getByRole('button', { name: 'Pedir otra versión' })).toBeEnabled();
+  });
+
+  it('si el kit ya no es el pendiente (409), enseña el mensaje y recarga la ficha', async () => {
+    vi.spyOn(api, 'approveBrandKit').mockRejectedValue(new Error('Ese kit ya no es el pendiente; recarga.'));
+    const brandKit = vi.spyOn(api, 'brandKit').mockResolvedValueOnce({ pending: clean() })
+      .mockResolvedValue({ pending: clean({ id: 8, version: 3 }) });
+    draw('litoques', 'Litoques', data([promotion('p1', 'litoques')]));
+    await screen.findByText('Pendiente de aprobación · versión 2');
+    fireEvent.click(screen.getByRole('button', { name: 'Aprobar' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Ese kit ya no es el pendiente; recarga.');
+    expect(await screen.findByText('Pendiente de aprobación · versión 3')).toBeInTheDocument();
+    expect(brandKit).toHaveBeenCalledTimes(2);
+  });
+
+  it('con un kit pendiente no se ofrece «Pedir kit»', async () => {
+    vi.spyOn(api, 'brandKit').mockResolvedValue({ pending: clean() });
+    draw('litoques', 'Litoques', data([promotion('p1', 'litoques')]));
+    await screen.findByRole('region', { name: 'Kit pendiente de aprobación' });
+    expect(screen.queryByRole('button', { name: 'Pedir kit' })).toBeNull();
+    expect(screen.queryByRole('group', { name: 'Pedir kit' })).toBeNull();
+    expect(screen.getByText(/Mientras haya un kit pendiente no se puede pedir otro/)).toBeInTheDocument();
+  });
+
   it('«Pedir otra versión» exige un comentario y pide ya otra versión', async () => {
     const reject = vi.spyOn(api, 'rejectBrandKit').mockResolvedValue({ kit: version({ status: 'REJECTED' }), task_id: 't9' });
-    vi.spyOn(api, 'brandKit').mockResolvedValue({ pending: version() });
+    vi.spyOn(api, 'brandKit').mockResolvedValue({ pending: clean() });
     draw('litoques', 'Litoques', data([promotion('p1', 'litoques')]));
     await screen.findByRole('region', { name: 'Kit pendiente de aprobación' });
     fireEvent.click(screen.getByRole('button', { name: 'Pedir otra versión' }));
     const send = screen.getByRole('button', { name: 'Enviar y pedir otra versión' });
     expect(send).toBeDisabled();
+    expect(screen.getByLabelText(/¿Qué quieres que cambie/)).toHaveAttribute('maxlength', '1000');
     fireEvent.change(screen.getByLabelText(/¿Qué quieres que cambie/), { target: { value: '  Más contraste  ' } });
     expect(send).toBeEnabled();
     fireEvent.click(send);
-    await waitFor(() => expect(reject).toHaveBeenCalledWith('litoques', 'Más contraste', true, undefined));
+    await waitFor(() => expect(reject).toHaveBeenCalledWith('litoques', 7, 'Más contraste', true, undefined));
     expect(await screen.findByText(/Encargo en curso/)).toBeInTheDocument();
   });
 
@@ -87,10 +132,11 @@ describe('Kit de marca en la ficha', () => {
     expect(screen.queryByRole('button', { name: 'Pedir kit' })).toBeNull();
   });
 
-  it('con varias promociones hay que elegir una; El DeLito lleva la cita marcada por defecto', async () => {
+  it('con varias promociones hay que elegir una; las piezas las dice la marca (El DeLito lleva la cita marcada)', async () => {
     const request = vi.spyOn(api, 'requestBrandKit').mockResolvedValue({ task_id: 't1' } as never);
     vi.spyOn(api, 'brandKit').mockResolvedValue({});
-    draw('el-delito', 'El DeLito', data([promotion('a', 'el-delito', 'Lanzamiento'), promotion('b', 'el-delito', 'Navidad')]));
+    draw('el-delito', 'El DeLito', data([promotion('a', 'el-delito', 'Lanzamiento'), promotion('b', 'el-delito', 'Navidad')], [],
+      [brand('el-delito', ['cita', 'cierre', 'historia'])]));
     await screen.findByText('Esta marca todavía no tiene kit.');
     expect(screen.getByLabelText(/Cita/)).toBeChecked();
     const button = screen.getByRole('button', { name: 'Pedir kit' });
@@ -109,12 +155,29 @@ describe('Kit de marca en la ficha', () => {
     expect(screen.getByRole('button', { name: 'Pedir kit' })).toBeDisabled();
   });
 
-  it('un encargo de kit abierto de la marca muestra «Encargo en curso»; uno terminado, no', async () => {
+  it('la cita sale por las piezas de la marca, no por su nombre', async () => {
+    vi.spyOn(api, 'brandKit').mockResolvedValue({});
+    // Una marca que no se llama «El DeLito» pero lleva cita; y una que se llama así pero no la lleva
+    const { unmount } = draw('otra', 'Otra marca', data([promotion('p1', 'otra')], [], [brand('otra', ['cita', 'cierre', 'historia'])]));
+    await screen.findByText('Esta marca todavía no tiene kit.');
+    expect(screen.getByLabelText(/Cita/)).toBeChecked();
+    unmount();
+    draw('el-delito', 'El DeLito', data([promotion('p1', 'el-delito')], [], [brand('el-delito', ['cierre', 'historia'])]));
+    await screen.findByText('Esta marca todavía no tiene kit.');
+    expect(screen.queryByLabelText(/Cita/)).toBeNull();
+  });
+
+  it('un encargo de kit abierto de la marca (en cola, enviado, en espera o retenido) muestra «Encargo en curso»; uno terminado, no', async () => {
     vi.spyOn(api, 'brandKit').mockResolvedValue({});
     const open = { id: 't', type: 'AI_BRAND_KIT', promotion_id: 'p1', status: 'RUNNING' } as Task;
     const { unmount } = draw('litoques', 'Litoques', data([promotion('p1', 'litoques')], [open]));
     expect(await screen.findByText(/Encargo en curso/)).toBeInTheDocument();
     unmount();
+    for (const status of ['QUEUED', 'WAITING', 'BLOCKED']) {
+      const again = draw('litoques', 'Litoques', data([promotion('p1', 'litoques')], [{ ...open, status } as Task]));
+      expect(await screen.findByText(/Encargo en curso/)).toBeInTheDocument();
+      again.unmount();
+    }
     draw('litoques', 'Litoques', data([promotion('p1', 'litoques')], [{ ...open, status: 'COMPLETED' } as Task]));
     await screen.findByRole('button', { name: 'Pedir kit' });
     expect(screen.queryByText(/Encargo en curso/)).toBeNull();

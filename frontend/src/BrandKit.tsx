@@ -14,11 +14,21 @@ const PIECE_NAME: Record<BrandKitTemplate['piece'], string> = {
   cita: 'Cita', cierre: 'Cierre del carrusel', historia: 'Historia', infografia: 'Infografía', meme: 'Meme',
 };
 
-/** Tareas de encargo de kit que aún no han terminado. */
-const OPEN_STATUS = new Set(['IDLE', 'QUEUED', 'RUNNING', 'WAITING', 'BLOCKED']);
+/**
+ * Tareas de encargo de kit abiertas: en cola (aún sin enviar), enviadas, retenidas o esperando respuesta de Raúl. Es el mismo criterio
+ * que usa el servidor para no dejar pedir otro kit y para la recomendación «Genera el kit de X» (ahí también cuenta el fallido con
+ * reintentos por delante, que aquí no se distingue: el servidor lo dirá con un 409 al pedir).
+ */
+const OPEN_STATUS = new Set(['QUEUED', 'RUNNING', 'WAITING', 'BLOCKED']);
 
-/** La cita solo se pide para El DeLito (decisiones 13 y 51). */
-export const isElDelito = (brand: { id: string; name: string }) => /^el[\s-]?delito$/i.test(brand.id) || /^el[\s-]?delito$/i.test(brand.name.trim());
+/** Piezas que lleva el kit si la marca no las dice (lo común a todas; la cita es solo de El DeLito: decisiones 13 y 51). */
+const DEFAULT_PIECES: PieceCode[] = ['cierre', 'historia'];
+
+/** Misma longitud máxima del comentario que la API (`comment` de «Pedir otra versión»). */
+const MAX_COMMENT = 1000;
+
+/** Una plantilla que no se pinta (con errores o sin vista previa) impide aprobar el kit. */
+const paints = (t: BrandKitTemplate) => t.errors.length === 0 && !!t.preview_png_base64;
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -71,10 +81,12 @@ export function BrandKitCard({ brandId, brandName, data, onChanged }: {
   const [comment, setComment] = useState('');
   const [rejectPromotion, setRejectPromotion] = useState('');
 
-  const delito = isElDelito({ id: brandId, name: brandName });
+  // Las piezas que lleva el kit las dice la marca (`kit_pieces`), no su nombre
+  const carried = (data.brands?.find(b => b.id === brandId)?.kit_pieces ?? DEFAULT_PIECES)
+    .filter((c): c is PieceCode => PIECES.some(p => p.code === c));
   const promotions = data.promotions.filter(p => p.brand_id === brandId);
   const [promotion, setPromotion] = useState('');
-  const [pieces, setPieces] = useState<Set<PieceCode>>(new Set(delito ? ['cita', 'cierre', 'historia'] : ['cierre', 'historia']));
+  const [pieces, setPieces] = useState<Set<PieceCode>>(new Set(carried));
   const promotionId = promotions.length === 1 ? promotions[0].id : promotion;
 
   const reload = useCallback(() =>
@@ -87,7 +99,7 @@ export function BrandKitCard({ brandId, brandName, data, onChanged }: {
   const run = async (action: () => Promise<string | void>) => {
     setBusy(true); setError(null);
     try { const done = await action(); await reload(); if (done) onChanged?.(done); }
-    catch (e) { setError(message(e)); } finally { setBusy(false); }
+    catch (e) { setError(message(e)); void reload(); } finally { setBusy(false); }
   };
 
   const request = () => run(async () => {
@@ -96,9 +108,12 @@ export function BrandKitCard({ brandId, brandName, data, onChanged }: {
     setOrdered(true);
     return `Kit de marca pedido · ${brandName}`;
   });
-  const approve = () => run(async () => { await api.approveBrandKit(brandId); setOrdered(false); return `Kit de marca aprobado · ${brandName}`; });
-  const reject = () => run(async () => {
-    const result = await api.rejectBrandKit(brandId, comment.trim(), true, rejectPromotion || undefined);
+  // Aprobar y rechazar llevan el id del kit que se está viendo: si ya no es el pendiente, el servidor responde 409 («recarga»)
+  const approve = (kit: BrandKitVersion) => run(async () => {
+    await api.approveBrandKit(brandId, kit.id); setOrdered(false); return `Kit de marca aprobado · ${brandName}`;
+  });
+  const reject = (kit: BrandKitVersion) => run(async () => {
+    const result = await api.rejectBrandKit(brandId, kit.id, comment.trim(), true, rejectPromotion || undefined);
     setRejecting(false); setComment(''); setRejectPromotion('');
     if (result.task_id) setOrdered(true);
     return `Otra versión del kit pedida · ${brandName}`;
@@ -111,6 +126,7 @@ export function BrandKitCard({ brandId, brandName, data, onChanged }: {
   });
 
   const canRequest = !busy && (promotions.length > 0) && promotionId !== '' && pieces.size > 0;
+  const unpainted = view?.pending ? view.pending.templates.filter(t => !paints(t)) : [];
 
   return (
     <div className="card form kit-card" data-card="kit" aria-label="Kit de marca">
@@ -123,16 +139,19 @@ export function BrandKitCard({ brandId, brandName, data, onChanged }: {
         <section className="kit-block" aria-label="Kit pendiente de aprobación">
           <h4>Pendiente de aprobación · versión {view.pending.version}</h4>
           <Version kit={view.pending} />
+          {unpainted.length > 0 && (
+            <p className="error" role="alert">No se puede aprobar: {unpainted.length === 1 ? 'una plantilla no se pinta' : `${unpainted.length} plantillas no se pintan`} ({unpainted.map(t => t.name).join(', ')}). Pide otra versión.</p>
+          )}
           {!rejecting && (
             <div className="form-actions">
-              <button type="button" className="btn primary" disabled={busy} onClick={() => void approve()}>Aprobar</button>
+              <button type="button" className="btn primary" disabled={busy || unpainted.length > 0} onClick={() => void approve(view.pending!)}>Aprobar</button>
               <button type="button" className="btn" disabled={busy} onClick={() => setRejecting(true)}>Pedir otra versión</button>
             </div>
           )}
           {rejecting && (
             <div className="kit-reject" role="group" aria-label="Pedir otra versión del kit">
               <label className="field"><span>¿Qué quieres que cambie? (obligatorio)</span>
-                <textarea rows={3} maxLength={2000} value={comment} onChange={e => setComment(e.target.value)} /></label>
+                <textarea rows={3} maxLength={MAX_COMMENT} value={comment} onChange={e => setComment(e.target.value)} /></label>
               {promotions.length > 1 && (
                 <label className="field"><span>Promoción del encargo</span>
                   <select value={rejectPromotion} onChange={e => setRejectPromotion(e.target.value)}>
@@ -141,7 +160,7 @@ export function BrandKitCard({ brandId, brandName, data, onChanged }: {
                   </select></label>
               )}
               <div className="form-actions">
-                <button type="button" className="btn primary" disabled={busy || comment.trim() === ''} onClick={() => void reject()}>Enviar y pedir otra versión</button>
+                <button type="button" className="btn primary" disabled={busy || comment.trim() === ''} onClick={() => void reject(view.pending!)}>Enviar y pedir otra versión</button>
                 <button type="button" className="btn" disabled={busy} onClick={() => { setRejecting(false); setComment(''); }}>Cancelar</button>
               </div>
             </div>
@@ -160,7 +179,11 @@ export function BrandKitCard({ brandId, brandName, data, onChanged }: {
 
       {orderOpen && <p className="kit-order" role="status">Encargo en curso: Claude está diseñando el kit. Cuando lo deje, aparecerá aquí para que lo apruebes.</p>}
 
-      {view && !orderOpen && (
+      {view?.pending && !orderOpen && (
+        <p className="kit-order src" role="status">Mientras haya un kit pendiente no se puede pedir otro: apruébalo o pide otra versión.</p>
+      )}
+
+      {view && !orderOpen && !view.pending && (
         <div className="kit-request" role="group" aria-label="Pedir kit">
           {promotions.length === 0 && (
             <p className="src">Esta marca aún no tiene ninguna promoción: crea una para poder pedir el kit de marca (el encargo cuelga de una promoción).</p>
@@ -176,7 +199,7 @@ export function BrandKitCard({ brandId, brandName, data, onChanged }: {
           {promotions.length > 0 && (
             <fieldset className="kit-pieces">
               <legend>Piezas</legend>
-              {PIECES.filter(p => p.code !== 'cita' || delito).map(p => (
+              {PIECES.filter(p => carried.includes(p.code)).map(p => (
                 <label key={p.code} className="check"><input type="checkbox" checked={pieces.has(p.code)} onChange={() => toggle(p.code)} /> {p.label}</label>
               ))}
             </fieldset>

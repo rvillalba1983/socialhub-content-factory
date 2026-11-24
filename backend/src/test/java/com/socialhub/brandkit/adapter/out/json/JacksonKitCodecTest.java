@@ -89,4 +89,19 @@ class JacksonKitCodecTest {
         ((ObjectNode) kit.get("templates").get(0)).put("piece", "infografia");
         assertThat(codec.read(kit.toString()).templates().getFirst().piece().code()).isEqualTo("infografia");
     }
+
+    @Test
+    void aTemplateWithoutIdIsIdentifiedByItsNameInTheErrors() throws IOException {
+        ObjectNode kit = (ObjectNode) mapper.readTree(codec.write(KitFixtures.delito()));
+        ((ObjectNode) kit.get("templates").get(0)).remove("id");
+        ObjectNode second = (ObjectNode) kit.get("templates").get(1);
+        second.remove("id");
+        second.remove("name");
+        second.put("extra", 1);
+        assertThatThrownBy(() -> codec.read(kit.toString())).isInstanceOf(InvalidKitException.class)
+                .satisfies(e -> assertThat(((InvalidKitException) e).errors()).contains(
+                        "Falta «id» (un texto, por ejemplo «cierre-4x5») en la plantilla sin «id» (llamada «Plantilla cita-4x5»).",
+                        "Falta «id» (un texto, por ejemplo «cierre-4x5») en la plantilla sin «id».",
+                        "Propiedad desconocida «extra» en la plantilla sin «id»."));
+    }
 }

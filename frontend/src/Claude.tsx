@@ -22,7 +22,7 @@ const INPUT_HINT: Record<AiRequestType, string> = {
   CALENDAR_READ: 'Lo encarga SocialHub cada día, desde las 7:00.',
   METRICS_READ: 'Lo encarga SocialHub a los 7 días de cada publicación.',
   PUBLIC_LINK: 'Lo encarga SocialHub para publicar imágenes por la API oficial de Instagram.',
-  BRAND_KIT: 'Se pide desde la ficha de la marca («Kit de marca»), donde eliges promoción y piezas.',
+  BRAND_KIT: 'Se pide desde la ficha de la marca («Kit de marca»), donde eliges promoción y piezas. Solo puede haber un kit en marcha por marca.',
 };
 
 const REQUEST_STATUS: Record<AiRequest['status'], { label: string; s: StatusCode }> = {

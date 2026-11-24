@@ -64,7 +64,7 @@ class PromotionService implements PromotionActivation, PromotionCommands {
     public Brand updateBrand(String id, BrandDraft draft) {
         requireColor(draft);
         Brand current = repository.brand(id).orElseThrow(() -> new NotFoundException("No existe la marca " + id));
-        Brand brand = repository.save(new Brand(id, draft.name().strip(), draft.handle().strip(), draft.color(), current.demo()));
+        Brand brand = repository.save(new Brand(id, draft.name().strip(), draft.handle().strip(), draft.color(), current.demo(), current.kitPieces()));
         events.publishEvent(new FactoryChanged("brand", id));
         return brand;
     }

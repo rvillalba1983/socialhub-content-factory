@@ -958,7 +958,9 @@ paths:
       summary: Pide a Claude el kit de la marca
       description: >
         Crea el encargo «Kit de marca», que cuelga de una promoción de la marca (si tiene varias, hay que elegirla; una marca
-        sin promociones no puede pedirlo). Sin piezas indicadas se piden el cierre del carrusel y la historia.
+        sin promociones no puede pedirlo). Sin piezas indicadas se piden las que lleva la marca (`kit_pieces`). Solo se
+        pueden pedir piezas de `kit_pieces`. Responde 409 si la marca ya tiene un kit pendiente de aprobación o un encargo de
+        kit abierto en cualquiera de sus promociones (en cola, enviado, retenido o esperando respuesta de Raúl).
       parameters:
         - $ref: "#/components/parameters/BrandId"
         - $ref: "#/components/parameters/RequestGuard"
@@ -975,6 +977,7 @@ paths:
               schema: { $ref: "#/components/schemas/AiOrder" }
         "400": { $ref: "#/components/responses/Problem" }
         "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
         default: { $ref: "#/components/responses/Problem" }
 
   /api/brands/{brand_id}/kit/approve:
@@ -982,9 +985,17 @@ paths:
       tags: [BrandKit]
       operationId: approveBrandKit
       summary: Aprueba el kit pendiente (pasa a ser el kit en vigor de la marca)
+      description: >
+        Lleva el id del kit que Raúl está viendo. Responde 409 («Ese kit ya no es el pendiente; recarga») si ese kit ya no es el
+        pendiente de la marca (llegó otro nuevo, ya se aprobó o se rechazó), y también si alguna plantilla del kit no se pinta.
       parameters:
         - $ref: "#/components/parameters/BrandId"
         - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BrandKitApproveInput" }
       responses:
         "200":
           description: Kit aprobado
@@ -1002,7 +1013,9 @@ paths:
       summary: Rechaza el kit pendiente con un comentario («Pedir otra versión»)
       description: >
         Rechaza el kit pendiente y, salvo que se pida lo contrario (`request_another` falso), crea ya un encargo nuevo con ese
-        comentario y las mismas piezas, de la misma promoción del encargo anterior (o la que se indique).
+        comentario y las mismas piezas, de la misma promoción del encargo anterior (o la que se indique). Lleva el id del kit que
+        Raúl está viendo: responde 409 («Ese kit ya no es el pendiente; recarga») si ya no es el pendiente de la marca, y también
+        si pide otra versión y la marca ya tiene un encargo de kit abierto.
       parameters:
         - $ref: "#/components/parameters/BrandId"
         - $ref: "#/components/parameters/RequestGuard"
@@ -1715,6 +1728,8 @@ paths:
       description: >
         Crea la tarea en cola. Sale hacia «<Encargos de la marca>/para-claude» en el siguiente envío (cada 30 s), si no
         se ha llegado al límite diario. La tarea programada «Encargos de SocialHub» deja el resultado en «de-claude».
+        Responde 409 si el encargo no se puede pedir ahora (por ejemplo, un kit de marca cuando la marca ya tiene un kit
+        pendiente de aprobación o un encargo de kit abierto en cualquiera de sus promociones).
       parameters:
         - $ref: "#/components/parameters/PromotionId"
         - $ref: "#/components/parameters/RequestGuard"
@@ -1731,6 +1746,7 @@ paths:
               schema: { $ref: "#/components/schemas/AiOrder" }
         "400": { $ref: "#/components/responses/Problem" }
         "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
         default: { $ref: "#/components/responses/Problem" }
 
   /api/tasks:
@@ -2585,12 +2601,19 @@ components:
           type: array
           maxItems: 3
           items: { type: string, enum: [cita, cierre, historia] }
-          description: Piezas que pedir. Sin ellas, cierre del carrusel e historia (la cita solo se pide para El DeLito)
+          description: Piezas que pedir; deben estar en `kit_pieces` de la marca. Sin ellas, todas las de `kit_pieces`
+
+    BrandKitApproveInput:
+      type: object
+      required: [kit_id]
+      properties:
+        kit_id: { type: integer, format: int64, description: "Id del kit pendiente que Raúl está viendo (`pending.id` de la vista del kit)" }
 
     BrandKitRejectInput:
       type: object
-      required: [comment]
+      required: [kit_id, comment]
       properties:
+        kit_id: { type: integer, format: int64, description: "Id del kit pendiente que Raúl está viendo (`pending.id` de la vista del kit)" }
         comment: { type: string, minLength: 1, maxLength: 1000 }
         request_another: { type: boolean, default: true, description: "Pedir ya otra versión con ese comentario" }
         promotion_id: { type: string, description: "Solo si se pide otra versión y se quiere otra promoción distinta de la del encargo anterior" }
@@ -2875,7 +2898,7 @@ components:
 
     Brand:
       type: object
-      required: [id, name, handle, color, demo]
+      required: [id, name, handle, color, demo, kit_pieces]
       properties:
         id: { type: string }
         name: { type: string }
@@ -2885,6 +2908,13 @@ components:
           pattern: "^(#[0-9A-Fa-f]{6})?$"
           description: Color de la marca (#RRGGBB). Vacío solo en marcas anteriores a que fuera obligatorio, que no generan fondos hasta que se elija.
         demo: { type: boolean }
+        kit_pieces:
+          type: array
+          items: { type: string }
+          description: >
+            Códigos (cita, cierre, historia) de las piezas que puede llevar el kit de marca de esta marca (decisiones 13, 50 y 51). El DeLito: cita, cierre del carrusel e
+            historia; Litoques y las demás: cierre del carrusel e historia. Solo lectura: se asigna al crear la marca
+            (cierre e historia) y la migración fija las de El DeLito.
 
     AppMode:
       type: string

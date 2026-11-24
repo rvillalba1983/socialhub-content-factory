@@ -4,8 +4,10 @@ import com.socialhub.brandkit.domain.BrandKit;
 import com.socialhub.brandkit.domain.BrandKitRepository;
 import com.socialhub.brandkit.domain.KitCodec;
 import com.socialhub.brandkit.domain.KitStatus;
+import com.socialhub.platform.DomainException;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -27,7 +29,12 @@ class JpaBrandKitRepository implements BrandKitRepository {
         entity.setCreatedAt(kit.createdAt());
         entity.setApprovedAt(kit.approvedAt());
         // flush: el índice único parcial exige que el aprobado anterior ya esté sustituido antes de aprobar el nuevo
-        return toDomain(jpa.saveAndFlush(entity));
+        try {
+            return toDomain(jpa.saveAndFlush(entity));
+        } catch (OptimisticLockingFailureException e) {
+            // Otro cambio sobre este kit se coló entre leerlo y guardarlo (por ejemplo, llegó un kit nuevo que lo sustituyó)
+            throw new DomainException("El kit ha cambiado mientras se guardaba (otra aprobación o un kit nuevo a la vez); recarga e inténtalo de nuevo.");
+        }
     }
 
     @Override

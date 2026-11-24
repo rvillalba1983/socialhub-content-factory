@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "socialhub.brand-kit.v1",
   "title": "Kit de marca: paleta y plantillas SVG (objeto «outputs.kit» del encargo socialhub.brand-kit)",
-  "description": "Lo que Claude diseña una vez por marca. SocialHub lo valida (SVG seguro, solo fuentes incluidas, campos conocidos, proporción de cada pieza) y no lo usa hasta que Raúl pulsa «Aprobar». El formato de cada plantilla está en docs/plantillas-svg.md. Campos de texto obligatorios (nombre tras «campo-»): cita → «cita» (y opcional «autor»); cierre → «titulo» y «texto»; historia → «titulo», «texto» y «cta». Cualquier otro campo que no sea fijo (data-fijo=\"true\") se rechaza. Proporciones: cita y cierre en 4:5 (viewBox 1080×1350) o 9:16 (1080×1920); historia solo 9:16. Las piezas «infografia» y «meme» las admite el contrato pero SocialHub todavía no las activa. Las plantillas van ENCIMA de la ilustración: «image» indica dónde va y la plantilla deja esa zona libre o semitransparente.",
+  "description": "Lo que Claude diseña una vez por marca. SocialHub lo valida (SVG seguro, solo fuentes incluidas, campos conocidos, proporción de cada pieza) y no lo usa hasta que Raúl pulsa «Aprobar». El formato de cada plantilla está en docs/plantillas-svg.md. Campos de texto obligatorios (nombre tras «campo-»): cita → «cita» (y opcional «autor»); cierre → «titulo» y «texto»; historia → «titulo», «texto» y «cta». Cualquier otro campo que no sea fijo (data-fijo=\"true\") se rechaza. Proporciones: cita y cierre en 4:5 (viewBox 1080×1350) o 9:16 (1080×1920); historia solo 9:16. Las piezas «infografia» y «meme» las admite el contrato pero SocialHub todavía no las activa. Las plantillas van ENCIMA de la ilustración: «image» indica dónde va y la plantilla deja esa zona libre o semitransparente; «image» es obligatorio en cierre e historia y solo la cita puede llevar null.",
   "type": "object",
   "additionalProperties": false,
   "required": ["palette", "templates"],
@@ -34,6 +34,8 @@
         "type": "object",
         "additionalProperties": false,
         "required": ["id", "piece", "name", "svg", "image"],
+        "if": { "properties": { "piece": { "enum": ["cierre", "historia"] } }, "required": ["piece"] },
+        "then": { "properties": { "image": { "type": "object" } } },
         "properties": {
           "id": {
             "type": "string",
@@ -45,7 +47,7 @@
           "name": { "type": "string", "minLength": 1, "maxLength": 80 },
           "svg": { "type": "string", "minLength": 1, "maxLength": 65536 },
           "image": {
-            "description": "Dónde va la ilustración, en unidades del viewBox de la plantilla; null si la plantilla no lleva ilustración",
+            "description": "Dónde va la ilustración, en unidades del viewBox de la plantilla. Obligatorio (un objeto) en cierre e historia, que van encima de la ilustración de la publicación; solo la cita (verso sobre fondo) puede llevar null",
             "oneOf": [
               { "type": "null" },
               {

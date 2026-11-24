@@ -33,10 +33,18 @@ class BrandKitRequestService implements BrandKitRequests {
     }
 
     @Override
-    public Optional<String> reject(String brandId, String comment, @Nullable String promotionId, boolean another) {
+    public Optional<String> reject(String brandId, long kitId, String comment, @Nullable String promotionId, boolean another) {
         promotions.requireBrand(brandId);
-        BrandKit pending = kits.pending(brandId)
-                .orElseThrow(() -> new DomainException("No hay ningún kit pendiente de esta marca."));
+        // Raúl actúa sobre el kit que está viendo: si entretanto llegó otro, o ya se resolvió, no se toca nada
+        BrandKit pending = kits.pending(brandId).filter(k -> k.id() != null && k.id() == kitId)
+                .orElseThrow(() -> new DomainException(BrandKit.NOT_PENDING));
+        if (another) {
+            // Antes de rechazar: si ya hay un encargo de kit abierto, no se rechaza ni se pide otro
+            kits.openOrderPromotion(brandId).ifPresent(open -> {
+                throw new DomainException("Ya hay un encargo de kit abierto de esta marca (promoción «" + open
+                        + "»): espera a que Claude lo termine antes de pedir otra versión.");
+            });
+        }
         // La promoción se resuelve antes de rechazar: si no se puede pedir otra versión, el kit sigue pendiente
         String promotion = another ? promotion(brandId, promotionId, pending.sourceTaskId()) : "";
         BrandKit rejected = kits.reject(java.util.Objects.requireNonNull(pending.id()), comment);

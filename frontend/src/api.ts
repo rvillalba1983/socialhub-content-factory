@@ -85,10 +85,11 @@ export const api = {
     putJson<BrandIdentity>(`/api/brands/${encodeURIComponent(id)}/identity`, identity),
   brandKit: (id: string) => call<BrandKitView>(`/api/brands/${encodeURIComponent(id)}/kit`),
   requestBrandKit: (id: string, input: BrandKitRequestInput) => post<AiOrder>(`/api/brands/${encodeURIComponent(id)}/kit/request`, input),
-  approveBrandKit: (id: string) => post<BrandKitVersion>(`/api/brands/${encodeURIComponent(id)}/kit/approve`, {}),
-  rejectBrandKit: (id: string, comment: string, requestAnother: boolean, promotionId?: string) =>
+  approveBrandKit: (id: string, kitId: number) =>
+    post<BrandKitVersion>(`/api/brands/${encodeURIComponent(id)}/kit/approve`, { kit_id: kitId }),
+  rejectBrandKit: (id: string, kitId: number, comment: string, requestAnother: boolean, promotionId?: string) =>
     post<BrandKitRejection>(`/api/brands/${encodeURIComponent(id)}/kit/reject`,
-      { comment, request_another: requestAnother, ...(promotionId ? { promotion_id: promotionId } : {}) }),
+      { kit_id: kitId, comment, request_another: requestAnother, ...(promotionId ? { promotion_id: promotionId } : {}) }),
   publicationQuality: (id: string) => call<QualityReport>(`/api/publications/${encodeURIComponent(id)}/quality`),
   externalCalendar: (promotionId: string, from: string, to: string) =>
     call<ExternalCalendar>(`/api/promotions/${encodeURIComponent(promotionId)}/external-calendar?from=${from}&to=${to}`),

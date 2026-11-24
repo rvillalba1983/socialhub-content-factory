@@ -75,7 +75,7 @@ public class KitValidator {
         if (!result.errors().isEmpty()) return;
         fields(label, piece, result, errors);
         ratio(label, piece, result, errors);
-        image(label, template.image(), result, errors);
+        image(label, piece, template.image(), result, errors);
     }
 
     private static void fields(String label, KitPiece piece, TemplateChecker.Result result, List<String> errors) {
@@ -105,8 +105,14 @@ public class KitValidator {
         }
     }
 
-    private static void image(String label, ImageArea image, TemplateChecker.Result result, List<String> errors) {
-        if (image == null) return;
+    private static void image(String label, KitPiece piece, ImageArea image, TemplateChecker.Result result, List<String> errors) {
+        if (image == null) {
+            if (piece.imageRequired()) {
+                errors.add(label + "(" + piece.code() + ") necesita «image»: la zona donde va la ilustración, en unidades de su viewBox "
+                        + "(la plantilla va encima de la ilustración de la publicación).");
+            }
+            return;
+        }
         boolean finite = Double.isFinite(image.x()) && Double.isFinite(image.y())
                 && Double.isFinite(image.width()) && Double.isFinite(image.height());
         if (!finite || image.width() <= 0 || image.height() <= 0) {

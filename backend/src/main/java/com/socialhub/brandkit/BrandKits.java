@@ -23,7 +23,10 @@ public interface BrandKits {
      */
     BrandKit propose(String brandId, String kitJson, @Nullable String sourceTaskId);
 
-    /** Aprueba un kit pendiente; el aprobado anterior de la marca pasa a sustituido. */
+    /**
+     * Aprueba un kit pendiente; el aprobado anterior de la marca pasa a sustituido. Lo vuelve a comprobar: si alguna plantilla
+     * no se pinta, no se aprueba. Si el kit ya no es el pendiente (o cambia a la vez), lanza {@code DomainException} (409).
+     */
     BrandKit approve(long id);
 
     /** Rechaza un kit pendiente con el comentario de «Pedir otra versión». */
@@ -40,4 +43,11 @@ public interface BrandKits {
 
     /** Kit que espera la decisión de Raúl. */
     Optional<BrandKit> pending(String brandId);
+
+    /**
+     * Promoción de la marca que tiene un encargo de kit abierto: en cola sin enviar, enviado, retenido, esperando respuesta
+     * de Raúl o fallido con reintentos por delante. Es el criterio único de «encargo abierto» (impide pedir otro kit, oculta
+     * «Pedir kit» y silencia «Genera el kit de X»).
+     */
+    Optional<String> openOrderPromotion(String brandId);
 }

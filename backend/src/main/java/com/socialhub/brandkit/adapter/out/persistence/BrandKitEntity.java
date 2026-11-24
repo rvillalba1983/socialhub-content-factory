@@ -1,10 +1,12 @@
 package com.socialhub.brandkit.adapter.out.persistence;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.time.Instant;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -31,4 +33,12 @@ class BrandKitEntity {
     private @Nullable String sourceTaskId;
     private Instant createdAt;
     private @Nullable Instant approvedAt;
+
+    /**
+     * Versión de la fila: si dos transacciones cambian el mismo kit a la vez (aprobarlo mientras llega otro nuevo que lo
+     * sustituye), la segunda falla en lugar de pisar a la primera y dejar la marca sin kit aprobado.
+     */
+    @Version
+    @Column(name = "row_version")
+    private long rowVersion;
 }

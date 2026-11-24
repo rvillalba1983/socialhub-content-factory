@@ -9,11 +9,11 @@ import java.util.Optional;
  * opcionales y las proporciones que admite. {@code INFOGRAFIA} y {@code MEME} las admite el contrato pero no están activas.
  */
 public enum KitPiece {
-    CITA(true, List.of("cita"), List.of("autor"), List.of(Ratio.R4X5, Ratio.R9X16)),
-    CIERRE(true, List.of("titulo", "texto"), List.of(), List.of(Ratio.R4X5, Ratio.R9X16)),
-    HISTORIA(true, List.of("titulo", "texto", "cta"), List.of(), List.of(Ratio.R9X16)),
-    INFOGRAFIA(false, List.of(), List.of(), List.of()),
-    MEME(false, List.of(), List.of(), List.of());
+    CITA(true, false, List.of("cita"), List.of("autor"), List.of(Ratio.R4X5, Ratio.R9X16)),
+    CIERRE(true, true, List.of("titulo", "texto"), List.of(), List.of(Ratio.R4X5, Ratio.R9X16)),
+    HISTORIA(true, true, List.of("titulo", "texto", "cta"), List.of(), List.of(Ratio.R9X16)),
+    INFOGRAFIA(false, false, List.of(), List.of(), List.of()),
+    MEME(false, false, List.of(), List.of(), List.of());
 
     /** Proporciones de lienzo que usa SocialHub. */
     public enum Ratio {
@@ -36,18 +36,26 @@ public enum KitPiece {
     }
 
     private final boolean active;
+    private final boolean imageRequired;
     private final List<String> required;
     private final List<String> optional;
     private final List<Ratio> ratios;
 
-    KitPiece(boolean active, List<String> required, List<String> optional, List<Ratio> ratios) {
+    KitPiece(boolean active, boolean imageRequired, List<String> required, List<String> optional, List<Ratio> ratios) {
         this.active = active;
+        this.imageRequired = imageRequired;
         this.required = required;
         this.optional = optional;
         this.ratios = ratios;
     }
 
     public boolean active() { return active; }
+
+    /**
+     * La plantilla debe indicar dónde va la ilustración (decisión 53: cierre e historia van encima de la imagen de la
+     * publicación). La cita es verso sobre fondo: puede no llevar imagen.
+     */
+    public boolean imageRequired() { return imageRequired; }
 
     public List<String> requiredFields() { return required; }
 

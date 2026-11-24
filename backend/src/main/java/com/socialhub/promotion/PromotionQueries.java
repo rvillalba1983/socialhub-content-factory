@@ -58,6 +58,9 @@ public interface PromotionQueries {
     /** Color de la marca (#RRGGBB); vacío si la marca no existe. */
     String colorOf(String brandId);
 
+    /** Piezas que puede llevar el kit de la marca (códigos: {@code cita}, {@code cierre}, {@code historia}); vacía si la marca no existe. */
+    List<String> kitPiecesOf(String brandId);
+
     /** Marcas sin color válido (las anteriores a que fuera obligatorio): no generan fondos hasta que se les ponga. */
     List<BrandRef> brandsWithoutColor();
 

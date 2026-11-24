@@ -14,7 +14,10 @@ class KitValidatorTest {
 
     private List<String> errorsOf(KitContent kit) { return validator.validate(kit); }
 
-    private List<String> errorsOf(KitPiece piece, String svg) { return errorsOf(with(List.of(template("t", piece, svg, null)))); }
+    /** Con la zona de imagen que exigen el cierre y la historia, para probar lo demás. */
+    private List<String> errorsOf(KitPiece piece, String svg) {
+        return errorsOf(with(List.of(template("t", piece, svg, piece.imageRequired() ? new ImageArea(0, 0, 1080, 600) : null))));
+    }
 
     @Test
     void delitoKitIsValid() {
@@ -136,5 +139,16 @@ class KitValidatorTest {
         List<KitTemplate> bad = List.of(template("a", KitPiece.CITA, cierre(1080, 1350), null),
                 template("b", KitPiece.HISTORIA, historia(1080, 1350), null));
         assertThat(errorsOf(with(bad))).anyMatch(e -> e.startsWith("La plantilla «a»")).anyMatch(e -> e.startsWith("La plantilla «b»"));
+    }
+
+    @Test
+    void closingAndStoryNeedTheImageAreaButTheQuoteMayHaveNone() {
+        // Decisión 53: cierre e historia van encima de la ilustración y dicen dónde; la cita es verso sobre fondo
+        assertThat(errorsOf(KitPiece.CITA, cita(1080, 1350))).isEmpty();
+        assertThat(errorsOf(with(List.of(template("t", KitPiece.CIERRE, cierre(1080, 1350), null))))).singleElement().asString()
+                .startsWith("La plantilla «t» (cierre) necesita «image»").contains("encima de la ilustración");
+        assertThat(errorsOf(with(List.of(template("t", KitPiece.HISTORIA, historia(1080, 1920), null))))).singleElement().asString()
+                .contains("(historia) necesita «image»");
+        assertThat(errorsOf(with(List.of(template("t", KitPiece.CIERRE, cierre(1080, 1350), new ImageArea(0, 0, 1080, 700)))))).isEmpty();
     }
 }

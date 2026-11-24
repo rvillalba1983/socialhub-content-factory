@@ -770,10 +770,21 @@ class FactoryRecommendationsTest {
     @Test
     void anOpenKitOrderSilencesTheRecommendation() {
         when(kits.approved("litoques")).thenReturn(java.util.Optional.empty());
-        when(sent.waiting()).thenReturn(List.of(sentOrder(AiRequestType.BRAND_KIT, now)));
+        // El criterio de «encargo abierto» es el de la API (en cola sin enviar, enviado, retenido o esperando respuesta de Raúl):
+        // la recomendación solo lo consulta, no mira los encargos enviados ni los retenidos por su cuenta
+        when(kits.openOrderPromotion("litoques")).thenReturn(java.util.Optional.of("lit-1"));
         assertThat(kitRow()).isEmpty();
+        when(kits.openOrderPromotion("litoques")).thenReturn(java.util.Optional.empty());
+        assertThat(kitRow()).isPresent();
+    }
+
+    @Test
+    void aKitOrderWaitingForRaulsAnswerAlsoSilencesTheRecommendation() {
+        when(kits.approved("litoques")).thenReturn(java.util.Optional.empty());
+        // Ni enviado ni retenido (no sale en esas listas): sigue abierto porque espera la respuesta de Raúl
         when(sent.waiting()).thenReturn(List.of());
-        when(held.current()).thenReturn(List.of(new AiHeldOrders.Held("t1", "s1", "Kit de marca", "sin carpeta", "lit-1", AiRequestType.BRAND_KIT)));
+        when(held.current()).thenReturn(List.of());
+        when(kits.openOrderPromotion("litoques")).thenReturn(java.util.Optional.of("lit-1"));
         assertThat(kitRow()).isEmpty();
     }
 
