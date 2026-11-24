@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "socialhub.brand-kit.v1",
+  "title": "Kit de marca: paleta y plantillas SVG (objeto «outputs.kit» del encargo socialhub.brand-kit)",
+  "description": "Lo que Claude diseña una vez por marca. SocialHub lo valida (SVG seguro, solo fuentes incluidas, campos conocidos, proporción de cada pieza) y no lo usa hasta que Raúl pulsa «Aprobar». El formato de cada plantilla está en docs/plantillas-svg.md. Campos de texto obligatorios (nombre tras «campo-»): cita → «cita» (y opcional «autor»); cierre → «titulo» y «texto»; historia → «titulo», «texto» y «cta». Cualquier otro campo que no sea fijo (data-fijo=\"true\") se rechaza. Proporciones: cita y cierre en 4:5 (viewBox 1080×1350) o 9:16 (1080×1920); historia solo 9:16. Las piezas «infografia» y «meme» las admite el contrato pero SocialHub todavía no las activa. Las plantillas van ENCIMA de la ilustración: «image» indica dónde va y la plantilla deja esa zona libre o semitransparente.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["palette", "templates"],
+  "properties": {
+    "palette": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "hex"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1, "maxLength": 40 },
+          "hex": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" }
+        }
+      }
+    },
+    "notes": {
+      "type": ["string", "null"],
+      "maxLength": 1000,
+      "description": "Texto opcional para Raúl: decisiones de diseño, qué pedir si algo no convence"
+    },
+    "templates": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 12,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "piece", "name", "svg", "image"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "maxLength": 40,
+            "description": "Único dentro del kit. Minúsculas, cifras y guiones, por ejemplo «cita-4x5»"
+          },
+          "piece": { "enum": ["cita", "cierre", "historia", "infografia", "meme"] },
+          "name": { "type": "string", "minLength": 1, "maxLength": 80 },
+          "svg": { "type": "string", "minLength": 1, "maxLength": 65536 },
+          "image": {
+            "description": "Dónde va la ilustración, en unidades del viewBox de la plantilla; null si la plantilla no lleva ilustración",
+            "oneOf": [
+              { "type": "null" },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["x", "y", "width", "height"],
+                "properties": {
+                  "x": { "type": "number" },
+                  "y": { "type": "number" },
+                  "width": { "type": "number", "exclusiveMinimum": 0 },
+                  "height": { "type": "number", "exclusiveMinimum": 0 }
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}
