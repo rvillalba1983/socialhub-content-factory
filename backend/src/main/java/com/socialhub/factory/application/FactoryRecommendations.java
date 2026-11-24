@@ -7,6 +7,7 @@ import com.socialhub.ai.ClaudeActivity;
 import com.socialhub.ai.domain.AiRequestType;
 import com.socialhub.ai.domain.ClaudePickups;
 import com.socialhub.backup.Backups;
+import com.socialhub.brandkit.BrandKits;
 import com.socialhub.factory.domain.Recommendation;
 import com.socialhub.pieces.ContentGaps;
 import com.socialhub.pieces.MissingMaterial;
@@ -56,6 +57,8 @@ import org.springframework.stereotype.Component;
  *   días: «{título} no tiene contenido», con botón «Pedir contenido ya» (un spec urgente a mano de esa publicación o de las
  *   de su promoción en la misma situación). Una fila por promoción.</li>
  *   <li>Marca sin todas sus carpetas.</li>
+ *   <li>Marca sin kit aprobado: «Genera el kit de X» (si tiene alguna promoción y no hay kit pendiente ni encargo de kit abierto) o
+ *   «Revisa el kit de X» (kit pendiente de aprobación), con botón a su ficha.</li>
  *   <li>Encargo sin resultado tras la recogida que le tocaba (5 minutos de sincronización y 30 de margen), si la
  *   carpeta de «Encargos» de su marca está disponible.</li>
  *   <li>Marca sin cuenta de Publora, salvo que Raúl haya marcado «No uso Publora» para ella.</li>
@@ -85,6 +88,7 @@ class FactoryRecommendations {
     private final InstagramOAuth instagramOAuth;
     private final Clock clock;
     private final com.socialhub.settings.PublishSettings settings;
+    private final BrandKits brandKits;
 
     List<Recommendation> compute() {
         Instant now = clock.instant();
@@ -229,6 +233,35 @@ class FactoryRecommendations {
                     "Falta " + String.join(", ", gaps) + ". Sin eso, Claude propone sin conocer la voz de la marca ni a quién se dirige. "
                             + "Puedes rellenarlo o importarlo desde un .txt",
                     Recommendation.Screen.BRAND_IDENTITY, brand.id(), null));
+        }
+
+        // 3c. Kit de marca: sin kit aprobado, la marca (con alguna promoción) lo pide; con uno pendiente, a revisarlo
+        Set<String> brandsWithKitOrder = new java.util.HashSet<>();
+        for (var s : sent) {
+            if (s.type() == AiRequestType.BRAND_KIT && s.promotionId() != null && promotionById.containsKey(s.promotionId())) {
+                brandsWithKitOrder.add(promotionById.get(s.promotionId()).brandId());
+            }
+        }
+        for (var h : heldOrders.current()) {
+            if (h.type() == AiRequestType.BRAND_KIT && h.promotionId() != null && promotionById.containsKey(h.promotionId())) {
+                brandsWithKitOrder.add(promotionById.get(h.promotionId()).brandId());
+            }
+        }
+        for (var brand : brands) {
+            if (brandKits.approved(brand.id()).isPresent()) continue;
+            if (brandKits.pending(brand.id()).isPresent()) {
+                all.add(recommendation("brand-kit-pending:" + brand.id(), Recommendation.Kind.BRAND_KIT_PENDING,
+                        "Revisa el kit de " + brand.name(),
+                        "Claude ha dejado una propuesta de kit (paleta y plantillas). No se usa hasta que la apruebes",
+                        Recommendation.Screen.BRAND_KIT, brand.id(), null));
+                continue;
+            }
+            if (brandsWithKitOrder.contains(brand.id())) continue;
+            if (allPromotions.stream().noneMatch(p -> p.brandId().equals(brand.id()))) continue;
+            all.add(recommendation("brand-kit:" + brand.id(), Recommendation.Kind.BRAND_KIT_MISSING,
+                    "Genera el kit de " + brand.name(),
+                    "El kit es la paleta y las plantillas de sus piezas (cierre del carrusel, historia…), diseñadas una vez por Claude y aprobadas por ti",
+                    Recommendation.Screen.BRAND_KIT, brand.id(), null));
         }
 
         // 4. Encargo sin recoger (los del PC los recoge otra tarea y no se miran)

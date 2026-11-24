@@ -2062,6 +2062,8 @@ components:
             - MATERIAL_MISSING
             - DUPLICATE_PUBLICATIONS
             - BRAND_COLOR_MISSING
+            - BRAND_KIT_MISSING
+            - BRAND_KIT_PENDING
           description: >
             Por orden de prioridad: marca sin forma de publicar (NO_PUBLISHING_ROUTE) y tarea del PC «Publicar con
             Chrome» sin contestar (PC_TASK_SILENT), que van primero porque bloquean publicaciones reales (también salen
@@ -2075,7 +2077,7 @@ components:
             a mano de esas publicaciones (sin target: no navega). IDENTITY_MISSING: marca con promoción en marcha a la que
             le falta el tono o el público (botón a su identidad; los temas que no se tocan vacíos son válidos). PUBLICATION_TOO_SOON: publicaciones
             de camino a publicar a las que ya no queda el margen mínimo de publicación, o cuya hora ya pasó, y aún no están programadas
-            (botón a las pendientes de la promoción; con «publication_ids», las afectadas por hora, y el botón «Mover a la siguiente hora libre» actúa sobre la primera). DUPLICATE_PUBLICATIONS: posible duplicado (dos o más publicaciones desde «En producción» en adelante, sin contar ideas, propuestas ni canceladas, de la misma marca y red: el mismo día con el mismo título y el mismo tipo, o con la misma hora y el mismo texto). BRAND_COLOR_MISSING: marca sin color (anterior a que fuera obligatorio): no genera fondos hasta que se elija; lleva a BRAND_DATA (brand_id); con «publication_ids», cada una tiene su «Descartar esta». SPEC_WAITING ya no se calcula (el spec se pide por lotes, no por semana) y se conserva
+            (botón a las pendientes de la promoción; con «publication_ids», las afectadas por hora, y el botón «Mover a la siguiente hora libre» actúa sobre la primera). DUPLICATE_PUBLICATIONS: posible duplicado (dos o más publicaciones desde «En producción» en adelante, sin contar ideas, propuestas ni canceladas, de la misma marca y red: el mismo día con el mismo título y el mismo tipo, o con la misma hora y el mismo texto). BRAND_COLOR_MISSING: marca sin color (anterior a que fuera obligatorio): no genera fondos hasta que se elija; lleva a BRAND_DATA (brand_id); con «publication_ids», cada una tiene su «Descartar esta». BRAND_KIT_MISSING: marca con alguna promoción y sin kit aprobado, pendiente ni encargo de kit abierto («Genera el kit de X»); BRAND_KIT_PENDING: kit pendiente de aprobación («Revisa el kit de X»); los dos llevan a BRAND_KIT (brand_id). SPEC_WAITING ya no se calcula (el spec se pide por lotes, no por semana) y se conserva
             solo por compatibilidad. MATERIAL_MISSING: aviso informativo (no bloquea) de las publicaciones de una promoción
             a las que les falta imagen o vídeo en las carpetas de Material; dice qué fondo se usará (la portada de la marca, o un fondo
             con su color) y, si la promoción tiene «Estilo visual», que Claude lo usará; si la carpeta no está disponible, avisa de que no se
@@ -2108,13 +2110,13 @@ components:
       properties:
         screen:
           type: string
-          enum: [BRAND_FOLDERS, PROPOSALS, PUBLORA, PUBLER, BACKUPS, NEW_PROMOTION, CLAUDE, INSTAGRAM, BRAND_IDENTITY, PUBLICATIONS, BRAND_DATA]
+          enum: [BRAND_FOLDERS, PROPOSALS, PUBLORA, PUBLER, BACKUPS, NEW_PROMOTION, CLAUDE, INSTAGRAM, BRAND_IDENTITY, PUBLICATIONS, BRAND_DATA, BRAND_KIT]
           description: >
             BRAND_FOLDERS: Marcas → Carpetas de Drive de la marca (brand_id). PROPOSALS: publicaciones en estado
             Propuesta de la promoción (promotion_id). PUBLORA: tarjeta de Publora de la marca (brand_id). PUBLER: tarjeta «Cuenta en Publer» de la marca (brand_id). BACKUPS:
             ajuste de la carpeta de copias. NEW_PROMOTION: alta de promoción de la marca (brand_id); con promotion_id, abre esa promoción (planificada o en
             pausa) para activarla. CLAUDE: pantalla «Claude», donde se cambia el límite diario de encargos (sin brand_id). INSTAGRAM: tarjeta «Instagram · API oficial» de «Agentes y herramientas» (sin brand_id).
-            BRAND_IDENTITY: tarjeta de identidad de la marca (brand_id). PUBLICATIONS: publicaciones pendientes de la promoción (promotion_id). BRAND_DATA: ficha de la marca, con su nombre, cuenta y color (brand_id)
+            BRAND_IDENTITY: tarjeta de identidad de la marca (brand_id). PUBLICATIONS: publicaciones pendientes de la promoción (promotion_id). BRAND_DATA: ficha de la marca, con su nombre, cuenta y color (brand_id). BRAND_KIT: tarjeta «Kit de marca» de la ficha (brand_id)
         brand_id: { type: string }
         promotion_id: { type: string }
 
