@@ -10,6 +10,6 @@
  *   <li>{@code adapter.out}: persistencia y lectura del JSON; la revisión de plantillas usa el motor del módulo {@code pieces} desde la aplicación.</li>
  * </ul>
  */
-@org.springframework.modulith.ApplicationModule(allowedDependencies = {"pieces", "platform", "api"})
+@org.springframework.modulith.ApplicationModule(allowedDependencies = {"pieces", "ai", "ai::domain", "promotion", "platform", "api"})
 @org.jspecify.annotations.NullMarked
 package com.socialhub.brandkit;

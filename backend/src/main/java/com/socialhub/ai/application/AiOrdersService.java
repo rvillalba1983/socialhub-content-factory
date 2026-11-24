@@ -32,6 +32,12 @@ class AiOrdersService implements AiOrders {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public Optional<String> promotionOf(String taskId) {
+        return requests.ofTask(taskId).stream().map(AiRequest::promotionId).filter(java.util.Objects::nonNull).findFirst();
+    }
+
+    @Override
     @Transactional
     public String submit(String promotionId, AiRequestType type, String title, String goal, List<String> inputs) {
         if (type.automatic()) throw new IllegalArgumentException("«" + type.label() + "» lo encarga SocialHub al publicar");

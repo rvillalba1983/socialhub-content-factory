@@ -705,6 +705,83 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/brands/{brand_id}/kit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Kit de marca aprobado y pendiente, con vista previa de cada plantilla
+         * @description La vista previa es la plantilla pintada con sus textos de ejemplo (PNG en base64, 540 px de ancho). Si una plantilla no se puede pintar, no lleva imagen y explica el motivo en «errors».
+         */
+        get: operations["getBrandKit"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/brands/{brand_id}/kit/request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pide a Claude el kit de la marca
+         * @description Crea el encargo «Kit de marca», que cuelga de una promoción de la marca (si tiene varias, hay que elegirla; una marca sin promociones no puede pedirlo). Sin piezas indicadas se piden el cierre del carrusel y la historia.
+         */
+        post: operations["requestBrandKit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/brands/{brand_id}/kit/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Aprueba el kit pendiente (pasa a ser el kit en vigor de la marca) */
+        post: operations["approveBrandKit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/brands/{brand_id}/kit/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rechaza el kit pendiente con un comentario («Pedir otra versión»)
+         * @description Rechaza el kit pendiente y, salvo que se pida lo contrario (`request_another` falso), crea ya un encargo nuevo con ese comentario y las mismas piezas, de la misma promoción del encargo anterior (o la que se indique).
+         */
+        post: operations["rejectBrandKit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/brands/{brand_id}/decisions": {
         parameters: {
             query?: never;
@@ -1505,7 +1582,7 @@ export interface components {
          * @description Tipo de encargo a Claude
          * @enum {string}
          */
-        AiRequestType: "WEEKLY_SPEC" | "CAPTIONS" | "WEEKLY_BALANCE" | "RESEARCH" | "QUALITY_REVIEW" | "WEEKLY_PROPOSALS" | "PUBLER_SCHEDULE" | "PUBLISH_CHECK" | "CALENDAR_READ" | "METRICS_READ" | "PUBLIC_LINK";
+        AiRequestType: "WEEKLY_SPEC" | "CAPTIONS" | "WEEKLY_BALANCE" | "RESEARCH" | "QUALITY_REVIEW" | "WEEKLY_PROPOSALS" | "PUBLER_SCHEDULE" | "PUBLISH_CHECK" | "CALENDAR_READ" | "METRICS_READ" | "PUBLIC_LINK" | "BRAND_KIT";
         AiTypeModel: {
             type: components["schemas"]["AiRequestType"];
             label: string;
@@ -1807,6 +1884,76 @@ export interface components {
             items: components["schemas"]["PubloraAccount"][];
             /** @description Raúl ha marcado «No uso Publora» para esta marca (no se le recomienda conectarla) */
             dismissed: boolean;
+        };
+        BrandKitView: {
+            approved?: components["schemas"]["BrandKitVersion"];
+            pending?: components["schemas"]["BrandKitVersion"];
+        };
+        BrandKitVersion: {
+            /** Format: int64 */
+            id: number;
+            /** @description Número de la versión dentro de la marca */
+            version: number;
+            /** @enum {string} */
+            status: "PENDING" | "APPROVED" | "SUPERSEDED" | "REJECTED";
+            palette: components["schemas"]["BrandKitColor"][];
+            /** @description Texto de Claude para Raúl */
+            notes?: string | null;
+            /** @description Comentario de «Pedir otra versión» */
+            comment?: string | null;
+            source_task_id?: string | null;
+            templates: components["schemas"]["BrandKitTemplate"][];
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            approved_at?: string | null;
+        };
+        BrandKitColor: {
+            name: string;
+            hex: string;
+        };
+        BrandKitTemplate: {
+            id: string;
+            /** @enum {string} */
+            piece: "cita" | "cierre" | "historia" | "infografia" | "meme";
+            name: string;
+            svg: string;
+            /** @description Dónde va la ilustración, en unidades del viewBox de la plantilla */
+            image?: {
+                /** Format: double */
+                x: number;
+                /** Format: double */
+                y: number;
+                /** Format: double */
+                width: number;
+                /** Format: double */
+                height: number;
+            } | null;
+            /** @description Vista previa con textos de ejemplo (PNG en base64) */
+            preview_png_base64?: string | null;
+            warnings: string[];
+            errors: string[];
+        };
+        BrandKitRequestInput: {
+            /** @description Promoción de la marca de la que cuelga el encargo; obligatoria si la marca tiene varias */
+            promotion_id?: string;
+            /** @description Piezas que pedir. Sin ellas, cierre del carrusel e historia (la cita solo se pide para El DeLito) */
+            pieces?: ("cita" | "cierre" | "historia")[];
+        };
+        BrandKitRejectInput: {
+            comment: string;
+            /**
+             * @description Pedir ya otra versión con ese comentario
+             * @default true
+             */
+            request_another: boolean;
+            /** @description Solo si se pide otra versión y se quiere otra promoción distinta de la del encargo anterior */
+            promotion_id?: string;
+        };
+        BrandKitRejection: {
+            kit: components["schemas"]["BrandKitVersion"];
+            /** @description Tarea del encargo nuevo, si se pidió otra versión */
+            task_id?: string | null;
         };
         PublicShare: {
             shared: boolean;
@@ -2652,6 +2799,13 @@ export type PubloraConnection = components['schemas']['PubloraConnection'];
 export type PubloraKeyInput = components['schemas']['PubloraKeyInput'];
 export type PubloraAccount = components['schemas']['PubloraAccount'];
 export type PubloraAccountList = components['schemas']['PubloraAccountList'];
+export type BrandKitView = components['schemas']['BrandKitView'];
+export type BrandKitVersion = components['schemas']['BrandKitVersion'];
+export type BrandKitColor = components['schemas']['BrandKitColor'];
+export type BrandKitTemplate = components['schemas']['BrandKitTemplate'];
+export type BrandKitRequestInput = components['schemas']['BrandKitRequestInput'];
+export type BrandKitRejectInput = components['schemas']['BrandKitRejectInput'];
+export type BrandKitRejection = components['schemas']['BrandKitRejection'];
 export type PublicShare = components['schemas']['PublicShare'];
 export type PublicShareInput = components['schemas']['PublicShareInput'];
 export type PubloraDismissedInput = components['schemas']['PubloraDismissedInput'];
@@ -3950,6 +4104,123 @@ export interface operations {
             };
             400: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    getBrandKit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                brand_id: components["parameters"]["BrandId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Los dos kits de la marca; nulos si no hay */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrandKitView"];
+                };
+            };
+            404: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    requestBrandKit: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path: {
+                brand_id: components["parameters"]["BrandId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BrandKitRequestInput"];
+            };
+        };
+        responses: {
+            /** @description Encargo en cola */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AiOrder"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    approveBrandKit: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path: {
+                brand_id: components["parameters"]["BrandId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Kit aprobado */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrandKitVersion"];
+                };
+            };
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    rejectBrandKit: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path: {
+                brand_id: components["parameters"]["BrandId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BrandKitRejectInput"];
+            };
+        };
+        responses: {
+            /** @description Kit rechazado; lleva la tarea del encargo nuevo si se pidió */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrandKitRejection"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
             default: components["responses"]["Problem"];
         };
     };

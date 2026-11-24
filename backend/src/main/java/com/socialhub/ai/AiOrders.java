@@ -12,6 +12,9 @@ public interface AiOrders {
     /** Si el último envío de ese encargo salió marcado como urgente (vacío si aún no ha salido). */
     Optional<Boolean> urgentOf(String taskId);
 
+    /** Promoción a la que pertenece la tarea de ese encargo (vacío si no consta). */
+    Optional<String> promotionOf(String taskId);
+
     /**
      * Alta de un encargo pedido por Raúl desde la interfaz: sale siempre como urgente (se hace en la siguiente pasada,
      * aunque sea de día). Lo que pide SocialHub por su cuenta va por {@link #submitInternal}.

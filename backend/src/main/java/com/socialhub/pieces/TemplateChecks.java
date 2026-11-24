@@ -20,4 +20,10 @@ public interface TemplateChecks {
 
     /** Revisa la plantilla; nunca lanza una excepción por una plantilla mala. */
     Report check(String templateSvg);
+
+    /** Vista previa: PNG ({@code null} si hay errores) con el texto de ejemplo de cada campo, más avisos y errores en español. */
+    record Preview(byte @org.jspecify.annotations.Nullable [] png, List<String> warnings, List<String> errors) {}
+
+    /** Pinta la plantilla con sus textos de ejemplo al ancho pedido (el alto sale de su proporción); nunca lanza por una plantilla mala. */
+    Preview preview(String templateSvg, int pixelWidth);
 }

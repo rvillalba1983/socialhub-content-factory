@@ -27,6 +27,8 @@ tags:
   - name: AppMode
     description: Modo real o demo. Cada modo tiene su propia base de datos
   - name: Brands
+  - name: BrandKit
+    description: Kit de marca (paleta y plantillas SVG) que Claude diseña una vez por marca y Raúl aprueba
   - name: Promotions
   - name: Publications
   - name: Settings
@@ -928,6 +930,96 @@ paths:
               schema: { $ref: "#/components/schemas/BrandIdentity" }
         "400": { $ref: "#/components/responses/Problem" }
         "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/brands/{brand_id}/kit:
+    get:
+      tags: [BrandKit]
+      operationId: getBrandKit
+      summary: Kit de marca aprobado y pendiente, con vista previa de cada plantilla
+      description: >
+        La vista previa es la plantilla pintada con sus textos de ejemplo (PNG en base64, 540 px de ancho). Si una plantilla
+        no se puede pintar, no lleva imagen y explica el motivo en «errors».
+      parameters:
+        - $ref: "#/components/parameters/BrandId"
+      responses:
+        "200":
+          description: Los dos kits de la marca; nulos si no hay
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BrandKitView" }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/brands/{brand_id}/kit/request:
+    post:
+      tags: [BrandKit]
+      operationId: requestBrandKit
+      summary: Pide a Claude el kit de la marca
+      description: >
+        Crea el encargo «Kit de marca», que cuelga de una promoción de la marca (si tiene varias, hay que elegirla; una marca
+        sin promociones no puede pedirlo). Sin piezas indicadas se piden el cierre del carrusel y la historia.
+      parameters:
+        - $ref: "#/components/parameters/BrandId"
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BrandKitRequestInput" }
+      responses:
+        "201":
+          description: Encargo en cola
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AiOrder" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/brands/{brand_id}/kit/approve:
+    post:
+      tags: [BrandKit]
+      operationId: approveBrandKit
+      summary: Aprueba el kit pendiente (pasa a ser el kit en vigor de la marca)
+      parameters:
+        - $ref: "#/components/parameters/BrandId"
+        - $ref: "#/components/parameters/RequestGuard"
+      responses:
+        "200":
+          description: Kit aprobado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BrandKitVersion" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/brands/{brand_id}/kit/reject:
+    post:
+      tags: [BrandKit]
+      operationId: rejectBrandKit
+      summary: Rechaza el kit pendiente con un comentario («Pedir otra versión»)
+      description: >
+        Rechaza el kit pendiente y, salvo que se pida lo contrario (`request_another` falso), crea ya un encargo nuevo con ese
+        comentario y las mismas piezas, de la misma promoción del encargo anterior (o la que se indique).
+      parameters:
+        - $ref: "#/components/parameters/BrandId"
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BrandKitRejectInput" }
+      responses:
+        "200":
+          description: Kit rechazado; lleva la tarea del encargo nuevo si se pidió
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BrandKitRejection" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
         default: { $ref: "#/components/responses/Problem" }
 
   /api/brands/{brand_id}/decisions:
@@ -2104,7 +2196,7 @@ components:
       description: Tipo de encargo a Claude
       type: string
       enum: [WEEKLY_SPEC, CAPTIONS, WEEKLY_BALANCE, RESEARCH, QUALITY_REVIEW, WEEKLY_PROPOSALS, PUBLER_SCHEDULE,
-             PUBLISH_CHECK, CALENDAR_READ, METRICS_READ, PUBLIC_LINK]
+             PUBLISH_CHECK, CALENDAR_READ, METRICS_READ, PUBLIC_LINK, BRAND_KIT]
 
     AiTypeModel:
       type: object
@@ -2428,6 +2520,85 @@ components:
         dismissed:
           type: boolean
           description: Raúl ha marcado «No uso Publora» para esta marca (no se le recomienda conectarla)
+
+    BrandKitView:
+      type: object
+      properties:
+        approved: { $ref: "#/components/schemas/BrandKitVersion" }
+        pending: { $ref: "#/components/schemas/BrandKitVersion" }
+
+    BrandKitVersion:
+      type: object
+      required: [id, version, status, palette, templates, created_at]
+      properties:
+        id: { type: integer, format: int64 }
+        version: { type: integer, description: "Número de la versión dentro de la marca" }
+        status: { type: string, enum: [PENDING, APPROVED, SUPERSEDED, REJECTED] }
+        palette:
+          type: array
+          items: { $ref: "#/components/schemas/BrandKitColor" }
+        notes: { type: string, nullable: true, description: "Texto de Claude para Raúl" }
+        comment: { type: string, nullable: true, description: "Comentario de «Pedir otra versión»" }
+        source_task_id: { type: string, nullable: true }
+        templates:
+          type: array
+          items: { $ref: "#/components/schemas/BrandKitTemplate" }
+        created_at: { type: string, format: date-time }
+        approved_at: { type: string, format: date-time, nullable: true }
+
+    BrandKitColor:
+      type: object
+      required: [name, hex]
+      properties:
+        name: { type: string }
+        hex: { type: string }
+
+    BrandKitTemplate:
+      type: object
+      required: [id, piece, name, svg, warnings, errors]
+      properties:
+        id: { type: string }
+        piece: { type: string, enum: [cita, cierre, historia, infografia, meme] }
+        name: { type: string }
+        svg: { type: string }
+        image:
+          type: object
+          nullable: true
+          description: Dónde va la ilustración, en unidades del viewBox de la plantilla
+          required: [x, y, width, height]
+          properties:
+            x: { type: number, format: double }
+            y: { type: number, format: double }
+            width: { type: number, format: double }
+            height: { type: number, format: double }
+        preview_png_base64: { type: string, nullable: true, description: "Vista previa con textos de ejemplo (PNG en base64)" }
+        warnings: { type: array, items: { type: string } }
+        errors: { type: array, items: { type: string } }
+
+    BrandKitRequestInput:
+      type: object
+      properties:
+        promotion_id: { type: string, description: "Promoción de la marca de la que cuelga el encargo; obligatoria si la marca tiene varias" }
+        pieces:
+          type: array
+          maxItems: 3
+          items: { type: string, enum: [cita, cierre, historia] }
+          description: Piezas que pedir. Sin ellas, cierre del carrusel e historia (la cita solo se pide para El DeLito)
+
+    BrandKitRejectInput:
+      type: object
+      required: [comment]
+      properties:
+        comment: { type: string, minLength: 1, maxLength: 1000 }
+        request_another: { type: boolean, default: true, description: "Pedir ya otra versión con ese comentario" }
+        promotion_id: { type: string, description: "Solo si se pide otra versión y se quiere otra promoción distinta de la del encargo anterior" }
+
+    BrandKitRejection:
+      type: object
+      required: [kit]
+      properties:
+        kit: { $ref: "#/components/schemas/BrandKitVersion" }
+        task_id: { type: string, nullable: true, description: "Tarea del encargo nuevo, si se pidió otra versión" }
 
     PublicShare:
       type: object
