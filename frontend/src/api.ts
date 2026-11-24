@@ -1,5 +1,5 @@
 import type {
-  Backup, BackupList, Restoration, AiOrder, AiOrderInput, BrandIdentity, ExternalCalendar, PublicationMetrics, PromotionMetrics, SlotProposal, PublishJob, PubloraStatus, PubloraAccountList, PubloraAccountInput, PublerAccountList, PublerAccountInput, PublerMoveInput, PublerMoveResult, PublishSettings, PublishSettingsInput, InstagramStatus, InstagramCheck, InstagramAccount, InstagramOAuthStart, InstagramRenewal, InstagramDetectedAccountList, QualityReport, RejectionReason, EditorialDecision, EditorialMemory, AiRequestPage, AiSettings, AiSettingsInput, AppMode, AppModeState, AppVersion, Autostart, UpdateStatus, LogsFolder, Brand, FolderInput, FolderList, Publication, PublicationFile, PublicationFileList, PublicationInput, PublicationStatus, PieceOrder, PieceSpecList, BrandInput, ExternalOperationPage, Promotion, PromotionInput, OperationOutcome, Snapshot, Station, StationCommandType, Task, TaskCommand,
+  BrandKitView, BrandKitVersion, BrandKitRequestInput, BrandKitRejection, Backup, BackupList, Restoration, AiOrder, AiOrderInput, BrandIdentity, ExternalCalendar, PublicationMetrics, PromotionMetrics, SlotProposal, PublishJob, PubloraStatus, PubloraAccountList, PubloraAccountInput, PublerAccountList, PublerAccountInput, PublerMoveInput, PublerMoveResult, PublishSettings, PublishSettingsInput, InstagramStatus, InstagramCheck, InstagramAccount, InstagramOAuthStart, InstagramRenewal, InstagramDetectedAccountList, QualityReport, RejectionReason, EditorialDecision, EditorialMemory, AiRequestPage, AiSettings, AiSettingsInput, AppMode, AppModeState, AppVersion, Autostart, UpdateStatus, LogsFolder, Brand, FolderInput, FolderList, Publication, PublicationFile, PublicationFileList, PublicationInput, PublicationStatus, PieceOrder, PieceSpecList, BrandInput, ExternalOperationPage, Promotion, PromotionInput, OperationOutcome, Snapshot, Station, StationCommandType, Task, TaskCommand,
 } from './model';
 
 export class ApiError extends Error {
@@ -83,6 +83,12 @@ export const api = {
   brandIdentity: (id: string) => call<BrandIdentity>(`/api/brands/${encodeURIComponent(id)}/identity`),
   saveBrandIdentity: (id: string, identity: BrandIdentity) =>
     putJson<BrandIdentity>(`/api/brands/${encodeURIComponent(id)}/identity`, identity),
+  brandKit: (id: string) => call<BrandKitView>(`/api/brands/${encodeURIComponent(id)}/kit`),
+  requestBrandKit: (id: string, input: BrandKitRequestInput) => post<AiOrder>(`/api/brands/${encodeURIComponent(id)}/kit/request`, input),
+  approveBrandKit: (id: string) => post<BrandKitVersion>(`/api/brands/${encodeURIComponent(id)}/kit/approve`, {}),
+  rejectBrandKit: (id: string, comment: string, requestAnother: boolean, promotionId?: string) =>
+    post<BrandKitRejection>(`/api/brands/${encodeURIComponent(id)}/kit/reject`,
+      { comment, request_another: requestAnother, ...(promotionId ? { promotion_id: promotionId } : {}) }),
   publicationQuality: (id: string) => call<QualityReport>(`/api/publications/${encodeURIComponent(id)}/quality`),
   externalCalendar: (promotionId: string, from: string, to: string) =>
     call<ExternalCalendar>(`/api/promotions/${encodeURIComponent(promotionId)}/external-calendar?from=${from}&to=${to}`),

@@ -1458,6 +1458,18 @@ describe('Qué hacer ahora', () => {
     expect(onRecommendation).toHaveBeenCalledWith({ screen: 'BRAND_DATA', brand_id: 'b' });
   });
 
+  it('las recomendaciones del kit de marca llevan a la ficha de la marca', () => {
+    const onRecommendation = vi.fn();
+    world(withRecs([
+      rec({ id: 'brand-kit:b', kind: 'BRAND_KIT_MISSING', title: 'Genera el kit de El DeLito', target: { screen: 'BRAND_KIT', brand_id: 'b' } }),
+      rec({ id: 'brand-kit-pending:b', kind: 'BRAND_KIT_PENDING', title: 'Revisa el kit de El DeLito', target: { screen: 'BRAND_KIT', brand_id: 'b' } }),
+    ]), onRecommendation);
+    fireEvent.click(screen.getByRole('button', { name: /Genera el kit de El DeLito/ }));
+    expect(onRecommendation).toHaveBeenCalledWith({ screen: 'BRAND_KIT', brand_id: 'b' });
+    fireEvent.click(screen.getByRole('button', { name: /Revisa el kit de El DeLito/ }));
+    expect(onRecommendation).toHaveBeenLastCalledWith({ screen: 'BRAND_KIT', brand_id: 'b' });
+  });
+
   it('la recomendación de Publora lleva un botón «No uso Publora» aparte, sin anidar botones', () => {
     const onDismiss = vi.fn(), onOpen = vi.fn();
     const publora = rec({ id: 'publora:b', kind: 'PUBLORA_MISSING', title: 'Conecta Publora para El DeLito', target: { screen: 'PUBLORA', brand_id: 'b' } });

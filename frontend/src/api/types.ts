@@ -12,6 +12,7 @@ export type {
   PublicationOutcome, SlotProposal, DuplicateRef, PublicationMetrics, PromotionMetrics, NetworkMetrics, FormatMetrics, ExternalCalendar, ExternalPost, ExternalSource, PubloraStatus, PubloraConnection, PubloraAccount, PubloraAccountList, PubloraAccountInput, PublerAccount, PublerAccountList, PublerAccountInput, PublerMoveInput, PublerMoveResult, AlertAction,
   InstagramStatus, InstagramCheck, InstagramBrandCheck, InstagramAccount, InstagramConnection, InstagramAppInput,
   InstagramOAuthStart, InstagramRenewal, InstagramDetectedAccount, InstagramDetectedAccountList,
+  BrandKitView, BrandKitVersion, BrandKitColor, BrandKitTemplate, BrandKitRequestInput, BrandKitRejectInput, BrandKitRejection,
   Backup, BackupList, BackupFolderInput, Restoration, RestorationInput,
 } from './schema';
 
