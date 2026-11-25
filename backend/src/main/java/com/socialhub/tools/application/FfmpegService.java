@@ -22,7 +22,8 @@ public class FfmpegService implements Ffmpeg {
 
     @Override
     public VideoInfo probeVideo(Path media) throws InterruptedException {
-        return processor.probeVideo(media);
+        var seen = processor.probeVideo(media);
+        return new VideoInfo(seen.readable(), seen.hasVideo(), seen.width(), seen.height());
     }
 
     @Override

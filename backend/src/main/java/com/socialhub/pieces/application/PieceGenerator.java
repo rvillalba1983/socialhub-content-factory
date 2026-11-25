@@ -3,7 +3,6 @@ package com.socialhub.pieces.application;
 import static com.socialhub.pieces.application.Drawing.*;
 
 import com.socialhub.pieces.ApprovedTemplates;
-import com.socialhub.pieces.domain.AudioLibrary;
 import com.socialhub.pieces.domain.BrandLook;
 import com.socialhub.pieces.domain.PieceBatch;
 import com.socialhub.pieces.domain.PieceFiles;
@@ -61,12 +60,12 @@ class PieceGenerator {
     private final SvgRasterizer svg;
     private final TemplateRenderer templateRenderer;
     private final ApprovedTemplates approved;
-    private final AudioLibrary audio;
+    private final LitoquesTracks audio;
     private final VideoAssembler assembler;
 
     @Autowired
     PieceGenerator(Ffmpeg ffmpeg, SvgRasterizer svg, TemplateRenderer templateRenderer, ApprovedTemplates approved,
-                   AudioLibrary audio) {
+                   LitoquesTracks audio) {
         this.ffmpeg = ffmpeg;
         this.svg = svg;
         this.templateRenderer = templateRenderer;

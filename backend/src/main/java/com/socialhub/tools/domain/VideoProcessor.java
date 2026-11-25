@@ -23,5 +23,8 @@ public interface VideoProcessor {
     double probeDuration(Path media) throws InterruptedException;
 
     /** La primera pista de vídeo del archivo. */
-    com.socialhub.tools.Ffmpeg.VideoInfo probeVideo(Path media) throws InterruptedException;
+    VideoInfo probeVideo(Path media) throws InterruptedException;
+
+    /** Lo que ffprobe ve en la primera pista de vídeo: si se pudo leer, si tiene vídeo y su tamaño. */
+    record VideoInfo(boolean readable, boolean hasVideo, int width, int height) {}
 }

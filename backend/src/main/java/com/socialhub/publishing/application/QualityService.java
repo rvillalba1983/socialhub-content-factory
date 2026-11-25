@@ -15,7 +15,6 @@ import com.socialhub.publishing.domain.PublicationRepository;
 import com.socialhub.publishing.domain.PublicationStatus;
 import com.socialhub.publishing.domain.QualityIssue;
 import com.socialhub.publishing.domain.QualityRepository;
-import com.socialhub.publishing.domain.VideoInspector;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -43,7 +42,7 @@ class QualityService implements PublicationQuality {
     private final PromotionQueries promotions;
     private final ApplicationEventPublisher events;
     private final Clock clock;
-    private final VideoInspector videos;
+    private final VideoInspections videos;
 
     /** Todos los avisos: los que bloquean (código, citas y revisión de Claude) y los informativos (enlaces, texto ya usado). */
     @Transactional(readOnly = true)

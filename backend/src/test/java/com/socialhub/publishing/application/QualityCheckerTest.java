@@ -102,18 +102,18 @@ class QualityCheckerTest {
         var tiktok = pub(Platform.TIKTOK, "Reel", "Texto. Comenta DELITO y te mando el enlace", "#eldelito #poesia");
         String video = Files.writeString(dir.resolve("v.mp4"), "x").toString();
         String key = video;
-        java.util.function.Function<Path, java.util.Optional<com.socialhub.publishing.domain.VideoInspector.Info>> seen =
-                f -> java.util.Optional.of(new com.socialhub.publishing.domain.VideoInspector.Info(true, true, 1080, 1920));
+        java.util.function.Function<Path, java.util.Optional<com.socialhub.publishing.domain.VideoInfo>> seen =
+                f -> java.util.Optional.of(new com.socialhub.publishing.domain.VideoInfo(true, true, 1080, 1920));
         assertThat(QualityChecker.check(tiktok, List.of(video), IDENTITY, Map.of(), seen)).isEmpty();
 
         var wide = QualityChecker.check(tiktok, List.of(video), IDENTITY, Map.of(),
-                f -> java.util.Optional.of(new com.socialhub.publishing.domain.VideoInspector.Info(true, true, 1920, 1080)));
+                f -> java.util.Optional.of(new com.socialhub.publishing.domain.VideoInfo(true, true, 1920, 1080)));
         assertThat(wide.get("VIDEO_RATIO:" + key)).contains("1920×1080").contains("9:16");
         var noImage = QualityChecker.check(tiktok, List.of(video), IDENTITY, Map.of(),
-                f -> java.util.Optional.of(new com.socialhub.publishing.domain.VideoInspector.Info(true, false, 0, 0)));
+                f -> java.util.Optional.of(new com.socialhub.publishing.domain.VideoInfo(true, false, 0, 0)));
         assertThat(noImage.get("VIDEO_NO_IMAGE:" + key)).contains("no tiene imagen");
         var broken = QualityChecker.check(tiktok, List.of(video), IDENTITY, Map.of(),
-                f -> java.util.Optional.of(new com.socialhub.publishing.domain.VideoInspector.Info(false, false, 0, 0)));
+                f -> java.util.Optional.of(new com.socialhub.publishing.domain.VideoInfo(false, false, 0, 0)));
         assertThat(broken.get("VIDEO_UNREADABLE:" + key)).contains("No se puede leer el vídeo");
         // Si no se puede mirar (sin ffprobe) no se avisa de lo que no se sabe; y en Instagram no se mira
         assertThat(QualityChecker.check(tiktok, List.of(video), IDENTITY, Map.of())).isEmpty();
