@@ -2,8 +2,8 @@
 
 Creada el 2 nov 2026 con el OK de Raúl. No se ha tocado ninguna de las tareas programadas que ya existían.
 
-- **Cuándo (desde la versión 1.1.0, 12 nov 2026):** cada 5 horas, todos los días a las 00:30, 05:30, 10:30, 15:30 y 20:30 (hora de España, `Europe/Madrid`). Antes: 9:40, 14:40 y 20:40. **Pendiente de aplicar: se aplica tras instalar la 1.1.0** (hasta entonces la tarea sigue con los horarios de antes). Las tareas usan `CRON_TZ=Europe/Madrid`, así que siguen solas el cambio de hora (comprobado en las tareas reales).
-- **Preferencia nocturna (pendiente de aplicar: se aplica tras instalar la 1.1.0):** las pasadas que caen entre las 08:00 y las 18:00 (10:30 y 15:30) solo hacen los encargos **urgentes** (`urgent: true`); las de 20:30, 00:30 y 05:30 lo hacen todo. Así el uso de Claude se concentra en las ventanas de la noche.
+- **Cuándo (desde la versión 1.1.0, 12 nov 2026):** cada 5 horas, todos los días a las 00:30, 05:30, 10:30, 15:30 y 20:30 (hora de España, `Europe/Madrid`). Antes: 9:40, 14:40 y 20:40. Aplicado en las tareas recreadas el 22 nov. Las tareas usan `CRON_TZ=Europe/Madrid`, así que siguen solas el cambio de hora (comprobado en las tareas reales).
+- **Preferencia nocturna (aplicada):** las pasadas que caen entre las 08:00 y las 18:00 (10:30 y 15:30) solo hacen los encargos **urgentes** (`urgent: true`); las de 20:30, 00:30 y 05:30 lo hacen todo. Así el uso de Claude se concentra en las ventanas de la noche.
 - **Dónde:** en la nube, con el conector de Google Drive. No usa el ordenador de Raúl.
 - **Modelo:**
   - Cada encargo lo hace un subagente con el modelo que pide el propio encargo (`model`: haiku, sonnet u opus).
@@ -12,12 +12,9 @@ Creada el 2 nov 2026 con el OK de Raúl. No se ha tocado ninguna de las tareas p
 - **Avisos:** notificación en el móvil al terminar, solo si hubo encargos.
 - **Actualizada el 3 nov 2026** (con el OK de Raúl): revisión de calidad, identidad de la marca, memoria editorial y propuestas de la semana. Ese mismo día, también con su OK, se le añadió que ignore las carpetas «para-claude-pc». El texto de abajo resume las instrucciones; el texto completo vigente está en la propia tarea programada.
 
-## Cambios pendientes en las tareas (16 nov 2026, sin aplicar: lo decide Raúl)
+## Estado del texto (25 nov 2026)
 
-La nota para Claude sobre material que falta ya viaja en el propio encargo (`inputs.missing_material_note`, `inputs.brand_cover`, `inputs.visual_style`) y el margen en `inputs.min_publish_margin_minutes` (propuestas y spec). Las instrucciones de la tarea «Encargos de SocialHub» no mencionan «6 h», pero convendría completar estas dos líneas de «Según type»:
-- `socialhub.weekly-spec`: añadir «Si falta imagen o vídeo no preguntes: deja `img` sin poner y, si quieres, entrega `fondo_svg` (SVG en línea de hasta 64 KB, solo formas de dibujo; sin script, foreignObject, image, use, style, @import ni href externos), siguiendo inputs.missing_material_note y inputs.visual_style. Nunca devuelvas needs_human por falta de imagen».
-- `socialhub.weekly-proposals`: añadir «no propongas nada a menos de inputs.min_publish_margin_minutes minutos de ahora, y nada de TikTok a menos de inputs.tiktok_min_publish_margin_minutes minutos» (22 nov: el margen de TikTok es aparte, 480 por defecto).
-La tarea «Publicar con Chrome» no cambia: Publer sigue exigiendo 8 h por las pasadas del PC.
+Este fichero es el texto vigente de las dos tareas tal como quedarán al reactivarlas al final de la fase 13. Ya están aplicados en las tareas recreadas el 22 nov: los horarios y las pasadas de día y de noche de la 1.1.0, y el `fondo_svg` con la nota de material que falta. La tarea de la nube lleva además `socialhub.brand-kit` (reactivada el 25 nov). Lo del bloque 4 (skills, reglas fijas, textos, Publer) está redactado aquí y **no se ha aplicado** en las tareas reales: hace falta el OK de Raúl.
 
 ## Instrucciones de la tarea
 
@@ -67,16 +64,26 @@ REGLAS PARA CADA ENCARGO
   pieza «citations»: [{text, source_file, location}] (en weekly-spec, dentro de cada pieza; en captions, dentro de cada
   elemento de outputs.publications). Si no lo encuentras, no lo inventes: devuelve «needs_human» preguntando a Raúl.
   SocialHub comprueba que cada cita aparece literal en el documento.
-- Si no puedes hacerlo, devuelve status "failed" con el motivo en «error».
+- Skills: si el encargo trae inputs.skills, cárgalas con la herramienta Skill antes de empezar. Si alguna no existe en la
+  sesión, sigue sin ella y avísalo en «warnings» (inputs.skills_note).
+- Reglas fijas (spec, textos, revisión de calidad y kit): sin imágenes generadas con IA; versos literales con «citations»;
+  color de marca obligatorio; sin Pinterest ni YouTube. En «citations», source_file es la ruta completa del documento, sin
+  añadidos.
+- Si no puedes hacerlo, devuelve status "failed" con el motivo en «error». Ninguna pasada termina sin hacer nada sin dejar
+  un resultado «failed» o «needs_human» con el motivo.
 - Según «type»:
-  · socialhub.weekly-spec → outputs.spec: spec de piezas que cumpla contracts/promo-spec.v1 (carrusel, historia,
+  · socialhub.weekly-spec → (si falta imagen o vídeo no preguntes: deja `img` sin poner y, si quieres, entrega `fondo_svg`,
+    SVG en línea de hasta 64 KB, solo formas de dibujo; sin script, foreignObject, image, use, style, @import ni href
+    externos, según inputs.missing_material_note e inputs.visual_style; nunca devuelvas needs_human por falta de imagen)
+    outputs.spec: spec de piezas que cumpla contracts/promo-spec.v1 (carrusel, historia,
     reel, clip o comprimir), solo de las publicaciones de inputs.publications (con su scheduled_on y scheduled_time);
     no depende de ninguna semana. Usa rutas completas del ordenador de Raúl dentro de las carpetas de inputs.folders:
     busca los archivos en Drive y une la ruta local de la carpeta con el nombre del archivo. «out» dentro de la
     carpeta GENERATED si existe. Cada pieza que corresponda a una publicación lleva «publicacion» con su id.
     outputs.summary: una línea.
   · socialhub.captions → outputs.publications: [{id, caption (máx. 2200), hashtags (máx. 1000)}] solo para las
-    publicaciones de inputs.publications. outputs.summary: una línea.
+    publicaciones de inputs.publications. Usa una formulación distinta de inputs.call_to_action_options en cada texto
+    (inputs.call_to_action_rule) y los hashtags de cada red (inputs.hashtags_by_network, inputs.hashtags_rule). outputs.summary: una línea.
   · socialhub.weekly-balance → outputs.report (Markdown) y outputs.summary. Solo con datos reales; si faltan métricas,
     dilo.
   · socialhub.research → outputs.report (Markdown, con conclusiones accionables), outputs.summary y «sources».
@@ -85,7 +92,8 @@ REGLAS PARA CADA ENCARGO
     sin repetir inputs.automatic_checks.
   · socialhub.weekly-proposals → outputs.proposals: [{scheduled_on, scheduled_time, platform, type, title, idea, why}]
     (máximo 21, dentro de inputs.week, siguiendo la cadencia y la memoria editorial, sin repetir
-    inputs.already_planned) y outputs.summary.
+    inputs.already_planned; nada a menos de inputs.min_publish_margin_minutes minutos de ahora, y nada de TikTok a menos
+    de inputs.tiktok_min_publish_margin_minutes) y outputs.summary.
   · socialhub.brand-kit → outputs.kit: kit de marca (paleta y plantillas SVG) con el formato de
     contracts/brand-kit.v1.schema.json y outputs.summary. Una plantilla como mínimo por cada pieza de inputs.pieces
     (campos obligatorios y proporciones en cada una), siguiendo inputs.template_rules (formato de docs/plantillas-svg.md),
@@ -121,8 +129,8 @@ La tarea de la nube **no los hace**: sus instrucciones le dicen que ignore «par
 Creada el 3 nov 2026 con el OK de Raúl (`trig_014nnFujJueopTgUV2thEttY`). Ese mismo día, también con su OK, se le añadió «Leer calendario» (`socialhub.calendar-read`, solo lectura) y, el 3 nov por la mañana, «Leer métricas» (`socialhub.metrics-read`, solo lectura).
 
 - **Dónde:** en el PC de Raúl (PORT-408), con Claude in Chrome. Necesita el PC encendido y Chrome abierto con la sesión de Publer iniciada por Raúl.
-- **Cuándo (desde la versión 1.1.0, 12 nov 2026):** cada 5 horas, 20 minutos después de la de la nube: 00:50, 05:50, 10:50, 15:50 y 20:50 (hora de España, `Europe/Madrid`). El PC no se apaga nunca. Antes: cada hora a y 40, de 8:40 a 22:40. **Pendiente de aplicar: se aplica tras instalar la 1.1.0.** Usa `CRON_TZ=Europe/Madrid` (sigue solo el cambio de hora). Publer tiene que quedar programado 8 h antes de la hora de publicación: SocialHub cede la publicación a Publer con tiempo para que haya una pasada antes de ese límite y no pide el encargo si ninguna llega.
-- **Preferencia nocturna (pendiente de aplicar: se aplica tras instalar la 1.1.0):** las pasadas de 10:50 y 15:50 solo hacen los encargos urgentes; las de 20:50, 00:50 y 05:50 lo hacen todo.
+- **Cuándo (desde la versión 1.1.0, 12 nov 2026):** cada 5 horas, 20 minutos después de la de la nube: 00:50, 05:50, 10:50, 15:50 y 20:50 (hora de España, `Europe/Madrid`). El PC no se apaga nunca. Antes: cada hora a y 40, de 8:40 a 22:40. Aplicado en las tareas recreadas el 22 nov. Usa `CRON_TZ=Europe/Madrid` (sigue solo el cambio de hora). Publer tiene que quedar programado 8 h antes de la hora de publicación: SocialHub cede la publicación a Publer con tiempo para que haya una pasada antes de ese límite y no pide el encargo si ninguna llega.
+- **Preferencia nocturna (aplicada):** las pasadas de 10:50 y 15:50 solo hacen los encargos urgentes; las de 20:50, 00:50 y 05:50 lo hacen todo.
 - **Aprobaciones:** automática. **Avisos:** notificación en el móvil.
 - **Modelo:** la herramienta de creación no deja elegirlo: quedó con Opus. Raúl puede bajarlo a Sonnet en los ajustes de la tarea para gastar menos.
 - Texto vigente: el de la propia tarea programada. Resumen:
@@ -143,7 +151,10 @@ Eres el agente «Publicar con Chrome» de SocialHub, la app de Raúl Villalba (L
      en ese orden) para «scheduled_at». Comprueba en el calendario de Publer, en esa cuenta, que aparece una sola vez a
      esa hora. Si inputs.publer_account viene vacío, no programes nada: status "failed". Si la red es TIKTOK, en las
      opciones de publicación de Publer: privacidad «Todo el mundo» (pública desde la primera), Comentarios, Dúo y
-     Stitch activados, y no añadas música ni sonidos (los sonidos ya van en el vídeo). outputs: {scheduled: true,
+     Stitch activados, y no añadas música ni sonidos (los sonidos ya van en el vídeo). La publicación (inputs.publication) solo trae id, red,
+     tipo, texto, hashtags, hora y archivos: no hay título ni nota interna, no los pongas. Claude nunca añade música desde
+     Publer: si el sonido es «Elegir en la red», deja el aviso «Falta elegir el sonido «X» en la red» en outputs.note y en
+     «warnings». outputs: {scheduled: true,
      scheduled_for: "<ISO 8601 con zona>", publer_id (si se ve), url (si la hay), summary}.
    · socialhub.publish-check → mira en Publer (en la cuenta inputs.publer_account) y en el perfil de la red si ya está
      publicada. outputs: {published: true|false, url: "https://…" (si la ves), external_id (si se ve), note, summary}.
@@ -155,8 +166,10 @@ Eres el agente «Publicar con Chrome» de SocialHub, la app de Raúl Villalba (L
 REGLAS
 - Nunca inicies sesión por Raúl, ni crees cuentas, ni pegues contraseñas. Si Publer pide iniciar sesión, status
   "needs_human" con lo que falta.
-- Nunca publiques al momento: solo programa a la hora indicada. Si ya pasó la «deadline» del encargo, no programes
-  nada y devuelve status "failed" con el motivo.
+- Nunca publiques al momento: solo programa a la hora indicada. Si ya pasó la «deadline» del encargo o ya no queda el
+  margen mínimo (inputs.min_publish_margin_minutes), no programes nada y devuelve status "failed" con el motivo.
+- Una sola programación viva por publicación. Si la pasada termina sin hacer nada, deja un resultado «failed» o
+  «needs_human» con el motivo.
 - Nunca envíes mensajes ni correos, nunca pagues y nunca borres nada en Publer.
 - Antes de programar, mira si ya está programada a esa hora (por un intento anterior): si lo está, no la dupliques y
   devuelve la que hay.
@@ -176,7 +189,7 @@ Publer tiene el Instagram de «El DeLito», el de «Litoques» y una sola cuenta
 
 ## Ritmo de Claude: pasadas cada 5 horas, urgencia y spec por lotes (versión 1.1.0, 12 nov 2026)
 
-Decisiones de Raúl del 12 nov 2026. Las tareas programadas reales **no se han tocado desde aquí**: la sesión principal las actualiza cuando Raúl instale la versión 1.1.0. Orden: **primero se instala la 1.1.0 y después se cambian las tareas** (la regla de 08:00-18:00 y los horarios nuevos están pendientes de aplicar hasta entonces). Los textos que hay que añadir a cada una:
+Decisiones de Raúl del 12 nov 2026. Las tareas programadas reales **no se han tocado desde aquí**: la sesión principal las actualiza cuando Raúl instale la versión 1.1.0. Orden: **primero se instala la 1.1.0 y después se cambian las tareas** (aplicado en las tareas recreadas el 22 nov). Los textos que hay que añadir a cada una:
 
 - **Nube («Encargos de SocialHub»), paso 2:** «Si la hora actual está entre 08:00 y 18:00 en Madrid, haz solo los encargos con urgent=true (campo «urgent» de la raíz del encargo; si falta, es false); los demás déjalos pendientes, sin crear resultado ni tocarlos: los hará la pasada de la noche. Fuera de ese horario, haz todos.»
 - **PC («Publicar con Chrome»), paso 2:** el mismo texto.
@@ -207,7 +220,7 @@ Antes se pedía un spec por promoción y semana (domingo). Ahora, por promoción
 
 ## Lo que viaja ya en el encargo (fase 13, bloque 4, paso A)
 
-Cambios de SocialHub que **no tocan las tareas programadas**; el texto nuevo de las tareas (paso B) los usará. Detalle en `docs/decisiones.md` (62 a 64).
+Cambios de SocialHub; el texto de las tareas de arriba ya los recoge, pero no está aplicado en las tareas reales. Detalle en `docs/decisiones.md` (62 a 64).
 
 - **`inputs.skills` y `inputs.skills_note`** (spec, textos, revisión de calidad y kit): la lista de skills que hay que cargar con la herramienta Skill y qué hacer si alguna no existe en la sesión (seguir sin ella y avisar en `warnings`).
 - **Reglas fijas** en `rules` de esos encargos: sin imágenes IA, versos literales con `citations`, color de marca obligatorio, sin Pinterest ni YouTube. Y en **todos** los encargos: no terminar sin dejar un resultado con el motivo (`failed` o `needs_human`).
@@ -217,4 +230,4 @@ Cambios de SocialHub que **no tocan las tareas programadas**; el texto nuevo de 
 - **Sin material interno:** los textos y el spec no reciben la nota interna de la publicación; el sonido solo con el aviso de que no es texto público.
 - **«Programar en Publer»:** `inputs.publication` solo lleva id, red, tipo, texto, hashtags, hora y archivos (sin título ni nota); `inputs.title` y `goal` son genéricos. El sonido: Claude nunca añade música desde Publer; con «Elegir en la red» deja `outputs.note` y `warnings` con «Falta elegir el sonido «X» en la red». `inputs.min_publish_margin_minutes` y su «deadline»: pasado el margen mínimo, no programar (status `failed`).
 - **Una sola programación viva por publicación:** al pedir otra, SocialHub cancela la anterior y retira su archivo de `para-claude-pc` si Claude aún no ha dejado resultado.
-- **Pendiente (decisión 38):** cancelar en Publer sigue siendo a mano. La opción de un encargo `socialhub.publer-cancel` queda sin hacer hasta que Raúl la elija.
+- **Pendiente de decisión de Raúl (decisión 38):** cancelar en Publer sigue siendo a mano. La opción de un encargo `socialhub.publer-cancel` no está en el texto de las tareas hasta que Raúl la elija.
