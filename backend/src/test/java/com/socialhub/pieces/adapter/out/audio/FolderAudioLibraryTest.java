@@ -50,4 +50,26 @@ class FolderAudioLibraryTest {
         assertThatThrownBy(() -> new FolderAudioLibrary().find(folder, "Púa"))
                 .hasMessageContaining("Hay varios MP3").hasMessageContaining("Púa (directo).mp3");
     }
+
+    @Test
+    void aSingleMerelyPartialMatchIsNotMixedSilently() throws Exception {
+        mp3("Luz de luna.mp3");
+        assertThatThrownBy(() -> new FolderAudioLibrary().find(folder, "Luz"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("No hay «Luz.mp3»; solo «Luz de luna.mp3». Renombra el archivo o cambia el tema");
+    }
+
+    @Test
+    void anUnreadableSubfolderGivesASpanishErrorNotAJdkOne() throws Exception {
+        mp3("Disco/Púa.mp3");
+        Path locked = Files.createDirectories(folder.resolve("Cerrada"));
+        org.junit.jupiter.api.Assumptions.assumeTrue(locked.toFile().setReadable(false) && !Files.isReadable(locked));
+        try {
+            assertThatThrownBy(() -> new FolderAudioLibrary().find(folder, "Púa"))
+                    .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("No se puede leer la carpeta de audio")
+                    .hasMessageNotContaining("AccessDenied").hasMessageNotContaining("Permission");
+        } finally {
+            locked.toFile().setReadable(true);
+        }
+    }
 }

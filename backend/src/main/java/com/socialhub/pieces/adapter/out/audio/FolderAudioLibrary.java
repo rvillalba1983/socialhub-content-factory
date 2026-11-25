@@ -2,6 +2,7 @@ package com.socialhub.pieces.adapter.out.audio;
 
 import com.socialhub.pieces.domain.AudioLibrary;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.Normalizer;
@@ -12,8 +13,9 @@ import org.springframework.stereotype.Component;
 
 /**
  * Busca el MP3 de un tema en una carpeta de audio (también en sus subcarpetas, hasta 3 niveles).
- * El nombre se compara sin tildes, mayúsculas ni signos: primero igual al del archivo (sin «.mp3» y sin un número inicial de
- * pista como «15 - ») y, si no, contenido en él; si así encajan varios, es un error en lugar de elegir uno al azar.
+ * El nombre se compara sin tildes, mayúsculas ni signos y tiene que ser igual al del archivo (sin «.mp3» y sin un número
+ * inicial de pista como «15 - »). Una coincidencia solo parcial (el nombre está contenido en el del archivo) no se usa:
+ * es un error que dice qué archivo se encontró, y si encajan varios, otro en lugar de elegir uno al azar.
  */
 @Component
 public class FolderAudioLibrary implements AudioLibrary {
@@ -32,11 +34,17 @@ public class FolderAudioLibrary implements AudioLibrary {
         try (Stream<Path> walk = Files.walk(folder, DEPTH)) {
             mp3 = walk.filter(Files::isRegularFile).filter(f -> f.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".mp3"))
                     .sorted().toList();
-        } catch (IOException e) {
-            throw new IllegalArgumentException("No se puede leer la carpeta de audio de Litoques (" + folder + "): " + e.getMessage());
+        } catch (IOException | UncheckedIOException e) {
+            throw new IllegalArgumentException("No se puede leer la carpeta de audio de Litoques (" + folder
+                    + "). ¿Está abierto Google Drive para ordenador y hay permiso para leerla?");
         }
         List<Path> exact = mp3.stream().filter(f -> key(stripTrackNumber(baseName(f))).equals(wanted) || key(baseName(f)).equals(wanted)).toList();
         List<Path> found = exact.isEmpty() ? mp3.stream().filter(f -> key(baseName(f)).contains(wanted)).toList() : exact;
+        if (exact.isEmpty() && found.size() == 1) {
+            // Coincidencia solo parcial: no se mezcla en silencio un archivo que quizá no es el tema
+            throw new IllegalArgumentException("No hay «" + name + ".mp3»; solo «" + found.getFirst().getFileName() + "». "
+                    + "Renombra el archivo o cambia el tema");
+        }
         if (found.isEmpty()) {
             throw new IllegalArgumentException("No hay ningún MP3 del tema «" + name + "» en la carpeta de audio de Litoques ("
                     + folder + "). El archivo tiene que llevar el nombre del tema, por ejemplo «" + name + ".mp3»");

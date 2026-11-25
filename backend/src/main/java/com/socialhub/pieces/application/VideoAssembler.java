@@ -49,6 +49,12 @@ final class VideoAssembler {
         Path list = target.resolveSibling(target.getFileName() + ".txt");
         try {
             List<String> lines = new ArrayList<>();
+            for (Path scene : scenes) {
+                String name = scene.toString();
+                if (name.indexOf('\n') >= 0 || name.indexOf('\r') >= 0) {
+                    throw new IllegalArgumentException("La ruta de una escena tiene un salto de línea y FFmpeg no puede unirla: " + name.replaceAll("[\\r\\n]", " "));
+                }
+            }
             for (Path scene : scenes) lines.add("file '" + scene.toAbsolutePath().toString().replace("\\", "/").replace("'", "'\\''") + "'");
             Files.write(list, lines, StandardCharsets.UTF_8);
             ffmpeg.run("concat", List.of("-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", list.toString(),

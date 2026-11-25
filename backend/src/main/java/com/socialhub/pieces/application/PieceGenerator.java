@@ -187,7 +187,8 @@ class PieceGenerator {
                 case "clip" -> {
                     if (p.escenas() == null) files.input(required(p, p.video(), "video"), PieceFiles.VIDEO, 4096);
                     else if (notBlank(p.video())) files.input(p.video(), PieceFiles.VIDEO, 4096);
-                    if (p.audio() != null) files.input(p.audio(), PieceFiles.AUDIO, 300);
+                    // Sin escenas, el clip conserva su propio audio y ignora «audio»: solo se valida si de verdad se usa
+                    if (p.escenas() != null && p.audio() != null) files.input(p.audio(), PieceFiles.AUDIO, 300);
                     checkSceneFiles(p, files);
                 }
                 case "comprimir" -> files.input(required(p, p.video(), "video"), PieceFiles.VIDEO, 4096);
@@ -302,20 +303,21 @@ class PieceGenerator {
         // Antes de dibujar nada: una plantilla que no existe o no sirve para su pieza para el lote entero
         checkTemplates(spec, ctx.kit(), log);
         // Y los temas de Litoques que hay que mezclar, también antes: si falta el MP3, no se genera nada a medias
-        Map<String, Path> tracks = resolveTracks(spec, log);
+        Map<Integer, Path> tracks = resolveTracks(spec, log);
         Path out = files.outputDir(spec.out() == null || spec.out().isBlank() ? "salida" : spec.out());
         List<PieceResult> results = new ArrayList<>();
         int i = 0;
         for (PromoSpec.Piece p : spec.piezas()) {
             checkInterrupted();
+            Path track = tracks.get(i);
             List<PieceResult.Source> sources = new ArrayList<>();
             List<Path> made = switch (p.tipo()) {
                 case "carrusel" -> carousel(p, ctx, out, sources);
                 case "historia" -> story(p, ctx, out, sources);
-                case "reel" -> p.escenas() != null ? scenes(p, ctx, out, sources, tracks.get(p.nombre()))
-                        : reel(p, ctx, out, sources, tracks.get(p.nombre()));
-                case "clip" -> p.escenas() != null ? scenes(p, ctx, out, sources, tracks.get(p.nombre()))
-                        : clip(p, files, out, tracks.get(p.nombre()));
+                case "reel" -> p.escenas() != null ? scenes(p, ctx, out, sources, track)
+                        : reel(p, ctx, out, sources, track);
+                case "clip" -> p.escenas() != null ? scenes(p, ctx, out, sources, track)
+                        : clip(p, files, out, track);
                 case "comprimir" -> compress(p, files, out);
                 case "cita" -> quote(p, ctx, out, sources);
                 default -> throw bad(p, "tipo desconocido");
@@ -332,13 +334,16 @@ class PieceGenerator {
     }
 
     /**
-     * Los MP3 de las piezas de vídeo (reel y clip) con sonido {@code litoques_track}, por nombre de pieza. Si falta la
+     * Los MP3 de las piezas de vídeo (reel y clip) con sonido {@code litoques_track}, por posición de la pieza (dos piezas
+     * pueden llamarse igual). Si falta la
      * carpeta o el archivo, error en español antes de generar nada. En el resto de piezas el tema no se puede mezclar (no
      * hay vídeo): se avisa en el registro y la pieza sale sin audio.
      */
-    private Map<String, Path> resolveTracks(PromoSpec spec, Consumer<String> log) {
-        Map<String, Path> tracks = new java.util.HashMap<>();
+    private Map<Integer, Path> resolveTracks(PromoSpec spec, Consumer<String> log) {
+        Map<Integer, Path> tracks = new java.util.HashMap<>();
+        int index = -1;
         for (PromoSpec.Piece p : spec.piezas()) {
+            index++;
             PromoSpec.Sound sound = p.sonido();
             if (sound == null || !sound.mode().equals("litoques_track")) continue;
             if (!p.tipo().equals("reel") && !p.tipo().equals("clip")) {
@@ -348,10 +353,13 @@ class PieceGenerator {
             }
             try {
                 Path track = audio.track(sound.track());
-                tracks.put(p.nombre(), track);
+                tracks.put(index, track);
                 log.accept(p.nombre() + ": se mezcla el tema «" + sound.track() + "» (" + track.getFileName() + ")");
             } catch (IllegalArgumentException e) {
                 throw bad(p, e.getMessage());
+            } catch (java.io.UncheckedIOException e) {
+                throw bad(p, "No se puede leer la carpeta de audio de Litoques para buscar el tema «" + sound.track()
+                        + "». ¿Está abierto Google Drive para ordenador?");
             }
         }
         return tracks;
@@ -568,8 +576,12 @@ class PieceGenerator {
                 // que el reel, el vídeo sigue en silencio)
                 Path audioFile = track != null ? track : files.input(p.audio(), PieceFiles.AUDIO, 300);
                 double start = track != null || p.audioInicio() == null ? 0 : p.audioInicio();
+                // Si el audio es más corto que el reel, el fundido de salida va al final del audio (como en VideoAssembler)
+                double available = ffmpeg.probeDuration(audioFile) - start;
+                double effective = available > 0 ? Math.min(total, available) : total;
+                double fadeIn = Math.min(1.5, effective / 3), fadeOut = Math.min(3.0, effective / 3);
                 args.addAll(List.of("-ss", num(start), "-i", audioFile.toString(), "-t", num(total),
-                        "-af", "afade=t=in:d=1.5,afade=t=out:st=" + num(total - 3) + ":d=3",
+                        "-af", "afade=t=in:d=" + num(fadeIn) + ",afade=t=out:st=" + num(effective - fadeOut) + ":d=" + num(fadeOut),
                         "-c:a", "aac", "-b:a", "128k"));
                 if (track == null) args.add("-shortest");
             }

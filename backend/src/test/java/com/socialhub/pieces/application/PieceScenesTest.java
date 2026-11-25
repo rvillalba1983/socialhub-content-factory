@@ -37,6 +37,7 @@ class PieceScenesTest {
     @TempDir static Path data;
     static FfmpegTool ffmpeg;
     static Path track;
+    static Path shortTrack;
 
     @TempDir Path drive;
     private PieceFiles files;
@@ -50,6 +51,13 @@ class PieceScenesTest {
         track = data.resolve("Púa.mp3");
         ffmpeg.run("prueba", List.of("-y", "-loglevel", "error", "-f", "lavfi", "-i", "sine=frequency=440:duration=30",
                 "-c:a", "libmp3lame", "-b:a", "128k", track.toString()), Duration.ofMinutes(2));
+    }
+
+    @BeforeAll
+    static void shortTrack() throws Exception {
+        shortTrack = data.resolve("Corto.mp3");
+        ffmpeg.run("prueba", List.of("-y", "-loglevel", "error", "-f", "lavfi", "-i", "sine=frequency=440:duration=5",
+                "-c:a", "libmp3lame", "-b:a", "128k", shortTrack.toString()), Duration.ofMinutes(2));
     }
 
     @BeforeEach
@@ -66,6 +74,7 @@ class PieceScenesTest {
         generator = new PieceGenerator(new FfmpegService(ffmpeg), rasterizer, new SvgTemplateRenderer(rasterizer),
                 brand -> brand.equals("delito") ? kit : List.of(), name -> {
                     if (name.equalsIgnoreCase("Púa")) return track;
+                    if (name.equalsIgnoreCase("Corto")) return shortTrack;
                     throw new IllegalArgumentException("No hay ningún MP3 del tema «" + name + "» en la carpeta de audio de Litoques");
                 });
     }
@@ -240,5 +249,53 @@ class PieceScenesTest {
 
     private static PromoSpec spec(PromoSpec.Piece piece) {
         return new PromoSpec("salida", null, null, List.of(piece));
+    }
+
+    @Test
+    void twoPiecesWithTheSameNameKeepTheirOwnSound() throws Exception {
+        PromoSpec spec = new PromoSpec("salida", null, null, List.of(
+                video("reel", "igual", threeScenes(), new PromoSpec.Sound("none", null)),
+                video("reel", "igual", threeScenes(), new PromoSpec.Sound("litoques_track", "Púa"))));
+        PieceBatch batch = generator.generate(spec, files, new BrandLook("#7A1F1F", null), log::add, p -> {},
+                new GenerationSetup("delito", id -> false));
+        assertThat(streams(batch.pieces().get(0).files().getFirst())).doesNotContain("audio");
+        assertThat(streams(batch.pieces().get(1).files().getFirst())).contains("audio");
+    }
+
+    @Test
+    void aClipWithoutScenesIgnoresAnAudioThatDoesNotExist() throws Exception {
+        Path source = drive.resolve("material/video.mp4");
+        ffmpeg.run("prueba", List.of("-y", "-loglevel", "error", "-f", "lavfi", "-i", "testsrc=size=1280x720:rate=30:duration=4",
+                "-c:v", "libx264", "-pix_fmt", "yuv420p", source.toString()), Duration.ofMinutes(2));
+        PromoSpec.Piece clip = new PromoSpec.Piece("clip", "clip_audio", null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, "material/no-existe.mp3", null, "material/video.mp4", 0.0, 3.0, null);
+        assertThat(run(clip).pieces().getFirst().files()).hasSize(1);
+    }
+
+    @Test
+    void theFadeOutOfAShortTrackFallsAtTheEndOfTheTrackNotOfTheReel() throws Exception {
+        PromoSpec.Piece reel = new PromoSpec.Piece("reel", "reel_corto", null, null, null, null, null, null, null, null, null,
+                null, null, null, List.of("Un verso", "Otro verso"), null, null, null, null, null, null, null, null, null, null,
+                new PromoSpec.Sound("litoques_track", "Corto"), null);
+        Path mp4 = run(reel).pieces().getFirst().files().getFirst();
+        assertThat(ffmpeg.probeDuration(mp4)).isGreaterThan(8);
+        // El tema dura 5 s: hacia el final del tema el sonido ya casi no se oye (y al principio, sí)
+        assertThat(maxVolume(mp4, 4.6)).isLessThan(-25);
+        assertThat(maxVolume(mp4, 1.5)).isGreaterThan(-20);
+    }
+
+    private static double maxVolume(Path video, double at) throws Exception {
+        String out = ffmpeg.run("prueba", List.of("-hide_banner", "-ss", String.valueOf(at), "-t", "0.3", "-i", video.toString(),
+                "-vn", "-af", "volumedetect", "-f", "null", "-"), Duration.ofSeconds(60)).output();
+        var m = java.util.regex.Pattern.compile("max_volume: (-?[0-9.]+) dB").matcher(out);
+        if (!m.find()) return -91;
+        return Double.parseDouble(m.group(1));
+    }
+
+    @Test
+    void aScenePathWithALineBreakIsRefusedInSpanish() {
+        assertThatThrownBy(() -> new VideoAssembler(new FfmpegService(ffmpeg))
+                .concat(List.of(Path.of("a\nb.mp4")), data.resolve("x.mp4")))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("salto de línea");
     }
 }
