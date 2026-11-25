@@ -170,6 +170,8 @@ class PublishingQueriesService implements PublishingQueries {
                 alerts.add(new PublishAlert(p.getId(), false, "La API oficial de Instagram no pudo: " + p.getTitle(), flag));
             } else if (flag.startsWith(PublishingEngine.DELAY_FLAG)) {
                 alerts.add(new PublishAlert(p.getId(), false, "Publicada con retraso: " + p.getTitle(), flag));
+            } else if (flag.startsWith(PublishingEngine.SOUND_ATTACHED_FLAG)) {
+                alerts.add(new PublishAlert(p.getId(), false, "Comprueba el sonido: " + p.getTitle(), flag));
             } else if (flag.contains(PublishingEngine.SOUND_FLAG)) {
                 alerts.add(new PublishAlert(p.getId(), false, "Falta elegir el sonido: " + p.getTitle(), flag));
             }

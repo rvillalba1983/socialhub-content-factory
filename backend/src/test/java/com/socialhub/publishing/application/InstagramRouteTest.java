@@ -116,6 +116,9 @@ class InstagramRouteTest {
     /** Respuesta del Meta de mentira a la búsqueda de música (Audio API) y si falla; y si rechaza los contenedores con audio. */
     static volatile String audioReply = "{\"audio\":[]}";
     static volatile boolean audioSearchFails = false;
+    /** Estado que devuelve Meta para los contenedores creados con audio (null: el normal) y cuáles son. */
+    static volatile String audioContainerState = null;
+    static final java.util.Set<String> audioContainers = java.util.concurrent.ConcurrentHashMap.newKeySet();
     static volatile boolean audioContainerRejected = false;
 
     @Autowired MockMvc mvc;
@@ -189,11 +192,14 @@ class InstagramRouteTest {
                 reply = "{\"data\":[{\"quota_usage\":" + quotaUsed + ",\"config\":{\"quota_total\":100,\"quota_duration\":86400}}]}";
             } else if (path.equals("/v23.0/" + IG_ID + "/media")) {
                 mediaBodies.add(URLDecoder.decode(body, StandardCharsets.UTF_8));
-                reply = "{\"id\":\"c-" + containers.incrementAndGet() + "\"}";
+                String created = "c-" + containers.incrementAndGet();
+                if (body.contains("audio_configuration")) audioContainers.add(created);
+                reply = "{\"id\":\"" + created + "\"}";
             } else if (path.startsWith("/ig-api-upload/")) {
                 reply = "{\"success\":true,\"message\":\"Upload successful.\"}";
             } else if (path.startsWith("/v23.0/c-")) {
-                String state = containerError ? "ERROR" : publishFailed ? containerAfterFailure : "FINISHED";
+                String state = audioContainerState != null && audioContainers.contains(path.substring(path.lastIndexOf('/') + 1))
+                        ? audioContainerState : containerError ? "ERROR" : publishFailed ? containerAfterFailure : "FINISHED";
                 reply = "{\"status_code\":\"" + state + "\"}";
             } else if (path.equals("/v23.0/" + IG_ID + "/media_publish")) {
                 if (publishMode == 1) {
@@ -248,6 +254,7 @@ class InstagramRouteTest {
         acceptKey = true;
         quotaUsed = 0;
         containerError = false;
+        audioContainerState = null;
         publishMode = 0;
         publishFailed = false;
         containerAfterFailure = "FINISHED";
@@ -960,6 +967,10 @@ class InstagramRouteTest {
 
     /** Publica un reel de ese día y hora con ese sonido y devuelve su identificador, ya publicado. */
     private String soundReel(int hour, String mode, String track) throws Exception {
+        return soundReel(hour, mode, track, "PUBLISHED");
+    }
+
+    private String soundReel(int hour, String mode, String track, String expectedStatus) throws Exception {
         LocalDate day = DAY.plusDays(3);
         Instant at = at(day, hour);
         CLOCK.set(at.minus(Duration.ofHours(7)));
@@ -971,7 +982,7 @@ class InstagramRouteTest {
         queries.clear();
         CLOCK.set(at.plus(Duration.ofMinutes(1)));
         engine.tick();
-        assertThat(publication(id).get("status").asString()).isEqualTo("PUBLISHED");
+        assertThat(publication(id).get("status").asString()).isEqualTo(expectedStatus);
         return id;
     }
 
@@ -990,7 +1001,8 @@ class InstagramRouteTest {
         assertThat(search).contains("audio_type=music").contains("user_id=" + IG_ID).contains("search_query=P%C3%BAa");
         assertThat(mediaBodies).hasSize(1);
         assertThat(mediaBodies.getFirst()).contains("media_type=REELS").contains("audio_configuration={\"audio_id\":\"587784541076604\"}");
-        assertThat(flagged(publication(id))).isFalse();
+        assertThat(publication(id).get("flag").asString()).isEqualTo("Sonido adjuntado por la API: compruébalo en Instagram");
+        assertThat(alertTitle(id)).startsWith("Comprueba el sonido");
 
         // 2. Sin resultados: se publica igual, sin audio, con el aviso de elegir el sonido a mano
         audioReply = "{\"audio\":[]}";
@@ -1027,6 +1039,22 @@ class InstagramRouteTest {
         assertThat(mediaBodies.get(1)).doesNotContain("audio_configuration");
         assertThat(publication(id).get("flag").asString()).isEqualTo("Falta elegir el sonido «Púa» en Instagram");
         audioContainerRejected = false;
+
+        // 5b. Meta crea el contenedor con audio pero acaba en ERROR o EXPIRED: se repite sin audio y se publica
+        for (String bad : List.of("ERROR", "EXPIRED")) {
+            audioContainerState = bad;
+            id = soundReel(bad.equals("ERROR") ? 17 : 18, "network", "Púa");
+            assertThat(mediaBodies).hasSize(2);
+            assertThat(mediaBodies.get(1)).doesNotContain("audio_configuration");
+            assertThat(publication(id).get("flag").asString()).isEqualTo("Falta elegir el sonido «Púa» en Instagram");
+        }
+
+        // 5c. El sondeo se agota (sigue IN_PROGRESS): NO se repite sin audio, la publicación falla con el motivo
+        audioContainerState = "IN_PROGRESS";
+        id = soundReel(19, "network", "Púa", "PUBLISH_ERROR");
+        assertThat(mediaBodies).hasSize(1);
+        assertThat(publication(id).get("flag").asString()).contains("Meta tardó demasiado");
+        audioContainerState = null;
 
         // 6. Con «none» o con el tema de Litoques en el vídeo, la Audio API ni se consulta y no hay aviso
         for (String mode : List.of("none", "litoques_track")) {

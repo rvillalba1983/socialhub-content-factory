@@ -225,13 +225,20 @@ class InstagramRoute implements PublishRoute {
 
         void attached() { attached = true; }
 
-        /** El aviso de la publicación, o {@code null} si no hace falta (no pidió sonido de la red o ya va en el reel). */
+        /**
+         * El aviso de la publicación, o {@code null} si no hace falta (no pidió sonido de la red). Si el sonido se adjuntó, el
+         * aviso es suave: con subida resumible Meta podría ignorar el audio, así que se pide comprobarlo en Instagram.
+         */
         @Nullable String warning(Publication p) {
-            if (attached || p.getSound().mode() != PublicationSound.Mode.NETWORK) return null;
+            if (p.getSound().mode() != PublicationSound.Mode.NETWORK) return null;
+            if (attached) return SOUND_ATTACHED_FLAG;
             String track = p.getSound().track();
             return "Falta elegir el sonido" + (track == null || track.isBlank() ? "" : " «" + track + "»") + " en Instagram";
         }
     }
+
+    /** Aviso suave cuando la API adjuntó el sonido (Meta lo acepta en el contenedor, pero no confirma que suene). */
+    static final String SOUND_ATTACHED_FLAG = PublishingEngine.SOUND_ATTACHED_FLAG;
 
     /** Palabra que tiene que llevar el artista de la coincidencia: la música es del disco de Litoques. */
     static final String SOUND_ARTIST = "litoques";
@@ -373,8 +380,9 @@ class InstagramRoute implements PublishRoute {
 
     /**
      * Reel con el sonido de la red, si se encuentra en la Audio API. Si Meta no acepta el contenedor con el audio (o no lo
-     * procesa), se repite sin él: el reel se publica igual, sin audio. Un fallo sin respuesta clara ({@code UNCERTAIN}) no se
-     * repite aquí.
+     * procesa porque el contenedor acaba en {@code ERROR} o {@code EXPIRED}), se repite sin él: el reel se publica igual, sin
+     * audio. Ni un fallo sin respuesta clara ({@code UNCERTAIN}) ni el tiempo agotado del sondeo se repiten aquí: el contenedor
+     * podría seguir procesándose y un segundo intento duplicaría el trabajo.
      */
     private String reelWithSound(String key, String ig, Publication p, Map<String, String> params, Path file, SoundAttempt sound) {
         var config = audioConfiguration(key, ig, p);
@@ -385,6 +393,8 @@ class InstagramRoute implements PublishRoute {
                 String container = resumable(key, ig, withAudio, "REELS", file);
                 sound.attached();
                 return container;
+            } catch (PollTimeout e) {
+                throw e;
             } catch (Problem e) {
                 log.warn("Meta no procesó el reel con audio en la publicación {} ({}); se publica sin audio", p.getId(), e.getMessage());
             } catch (InstagramException e) {
@@ -421,7 +431,7 @@ class InstagramRoute implements PublishRoute {
                 case IN_PROGRESS -> sleep();
             }
         }
-        throw new Problem("Meta tardó demasiado en procesar el contenido");
+        throw new PollTimeout("Meta tardó demasiado en procesar el contenido");
     }
 
     private void sleep() {
@@ -461,8 +471,13 @@ class InstagramRoute implements PublishRoute {
         List<Path> images() { return items.stream().filter(i -> !i.video()).map(Item::path).toList(); }
     }
 
-    static final class Problem extends RuntimeException {
+    static class Problem extends RuntimeException {
         Problem(String message) { super(message); }
+    }
+
+    /** Se agotó la espera al contenedor: no se sabe si Meta lo acabará procesando, así que no se repite sin audio. */
+    static final class PollTimeout extends Problem {
+        PollTimeout(String message) { super(message); }
     }
 
     private boolean needsPublicImages(Publication p) {

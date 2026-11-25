@@ -67,9 +67,11 @@ class PublishingEngine {
     static final String OFFICIAL_FLAG = "API oficial: ";
     /** No se sabe si Instagram llegó a publicarla: no se reintenta, se revisa. */
     static final String DOUBT_FLAG = "Revisar antes de reintentar: ";
-    /** Publicada por la API oficial con retraso (SocialHub estaba cerrado a la hora): se avisa de cuánto. */
     /** Aviso de una publicación ya hecha con «elegir el sonido en la red»: falta elegirlo a mano (decisión 23). */
     static final String SOUND_FLAG = "Falta elegir el sonido";
+    /** Aviso suave: la API adjuntó el sonido al reel, pero hay que comprobar en Instagram que suena. */
+    static final String SOUND_ATTACHED_FLAG = "Sonido adjuntado por la API: compruébalo en Instagram";
+    /** Publicada por la API oficial con retraso (SocialHub estaba cerrado a la hora): se avisa de cuánto. */
     static final String DELAY_FLAG = com.socialhub.publishing.domain.PublicationOutcome.DELAY_PREFIX;
     /** Retraso a partir del cual se avisa (la ronda del motor es cada minuto y una subida de vídeo tarda). */
     static final Duration DELAY_NOTICE = com.socialhub.publishing.domain.PublicationOutcome.DELAY_NOTICE;
