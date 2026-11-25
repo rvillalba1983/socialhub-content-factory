@@ -32,7 +32,7 @@ test.describe('Sonido de la publicación', () => {
 
     const files = page.getByRole('group', { name: 'Archivos' });
     await expect(files.getByText('pieza.png')).toBeVisible();
-    await expect(files.getByText(/Diapositiva|Imagen de origen/)).toHaveCount(0);
+    await expect(files.getByText(/Página \d|Imagen de origen/)).toHaveCount(0);
 
     const sound = page.getByRole('group', { name: 'Sonido' });
     await expect(sound.locator('strong')).toHaveText('Sin sonido');

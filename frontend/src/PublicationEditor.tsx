@@ -309,7 +309,7 @@ function PublicationFiles({ id, title, locked, files, error: loadError, reload }
             </div>
             {(f.page || f.source_name) && (
               <small className="src file-origin">
-                {f.page ? `Diapositiva ${f.page}` : ''}{f.page && f.source_name ? ' · ' : ''}{f.source_name ? `Imagen de origen: ${f.source_name}` : ''}
+                {f.page ? `Página ${f.page}` : ''}{f.page && f.source_name ? ' · ' : ''}{f.source_name ? `Imagen de origen: ${f.source_name}` : ''}
               </small>
             )}
             {shown && <div id={`pv-${f.id}`} className="pv-open"><MediaItem publicationId={id} file={f} label={label} large /></div>}

@@ -493,8 +493,8 @@ describe('Sonido y origen de las piezas de la publicación', () => {
       file({ id: 'bbbbbbbbbbbbbbbb', path: 'G:/DeLito/b.png' }),
     ] });
     render(<PublicationEditor promotionId="p" publication={publication} onClose={() => {}} onSaved={() => {}} />);
-    expect(await screen.findByText('Diapositiva 3 · Imagen de origen: page 3.png')).toBeInTheDocument();
-    expect(screen.getAllByText(/Diapositiva|Imagen de origen/)).toHaveLength(1);
+    expect(await screen.findByText('Página 3 · Imagen de origen: page 3.png')).toBeInTheDocument();
+    expect(screen.getAllByText(/Página|Imagen de origen/)).toHaveLength(1);
   });
 
   it('muestra el sonido actual y lo cambia pidiendo el nombre del tema', async () => {
