@@ -30,6 +30,15 @@ public interface InstagramGateway {
     record MediaInsights(@Nullable Long views, @Nullable Long reach, @Nullable Long likes, @Nullable Long comments,
                          @Nullable Long saves, @Nullable Long shares) {}
 
+    /**
+     * Un sonido de la biblioteca de música de Instagram (Instagram Audio API).
+     *
+     * @param id     {@code audio_id}, el que se adjunta al reel
+     * @param title  título
+     * @param artist artista ({@code display_artist}), si Meta lo da
+     */
+    record Audio(String id, String title, @Nullable String artist) {}
+
     enum ContainerState { IN_PROGRESS, FINISHED, ERROR, EXPIRED, PUBLISHED }
 
     record Container(ContainerState state, @Nullable String detail) {}
@@ -68,6 +77,13 @@ public interface InstagramGateway {
     void upload(String key, String containerId, Path file);
 
     Container container(String key, String containerId);
+
+    /**
+     * Busca música en la biblioteca de Instagram (Audio API, solo con inicio de sesión de Facebook): GET /ig_audio con
+     * {@code audio_type=music}, {@code user_id} y {@code search_query}. Solo devuelve sonidos autorizados para terceros, así
+     * que puede diferir de lo que se ve en la app. Vacío si no hay ninguno.
+     */
+    java.util.List<Audio> searchMusic(String key, String igUserId, String query);
 
     /** POST /{ig-id}/media_publish. Un {@code UNCERTAIN} aquí significa que puede haberse publicado. */
     String publish(String key, String igUserId, String containerId);

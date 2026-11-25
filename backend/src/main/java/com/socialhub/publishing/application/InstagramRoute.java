@@ -13,6 +13,7 @@ import com.socialhub.publishing.domain.PublicMediaRepository;
 import com.socialhub.publishing.domain.Publication;
 import com.socialhub.publishing.domain.PublicationFile;
 import com.socialhub.publishing.domain.PublicationFileRepository;
+import com.socialhub.publishing.domain.PublicationSound;
 import com.socialhub.publishing.domain.PublishJob;
 import java.net.URI;
 import java.nio.file.Files;
@@ -46,6 +47,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 @Component
 class InstagramRoute implements PublishRoute {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(InstagramRoute.class);
     static final String KEY = "instagram-api";
     /**
      * El corte previo: hasta ahí la publicación aún puede ceder a Publer (8 h, {@link PublerRoute#DEADLINE}, y una pasada
@@ -182,6 +184,7 @@ class InstagramRoute implements PublishRoute {
         if (account == null) return new Outcome.Failed("la marca ya no tiene su cuenta de Instagram (API oficial)");
         String ig = account.igUserId();
         String mediaId;
+        SoundAttempt soundOutcome;
         try {
             Plan plan = plan(p);
             InstagramGateway.Quota quota = instagram.publishingLimit(key, ig);
@@ -189,7 +192,9 @@ class InstagramRoute implements PublishRoute {
                 return new Outcome.Failed("límite de publicaciones por la API agotado (" + quota.used() + " de " + quota.total() + " en 24 h)");
             }
             Map<String, String> urls = publicUrls(p, plan);
-            String container = buildContainer(key, ig, p, plan, urls);
+            SoundAttempt sound = new SoundAttempt();
+            String container = buildContainer(key, ig, p, plan, urls, sound);
+            soundOutcome = sound;
             // A partir de aquí, un fallo de «media_publish» sin respuesta no permite saber si se publicó
             try {
                 mediaId = instagram.publish(key, ig, container);
@@ -205,7 +210,56 @@ class InstagramRoute implements PublishRoute {
         } catch (InstagramException e) {
             // Publicada, pero sin enlace todavía: se vuelve a mirar al comprobar
         }
-        return new Outcome.Published(mediaId, url);
+        return new Outcome.Published(mediaId, url, soundOutcome.warning(p));
+    }
+
+    // ---------------------------------------------------------------- Sonido del reel (Instagram Audio API)
+
+    /**
+     * Qué pasó con el sonido de un reel con «elegir en la red: tema» (decisión 58). La Audio API solo busca y adjunta música
+     * al crear el contenedor del reel; si no hay una coincidencia clara con el tema, o algo falla, el reel se publica igual,
+     * sin audio, y queda el aviso «Falta elegir el sonido «X» en Instagram». Nunca bloquea la publicación.
+     */
+    static final class SoundAttempt {
+        private boolean attached;
+
+        void attached() { attached = true; }
+
+        /** El aviso de la publicación, o {@code null} si no hace falta (no pidió sonido de la red o ya va en el reel). */
+        @Nullable String warning(Publication p) {
+            if (attached || p.getSound().mode() != PublicationSound.Mode.NETWORK) return null;
+            String track = p.getSound().track();
+            return "Falta elegir el sonido" + (track == null || track.isBlank() ? "" : " «" + track + "»") + " en Instagram";
+        }
+    }
+
+    /** Palabra que tiene que llevar el artista de la coincidencia: la música es del disco de Litoques. */
+    static final String SOUND_ARTIST = "litoques";
+
+    /**
+     * Busca el tema en la biblioteca de Instagram y devuelve el {@code audio_configuration} si hay una coincidencia clara:
+     * un único sonido cuyo título es el del tema y cuyo artista es Litoques. Cualquier otra cosa (sin resultados, varios,
+     * otro artista, error de Meta) es vacío: el reel sale sin audio.
+     */
+    private java.util.Optional<String> audioConfiguration(String key, String ig, Publication p) {
+        PublicationSound sound = p.getSound();
+        if (sound.mode() != PublicationSound.Mode.NETWORK || sound.track() == null) return java.util.Optional.empty();
+        String wanted = QualityChecker.normalize(sound.track()).replaceAll("[^\\p{L}\\p{N}]", "");
+        try {
+            var matches = instagram.searchMusic(key, ig, sound.track()).stream()
+                    .filter(a -> QualityChecker.normalize(a.title()).replaceAll("[^\\p{L}\\p{N}]", "").equals(wanted))
+                    .filter(a -> a.artist() != null && QualityChecker.normalize(a.artist()).contains(SOUND_ARTIST))
+                    .map(InstagramGateway.Audio::id).distinct().toList();
+            if (matches.size() != 1) {
+                log.info("Audio API: {} coincidencias para «{}» en la publicación {}; sale sin audio", matches.size(), sound.track(), p.getId());
+                return java.util.Optional.empty();
+            }
+            return java.util.Optional.of("{\"audio_id\":\"" + matches.getFirst().replace("\\", "").replace("\"", "") + "\"}");
+        } catch (InstagramException e) {
+            // Sin permiso, catálogo no disponible o error de Meta: nunca bloquea la publicación
+            log.warn("Audio API no disponible para la publicación {}: {}", p.getId(), e.getMessage());
+            return java.util.Optional.empty();
+        }
     }
 
     /**
@@ -279,7 +333,7 @@ class InstagramRoute implements PublishRoute {
 
     // ---------------------------------------------------------------- Contenedores
 
-    private String buildContainer(String key, String ig, Publication p, Plan plan, Map<String, String> urls) {
+    private String buildContainer(String key, String ig, Publication p, Plan plan, Map<String, String> urls, SoundAttempt sound) {
         String caption = caption(p);
         switch (plan.kind()) {
             case CAROUSEL -> {
@@ -306,15 +360,39 @@ class InstagramRoute implements PublishRoute {
             case REEL -> {
                 Map<String, String> params = new LinkedHashMap<>();
                 if (!caption.isEmpty()) params.put("caption", caption);
-                return resumable(key, ig, params, "REELS", plan.items().getFirst().path());
+                return reelWithSound(key, ig, p, params, plan.items().getFirst().path(), sound);
             }
             default -> {
                 Item item = plan.items().getFirst();
                 Map<String, String> params = new LinkedHashMap<>();
                 if (!caption.isEmpty()) params.put("caption", caption);
-                return item.video() ? resumable(key, ig, params, "REELS", item.path()) : image(key, ig, params, urls.get(item.path().toString()));
+                return item.video() ? reelWithSound(key, ig, p, params, item.path(), sound) : image(key, ig, params, urls.get(item.path().toString()));
             }
         }
+    }
+
+    /**
+     * Reel con el sonido de la red, si se encuentra en la Audio API. Si Meta no acepta el contenedor con el audio (o no lo
+     * procesa), se repite sin él: el reel se publica igual, sin audio. Un fallo sin respuesta clara ({@code UNCERTAIN}) no se
+     * repite aquí.
+     */
+    private String reelWithSound(String key, String ig, Publication p, Map<String, String> params, Path file, SoundAttempt sound) {
+        var config = audioConfiguration(key, ig, p);
+        if (config.isPresent()) {
+            Map<String, String> withAudio = new LinkedHashMap<>(params);
+            withAudio.put("audio_configuration", config.get());
+            try {
+                String container = resumable(key, ig, withAudio, "REELS", file);
+                sound.attached();
+                return container;
+            } catch (Problem e) {
+                log.warn("Meta no procesó el reel con audio en la publicación {} ({}); se publica sin audio", p.getId(), e.getMessage());
+            } catch (InstagramException e) {
+                if (e.kind() == InstagramException.Kind.UNCERTAIN || e.kind() == InstagramException.Kind.INVALID_KEY) throw e;
+                log.warn("Meta rechazó el reel con audio en la publicación {} ({}); se publica sin audio", p.getId(), e.getMessage());
+            }
+        }
+        return resumable(key, ig, params, "REELS", file);
     }
 
     private String image(String key, String ig, Map<String, String> params, @Nullable String url) {

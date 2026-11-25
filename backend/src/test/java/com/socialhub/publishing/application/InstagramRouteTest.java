@@ -113,6 +113,10 @@ class InstagramRouteTest {
     static volatile boolean permalinkMissing = false;
     static volatile boolean imageGoesBad = false;
     static final List<String> queries = new CopyOnWriteArrayList<>();
+    /** Respuesta del Meta de mentira a la búsqueda de música (Audio API) y si falla; y si rechaza los contenedores con audio. */
+    static volatile String audioReply = "{\"audio\":[]}";
+    static volatile boolean audioSearchFails = false;
+    static volatile boolean audioContainerRejected = false;
 
     @Autowired MockMvc mvc;
     @Autowired PublishingEngine engine;
@@ -168,6 +172,17 @@ class InstagramRouteTest {
                 reply = "{\"error\":{\"message\":\"Invalid OAuth access token\",\"type\":\"OAuthException\",\"code\":190}}";
             } else if (path.endsWith("/me")) {
                 reply = "{\"id\":\"999\",\"name\":\"Usuario del sistema\"}";
+            } else if (path.equals("/v23.0/ig_audio")) {
+                if (audioSearchFails) {
+                    code = 400;
+                    reply = "{\"error\":{\"message\":\"(#10) Application does not have permission for this action\",\"code\":10}}";
+                } else {
+                    reply = audioReply;
+                }
+            } else if (path.equals("/v23.0/" + IG_ID + "/media") && audioContainerRejected && body.contains("audio_configuration")) {
+                mediaBodies.add(URLDecoder.decode(body, StandardCharsets.UTF_8));
+                code = 400;
+                reply = "{\"error\":{\"message\":\"Invalid parameter\",\"code\":100,\"error_subcode\":2207000}}";
             } else if (path.equals("/v23.0/" + IG_ID)) {
                 reply = "{\"id\":\"" + IG_ID + "\",\"username\":\"elde_lito\"}";
             } else if (path.endsWith("/content_publishing_limit")) {
@@ -239,6 +254,9 @@ class InstagramRouteTest {
         permalinkMissing = false;
         imageGoesBad = false;
         queries.clear();
+        audioReply = "{\"audio\":[]}";
+        audioSearchFails = false;
+        audioContainerRejected = false;
     }
 
     // ---------------------------------------------------------------- Clave y cuenta
@@ -933,6 +951,90 @@ class InstagramRouteTest {
         assertThat(job(id).get("log").toString()).doesNotContain("API oficial");
         assertThat(calls).isEmpty();
         write(post("/api/publications/" + id + "/status-changes"), "{\"status\":\"APPROVED\"}").andExpect(status().isOk());
+    }
+
+    // ---------------------------------------------------------------- Sonido de la red en los reels (Audio API)
+
+    private static final String PUA_BY_LITOQUES = "{\"audio_id\":\"587784541076604\",\"title\":\"Púa\",\"display_artist\":\"Litoques\"}";
+    private static final String PUA_BY_OTHER = "{\"audio_id\":\"111\",\"title\":\"Púa\",\"display_artist\":\"Otro grupo\"}";
+
+    /** Publica un reel de ese día y hora con ese sonido y devuelve su identificador, ya publicado. */
+    private String soundReel(int hour, String mode, String track) throws Exception {
+        LocalDate day = DAY.plusDays(3);
+        Instant at = at(day, hour);
+        CLOCK.set(at.minus(Duration.ofHours(7)));
+        String id = publication("INSTAGRAM", day, "Reel", hour, "Reel con sonido " + hour, List.of(reel));
+        write(put("/api/publications/" + id + "/sound"), track == null ? "{\"mode\":\"" + mode + "\"}"
+                : "{\"mode\":\"" + mode + "\",\"track\":\"" + track + "\"}").andExpect(status().isOk());
+        schedule(id);
+        mediaBodies.clear();
+        queries.clear();
+        CLOCK.set(at.plus(Duration.ofMinutes(1)));
+        engine.tick();
+        assertThat(publication(id).get("status").asString()).isEqualTo("PUBLISHED");
+        return id;
+    }
+
+    private static boolean flagged(JsonNode publication) {
+        return publication.has("flag") && !publication.get("flag").isNull();
+    }
+
+    @Test
+    @Order(27)
+    void aNetworkSoundIsLookedUpInTheAudioApiAndAttachedOnlyWithAClearMatch() throws Exception {
+        // 1. Una coincidencia clara (título del tema y artista Litoques; otro grupo con el mismo título no cuenta)
+        audioReply = "{\"audio\":[" + PUA_BY_OTHER + "," + PUA_BY_LITOQUES + "]}";
+        String id = soundReel(9, "network", "Púa");
+        assertThat(queries.stream().filter(q -> q.contains("/ig_audio")).toList()).hasSize(1);
+        String search = queries.stream().filter(q -> q.contains("/ig_audio")).findFirst().orElseThrow();
+        assertThat(search).contains("audio_type=music").contains("user_id=" + IG_ID).contains("search_query=P%C3%BAa");
+        assertThat(mediaBodies).hasSize(1);
+        assertThat(mediaBodies.getFirst()).contains("media_type=REELS").contains("audio_configuration={\"audio_id\":\"587784541076604\"}");
+        assertThat(flagged(publication(id))).isFalse();
+
+        // 2. Sin resultados: se publica igual, sin audio, con el aviso de elegir el sonido a mano
+        audioReply = "{\"audio\":[]}";
+        id = soundReel(10, "network", "Púa");
+        assertThat(mediaBodies).hasSize(1);
+        assertThat(mediaBodies.getFirst()).doesNotContain("audio_configuration");
+        assertThat(publication(id).get("flag").asString()).isEqualTo("Falta elegir el sonido «Púa» en Instagram");
+        assertThat(alertTitle(id)).startsWith("Falta elegir el sonido");
+
+        // 3. Solo otro artista con ese título, o dos candidatos distintos de Litoques: no es una coincidencia clara
+        audioReply = "{\"audio\":[" + PUA_BY_OTHER + "]}";
+        id = soundReel(11, "network", "Púa");
+        assertThat(mediaBodies.getFirst()).doesNotContain("audio_configuration");
+        assertThat(publication(id).get("flag").asString()).contains("Falta elegir el sonido «Púa» en Instagram");
+        audioReply = "{\"audio\":[" + PUA_BY_LITOQUES + "," + PUA_BY_LITOQUES.replace("587784541076604", "222") + "]}";
+        id = soundReel(12, "network", "Púa");
+        assertThat(mediaBodies.getFirst()).doesNotContain("audio_configuration");
+        assertThat(publication(id).get("flag").asString()).contains("Falta elegir el sonido");
+
+        // 4. La Audio API falla (sin permiso): se publica igual, sin audio
+        audioSearchFails = true;
+        id = soundReel(13, "network", "Púa");
+        assertThat(mediaBodies).hasSize(1);
+        assertThat(mediaBodies.getFirst()).doesNotContain("audio_configuration");
+        assertThat(publication(id).get("flag").asString()).isEqualTo("Falta elegir el sonido «Púa» en Instagram");
+        audioSearchFails = false;
+
+        // 5. Meta encuentra el sonido pero rechaza el contenedor con él: se repite sin audio y se publica
+        audioReply = "{\"audio\":[" + PUA_BY_LITOQUES + "]}";
+        audioContainerRejected = true;
+        id = soundReel(14, "network", "Púa");
+        assertThat(mediaBodies).hasSize(2);
+        assertThat(mediaBodies.get(0)).contains("audio_configuration");
+        assertThat(mediaBodies.get(1)).doesNotContain("audio_configuration");
+        assertThat(publication(id).get("flag").asString()).isEqualTo("Falta elegir el sonido «Púa» en Instagram");
+        audioContainerRejected = false;
+
+        // 6. Con «none» o con el tema de Litoques en el vídeo, la Audio API ni se consulta y no hay aviso
+        for (String mode : List.of("none", "litoques_track")) {
+            id = soundReel(mode.equals("none") ? 15 : 16, mode, mode.equals("none") ? null : "Púa");
+            assertThat(queries.stream().filter(q -> q.contains("/ig_audio"))).isEmpty();
+            assertThat(mediaBodies.getFirst()).doesNotContain("audio_configuration");
+            assertThat(flagged(publication(id))).isFalse();
+        }
     }
 
     @Test

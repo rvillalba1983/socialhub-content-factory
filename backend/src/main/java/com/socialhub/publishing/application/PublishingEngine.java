@@ -68,6 +68,8 @@ class PublishingEngine {
     /** No se sabe si Instagram llegó a publicarla: no se reintenta, se revisa. */
     static final String DOUBT_FLAG = "Revisar antes de reintentar: ";
     /** Publicada por la API oficial con retraso (SocialHub estaba cerrado a la hora): se avisa de cuánto. */
+    /** Aviso de una publicación ya hecha con «elegir el sonido en la red»: falta elegirlo a mano (decisión 23). */
+    static final String SOUND_FLAG = "Falta elegir el sonido";
     static final String DELAY_FLAG = com.socialhub.publishing.domain.PublicationOutcome.DELAY_PREFIX;
     /** Retraso a partir del cual se avisa (la ronda del motor es cada minuto y una subida de vídeo tarda). */
     static final Duration DELAY_NOTICE = com.socialhub.publishing.domain.PublicationOutcome.DELAY_NOTICE;
@@ -653,6 +655,9 @@ class PublishingEngine {
                     job.published(pub.externalId(), pub.url(), now);
                 }
                 noteDelay(job, p);
+                if (pub.warning() != null) {
+                    p.flag(p.getFlag() == null ? pub.warning() : p.getFlag() + " · " + pub.warning());
+                }
             }
             case PublishRoute.Outcome.Failed f -> failedAtTime(job, p, f.reason(), now);
             case PublishRoute.Outcome.Doubt d -> doubt(job, p, d.reason(), now);

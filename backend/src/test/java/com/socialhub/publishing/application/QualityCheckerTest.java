@@ -94,4 +94,31 @@ class QualityCheckerTest {
         assertThat(QualityChecker.check(pub(Platform.INSTAGRAM, "Reel", "x Comenta DELITO y te mando el enlace", "#eldelito #poesia"),
                 List.of(v1), IDENTITY, Map.of())).containsKey("VIDEO_MISSING");
     }
+
+    // ---------------------------------------------------------------- Vídeos de TikTok (hallazgo 23-23)
+
+    @Test
+    void tiktokVideosAreCheckedForReadabilityImageAndRatio() throws Exception {
+        var tiktok = pub(Platform.TIKTOK, "Reel", "Texto. Comenta DELITO y te mando el enlace", "#eldelito #poesia");
+        String video = Files.writeString(dir.resolve("v.mp4"), "x").toString();
+        String key = video;
+        java.util.function.Function<Path, java.util.Optional<com.socialhub.publishing.domain.VideoInspector.Info>> seen =
+                f -> java.util.Optional.of(new com.socialhub.publishing.domain.VideoInspector.Info(true, true, 1080, 1920));
+        assertThat(QualityChecker.check(tiktok, List.of(video), IDENTITY, Map.of(), seen)).isEmpty();
+
+        var wide = QualityChecker.check(tiktok, List.of(video), IDENTITY, Map.of(),
+                f -> java.util.Optional.of(new com.socialhub.publishing.domain.VideoInspector.Info(true, true, 1920, 1080)));
+        assertThat(wide.get("VIDEO_RATIO:" + key)).contains("1920×1080").contains("9:16");
+        var noImage = QualityChecker.check(tiktok, List.of(video), IDENTITY, Map.of(),
+                f -> java.util.Optional.of(new com.socialhub.publishing.domain.VideoInspector.Info(true, false, 0, 0)));
+        assertThat(noImage.get("VIDEO_NO_IMAGE:" + key)).contains("no tiene imagen");
+        var broken = QualityChecker.check(tiktok, List.of(video), IDENTITY, Map.of(),
+                f -> java.util.Optional.of(new com.socialhub.publishing.domain.VideoInspector.Info(false, false, 0, 0)));
+        assertThat(broken.get("VIDEO_UNREADABLE:" + key)).contains("No se puede leer el vídeo");
+        // Si no se puede mirar (sin ffprobe) no se avisa de lo que no se sabe; y en Instagram no se mira
+        assertThat(QualityChecker.check(tiktok, List.of(video), IDENTITY, Map.of())).isEmpty();
+        var instagram = pub(Platform.INSTAGRAM, "Reel", "Texto. Comenta DELITO y te mando el enlace", "#eldelito #poesia");
+        assertThat(QualityChecker.check(instagram, List.of(video), IDENTITY, Map.of(),
+                f -> { throw new AssertionError("no se mira"); })).isEmpty();
+    }
 }

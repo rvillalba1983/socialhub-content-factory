@@ -126,6 +126,20 @@ class HttpInstagramGateway implements InstagramGateway {
     }
 
     @Override
+    public java.util.List<Audio> searchMusic(String key, String igUserId, String query) {
+        JsonNode body = calls.call(SYSTEM, "ig_audio", igUserId, () -> send(HttpRequest.newBuilder(URI.create(graphUrl + "/" + version
+                + "/ig_audio?locale=es_ES&audio_type=music&user_id=" + enc(igUserId) + "&search_query=" + enc(query)))
+                .timeout(TIMEOUT).header("Authorization", "OAuth " + key).header("Accept", "application/json").GET().build()));
+        java.util.List<Audio> found = new java.util.ArrayList<>();
+        for (JsonNode item : body.path("audio")) {
+            String id = text(item.path("audio_id"));
+            String title = text(item.path("title"));
+            if (id != null && title != null) found.add(new Audio(id, title, text(item.path("display_artist"))));
+        }
+        return found;
+    }
+
+    @Override
     public String publish(String key, String igUserId, String containerId) {
         JsonNode body = calls.call(SYSTEM, "media_publish", igUserId,
                 () -> post(key, "/" + enc(igUserId) + "/media_publish", Map.of("creation_id", containerId)));

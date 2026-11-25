@@ -170,6 +170,8 @@ class PublishingQueriesService implements PublishingQueries {
                 alerts.add(new PublishAlert(p.getId(), false, "La API oficial de Instagram no pudo: " + p.getTitle(), flag));
             } else if (flag.startsWith(PublishingEngine.DELAY_FLAG)) {
                 alerts.add(new PublishAlert(p.getId(), false, "Publicada con retraso: " + p.getTitle(), flag));
+            } else if (flag.contains(PublishingEngine.SOUND_FLAG)) {
+                alerts.add(new PublishAlert(p.getId(), false, "Falta elegir el sonido: " + p.getTitle(), flag));
             }
         }
         // Resultado de cada publicación con datos reales: falló o se retrasó y aún no tiene aviso

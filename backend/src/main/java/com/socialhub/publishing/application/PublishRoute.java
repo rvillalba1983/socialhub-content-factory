@@ -20,7 +20,9 @@ public interface PublishRoute {
         /** Espera un encargo a Claude: el resultado llega después. */
         record Pending(String taskId) implements Outcome {}
         /** Ya está publicada (solo al comprobar). */
-        record Published(@Nullable String externalId, @Nullable String url) implements Outcome {}
+        record Published(@Nullable String externalId, @Nullable String url, @Nullable String warning) implements Outcome {
+            public Published(@Nullable String externalId, @Nullable String url) { this(externalId, url, null); }
+        }
         record Failed(String reason) implements Outcome {}
         /**
          * La vía no puede programarla todavía y no hay que seguir con otra (falta un dato de la marca o el plan de la vía
