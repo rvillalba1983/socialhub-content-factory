@@ -3,6 +3,7 @@ package com.socialhub.pieces.application;
 import static com.socialhub.pieces.application.Drawing.*;
 
 import com.socialhub.pieces.ApprovedTemplates;
+import com.socialhub.pieces.domain.AudioLibrary;
 import com.socialhub.pieces.domain.BrandLook;
 import com.socialhub.pieces.domain.PieceBatch;
 import com.socialhub.pieces.domain.PieceFiles;
@@ -34,6 +35,7 @@ import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
@@ -52,17 +54,32 @@ class PieceGenerator {
     private static final int H_TALL_IMAGE = 1200;
     private static final Pattern FIELD = Pattern.compile("[a-z][a-z0-9_]{0,31}");
     private static final Set<String> SOUND_MODES = Set.of("none", "litoques_track", "network");
+    static final int MAX_SCENES = 12;
+    static final double MIN_SCENE_SECONDS = 1, MAX_SCENE_SECONDS = 30, MAX_TOTAL_SECONDS = 90;
 
     private final Ffmpeg ffmpeg;
     private final SvgRasterizer svg;
     private final TemplateRenderer templateRenderer;
     private final ApprovedTemplates approved;
+    private final AudioLibrary audio;
+    private final VideoAssembler assembler;
 
-    PieceGenerator(Ffmpeg ffmpeg, SvgRasterizer svg, TemplateRenderer templateRenderer, ApprovedTemplates approved) {
+    @Autowired
+    PieceGenerator(Ffmpeg ffmpeg, SvgRasterizer svg, TemplateRenderer templateRenderer, ApprovedTemplates approved,
+                   AudioLibrary audio) {
         this.ffmpeg = ffmpeg;
         this.svg = svg;
         this.templateRenderer = templateRenderer;
         this.approved = approved;
+        this.audio = audio;
+        this.assembler = new VideoAssembler(ffmpeg);
+    }
+
+    /** Sin biblioteca de audio: un tema de Litoques pedido en el spec da error (para quien no necesita mezclar audio). */
+    PieceGenerator(Ffmpeg ffmpeg, SvgRasterizer svg, TemplateRenderer templateRenderer, ApprovedTemplates approved) {
+        this(ffmpeg, svg, templateRenderer, approved, name -> {
+            throw new IllegalArgumentException("No hay «Carpeta de audio de Litoques» configurada para el tema «" + name + "»");
+        });
     }
 
     /** Las plantillas del kit aprobado de la marca, la primera vez que se piden en un spec, y la red de cada publicación. */
@@ -162,10 +179,19 @@ class PieceGenerator {
                 }
                 case "reel" -> {
                     if (notBlank(p.img())) files.input(p.img(), PieceFiles.IMAGES, 60);
-                    if (p.versos() == null || p.versos().isEmpty()) throw bad(p, "no tiene versos");
+                    if (p.escenas() == null && (p.versos() == null || p.versos().isEmpty())) {
+                        throw bad(p, "no tiene versos (o «escenas» para montarlo con escenas)");
+                    }
                     if (p.audio() != null) files.input(p.audio(), PieceFiles.AUDIO, 300);
+                    checkSceneFiles(p, files);
                 }
-                case "clip", "comprimir" -> files.input(required(p, p.video(), "video"), PieceFiles.VIDEO, 4096);
+                case "clip" -> {
+                    if (p.escenas() == null) files.input(required(p, p.video(), "video"), PieceFiles.VIDEO, 4096);
+                    else if (notBlank(p.video())) files.input(p.video(), PieceFiles.VIDEO, 4096);
+                    if (p.audio() != null) files.input(p.audio(), PieceFiles.AUDIO, 300);
+                    checkSceneFiles(p, files);
+                }
+                case "comprimir" -> files.input(required(p, p.video(), "video"), PieceFiles.VIDEO, 4096);
                 case "cita" -> {
                     if (notBlank(p.img())) files.input(p.img(), PieceFiles.IMAGES, 60);
                     if (!notBlank(p.plantilla())) {
@@ -192,7 +218,11 @@ class PieceGenerator {
         checkPage(p, p.pagina());
         if (p.slides() != null) p.slides().forEach(s -> checkPage(p, s.pagina()));
         if (p.cierre() != null) checkPage(p, p.cierre().pagina());
+        checkScenes(p);
         PromoSpec.Sound sound = p.sonido();
+        if (sound != null && notBlank(p.audio())) {
+            throw bad(p, "lleva «audio» y también «sonido»: usa solo uno (el sonido de la publicación sustituye al audio de la pieza)");
+        }
         if (sound != null) {
             if (!SOUND_MODES.contains(sound.mode())) {
                 throw bad(p, "sonido no válido «" + sound.mode() + "»: usa none (sin sonido), litoques_track (tema de Litoques) "
@@ -204,6 +234,41 @@ class PieceGenerator {
             if (notBlank(sound.track()) && sound.track().strip().length() > 200) {
                 throw bad(p, "el nombre del tema del sonido supera los 200 caracteres");
             }
+        }
+    }
+
+    private static void checkSceneFiles(PromoSpec.Piece p, PieceFiles files) {
+        if (p.escenas() == null) return;
+        for (PromoSpec.Scene scene : p.escenas()) {
+            if (notBlank(scene.img())) files.input(scene.img(), PieceFiles.IMAGES, 60);
+        }
+    }
+
+    /** Las escenas de un reel o clip: cuántas, cuánto dura cada una y en total, y cómo entran. Sin tocar archivos ni marca. */
+    private static void checkScenes(PromoSpec.Piece p) {
+        List<PromoSpec.Scene> scenes = p.escenas();
+        if (scenes == null) return;
+        if (!p.tipo().equals("reel") && !p.tipo().equals("clip")) {
+            throw bad(p, "«escenas» solo se admite en un reel o un clip (no en «" + p.tipo() + "»)");
+        }
+        if (scenes.isEmpty()) throw bad(p, "«escenas» está vacío: pon al menos una escena o quítalo");
+        if (scenes.size() > MAX_SCENES) throw bad(p, "demasiadas escenas (" + scenes.size() + "): el máximo es " + MAX_SCENES);
+        double total = 0;
+        int n = 0;
+        for (PromoSpec.Scene scene : scenes) {
+            n++;
+            if (!(scene.duracionS() >= MIN_SCENE_SECONDS && scene.duracionS() <= MAX_SCENE_SECONDS)) {
+                throw bad(p, "la escena " + n + " tiene que durar entre " + (int) MIN_SCENE_SECONDS + " y " + (int) MAX_SCENE_SECONDS
+                        + " segundos («duracion_s»)");
+            }
+            if (scene.transition() != null && !scene.transition().equals(PromoSpec.Scene.CUT) && !scene.fade()) {
+                throw bad(p, "la transición «" + scene.transition() + "» de la escena " + n + " no vale: usa corte o fundido");
+            }
+            checkFields(p, "escenas[" + n + "].campos", scene.campos());
+            total += scene.duracionS();
+        }
+        if (total > MAX_TOTAL_SECONDS) {
+            throw bad(p, "las escenas suman " + num(total).replaceAll("\\.00$", "") + " segundos: el máximo es " + (int) MAX_TOTAL_SECONDS);
         }
     }
 
@@ -237,6 +302,8 @@ class PieceGenerator {
         Ctx ctx = new Ctx(files, look, log, Kit.of(setup, approved));
         // Antes de dibujar nada: una plantilla que no existe o no sirve para su pieza para el lote entero
         checkTemplates(spec, ctx.kit(), log);
+        // Y los temas de Litoques que hay que mezclar, también antes: si falta el MP3, no se genera nada a medias
+        Map<String, Path> tracks = resolveTracks(spec, log);
         Path out = files.outputDir(spec.out() == null || spec.out().isBlank() ? "salida" : spec.out());
         List<PieceResult> results = new ArrayList<>();
         int i = 0;
@@ -246,8 +313,10 @@ class PieceGenerator {
             List<Path> made = switch (p.tipo()) {
                 case "carrusel" -> carousel(p, ctx, out, sources);
                 case "historia" -> story(p, ctx, out, sources);
-                case "reel" -> reel(p, ctx, out, sources);
-                case "clip" -> clip(p, files, out);
+                case "reel" -> p.escenas() != null ? scenes(p, ctx, out, sources, tracks.get(p.nombre()))
+                        : reel(p, ctx, out, sources, tracks.get(p.nombre()));
+                case "clip" -> p.escenas() != null ? scenes(p, ctx, out, sources, tracks.get(p.nombre()))
+                        : clip(p, files, out, tracks.get(p.nombre()));
                 case "comprimir" -> compress(p, files, out);
                 case "cita" -> quote(p, ctx, out, sources);
                 default -> throw bad(p, "tipo desconocido");
@@ -261,6 +330,32 @@ class PieceGenerator {
         }
         Path readme = spec.leeme() == null || spec.leeme().isBlank() ? null : readme(spec, results, out);
         return new PieceBatch(out, results, readme);
+    }
+
+    /**
+     * Los MP3 de las piezas de vídeo (reel y clip) con sonido {@code litoques_track}, por nombre de pieza. Si falta la
+     * carpeta o el archivo, error en español antes de generar nada. En el resto de piezas el tema no se puede mezclar (no
+     * hay vídeo): se avisa en el registro y la pieza sale sin audio.
+     */
+    private Map<String, Path> resolveTracks(PromoSpec spec, Consumer<String> log) {
+        Map<String, Path> tracks = new java.util.HashMap<>();
+        for (PromoSpec.Piece p : spec.piezas()) {
+            PromoSpec.Sound sound = p.sonido();
+            if (sound == null || !sound.mode().equals("litoques_track")) continue;
+            if (!p.tipo().equals("reel") && !p.tipo().equals("clip")) {
+                log.accept(p.nombre() + ": el tema de Litoques solo se mezcla en reels y clips; esta pieza («" + p.tipo()
+                        + "») sale sin audio y el sonido queda anotado en la publicación");
+                continue;
+            }
+            try {
+                Path track = audio.track(sound.track());
+                tracks.put(p.nombre(), track);
+                log.accept(p.nombre() + ": se mezcla el tema «" + sound.track() + "» (" + track.getFileName() + ")");
+            } catch (IllegalArgumentException e) {
+                throw bad(p, e.getMessage());
+            }
+        }
+        return tracks;
     }
 
     // ---------------------------------------------------------------- carrusel
@@ -404,7 +499,8 @@ class PieceGenerator {
 
     private record Segment(String text, double seconds, Font font) {}
 
-    private List<Path> reel(PromoSpec.Piece p, Ctx ctx, Path out, List<PieceResult.Source> sources) throws IOException, InterruptedException {
+    private List<Path> reel(PromoSpec.Piece p, Ctx ctx, Path out, List<PieceResult.Source> sources, @Nullable Path track)
+            throws IOException, InterruptedException {
         PieceFiles files = ctx.files();
         Base base = base(ctx, p.img(), p.fondoSvg(), W, H_STORY, W, H_STORY, pieceTitle(p), pieceTitle(p), 0.36, p.nombre());
         BufferedImage src = base.image();
@@ -468,12 +564,15 @@ class PieceGenerator {
             Path video = PieceFiles.fresh(out, p.nombre(), "mp4");
             List<String> args = new ArrayList<>(List.of("-y", "-loglevel", "error", "-framerate", String.valueOf(FPS),
                     "-i", frames.resolve("%05d.jpg").toString()));
-            if (notBlank(p.audio())) {
-                Path audio = files.input(p.audio(), PieceFiles.AUDIO, 300);
-                double start = p.audioInicio() == null ? 0 : p.audioInicio();
-                args.addAll(List.of("-ss", num(start), "-i", audio.toString(), "-t", num(total),
+            if (notBlank(p.audio()) || track != null) {
+                // El audio de la pieza (con «-shortest», como siempre) o el tema de Litoques del sonido (si es más corto
+                // que el reel, el vídeo sigue en silencio)
+                Path audioFile = track != null ? track : files.input(p.audio(), PieceFiles.AUDIO, 300);
+                double start = track != null || p.audioInicio() == null ? 0 : p.audioInicio();
+                args.addAll(List.of("-ss", num(start), "-i", audioFile.toString(), "-t", num(total),
                         "-af", "afade=t=in:d=1.5,afade=t=out:st=" + num(total - 3) + ":d=3",
-                        "-c:a", "aac", "-b:a", "128k", "-shortest"));
+                        "-c:a", "aac", "-b:a", "128k"));
+                if (track == null) args.add("-shortest");
             }
             args.addAll(List.of("-c:v", "libx264", "-b:v", "950k", "-maxrate", "1200k", "-bufsize", "2000k",
                     "-pix_fmt", "yuv420p", "-movflags", "+faststart", video.toString()));
@@ -492,6 +591,81 @@ class PieceGenerator {
         double q = Math.min(progress, 1.0);
         int x = (int) (mx * (0.15 + 0.7 * q)), y = (int) (my * (0.1 + 0.8 * q));
         return copy(big.getSubimage(x, y, W, H_STORY));
+    }
+
+    // ---------------------------------------------------------------- reel y clip con escenas
+
+    /**
+     * Reel o clip montado con escenas. Cada escena se dibuja como una imagen 1080×1920 (con su plantilla del kit aprobado o con
+     * sus textos), se codifica en su propio archivo con los mismos parámetros y se une con las demás sin recodificar. El audio,
+     * si lo hay (el tema de Litoques del sonido o el «audio» de la pieza), se pone después. El reel guarda además la primera
+     * escena como portada.
+     */
+    private List<Path> scenes(PromoSpec.Piece p, Ctx ctx, Path out, List<PieceResult.Source> sources, @Nullable Path track)
+            throws IOException, InterruptedException {
+        List<PromoSpec.Scene> list = p.escenas();
+        if (notBlank(p.video()) || notBlank(p.gancho()) || (p.versos() != null && !p.versos().isEmpty())
+                || (p.finalLines() != null && !p.finalLines().isEmpty())) {
+            ctx.log().accept(p.nombre() + ": con «escenas» se ignoran «video», «gancho», «versos» y «final»");
+        }
+        Path work = Files.createTempDirectory(out, ".escenas-");
+        try {
+            List<Path> segments = new ArrayList<>();
+            BufferedImage first = null;
+            for (int i = 0; i < list.size(); i++) {
+                checkInterrupted();
+                PromoSpec.Scene scene = list.get(i);
+                BufferedImage still = sceneImage(p, ctx, scene, i + 1);
+                if (first == null) first = still;
+                Path png = work.resolve(String.format("escena_%02d.png", i));
+                writePng(still, png);
+                Path segment = work.resolve(String.format("escena_%02d.mp4", i));
+                boolean fadeIn = i > 0 && scene.fade();
+                boolean fadeOut = i + 1 < list.size() && list.get(i + 1).fade();
+                assembler.encodeScene(png, scene.duracionS(), fadeIn, fadeOut, segment);
+                segments.add(segment);
+            }
+            Path video = PieceFiles.fresh(out, p.nombre(), "mp4");
+            assembler.concat(segments, video);
+            if (track != null) {
+                assembler.addAudio(video, track, 0);
+            } else if (notBlank(p.audio())) {
+                assembler.addAudio(video, ctx.files().input(p.audio(), PieceFiles.AUDIO, 300), p.audioInicio() == null ? 0 : p.audioInicio());
+            }
+            Path finalVideo = fitSize(video);
+            sources.add(source(finalVideo, p.pagina(), list.getFirst().img()));
+            if (!p.tipo().equals("reel")) return List.of(finalVideo);
+            Path cover = saveJpg(first, out, p.nombre() + "_portada", 92);
+            sources.add(source(cover, p.pagina(), list.getFirst().img()));
+            return List.of(finalVideo, cover);
+        } finally {
+            deleteTree(work);
+        }
+    }
+
+    /** La imagen de una escena: con su plantilla del kit aprobado; si no hay, con sus textos («titulo» y «texto») o solo la imagen. */
+    private BufferedImage sceneImage(PromoSpec.Piece p, Ctx ctx, PromoSpec.Scene scene, int number) throws IOException {
+        String label = p.nombre() + " · escena " + number;
+        Optional<ApprovedTemplates.Template> template = resolveScene(ctx.kit(), p, scene, ctx.log());
+        if (template.isPresent()) {
+            return drawTemplate(ctx, p, template.get(), scene.campos(), scene.img(), null, W, H_STORY, label, 0.5, 0.5, label);
+        }
+        String title = field(scene.campos(), "titulo"), text = field(scene.campos(), "texto");
+        List<Line> lines = new ArrayList<>();
+        if (notBlank(title)) lines.add(new Line(title, bold(84), LIGHT));
+        if (notBlank(text)) lines.add(new Line(text, italic(46), WARM));
+        Base base = base(ctx, scene.img(), null, W, H_STORY, W, H_STORY, label, null, 0.5, label);
+        if (lines.isEmpty()) return cover(base.image(), W, H_STORY, 0.5, 0.5);
+        return verticalCard(base.image(), lines, 0.5, 0.5, 160);
+    }
+
+    /** La plantilla de una escena: es de «historia» o de «cita» (la que tenga en el kit) y tiene que ser 9:16. */
+    private Optional<ApprovedTemplates.Template> resolveScene(Kit kit, PromoSpec.Piece p, PromoSpec.Scene scene, Consumer<String> log) {
+        if (!notBlank(scene.plantilla())) return Optional.empty();
+        String id = scene.plantilla().strip();
+        String code = kit.templates().get().stream().filter(t -> t.id().equals(id)).map(ApprovedTemplates.Template::piece)
+                .filter(c -> c.equals("cita")).findFirst().orElse("historia");
+        return resolve(kit, p, id, scene.campos(), code, H_STORY, false, log);
     }
 
     // ---------------------------------------------------------------- plantillas del kit de marca
@@ -528,6 +702,9 @@ class PieceGenerator {
                     }
                 }
                 case "cita" -> resolve(kit, p, p.plantilla(), p.campos(), "cita", tall ? H_STORY : null, true, log);
+                case "reel", "clip" -> {
+                    if (p.escenas() != null) p.escenas().forEach(scene -> resolveScene(kit, p, scene, log));
+                }
                 default -> { }
             }
         }
@@ -627,7 +804,8 @@ class PieceGenerator {
 
     // ---------------------------------------------------------------- clip y comprimir
 
-    private List<Path> clip(PromoSpec.Piece p, PieceFiles files, Path out) throws IOException, InterruptedException {
+    private List<Path> clip(PromoSpec.Piece p, PieceFiles files, Path out, @Nullable Path track)
+            throws IOException, InterruptedException {
         Path video = files.input(p.video(), PieceFiles.VIDEO, 4096);
         BufferedImage overlay = new BufferedImage(W, H_STORY, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = graphics(overlay);
@@ -647,11 +825,18 @@ class PieceGenerator {
             Path result = PieceFiles.fresh(out, p.nombre(), "mp4");
             String vf = "[0:v]scale=" + W + ":" + H_STORY + ":force_original_aspect_ratio=increase,crop=" + W + ":" + H_STORY
                     + ",setsar=1[v];[v][1:v]overlay=0:0[o]";
-            ffmpeg.run("clip", List.of("-y", "-loglevel", "error",
+            // Con sonido en la publicación, el clip sale sin la pista del vídeo original: sin pista («none» y «network») o con
+            // el tema de Litoques mezclado después
+            boolean ownAudio = p.sonido() == null;
+            List<String> args = new ArrayList<>(List.of("-y", "-loglevel", "error",
                     "-ss", num(p.inicio() == null ? 0 : p.inicio()), "-t", num(p.duracion() == null ? 15 : p.duracion()),
-                    "-i", video.toString(), "-i", ov.toString(), "-filter_complex", vf, "-map", "[o]", "-map", "0:a?",
-                    "-c:v", "libx264", "-b:v", "2500k", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "128k",
-                    "-movflags", "+faststart", result.toString()), VIDEO_TIMEOUT);
+                    "-i", video.toString(), "-i", ov.toString(), "-filter_complex", vf, "-map", "[o]"));
+            if (ownAudio) args.addAll(List.of("-map", "0:a?", "-c:a", "aac", "-b:a", "128k"));
+            else args.add("-an");
+            args.addAll(List.of("-c:v", "libx264", "-b:v", "2500k", "-pix_fmt", "yuv420p", "-movflags", "+faststart",
+                    result.toString()));
+            ffmpeg.run("clip", args, VIDEO_TIMEOUT);
+            if (track != null) assembler.addAudio(result, track, 0);
             return List.of(fitSize(result));
         } finally {
             Files.deleteIfExists(ov);

@@ -21,14 +21,16 @@ record PromoSpecJson(@Nullable String out, @Nullable String leeme,
                  @JsonProperty("audio_inicio") @Nullable Double audioInicio, @Nullable String video,
                  @Nullable Double inicio, @Nullable Double duracion,
                  @JsonProperty("fondo_svg") @Nullable String fondoSvg, @Nullable String plantilla,
-                 @Nullable Map<String, String> campos, @Nullable Integer pagina, @Nullable Sound sonido) {
+                 @Nullable Map<String, String> campos, @Nullable Integer pagina, @Nullable Sound sonido,
+                 @Nullable List<Scene> escenas) {
 
         PromoSpec.Piece toDomain() {
             return new PromoSpec.Piece(tipo, nombre, dia, publicacion, caption, hashtags,
                     slides == null ? null : slides.stream().map(Slide::toDomain).toList(),
                     cierre == null ? null : cierre.toDomain(), img, titulo, texto, cta, crop, gancho, versos, finalLines,
                     audio, audioInicio, video, inicio, duracion, fondoSvg, plantilla, campos, pagina,
-                    sonido == null ? null : sonido.toDomain());
+                    sonido == null ? null : sonido.toDomain(),
+                    escenas == null ? null : escenas.stream().map(Scene::toDomain).toList());
         }
     }
 
@@ -44,6 +46,16 @@ record PromoSpecJson(@Nullable String out, @Nullable String leeme,
                    @Nullable Map<String, String> campos, @Nullable Integer pagina) {
 
         PromoSpec.Closing toDomain() { return new PromoSpec.Closing(img, lineas, plantilla, campos, pagina); }
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record Scene(@Nullable String plantilla, @Nullable Map<String, String> campos, @Nullable String img,
+                 @JsonProperty("duracion_s") @Nullable Double duracionS, @Nullable String transicion) {
+
+        /** Sin duración queda en 0, que la validación rechaza con su mensaje en español. */
+        PromoSpec.Scene toDomain() {
+            return new PromoSpec.Scene(plantilla, campos, img, duracionS == null ? 0 : duracionS, transicion);
+        }
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

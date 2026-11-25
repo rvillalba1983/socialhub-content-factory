@@ -15,6 +15,7 @@ import com.socialhub.publishing.domain.PublicationRepository;
 import com.socialhub.publishing.domain.PublicationStatus;
 import com.socialhub.publishing.domain.QualityIssue;
 import com.socialhub.publishing.domain.QualityRepository;
+import com.socialhub.publishing.domain.VideoInspector;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -42,6 +43,7 @@ class QualityService implements PublicationQuality {
     private final PromotionQueries promotions;
     private final ApplicationEventPublisher events;
     private final Clock clock;
+    private final VideoInspector videos;
 
     /** Todos los avisos: los que bloquean (código, citas y revisión de Claude) y los informativos (enlaces, texto ya usado). */
     @Transactional(readOnly = true)
@@ -69,7 +71,7 @@ class QualityService implements PublicationQuality {
         List<String> paths = files.files(publicationId).stream().map(PublicationFile::path).toList();
         var acceptances = quality.acceptances(publicationId);
         List<QualityIssue> result = new ArrayList<>();
-        QualityChecker.check(p, paths, promotions.qualityRulesOf(p.getPromotionId()), others).forEach((key, message) ->
+        QualityChecker.check(p, paths, promotions.qualityRulesOf(p.getPromotionId()), others, videos::inspect).forEach((key, message) ->
                 result.add(withAcceptance(new QualityIssue(key, QualityIssue.Source.CODE, message, null, null), acceptances)));
         // Citas: tienen que aparecer literalmente en un documento de la promoción (las verificadas solo informan)
         List<Citation> declared = citations.citations(publicationId);

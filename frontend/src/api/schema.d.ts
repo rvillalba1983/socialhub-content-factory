@@ -1266,6 +1266,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/settings/audio": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Carpeta de audio de Litoques (MP3 de los temas que se mezclan en los reels) */
+        get: operations["getAudioSettings"];
+        /** Cambia la carpeta de audio de Litoques (vacía: sin carpeta) */
+        put: operations["updateAudioSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/ai/requests": {
         parameters: {
             query?: never;
@@ -2076,6 +2094,16 @@ export interface components {
              */
             tiktok_min_margin_minutes?: number;
         };
+        AudioSettings: {
+            /** @description Ruta local de la carpeta con los MP3 de Litoques; sin valor si no se ha elegido */
+            litoques_folder?: string | null;
+            /** @description Si la carpeta existe ahora mismo en este ordenador (por ejemplo, Google Drive para ordenador montado) */
+            available: boolean;
+        };
+        AudioSettingsInput: {
+            /** @description Ruta completa de la carpeta; vacía o sin valor quita el ajuste */
+            litoques_folder?: string | null;
+        };
         AiSettings: {
             /** Format: int32 */
             daily_limit: number;
@@ -2881,6 +2909,8 @@ export type PublerMoveResult = components['schemas']['PublerMoveResult'];
 export type PublishRouteState = components['schemas']['PublishRouteState'];
 export type PublishSettings = components['schemas']['PublishSettings'];
 export type PublishSettingsInput = components['schemas']['PublishSettingsInput'];
+export type AudioSettings = components['schemas']['AudioSettings'];
+export type AudioSettingsInput = components['schemas']['AudioSettingsInput'];
 export type AiSettings = components['schemas']['AiSettings'];
 export type AiSettingsInput = components['schemas']['AiSettingsInput'];
 export type AiOrderInput = components['schemas']['AiOrderInput'];
@@ -5248,6 +5278,56 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PublishSettings"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    getAudioSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Ajuste vigente */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AudioSettings"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    updateAudioSettings: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AudioSettingsInput"];
+            };
+        };
+        responses: {
+            /** @description Ajuste guardado */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AudioSettings"];
                 };
             };
             400: components["responses"]["Problem"];

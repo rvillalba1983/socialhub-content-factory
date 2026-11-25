@@ -85,7 +85,8 @@
           "audio_inicio": { "type": "number", "minimum": 0 },
           "video": { "type": "string" },
           "inicio": { "type": "number", "minimum": 0 },
-          "duracion": { "type": "number", "exclusiveMinimum": 0, "maximum": 90 }
+          "duracion": { "type": "number", "exclusiveMinimum": 0, "maximum": 90 },
+          "escenas": { "$ref": "#/$defs/escenas" }
         }
       }
     }
@@ -111,7 +112,7 @@
       "maximum": 9999
     },
     "sonido": {
-      "description": "Sonido de la publicación (decisión 23). «none»: sin sonido. «litoques_track»: tema de Litoques en el vídeo (con «tema»). «network»: se elige en la red social (con «tema», el nombre del tema para buscarlo). Por ahora SocialHub solo lo guarda y lo enseña en la ficha.",
+      "description": "Sonido de la publicación (decisión 23). «none»: sin sonido. «litoques_track»: tema de Litoques en el vídeo (con «tema»). «network»: se elige en la red social (con «tema», el nombre del tema para buscarlo). En reels y clips, «litoques_track» mezcla el tema (un MP3 de la carpeta de audio de Litoques, que se busca por el nombre del tema) con fundido de entrada y de salida; «network» deja el vídeo sin pista y el sonido se elige en la red. En el resto de piezas solo se guarda y se enseña en la ficha.",
       "type": "object",
       "required": ["modo"],
       "properties": {
@@ -120,6 +121,23 @@
       },
       "if": { "properties": { "modo": { "enum": ["litoques_track", "network"] } }, "required": ["modo"] },
       "then": { "required": ["tema"] }
+    },
+    "escenas": {
+      "description": "Solo en «reel» y «clip» (opcional; sin «escenas» todo sale como siempre). El vídeo se monta con escenas: cada una se dibuja como una imagen 1080x1920 (con una plantilla de «historia» o «cita» del kit aprobado si pone «plantilla», o con un texto de «campos.titulo» y «campos.texto» sobre su «img» o el fondo de la marca) y dura «duracion_s». Se unen en orden. Con «escenas», el reel no necesita «versos» ni el clip «video». «transicion» es cómo ENTRA la escena desde la anterior («corte», por defecto, o «fundido»: sale a negro y entra desde negro); en la primera no se usa. Hasta 12 escenas y 90 s en total. El sonido va aparte («sonido»).",
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 12,
+      "items": {
+        "type": "object",
+        "properties": {
+          "plantilla": { "$ref": "#/$defs/plantilla" },
+          "campos": { "$ref": "#/$defs/campos" },
+          "img": { "type": "string" },
+          "duracion_s": { "type": "number", "minimum": 1, "maximum": 30 },
+          "transicion": { "enum": ["corte", "fundido"] }
+        },
+        "required": ["duracion_s"]
+      }
     },
     "fondoSvg": {
       "description": "Fondo dibujado como SVG en línea (máx. 64 KB), que SocialHub rasteriza a 1080x1350 (carrusel) o 1080x1920 (historia y reel). Solo formas de dibujo (svg, g, defs, rect, circle, ellipse, path, polygon, polyline, line, linearGradient, radialGradient, stop, text, tspan, title, desc). Sin script, foreignObject, image, use, style, @import, entidades ni referencias externas; solo valen url(#id) internas. Si no cumple, SocialHub lo ignora y usa el siguiente fondo sin dar error. Los carruseles enseñan la parte de arriba (1080x900) en cada slide.",

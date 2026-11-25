@@ -17,6 +17,6 @@
  *   <li>{@code adapter.in}: web y carpeta vigilada. {@code adapter.out}: persistencia y lectura del spec.</li>
  * </ul>
  */
-@org.springframework.modulith.ApplicationModule(allowedDependencies = {"promotion", "publishing", "production", "tools", "ai", "ai::domain", "platform", "api"})
+@org.springframework.modulith.ApplicationModule(allowedDependencies = {"promotion", "publishing", "production", "tools", "settings", "ai", "ai::domain", "platform", "api"})
 @org.jspecify.annotations.NullMarked
 package com.socialhub.pieces;

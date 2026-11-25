@@ -3,6 +3,7 @@ package com.socialhub.publishing.application;
 import com.socialhub.promotion.PromotionQueries.QualityRules;
 import com.socialhub.publishing.domain.Platform;
 import com.socialhub.publishing.domain.Publication;
+import com.socialhub.publishing.domain.VideoInspector;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
@@ -12,7 +13,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.imageio.ImageIO;
@@ -58,6 +61,16 @@ final class QualityChecker {
      * @return clave → mensaje, en orden
      */
     static Map<String, String> check(Publication p, List<String> files, QualityRules identity, Map<String, String> others) {
+        return check(p, files, identity, others, file -> Optional.empty());
+    }
+
+    /**
+     * Igual, y además mira dentro de los vídeos de TikTok (hallazgo 23-23): que se puedan leer, que tengan imagen y que sean 9:16.
+     *
+     * @param inspector lo que hay dentro de un vídeo; vacío si no se puede mirar (entonces no se avisa)
+     */
+    static Map<String, String> check(Publication p, List<String> files, QualityRules identity, Map<String, String> others,
+                                     Function<Path, Optional<VideoInspector.Info>> inspector) {
         Map<String, String> issues = new LinkedHashMap<>();
         Kind kind = kind(p.getType());
         String caption = p.getCaption() == null ? "" : p.getCaption();
@@ -146,6 +159,7 @@ final class QualityChecker {
                 String ratio = ratioProblem(p.getPlatform(), kind, path);
                 if (ratio != null) issues.put("IMAGE_RATIO:" + file, ratio + ": " + path.getFileName());
             }
+            if (video && p.getPlatform() == Platform.TIKTOK) videoProblem(file, path, inspector, issues);
         }
         if (kind == Kind.CAROUSEL) {
             int max = p.getPlatform() == Platform.INSTAGRAM ? 20 : 35;
@@ -159,6 +173,23 @@ final class QualityChecker {
             issues.put("VIDEO_MISSING", "Un " + (kind == Kind.REEL ? "reel" : "vídeo") + " necesita un archivo de vídeo.");
         }
         return issues;
+    }
+
+    /** El vídeo de TikTok: legible, con pista de imagen y vertical 9:16. */
+    private static void videoProblem(String file, Path path, Function<Path, Optional<VideoInspector.Info>> inspector,
+                                     Map<String, String> issues) {
+        Optional<VideoInspector.Info> seen = inspector.apply(path);
+        if (seen.isEmpty()) return;
+        VideoInspector.Info info = seen.get();
+        String name = path.getFileName().toString();
+        if (!info.readable()) {
+            issues.put("VIDEO_UNREADABLE:" + file, "No se puede leer el vídeo " + name + ": puede estar dañado o a medio copiar.");
+        } else if (!info.hasVideo()) {
+            issues.put("VIDEO_NO_IMAGE:" + file, "El archivo " + name + " no tiene imagen (pista de vídeo): TikTok lo rechazaría.");
+        } else if (Math.abs((double) info.width() / info.height() - 9.0 / 16) > 0.02) {
+            issues.put("VIDEO_RATIO:" + file, "Proporción " + info.width() + "×" + info.height() + " en " + name
+                    + ": TikTok pide vertical 9:16 (1080×1920).");
+        }
     }
 
     private static @Nullable String formatProblem(Platform platform, Kind kind, String ext, boolean image, boolean video) {

@@ -40,8 +40,7 @@ class PieceGeneratorTest {
 
     @BeforeAll
     static void prepare() throws Exception {
-        ffmpeg = new FfmpegTool(new SafeProcess(ExternalCalls.unobserved()),
-                new AppPaths(new SocialHubProperties(data.toString(), null, null, null)));
+        ffmpeg = SharedFfmpeg.get();
         var rasterizer = new com.socialhub.pieces.adapter.out.svg.BatikSvgRasterizer();
         generator = new PieceGenerator(new FfmpegService(ffmpeg), rasterizer,
                 new com.socialhub.pieces.adapter.out.svg.SvgTemplateRenderer(rasterizer), brand -> java.util.List.of());

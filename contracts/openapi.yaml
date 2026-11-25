@@ -1730,6 +1730,38 @@ paths:
         "400": { $ref: "#/components/responses/Problem" }
         default: { $ref: "#/components/responses/Problem" }
 
+  /api/settings/audio:
+    get:
+      tags: [Settings]
+      operationId: getAudioSettings
+      summary: "Carpeta de audio de Litoques (MP3 de los temas que se mezclan en los reels)"
+      responses:
+        "200":
+          description: Ajuste vigente
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AudioSettings" }
+        default: { $ref: "#/components/responses/Problem" }
+    put:
+      tags: [Settings]
+      operationId: updateAudioSettings
+      summary: "Cambia la carpeta de audio de Litoques (vacía: sin carpeta)"
+      parameters:
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AudioSettingsInput" }
+      responses:
+        "200":
+          description: Ajuste guardado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AudioSettings" }
+        "400": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
   /api/ai/requests:
     get:
       tags: [Claude]
@@ -2764,6 +2796,27 @@ components:
           minimum: 5
           maximum: 1440
           description: Si falta, el margen de TikTok se queda como estaba (compatible con quien solo envía el general)
+
+    AudioSettings:
+      type: object
+      required: [available]
+      properties:
+        litoques_folder:
+          type: string
+          nullable: true
+          description: "Ruta local de la carpeta con los MP3 de Litoques; sin valor si no se ha elegido"
+        available:
+          type: boolean
+          description: "Si la carpeta existe ahora mismo en este ordenador (por ejemplo, Google Drive para ordenador montado)"
+
+    AudioSettingsInput:
+      type: object
+      properties:
+        litoques_folder:
+          type: string
+          nullable: true
+          maxLength: 500
+          description: "Ruta completa de la carpeta; vacía o sin valor quita el ajuste"
 
     AiSettings:
       type: object

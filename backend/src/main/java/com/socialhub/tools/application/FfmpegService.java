@@ -21,6 +21,11 @@ public class FfmpegService implements Ffmpeg {
     }
 
     @Override
+    public VideoInfo probeVideo(Path media) throws InterruptedException {
+        return processor.probeVideo(media);
+    }
+
+    @Override
     public double probeDuration(Path media) throws InterruptedException {
         return processor.probeDuration(media);
     }

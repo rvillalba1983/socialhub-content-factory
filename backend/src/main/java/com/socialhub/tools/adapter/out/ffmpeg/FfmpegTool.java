@@ -1,5 +1,6 @@
 package com.socialhub.tools.adapter.out.ffmpeg;
 
+import com.socialhub.tools.Ffmpeg;
 import com.socialhub.tools.domain.LocalTool;
 import com.socialhub.tools.domain.VideoProcessor;
 
@@ -96,6 +97,32 @@ public class FfmpegTool implements LocalTool, VideoProcessor {
         } catch (NumberFormatException e) {
             return 0;
         }
+    }
+
+    /** Tamaño de la primera pista de vídeo, con ffprobe. Un archivo que ffprobe no lee es «no legible», no un error. */
+    @Override
+    public Ffmpeg.VideoInfo probeVideo(Path media) throws InterruptedException {
+        String out;
+        try {
+            out = process.run("ffprobe", "video", ffprobe(),
+                    List.of("-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=p=0",
+                            media.toString()), null, Duration.ofSeconds(60)).output().strip();
+        } catch (InterruptedException e) {
+            throw e;
+        } catch (RuntimeException e) {
+            return new Ffmpeg.VideoInfo(false, false, 0, 0);
+        }
+        String line = out.lines().findFirst().orElse("").strip();
+        String[] parts = line.split(",");
+        if (parts.length >= 2) {
+            try {
+                int width = Integer.parseInt(parts[0].strip()), height = Integer.parseInt(parts[1].strip());
+                if (width > 0 && height > 0) return new Ffmpeg.VideoInfo(true, true, width, height);
+            } catch (NumberFormatException e) {
+                // sin tamaño legible: se trata como sin pista de vídeo
+            }
+        }
+        return new Ffmpeg.VideoInfo(true, false, 0, 0);
     }
 
     @Override

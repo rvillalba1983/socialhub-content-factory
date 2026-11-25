@@ -21,4 +21,7 @@ public interface VideoProcessor {
 
     /** Duración en segundos de un audio o vídeo. */
     double probeDuration(Path media) throws InterruptedException;
+
+    /** La primera pista de vídeo del archivo. */
+    com.socialhub.tools.Ffmpeg.VideoInfo probeVideo(Path media) throws InterruptedException;
 }

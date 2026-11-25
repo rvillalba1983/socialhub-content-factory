@@ -26,6 +26,24 @@ public record PromoSpec(@Nullable String out, @Nullable String leeme, @Nullable 
     public record Sound(String mode, @Nullable String track) {}
 
     /**
+     * Una escena de un reel o clip montado con escenas.
+     *
+     * @param plantilla  plantilla del kit aprobado («historia» o «cita»), si la lleva
+     * @param campos     textos de la plantilla (o {@code titulo} y {@code texto} si no hay plantilla)
+     * @param img        imagen de la escena; sin ella, el fondo de la marca
+     * @param duracionS  segundos que dura
+     * @param transition cómo entra desde la escena anterior: {@code corte} (por defecto) o {@code fundido}; en la primera no se usa
+     */
+    public record Scene(@Nullable String plantilla, @Nullable Map<String, String> campos, @Nullable String img, double duracionS,
+                        @Nullable String transition) {
+
+        public static final String CUT = "corte";
+        public static final String FADE = "fundido";
+
+        public boolean fade() { return FADE.equals(transition); }
+    }
+
+    /**
      * @param plantilla identificador de una plantilla del kit aprobado (historia y cita; en el carrusel va en el cierre)
      * @param campos    textos de la plantilla: campo → texto
      * @param pagina    página del PDF de la que sale la imagen de la pieza
@@ -37,7 +55,20 @@ public record PromoSpec(@Nullable String out, @Nullable String leeme, @Nullable 
                         @Nullable String gancho, @Nullable List<String> versos, @Nullable List<String> finalLines,
                         @Nullable String audio, @Nullable Double audioInicio, @Nullable String video, @Nullable Double inicio,
                         @Nullable Double duracion, @Nullable String fondoSvg, @Nullable String plantilla,
-                        @Nullable Map<String, String> campos, @Nullable Integer pagina, @Nullable Sound sonido) {
+                        @Nullable Map<String, String> campos, @Nullable Integer pagina, @Nullable Sound sonido,
+                        @Nullable List<Scene> escenas) {
+
+        /** Una pieza sin escenas (el spec de antes del bloque 5). */
+        public Piece(String tipo, String nombre, @Nullable String dia, @Nullable String publicacion, @Nullable String caption,
+                     @Nullable String hashtags, @Nullable List<Slide> slides, @Nullable Closing cierre, @Nullable String img,
+                     @Nullable String titulo, @Nullable String texto, @Nullable String cta, @Nullable List<Double> crop,
+                     @Nullable String gancho, @Nullable List<String> versos, @Nullable List<String> finalLines,
+                     @Nullable String audio, @Nullable Double audioInicio, @Nullable String video, @Nullable Double inicio,
+                     @Nullable Double duracion, @Nullable String fondoSvg, @Nullable String plantilla,
+                     @Nullable Map<String, String> campos, @Nullable Integer pagina, @Nullable Sound sonido) {
+            this(tipo, nombre, dia, publicacion, caption, hashtags, slides, cierre, img, titulo, texto, cta, crop, gancho,
+                    versos, finalLines, audio, audioInicio, video, inicio, duracion, fondoSvg, plantilla, campos, pagina, sonido, null);
+        }
 
         /** Una pieza sin plantilla, página ni sonido (el spec de antes de la fase 13). */
         public Piece(String tipo, String nombre, @Nullable String dia, @Nullable String publicacion, @Nullable String caption,
@@ -47,7 +78,7 @@ public record PromoSpec(@Nullable String out, @Nullable String leeme, @Nullable 
                      @Nullable String audio, @Nullable Double audioInicio, @Nullable String video, @Nullable Double inicio,
                      @Nullable Double duracion, @Nullable String fondoSvg) {
             this(tipo, nombre, dia, publicacion, caption, hashtags, slides, cierre, img, titulo, texto, cta, crop, gancho,
-                    versos, finalLines, audio, audioInicio, video, inicio, duracion, fondoSvg, null, null, null, null);
+                    versos, finalLines, audio, audioInicio, video, inicio, duracion, fondoSvg, null, null, null, null, null);
         }
     }
 
