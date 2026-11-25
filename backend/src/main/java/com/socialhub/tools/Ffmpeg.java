@@ -4,6 +4,7 @@ import com.socialhub.platform.process.SafeProcess;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 import org.jmolecules.architecture.hexagonal.PrimaryPort;
 
 /** FFmpeg incluido en la aplicación, para los módulos que montan vídeo. */
@@ -24,6 +25,9 @@ public interface Ffmpeg {
      */
     record VideoInfo(boolean readable, boolean hasVideo, int width, int height) {}
 
-    /** La pista de vídeo del archivo (tamaño); si no se puede leer o no tiene vídeo, lo dice en el resultado. */
-    VideoInfo probeVideo(Path media) throws InterruptedException;
+    /**
+     * La pista de vídeo del archivo (tamaño ya con la rotación aplicada). Si ffprobe termina con error, el archivo es «no
+     * legible»; si no se pudo lanzar o se agotó el plazo no se sabe nada y el resultado es vacío.
+     */
+    Optional<VideoInfo> probeVideo(Path media, Duration timeout) throws InterruptedException;
 }

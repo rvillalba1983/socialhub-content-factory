@@ -78,7 +78,7 @@ public class SafeProcess {
             }
             Result result = new Result(process.exitValue(), tail(output));
             if (!result.ok()) {
-                throw new ProcessFailedException(name(command) + " terminó con código " + result.exitCode(), result.output());
+                throw new ProcessFailedException(name(command) + " terminó con código " + result.exitCode(), result.output(), result.exitCode());
             }
             return result;
         } catch (InterruptedException e) {

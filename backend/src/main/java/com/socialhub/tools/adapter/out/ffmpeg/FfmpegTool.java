@@ -4,6 +4,7 @@ import com.socialhub.tools.domain.LocalTool;
 import com.socialhub.tools.domain.VideoProcessor;
 
 import com.socialhub.platform.AppPaths;
+import com.socialhub.platform.process.ProcessFailedException;
 import com.socialhub.platform.process.SafeProcess;
 import java.io.File;
 import java.io.IOException;
@@ -12,6 +13,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.bytedeco.javacpp.Loader;
 import org.jspecify.annotations.Nullable;
@@ -98,30 +100,51 @@ public class FfmpegTool implements LocalTool, VideoProcessor {
         }
     }
 
-    /** Tamaño de la primera pista de vídeo, con ffprobe. Un archivo que ffprobe no lee es «no legible», no un error. */
+    /**
+     * Tamaño de la primera pista de vídeo, con ffprobe, ya con la rotación aplicada (si el vídeo está girado ±90º se
+     * intercambian ancho y alto). Un archivo que ffprobe no lee (termina con código distinto de 0) es «no legible»; si no
+     * se pudo lanzar o se agotó el plazo no se sabe nada y se devuelve vacío.
+     */
     @Override
-    public VideoInfo probeVideo(Path media) throws InterruptedException {
+    public Optional<VideoInfo> probeVideo(Path media, Duration timeout) throws InterruptedException {
         String out;
         try {
             out = process.run("ffprobe", "video", ffprobe(),
-                    List.of("-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=p=0",
-                            media.toString()), null, Duration.ofSeconds(60)).output().strip();
+                    List.of("-v", "error", "-select_streams", "v:0", "-show_entries",
+                            "stream=width,height:stream_tags=rotate:stream_side_data=rotation", "-of", "default=nw=1",
+                            media.toString()), null, timeout).output();
         } catch (InterruptedException e) {
             throw e;
+        } catch (ProcessFailedException e) {
+            Integer code = e.exitCode();
+            if (code != null && code != 0) return Optional.of(new VideoInfo(false, false, 0, 0));
+            log.warn("No se pudo comprobar el vídeo {}: {}", media.getFileName(), e.getMessage());
+            return Optional.empty();
         } catch (RuntimeException e) {
-            return new VideoInfo(false, false, 0, 0);
+            log.warn("No se pudo comprobar el vídeo {}: {}", media.getFileName(), e.getMessage());
+            return Optional.empty();
         }
-        String line = out.lines().findFirst().orElse("").strip();
-        String[] parts = line.split(",");
-        if (parts.length >= 2) {
+        int width = 0, height = 0;
+        double rotation = 0;
+        for (String line : out.lines().toList()) {
+            int eq = line.indexOf('=');
+            if (eq < 0) continue;
+            String key = line.substring(0, eq).strip(), value = line.substring(eq + 1).strip();
             try {
-                int width = Integer.parseInt(parts[0].strip()), height = Integer.parseInt(parts[1].strip());
-                if (width > 0 && height > 0) return new VideoInfo(true, true, width, height);
+                switch (key) {
+                    case "width" -> { if (width == 0) width = Integer.parseInt(value); }
+                    case "height" -> { if (height == 0) height = Integer.parseInt(value); }
+                    case "TAG:rotate", "rotation" -> { if (rotation == 0) rotation = Double.parseDouble(value); }
+                    default -> { }
+                }
             } catch (NumberFormatException e) {
-                // sin tamaño legible: se trata como sin pista de vídeo
+                // valor ilegible (por ejemplo «N/A»): se ignora
             }
         }
-        return new VideoInfo(true, false, 0, 0);
+        if (width <= 0 || height <= 0) return Optional.of(new VideoInfo(true, false, 0, 0));
+        long turns = Math.abs(Math.round(rotation / 90.0));
+        if (turns % 2 == 1) return Optional.of(new VideoInfo(true, true, height, width));
+        return Optional.of(new VideoInfo(true, true, width, height));
     }
 
     @Override

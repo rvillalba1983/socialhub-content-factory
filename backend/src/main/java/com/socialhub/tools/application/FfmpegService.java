@@ -6,6 +6,7 @@ import com.socialhub.tools.domain.VideoProcessor;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -21,9 +22,9 @@ public class FfmpegService implements Ffmpeg {
     }
 
     @Override
-    public VideoInfo probeVideo(Path media) throws InterruptedException {
-        var seen = processor.probeVideo(media);
-        return new VideoInfo(seen.readable(), seen.hasVideo(), seen.width(), seen.height());
+    public Optional<VideoInfo> probeVideo(Path media, Duration timeout) throws InterruptedException {
+        return processor.probeVideo(media, timeout)
+                .map(seen -> new VideoInfo(seen.readable(), seen.hasVideo(), seen.width(), seen.height()));
     }
 
     @Override

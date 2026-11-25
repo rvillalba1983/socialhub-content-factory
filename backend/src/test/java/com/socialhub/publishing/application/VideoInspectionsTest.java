@@ -57,4 +57,21 @@ class VideoInspectionsTest {
         // Un archivo que no existe no se puede mirar: sin resultado, sin aviso
         assertThat(inspections.inspect(dir.resolve("no-esta.mp4"))).isEmpty();
     }
+
+    @Test
+    void swapsWidthAndHeightWhenTheVideoIsRotated() throws Exception {
+        Path flat = make("plano.mp4", "-f", "lavfi", "-i", "testsrc=size=1920x1080:rate=10:duration=1", "-c:v", "libx264", "-pix_fmt", "yuv420p");
+        Path rotated = make("girado.mp4", "-display_rotation", "90", "-i", flat.toString(), "-c", "copy");
+
+        assertThat(inspections.inspect(flat)).contains(new VideoInfo(true, true, 1920, 1080));
+        assertThat(inspections.inspect(rotated)).contains(new VideoInfo(true, true, 1080, 1920));
+    }
+
+    @Test
+    void aTimeoutIsNotAnUnreadableVideoAndNothingIsCached() throws Exception {
+        Path vertical = make("lento.mp4", "-f", "lavfi", "-i", "testsrc=size=1080x1920:rate=10:duration=1", "-c:v", "libx264", "-pix_fmt", "yuv420p");
+
+        assertThat(ffmpeg.probeVideo(vertical, Duration.ofMillis(1))).isEmpty();
+        assertThat(inspections.inspect(vertical)).contains(new VideoInfo(true, true, 1080, 1920));
+    }
 }
