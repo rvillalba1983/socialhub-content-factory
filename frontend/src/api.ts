@@ -1,5 +1,5 @@
 import type {
-  BrandKitView, BrandKitVersion, BrandKitRequestInput, BrandKitRejection, Backup, BackupList, Restoration, AiOrder, AiOrderInput, BrandIdentity, ExternalCalendar, PublicationMetrics, PromotionMetrics, SlotProposal, PublishJob, PubloraStatus, PubloraAccountList, PubloraAccountInput, PublerAccountList, PublerAccountInput, PublerMoveInput, PublerMoveResult, PublishSettings, PublishSettingsInput, InstagramStatus, InstagramCheck, InstagramAccount, InstagramOAuthStart, InstagramRenewal, InstagramDetectedAccountList, QualityReport, RejectionReason, EditorialDecision, EditorialMemory, AiRequestPage, AiSettings, AiSettingsInput, AppMode, AppModeState, AppVersion, Autostart, UpdateStatus, LogsFolder, Brand, FolderInput, FolderList, Publication, PublicationFile, PublicationFileList, PublicationInput, PublicationStatus, PieceOrder, PieceSpecList, BrandInput, ExternalOperationPage, Promotion, PromotionInput, OperationOutcome, Snapshot, Station, StationCommandType, Task, TaskCommand,
+  BrandKitView, BrandKitVersion, BrandKitRequestInput, BrandKitRejection, Backup, BackupList, Restoration, AiOrder, AiOrderInput, BrandIdentity, ExternalCalendar, PublicationMetrics, PromotionMetrics, SlotProposal, PublishJob, PubloraStatus, PubloraAccountList, PubloraAccountInput, PublerAccountList, PublerAccountInput, PublerMoveInput, PublerMoveResult, PublishSettings, PublishSettingsInput, InstagramStatus, InstagramCheck, InstagramAccount, InstagramOAuthStart, InstagramRenewal, InstagramDetectedAccountList, QualityReport, RejectionReason, EditorialDecision, EditorialMemory, AiRequestPage, AiSettings, AiSettingsInput, AppMode, AppModeState, AppVersion, Autostart, UpdateStatus, LogsFolder, Brand, FolderInput, FolderList, Publication, PublicationFile, PublicationFileList, PublicationSoundInput, PublicationInput, PublicationStatus, PieceOrder, PieceSpecList, BrandInput, ExternalOperationPage, Promotion, PromotionInput, OperationOutcome, Snapshot, Station, StationCommandType, Task, TaskCommand,
 } from './model';
 
 export class ApiError extends Error {
@@ -69,6 +69,8 @@ export const api = {
   /** Dirección del contenido de un archivo de la publicación (imagen o vídeo; el vídeo se pide a trozos). */
   publicationFileUrl: (id: string, fileId: string) =>
     `/api/publications/${encodeURIComponent(id)}/files/${encodeURIComponent(fileId)}/content`,
+  setPublicationSound: (id: string, input: PublicationSoundInput) =>
+    putJson<Publication>(`/api/publications/${encodeURIComponent(id)}/sound`, input),
   attachPublicationFile: (id: string, path: string) =>
     post<PublicationFile>(`/api/publications/${encodeURIComponent(id)}/files`, { path }),
   detachPublicationFile: (id: string, path: string) =>
