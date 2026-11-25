@@ -1034,6 +1034,34 @@ describe('Encargos a Claude', () => {
     await waitFor(() => expect(save).toHaveBeenCalledWith({ min_margin_minutes: 90, tiktok_min_margin_minutes: 720 }));
   });
 
+  it('enseña y guarda la carpeta de audio de Litoques, y avisa si no existe', async () => {
+    vi.spyOn(api, 'aiSettings').mockResolvedValue({ daily_limit: 10, used_today: 0, models: [] });
+    vi.spyOn(api, 'aiRequests').mockResolvedValue({ offset: 0, limit: 50, total: 0, items: [] });
+    vi.spyOn(api, 'publishSettings').mockResolvedValue({ default_minutes: 30, tiktok_default_minutes: 480, min_minutes: 5, max_minutes: 1440, min_margin_minutes: 30, tiktok_min_margin_minutes: 480 });
+    vi.spyOn(api, 'audioSettings').mockResolvedValue({ litoques_folder: null, available: false });
+    const save = vi.spyOn(api, 'saveAudioSettings').mockResolvedValue({ litoques_folder: 'G:\\Litoques', available: false });
+    render(<Claude data={snapshot} onClose={() => {}} onTask={() => {}} onMessage={() => {}} />);
+    const input = await screen.findByLabelText(/Ruta de la carpeta con los MP3/);
+    expect(input).toHaveValue('');
+    expect(screen.getByText(/Tema de Litoques en el vídeo/)).toBeInTheDocument();
+    fireEvent.change(input, { target: { value: ' G:\\Litoques ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar carpeta de audio' }));
+    await waitFor(() => expect(save).toHaveBeenCalledWith({ litoques_folder: 'G:\\Litoques' }));
+    expect(await screen.findByText(/Esta carpeta no existe ahora mismo/)).toBeInTheDocument();
+  });
+
+  it('muestra el error de la API al guardar la carpeta de audio', async () => {
+    vi.spyOn(api, 'aiSettings').mockResolvedValue({ daily_limit: 10, used_today: 0, models: [] });
+    vi.spyOn(api, 'aiRequests').mockResolvedValue({ offset: 0, limit: 50, total: 0, items: [] });
+    vi.spyOn(api, 'publishSettings').mockResolvedValue({ default_minutes: 30, tiktok_default_minutes: 480, min_minutes: 5, max_minutes: 1440, min_margin_minutes: 30, tiktok_min_margin_minutes: 480 });
+    vi.spyOn(api, 'audioSettings').mockResolvedValue({ litoques_folder: null, available: false });
+    vi.spyOn(api, 'saveAudioSettings').mockRejectedValue(new Error('La carpeta no existe'));
+    render(<Claude data={snapshot} onClose={() => {}} onTask={() => {}} onMessage={() => {}} />);
+    fireEvent.change(await screen.findByLabelText(/Ruta de la carpeta con los MP3/), { target: { value: 'X:\\nada' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar carpeta de audio' }));
+    expect(await screen.findByText('La carpeta no existe')).toBeInTheDocument();
+  });
+
   it('avisa si el margen de TikTok baja de 8 h y deja guardar', async () => {
     vi.spyOn(api, 'aiSettings').mockResolvedValue({ daily_limit: 10, used_today: 0, models: [] });
     vi.spyOn(api, 'aiRequests').mockResolvedValue({ offset: 0, limit: 50, total: 0, items: [] });

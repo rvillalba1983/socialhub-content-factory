@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api } from './api';
 import { Icon } from './icons';
 import {
-  AI_MODELS, dateTime, spanText, type AiModel, type AiRequest, type AiRequestPage, type AiRequestType, type AiSettings, type PublishSettings,
+  AI_MODELS, dateTime, spanText, type AiModel, type AiRequest, type AiRequestPage, type AiRequestType, type AiSettings, type AudioSettings, type PublishSettings,
   type Snapshot, type StatusCode,
 } from './model';
 import { Pill } from './ui';
@@ -86,6 +86,7 @@ export function Claude({ data, onClose, onTask, onMessage }: {
           {settings && <OrderCard data={data} settings={settings} onOrdered={id => { onMessage('Encargo en cola'); void load(); onTask(id); }} />}
         </div>
         <PublishMarginCard onMessage={onMessage} />
+        <AudioFolderCard onMessage={onMessage} />
 
         <h3>Registro de envíos</h3>
         <div className="tbl-wrap"><table>
@@ -213,6 +214,48 @@ function PublishMarginCard({ onMessage }: { onMessage: (m: string) => void }) {
       <div className="form-actions">
         {error && <p className="error" role="alert">{error}</p>}
         <button className="btn primary" disabled={busy}>{busy ? 'Guardando…' : 'Guardar margen'}</button>
+      </div>
+    </form>
+  );
+}
+
+/** Ajuste «Carpeta de audio de Litoques»: dónde busca SocialHub los MP3 de los temas para el sonido de un vídeo. */
+function AudioFolderCard({ onMessage }: { onMessage: (m: string) => void }) {
+  const [settings, setSettings] = useState<AudioSettings | null>(null);
+  const [folder, setFolder] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    api.audioSettings().then(s => { if (alive) { setSettings(s); setFolder(s.litoques_folder ?? ''); } }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+  if (!settings) return null;
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      const saved = await api.saveAudioSettings({ litoques_folder: folder.trim() || null });
+      setSettings(saved);
+      setFolder(saved.litoques_folder ?? '');
+      onMessage('Carpeta de audio de Litoques guardada');
+    } catch (err) { setError(err instanceof Error ? err.message : String(err)); } finally { setBusy(false); }
+  };
+  return (
+    <form className="card form" onSubmit={save} aria-label="Carpeta de audio de Litoques">
+      <h3>Carpeta de audio de Litoques</h3>
+      <label className="field"><span>Ruta de la carpeta con los MP3</span>
+        <input type="text" maxLength={500} value={folder} placeholder="Por ejemplo, G:\Mi unidad\Litoques\Audio"
+          onChange={e => setFolder(e.target.value)} /></label>
+      <p className="src">SocialHub busca ahí el tema que elijas en una publicación con sonido «Tema de Litoques en el vídeo»; solo .mp3.
+        Déjala vacía para quitar el ajuste.</p>
+      {settings.litoques_folder && !settings.available && (
+        <p className="warn" role="status">Esta carpeta no existe ahora mismo en este ordenador (¿Google Drive para ordenador está montado?)</p>
+      )}
+      <div className="form-actions">
+        {error && <p className="error" role="alert">{error}</p>}
+        <button className="btn primary" disabled={busy}>{busy ? 'Guardando…' : 'Guardar carpeta de audio'}</button>
       </div>
     </form>
   );

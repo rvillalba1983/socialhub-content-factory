@@ -1,5 +1,5 @@
 import type {
-  BrandKitView, BrandKitVersion, BrandKitRequestInput, BrandKitRejection, Backup, BackupList, Restoration, AiOrder, AiOrderInput, BrandIdentity, ExternalCalendar, PublicationMetrics, PromotionMetrics, SlotProposal, PublishJob, PubloraStatus, PubloraAccountList, PubloraAccountInput, PublerAccountList, PublerAccountInput, PublerMoveInput, PublerMoveResult, PublishSettings, PublishSettingsInput, InstagramStatus, InstagramCheck, InstagramAccount, InstagramOAuthStart, InstagramRenewal, InstagramDetectedAccountList, QualityReport, RejectionReason, EditorialDecision, EditorialMemory, AiRequestPage, AiSettings, AiSettingsInput, AppMode, AppModeState, AppVersion, Autostart, UpdateStatus, LogsFolder, Brand, FolderInput, FolderList, Publication, PublicationFile, PublicationFileList, PublicationSoundInput, PublicationInput, PublicationStatus, PieceOrder, PieceSpecList, BrandInput, ExternalOperationPage, Promotion, PromotionInput, OperationOutcome, Snapshot, Station, StationCommandType, Task, TaskCommand,
+  BrandKitView, BrandKitVersion, BrandKitRequestInput, BrandKitRejection, Backup, BackupList, Restoration, AiOrder, AiOrderInput, BrandIdentity, ExternalCalendar, PublicationMetrics, PromotionMetrics, SlotProposal, PublishJob, PubloraStatus, PubloraAccountList, PubloraAccountInput, PublerAccountList, PublerAccountInput, PublerMoveInput, PublerMoveResult, PublishSettings, PublishSettingsInput, AudioSettings, AudioSettingsInput, InstagramStatus, InstagramCheck, InstagramAccount, InstagramOAuthStart, InstagramRenewal, InstagramDetectedAccountList, QualityReport, RejectionReason, EditorialDecision, EditorialMemory, AiRequestPage, AiSettings, AiSettingsInput, AppMode, AppModeState, AppVersion, Autostart, UpdateStatus, LogsFolder, Brand, FolderInput, FolderList, Publication, PublicationFile, PublicationFileList, PublicationSoundInput, PublicationInput, PublicationStatus, PieceOrder, PieceSpecList, BrandInput, ExternalOperationPage, Promotion, PromotionInput, OperationOutcome, Snapshot, Station, StationCommandType, Task, TaskCommand,
 } from './model';
 
 export class ApiError extends Error {
@@ -78,6 +78,8 @@ export const api = {
   aiSettings: () => call<AiSettings>('/api/ai/settings'),
   publishSettings: () => call<PublishSettings>('/api/settings/publishing'),
   savePublishSettings: (input: PublishSettingsInput) => putJson<PublishSettings>('/api/settings/publishing', input),
+  audioSettings: () => call<AudioSettings>('/api/settings/audio'),
+  saveAudioSettings: (input: AudioSettingsInput) => putJson<AudioSettings>('/api/settings/audio', input),
   saveAiSettings: (input: AiSettingsInput) => putJson<AiSettings>('/api/ai/settings', input),
   aiRequests: (offset = 0, limit = 50) => call<AiRequestPage>(`/api/ai/requests?offset=${offset}&limit=${limit}`),
   orderFromClaude: (promotionId: string, input: AiOrderInput) =>
