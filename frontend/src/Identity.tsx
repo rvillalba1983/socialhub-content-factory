@@ -38,7 +38,7 @@ export function IdentityForm({ brandId, brand, onSaved }: {
   const text = (k: 'tone' | 'audience' | 'font' | 'logo' | 'visual_style' | 'photo_style' | 'call_to_action' | 'fixed_hashtags',
     label: string, rows = 1, max = 2000, hint?: string) => (
     <label className="field"><span>{label}</span>
-      {rows > 1 ? <textarea rows={rows} maxLength={max} value={identity[k]} onChange={e => set(k, e.target.value)} />
+      {rows > 1 ? <textarea rows={rows} maxLength={max} aria-label={label} value={identity[k]} onChange={e => set(k, e.target.value)} />
         : <input maxLength={max} value={identity[k]} onChange={e => set(k, e.target.value)} />}
       {hint && <small className="src">{hint}</small>}</label>
   );
