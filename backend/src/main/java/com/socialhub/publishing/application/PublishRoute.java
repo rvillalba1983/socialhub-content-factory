@@ -86,4 +86,10 @@ public interface PublishRoute {
      * @return {@code true} si la ha quitado; {@code false} si hay que quitarla a mano
      */
     default boolean unschedule(Publication publication, PublishJob job) { return false; }
+
+    /**
+     * Raúl la ha sacado de «Programada» cuando la vía aún no la había programado (un encargo a Claude en cola o en Drive): se
+     * retira ese encargo para que nadie la programe después.
+     */
+    default void withdrawPending(Publication publication, PublishJob job) {}
 }

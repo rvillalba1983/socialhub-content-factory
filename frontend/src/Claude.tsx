@@ -31,6 +31,7 @@ const REQUEST_STATUS: Record<AiRequest['status'], { label: string; s: StatusCode
   FAILED: { label: 'Error', s: 'FAILED' },
   NEEDS_HUMAN: { label: 'Te pregunta algo', s: 'WAITING' },
   INVALID: { label: 'Resultado no válido', s: 'FAILED' },
+  WITHDRAWN: { label: 'Retirado', s: 'CANCELLED' },
 };
 
 const duration = (ms?: number | null) => {

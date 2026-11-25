@@ -54,6 +54,20 @@ class QualityCheckerTest {
     }
 
     @Test
+    void anyOfTheBrandsCallToActionFormulationsIsEnough() throws Exception {
+        var several = new QualityRules(List.of(), "Comenta DELITO y te mando el enlace\n  Busca a Lito y a Pachi en la ilustración \n", "");
+        var one = pub(Platform.INSTAGRAM, "Carrusel", "Un poema. Busca a Lito y a Pachi en la ilustración.", "#poesia");
+        var none = pub(Platform.INSTAGRAM, "Carrusel", "Un poema sin más.", "#poesia");
+        List<String> file = List.of(image("a.jpg", 1080, 1350, "jpg"), image("b.jpg", 1080, 1080, "jpg"));
+
+        assertThat(QualityChecker.callToActionOptions(several.callToAction())).containsExactly(
+                "Comenta DELITO y te mando el enlace", "Busca a Lito y a Pachi en la ilustración");
+        assertThat(QualityChecker.check(one, file, several, Map.of())).isEmpty();
+        assertThat(QualityChecker.check(none, file, several, Map.of()).get("CTA_MISSING"))
+                .contains("Falta una de las llamadas a la acción").contains("Comenta DELITO").contains("Busca a Lito");
+    }
+
+    @Test
     void storiesDoNotNeedTextButMustBeVertical() throws Exception {
         var p = pub(Platform.INSTAGRAM, "Historia", null, null);
         var issues = QualityChecker.check(p, List.of(image("h.jpg", 1080, 1350, "jpg")), IDENTITY, Map.of());

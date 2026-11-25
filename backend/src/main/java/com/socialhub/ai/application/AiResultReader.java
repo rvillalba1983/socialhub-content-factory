@@ -109,6 +109,10 @@ class AiResultReader {
             }
             return;
         }
+        if (request.isEmpty() && !taskId.isEmpty() && "completed".equals(result.path("status").asString())
+                && lateResult(taskId, file, modified, result)) {
+            return;
+        }
         if (request.isEmpty() || production.waitingAiTask(taskId).isEmpty()) {
             record(file, modified, request.map(r -> r.id().value()).orElse(null), "IGNORED",
                     "Ninguna tarea espera este resultado (" + taskId + ")");
@@ -150,6 +154,33 @@ class AiResultReader {
             record(file, modified, sent.id().value(), "APPLIED", status);
         });
         log.info("Resultado de Claude para {}: {} ({})", taskId, status, file);
+    }
+
+    /**
+     * Llega el resultado {@code completed} de un encargo que SocialHub había retirado: Claude lo hizo igualmente (la pasada lista
+     * lo pendiente al empezar y escribe al final, y Drive tarda en sincronizar). El manejador avisa de lo que haya que deshacer a mano.
+     *
+     * @return {@code true} si se ha tratado como resultado tardío
+     */
+    private boolean lateResult(String taskId, Path file, Instant modified, JsonNode result) {
+        Optional<AiRequest> withdrawn = requests.latestWithdrawnOf(taskId);
+        if (withdrawn.isEmpty() || withdrawn.get().promotionId() == null) return false;
+        AiRequest sent = withdrawn.get();
+        var handler = handlers.of(sent.type());
+        var task = production.aiTask(taskId);
+        if (handler.isEmpty() || task.isEmpty()) return false;
+        var t = task.get();
+        AiJob job = new AiJob(t.id(), sent.type(), sent.promotionId(), sent.brandId(), t.title(), t.goal(), t.inputs(),
+                t.createdAt(), sent.requestPath(), t.manual());
+        String[] notice = new String[1];
+        transactions.executeWithoutResult(s -> {
+            notice[0] = handler.get().late(job, result.path("outputs"), result);
+            if (notice[0] == null) return;
+            finish(sent, AiRequest.Status.WITHDRAWN, file, result, "Resultado tardío de un encargo retirado: " + notice[0]);
+            record(file, modified, sent.id().value(), "APPLIED", "Tardío: " + notice[0]);
+        });
+        if (notice[0] != null) log.info("Resultado tardío de Claude para {} (encargo retirado): {}", taskId, file);
+        return notice[0] != null;
     }
 
     /** Avisa al manejador del tipo de que el encargo no salió, para que su módulo siga por otro camino. */

@@ -43,8 +43,11 @@ class PublishingEngineHeldTest {
     private final TransactionTemplate transactions = mock(TransactionTemplate.class);
     private String reason = "Falta la cuenta de Publer de Litoques para TikTok";
 
+    private final List<String> withdrawn = new java.util.ArrayList<>();
+
     private PublishingEngine engine() {
         PublishRoute route = new PublishRoute() {
+            @Override public void withdrawPending(Publication publication, PublishJob job) { withdrawn.add(publication.getId()); }
             @Override public PublishRouteId id() { return PublishRouteId.PUBLER; }
             @Override public boolean configured() { return true; }
             @Override public Instant lastMoment(Instant scheduledAt) { return scheduledAt.minus(Duration.ofHours(7)); }
@@ -100,6 +103,19 @@ class PublishingEngineHeldTest {
 
         assertThat(held.getStatus()).isEqualTo(PublishJob.Status.CANCELLED);
         assertThat(p.getFlag()).isNull();
+    }
+
+    @Test
+    void takingItOutOfScheduledWhileClaudeStillHasTheOrderWithdrawsThatOrder() {
+        var p = publication(null);
+        var working = new PublishJob("p1", PublishJob.Status.WORKING, 0, "Publer", "t-1", List.of(), null, null, null, 1, null, null,
+                null, null, List.of(), NOW, NOW, 0);
+        when(jobs.find("p1")).thenReturn(Optional.of(working));
+
+        engine().stop(p, "Raúl la ha sacado de «Programada»");
+
+        assertThat(withdrawn).containsExactly("p1");
+        assertThat(working.getStatus()).isEqualTo(PublishJob.Status.CANCELLED);
     }
 
     @Test

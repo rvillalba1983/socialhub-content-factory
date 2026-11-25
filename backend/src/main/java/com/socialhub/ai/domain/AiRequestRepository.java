@@ -22,6 +22,9 @@ public interface AiRequestRepository {
     /** El último envío de la tarea que sigue esperando respuesta. */
     Optional<AiRequest> latestWaitingOf(String taskId);
 
+    /** El último envío de la tarea que SocialHub retiró (puede que Claude lo hiciera igualmente y su resultado llegue tarde). */
+    Optional<AiRequest> latestWithdrawnOf(String taskId);
+
     /** Los envíos de la tarea, del más antiguo al más nuevo. */
     List<AiRequest> ofTask(String taskId);
 

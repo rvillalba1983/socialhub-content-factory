@@ -38,6 +38,12 @@ class JpaAiRequestRepository implements AiRequestRepository {
     }
 
     @Override
+    public Optional<AiRequest> latestWithdrawnOf(String taskId) {
+        return jpa.findFirstByTaskIdAndStatusOrderBySentAtDesc(taskId, AiRequest.Status.WITHDRAWN)
+                .map(AiRequestEntity::toDomain);
+    }
+
+    @Override
     public List<AiRequest> ofTask(String taskId) {
         return jpa.findByTaskIdOrderBySentAt(taskId).stream().map(AiRequestEntity::toDomain).toList();
     }

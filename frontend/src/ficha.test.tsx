@@ -127,6 +127,20 @@ describe('Importar la identidad desde un .txt', () => {
     expect(save.mock.calls[0][1]).toMatchObject({ tone: 'Irónico', audience: 'Lectores', colors: ['rojo', 'negro'] });
   });
 
+  it('la llamada a la acción admite varias formulaciones, una por línea, y se guardan con sus saltos de línea', async () => {
+    vi.spyOn(api, 'brandIdentity').mockResolvedValue(identity({ call_to_action: 'Compra el libro\nEscríbeme' }));
+    const save = vi.spyOn(api, 'saveBrandIdentity').mockImplementation(async (_id, i) => i);
+    render(<IdentityForm brandId="b" />);
+    const field = await screen.findByLabelText(/Llamada a la acción/) as HTMLTextAreaElement;
+    expect(field.tagName).toBe('TEXTAREA');
+    expect(field.value).toBe('Compra el libro\nEscríbeme');
+    expect(screen.getByText(/Una formulación por línea/)).toBeInTheDocument();
+    fireEvent.change(field, { target: { value: 'Compra el libro\nEscríbeme\nPásate por la web' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar identidad' }));
+    await waitFor(() => expect(save).toHaveBeenCalled());
+    expect(save.mock.calls[0][1].call_to_action).toBe('Compra el libro\nEscríbeme\nPásate por la web');
+  });
+
   it('el selector de archivo es un botón en español con el nombre del archivo elegido', async () => {
     vi.spyOn(api, 'brandIdentity').mockResolvedValue(identity());
     render(<IdentityForm brandId="b" />);

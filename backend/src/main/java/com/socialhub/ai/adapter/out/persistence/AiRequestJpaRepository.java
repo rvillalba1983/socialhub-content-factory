@@ -24,7 +24,7 @@ interface AiRequestJpaRepository extends JpaRepository<AiRequestEntity, String> 
 
     /** Cuándo llegó el último resultado (de cualquier tipo, bueno o malo) de esos tipos de encargo, si ha llegado alguno. */
     @Query("select max(r.finishedAt) from AiRequestEntity r where r.type in :types "
-            + "and r.status <> com.socialhub.ai.domain.AiRequest.Status.SENT")
+            + "and r.status not in (com.socialhub.ai.domain.AiRequest.Status.SENT, com.socialhub.ai.domain.AiRequest.Status.WITHDRAWN)")
     @Nullable Instant lastFinished(@Param("types") Collection<String> types);
 
     /** Cerrojo de la transacción actual (se suelta al terminar): dos altas del mismo tipo y promoción no se cruzan. */

@@ -69,6 +69,20 @@ public interface AiTypeHandler {
      */
     default boolean obsolete(AiJob job) { return false; }
 
+    /**
+     * SocialHub canceló el encargo sin enviarlo porque ya no hacía falta ({@link #obsolete}): para que el módulo que lo pidió no
+     * se quede esperándolo.
+     */
+    default void onCancelled(AiJob job, String reason) {}
+
+    /**
+     * Llega el resultado {@code completed} de un encargo que SocialHub ya había retirado (lo sustituyó otro o la publicación dejó
+     * de esperarlo) pero que Claude hizo igualmente. El módulo avisa de lo que haya que deshacer a mano.
+     *
+     * @return el texto del aviso, o {@code null} si no hace falta ninguno (el resultado se descarta)
+     */
+    default @org.jspecify.annotations.Nullable String late(AiJob job, JsonNode outputs, JsonNode result) { return null; }
+
     /** Datos que se añaden a «inputs» del encargo, además del título y los datos de entrada. */
     default Map<String, Object> inputs(AiJob job) { return Map.of(); }
 

@@ -58,6 +58,7 @@ class PublerRouteTest {
     private final PublishingQueriesService queries = mock(PublishingQueriesService.class);
     private final PublicationFileRepository files = mock(PublicationFileRepository.class);
     private final PublishingEngine engine = mock(PublishingEngine.class);
+    private final com.socialhub.settings.PublishSettings settings = mock(com.socialhub.settings.PublishSettings.class);
 
     private final List<PublishJob> open = new ArrayList<>();
 
@@ -71,12 +72,13 @@ class PublerRouteTest {
         when(accounts.brandsUsing(TIKTOK_ACCOUNT, Platform.TIKTOK)).thenReturn(List.of("el-delito", "litoques"));
         when(accounts.brandsUsing("Litoques", Platform.INSTAGRAM)).thenReturn(List.of("litoques"));
         when(jobs.withStatus(any())).thenAnswer(i -> open);
+        when(settings.minMarginFor(anyString())).thenReturn(java.time.Duration.ofMinutes(30));
         when(orders.submitInternal(anyString(), eq(AiRequestType.PUBLER_SCHEDULE), anyString(), anyString(), anyList())).thenReturn("task-1");
     }
 
     private PublerRoute route() {
         var capacity = new PublerCapacity(jobs, publications, promotions, accounts, 10);
-        return new PublerRoute(orders, accounts, capacity, promotions, Clock.fixed(NOW, ZoneId.of("UTC")));
+        return new PublerRoute(orders, accounts, capacity, promotions, settings, Clock.fixed(NOW, ZoneId.of("UTC")));
     }
 
     private Publication publication(String id, String promotion, Platform platform, int dayOffset) {
@@ -213,7 +215,7 @@ class PublerRouteTest {
     // ------------------------------------------------------------------ Lo que lleva el encargo
 
     private PublerScheduleHandler handler() {
-        return new PublerScheduleHandler(queries, files, engine, accounts);
+        return new PublerScheduleHandler(queries, files, engine, accounts, settings, Clock.fixed(NOW, ZoneId.of("UTC")));
     }
 
     private AiJob aiJob(Publication p, String brand) {
@@ -306,5 +308,168 @@ class PublerRouteTest {
         @SuppressWarnings("unchecked") var how = (List<String>) inputs.get("how");
         assertThat(how.getFirst()).contains("publer_accounts");
         assertThat(JsonMapper.builder().build().writeValueAsString(inputs)).contains("Lito · Litoques · El DeLito");
+    }
+
+    // ------------------------------------------------------------------ Bloque 4 de la fase 13
+
+    private Publication withNoteAndSound(String id, Platform platform, com.socialhub.publishing.domain.PublicationSound sound) {
+        var p = Publication.builder().id(id).promotionId("promo-delito").platform(platform).type("Reel").title("Prueba 2 de trabajo")
+                .scheduledOn(DAY).scheduledTime(LocalTime.of(19, 0)).status(PublicationStatus.SCHEDULED)
+                .caption("Texto público").hashtags("#poesia").note("Prueba de TikTok, sin música").sound(sound).build();
+        when(publications.findById(id)).thenReturn(Optional.of(p));
+        when(queries.find(id)).thenReturn(Optional.of(p));
+        when(files.files(id)).thenReturn(List.of());
+        return p;
+    }
+
+    @Test
+    void thePublerOrderNeverCarriesTheWorkTitleNorTheInternalNoteNorTheSound() throws Exception {
+        var sound = new com.socialhub.publishing.domain.PublicationSound(com.socialhub.publishing.domain.PublicationSound.Mode.NETWORK, "Púa");
+        var p = withNoteAndSound("p1", Platform.TIKTOK, sound);
+
+        var inputs = handler().inputs(aiJob(p, "el-delito"));
+
+        String text = JsonMapper.builder().build().writeValueAsString(inputs.get("publication"));
+        // Lo que se escribe en la red sale solo de su texto y sus hashtags
+        assertThat(text).contains("Texto público").contains("#poesia");
+        assertThat(text).doesNotContain("Prueba").doesNotContain("trabajo").doesNotContain("sin música").doesNotContain("Púa");
+        assertThat(((Map<?, ?>) inputs.get("publication")).keySet().stream().map(Object::toString).toList())
+                .doesNotContain("title", "note", "flag", "confirmation", "sound", "status");
+    }
+
+    @Test
+    void networkSoundIsNotAddedFromPublerButRaulIsToldToChooseItThere() {
+        var network = new com.socialhub.publishing.domain.PublicationSound(com.socialhub.publishing.domain.PublicationSound.Mode.NETWORK, "Púa");
+        var p = withNoteAndSound("p1", Platform.TIKTOK, network);
+
+        @SuppressWarnings("unchecked") var how = (List<String>) handler().inputs(aiJob(p, "el-delito")).get("how");
+
+        String text = String.join("\n", how);
+        assertThat(text).contains("NO añadas música ni sonidos desde Publer").contains("«Púa»").contains("no es texto público")
+                .contains("outputs.note").doesNotContain("los sonidos ya van en el vídeo");
+    }
+
+    @Test
+    void withNoSoundOrATrackInTheVideoNothingIsAddedFromPublerAndThereIsNoWarning() {
+        for (var sound : List.of(com.socialhub.publishing.domain.PublicationSound.NONE,
+                new com.socialhub.publishing.domain.PublicationSound(com.socialhub.publishing.domain.PublicationSound.Mode.LITOQUES_TRACK, "Púa"))) {
+            var p = withNoteAndSound("p1", Platform.TIKTOK, sound);
+            @SuppressWarnings("unchecked") var how = (List<String>) handler().inputs(aiJob(p, "el-delito")).get("how");
+            String text = String.join("\n", how);
+            assertThat(text).contains("no añadas música ni sonidos de la biblioteca de TikTok").doesNotContain("Raúl elegirá");
+        }
+    }
+
+    @Test
+    void theNetworkSoundWarningTravelsInTheResultOfTheTask() {
+        var network = new com.socialhub.publishing.domain.PublicationSound(com.socialhub.publishing.domain.PublicationSound.Mode.NETWORK, "Púa");
+        var p = withNoteAndSound("p1", Platform.TIKTOK, network);
+        when(engine.scheduled(anyString(), anyString(), any(), any())).thenReturn("Programada en Publer");
+        var outputs = JsonMapper.builder().build().readTree("{\"scheduled\":true,\"scheduled_for\":\"" + p.scheduledAt().atZone(ZoneId.of("UTC")).toOffsetDateTime() + "\"}");
+
+        String result = handler().apply(aiJob(p, "el-delito"), outputs, outputs);
+
+        assertThat(result).startsWith("Programada en Publer").contains("Falta elegir el sonido «Púa» en TikTok");
+    }
+
+    @Test
+    void thePublerOrderTellsClaudeTheMinimumMarginAndItsDeadlineNeverPassesIt() {
+        // Margen de 24 h (el máximo): el límite del encargo es el margen, no las 8 h de Publer
+        when(settings.minMarginFor("TIKTOK")).thenReturn(java.time.Duration.ofHours(24));
+        var p = withNoteAndSound("p1", Platform.TIKTOK, com.socialhub.publishing.domain.PublicationSound.NONE);
+        var job = aiJob(p, "el-delito");
+
+        assertThat(handler().deadline(job)).isEqualTo(p.scheduledAt().minus(java.time.Duration.ofHours(24)));
+        var inputs = handler().inputs(job);
+        assertThat(inputs.get("min_publish_margin_minutes")).isEqualTo(1440L);
+        assertThat(String.join("\n", (List<String>) inputs.get("how"))).contains("al menos 1440 minutos").contains("nunca se publica al instante");
+
+        // Con el margen normal manda el límite de Publer (8 h)
+        when(settings.minMarginFor("TIKTOK")).thenReturn(java.time.Duration.ofMinutes(30));
+        assertThat(handler().deadline(job)).isEqualTo(PublerRoute.deadline(p.scheduledAt()));
+    }
+
+    @Test
+    void anOrderThatCanNoLongerBeScheduledIsNotSentToClaude() {
+        var p = withNoteAndSound("p1", Platform.TIKTOK, com.socialhub.publishing.domain.PublicationSound.NONE);
+        var job = aiJob(p, "el-delito");
+        var live = new PublishJob("p1", PublishJob.Status.WORKING, 0, "Publer", "t-1", List.of(), null, null, null, 1, null, null, null, null,
+                List.of(), NOW, NOW, 0);
+
+        // Su encargo vigente es este: sale
+        when(engine.job("p1")).thenReturn(Optional.of(live));
+        assertThat(handler().obsolete(job)).isFalse();
+        // Otro encargo lo sustituyó, o ya no hay programación en marcha: no sale
+        when(engine.job("p1")).thenReturn(Optional.of(new PublishJob("p1", PublishJob.Status.WORKING, 0, "Publer", "t-2", List.of(), null, null,
+                null, 1, null, null, null, null, List.of(), NOW, NOW, 0)));
+        assertThat(handler().obsolete(job)).isTrue();
+        when(engine.job("p1")).thenReturn(Optional.of(new PublishJob("p1", PublishJob.Status.CANCELLED, 0, "Publer", null, List.of(), null, null,
+                null, 1, null, null, null, null, List.of(), NOW, NOW, 0)));
+        assertThat(handler().obsolete(job)).isTrue();
+        // Cancelada, o sin el margen mínimo por delante: tampoco
+        when(engine.job("p1")).thenReturn(Optional.of(live));
+        when(settings.minMarginFor("TIKTOK")).thenReturn(java.time.Duration.ofDays(30));
+        assertThat(handler().obsolete(job)).isTrue();
+    }
+
+    @Test
+    void askingForANewPublerOrderCancelsTheOpenOnesOfThePublicationFirst() {
+        var p = publication("p1", "promo-litoques", Platform.TIKTOK, 0);
+        var inOrder = org.mockito.Mockito.inOrder(orders);
+
+        route().schedule(p, job(p), NOW);
+
+        inOrder.verify(orders).supersede("promo-litoques", AiRequestType.PUBLER_SCHEDULE, "p1", null, AiOrders.REPLACED);
+        inOrder.verify(orders).submitInternal(eq("promo-litoques"), eq(AiRequestType.PUBLER_SCHEDULE), anyString(), anyString(), eq(List.of("p1")));
+    }
+
+    @Test
+    void takingThePublicationOutOfScheduledWithdrawsTheOrderThatWasStillPending() {
+        var p = publication("p1", "promo-litoques", Platform.TIKTOK, 0);
+        route().withdrawPending(p, job(p));
+        verify(orders).supersede("promo-litoques", AiRequestType.PUBLER_SCHEDULE, "p1", null,
+                "Retirada porque la publicación ya no está programada");
+    }
+
+    @Test
+    void withAMarginOverEightHoursTheOrderUsesTheSameLimitAsTheHandlerAndFailsWhenItNoLongerFits() {
+        var p = publication("p1", "promo-litoques", Platform.TIKTOK, 0);
+        // La hora de publicación está a menos de 12 h de NOW y el margen de la red es de 12 h: ya no queda margen aunque falten más de 8 h
+        when(settings.minMarginFor("TIKTOK")).thenReturn(java.time.Duration.between(NOW, p.scheduledAt()).plusHours(1));
+        assertThat(PublerRoute.limit(p.scheduledAt(), settings.minMarginFor("TIKTOK"))).isBefore(NOW);
+
+        var outcome = route().schedule(p, job(p), NOW);
+
+        assertThat(outcome).isInstanceOf(PublishRoute.Outcome.Failed.class);
+        assertThat(((PublishRoute.Outcome.Failed) outcome).reason()).contains("margen mínimo");
+        verify(orders, never()).submitInternal(any(), any(), any(), any(), any());
+        verify(orders, never()).supersede(any(), any(), any(), any(), any());
+        // El encargo y la ruta comparten el límite
+        when(queries.find("p1")).thenReturn(Optional.of(p));
+        assertThat(handler().deadline(aiJob(p, "litoques"))).isEqualTo(PublerRoute.limit(p.scheduledAt(), settings.minMarginFor("TIKTOK")));
+    }
+
+    @Test
+    void whenAnOrderIsCancelledUnsentTheEngineIsToldSoTheJobDoesNotKeepWaitingForIt() {
+        var job = new AiJob("t1", AiRequestType.PUBLER_SCHEDULE, "promo-litoques", "litoques", "T", "G", List.of("p1"), NOW, null, false);
+        handler().onCancelled(job, "Retirada: ya no hacía falta enviarla");
+        verify(engine).taskCancelled("p1", "t1", "Retirada: ya no hacía falta enviarla");
+    }
+
+    @Test
+    void aLateResultOfAWithdrawnOrderWarnsToDeleteItInPublerOnlyIfClaudeDidScheduleIt() {
+        var job = new AiJob("t1", AiRequestType.PUBLER_SCHEDULE, "promo-litoques", "litoques", "T", "G", List.of("p1"), NOW, null, false);
+        var json = tools.jackson.databind.json.JsonMapper.builder().build();
+        when(engine.late("p1", "t1")).thenReturn("Revisa Publer y bórrala allí si sobra");
+
+        assertThat(handler().late(job, json.readTree("{\"scheduled\":true}"), json.readTree("{}")))
+                .isEqualTo("Revisa Publer y bórrala allí si sobra");
+        assertThat(handler().late(job, json.readTree("{\"scheduled\":false}"), json.readTree("{}"))).isNull();
+    }
+
+    @Test
+    void theNetworkSoundWarningNamesTheTrackAndTheNetwork() {
+        var named = new com.socialhub.publishing.domain.PublicationSound(com.socialhub.publishing.domain.PublicationSound.Mode.NETWORK, "Púa");
+        assertThat(PublerScheduleHandler.networkSound(named, "TikTok")).contains("Falta elegir el sonido «Púa» en TikTok");
     }
 }

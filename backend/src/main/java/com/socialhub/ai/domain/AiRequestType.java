@@ -45,6 +45,9 @@ public enum AiRequestType {
     /** Tiene «deadline» (hora límite del contrato). */
     public boolean hasDeadline() { return this == PUBLER_SCHEDULE || this == PUBLIC_LINK; }
 
+    /** El encargo no lleva el título de trabajo de la tarea (la publicación a Publer: lo que sale en la red es solo su texto). */
+    public boolean hidesWorkTitle() { return this == PUBLER_SCHEDULE; }
+
     /** Su urgencia depende de lo cerca que salga una publicación: spec, textos y revisión de calidad. */
     public boolean dependsOnPublications() { return this == WEEKLY_SPEC || this == CAPTIONS || this == QUALITY_REVIEW; }
 

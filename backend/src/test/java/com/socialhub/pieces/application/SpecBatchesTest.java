@@ -328,4 +328,15 @@ class SpecBatchesTest {
     private ResultActions write(MockHttpServletRequestBuilder request, String body) throws Exception {
         return mvc.perform(request.header("X-SocialHub-Request", "1").contentType(MediaType.APPLICATION_JSON).content(body));
     }
+
+    /** Hallazgo 23-11: diez publicaciones para dentro de 22 horas piden el spec solas (tres o más, o la más próxima en menos de 3 días). */
+    @Test
+    void tenPublicationsDueIn22HoursAskForTheSpecAtOnce() {
+        Instant now = Instant.parse("2026-11-24T20:45:00Z");
+        List<Instant> ten = java.util.stream.IntStream.range(0, 10).mapToObj(n -> now.plusSeconds(22 * 3600 + n * 1800L)).toList();
+        assertThat(WeeklySpecHandler.due(ten, now)).isTrue();
+        assertThat(WeeklySpecHandler.due(List.of(now.plusSeconds(22 * 3600)), now)).as("una sola, pero en menos de 3 días").isTrue();
+        assertThat(WeeklySpecHandler.due(List.of(now.plusSeconds(5 * 86400L)), now)).as("una sola y lejos: espera").isFalse();
+        assertThat(WeeklySpecHandler.due(List.of(), now)).isFalse();
+    }
 }

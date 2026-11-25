@@ -327,3 +327,5 @@ Pendientes:
 - **Cancelar en Publer (decisión 38):** vía (a) sin Claude, si existe una gratuita, o vía (b) con el encargo `socialhub.publer-cancel`.
 - **Vista de fábrica (decisiones 36 y 37) y flujo de estados (39):** qué debe enseñar el mapa y qué transiciones se permiten, al empezar el bloque 7.
 - **Copia en el repositorio:** hecha el 23 nov, ~21:30, en la PR #82 (`fase-13-docs-al-dia`, pendiente del merge de Raúl): `docs/fase-13.md` (decisiones 1 a 32, arreglos, bloques 7 y 8, estado del bloque 1), `docs/estado.md` y las decisiones 10 a 32 en `docs/decisiones.md`. Queda copiar al proyecto de Claude `claude/decisiones.md` en el cierre. El 24 nov se suman a la misma PR las decisiones 33 a 42 y los hallazgos del 23 y 24 nov.
+
+**Bloque 4, paso B (25 nov):** `docs/tarea-programada-encargos.md` al día como texto vigente de las dos tareas (sin pendientes de la 1.1.0 ni del 16 nov; reglas del bloque 4 incluidas). No aplicado en las tareas reales; `socialhub.publer-cancel` sigue pendiente de decisión de Raúl (decisión 38).

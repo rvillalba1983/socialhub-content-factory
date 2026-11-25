@@ -41,6 +41,7 @@ class CaptionsToPublicationFlowTest {
     @Autowired MockMvc mvc;
     @Autowired FlowClock clock;
     @Autowired AutoRequests autoRequests;
+    @Autowired com.socialhub.publishing.domain.PublicationFileRepository files;
 
     private Flow flow;
 
@@ -90,6 +91,8 @@ class CaptionsToPublicationFlowTest {
         create("2026-12-06", "INSTAGRAM", "Post", "Una propuesta", "PROPOSAL");
         create("2026-12-07", "INSTAGRAM", "Post", "Una cancelada", "IN_PRODUCTION");
         f.ok(f.post("/api/publications/2026-12-07-instagram/status-changes", "{\"status\":\"CANCELLED\",\"reason\":\"OTHER\"}"));
+        // Y una en producción que aún no tiene piezas: los textos esperan al spec y a las piezas (23-12)
+        create("2026-12-08", "INSTAGRAM", "Carrusel", "Aún sin piezas", "IN_PRODUCTION", false);
 
         assertThat(autoRequests.requestDue()).as("un solo encargo con las tres").isEqualTo(1);
         assertThat(autoRequests.requestDue()).as("no se repite").isZero();
@@ -101,6 +104,12 @@ class CaptionsToPublicationFlowTest {
         List<String> ids = new ArrayList<>();
         request.get("inputs").get("publications").forEach(p -> ids.add(p.get("id").asString()));
         assertThat(ids).containsExactlyInAnyOrder("2026-12-01-instagram", "2026-12-02-tiktok", "2026-12-03-instagram");
+        // Hashtags de cada red y la llamada a la acción: lo que Claude necesita para no mezclar etiquetas
+        JsonNode byNetwork = request.get("inputs").get("hashtags_by_network");
+        assertThat(byNetwork.get("INSTAGRAM").asString()).contains("Sin etiquetas propias de TikTok");
+        assertThat(byNetwork.get("TIKTOK").asString()).contains("Sin etiquetas propias de Instagram");
+        assertThat(request.get("inputs").get("call_to_action_options").get(0).asString()).isEqualTo("Cuéntanos qué te parece");
+        assertThat(request.get("inputs").get("skills").toString()).contains("caption-writer").contains("hook-writer");
         assertThat(request.get("inputs").get("brand_identity").get("call_to_action").asString()).isEqualTo("Cuéntanos qué te parece");
         // No lo ha pedido Raúl: sigue la regla normal de urgencia (las publicaciones están lejos)
         assertThat(request.get("urgent").asBoolean()).isFalse();
@@ -156,7 +165,6 @@ class CaptionsToPublicationFlowTest {
     void movingToReviewAsksForTheQualityReviewOnceAndAskAgainOnlyIfTheTextChanged() throws Exception {
         Flow f = flow();
         String id = "2026-12-01-instagram";
-        f.ok(f.post("/api/publications/" + id + "/files", "{\"path\":" + f.q(photo) + "}"));
         f.post("/api/publications/" + id + "/status-changes", "{\"status\":\"DRAFT\"}").andExpect(status().isOk());
         f.post("/api/publications/" + id + "/status-changes", "{\"status\":\"IN_REVIEW\"}").andExpect(status().isOk());
 
@@ -297,10 +305,20 @@ class CaptionsToPublicationFlowTest {
                 .formatted(platform, type, title, day, Flow.quote(caption), Flow.quote(hashtags));
     }
 
+    /** Como {@link #create(String, String, String, String, String, boolean)}, ya con sus piezas (el spec ya se hizo). */
     private void create(String day, String platform, String type, String title, String status) throws Exception {
+        create(day, platform, type, title, status, true);
+    }
+
+    /** @param withPieces si ya tiene piezas: los textos se piden solo después de spec y piezas (hallazgo 23-12) */
+    private void create(String day, String platform, String type, String title, String status, boolean withPieces) throws Exception {
         flow().ok(flow().post("/api/promotions/poemario/publications", """
                 {"platform":"%s","type":"%s","title":"%s","scheduled_on":"%s","scheduled_time":"19:00","initial_status":"%s"}"""
                 .formatted(platform, type, title, day, status)));
+        if (withPieces) {
+            files.add(day + "-" + platform.toLowerCase(java.util.Locale.ROOT), new com.socialhub.publishing.domain.PublicationFile(
+                    photo.toString(), com.socialhub.publishing.domain.PublicationFile.Origin.SPEC, java.time.Instant.now()));
+        }
     }
 
     /** La tarea del primer encargo automático de textos. */

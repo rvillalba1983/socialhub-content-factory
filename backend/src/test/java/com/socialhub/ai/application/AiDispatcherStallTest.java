@@ -67,4 +67,29 @@ class AiDispatcherStallTest {
         AppModeHolder.runIn(com.socialhub.platform.AppMode.REAL, dispatcher::dispatchQueued);
         assertThat(held.stalledProposals()).isEmpty();
     }
+
+    @Test
+    void ifTheTransactionFailsAfterWritingTheFileTheFileIsRemovedSoNobodyDoesAnOrderThatNoLongerExists() throws Exception {
+        // Otro encargo sustituyó a este mientras se escribía: delegateToAi falla y el archivo no puede quedarse en Drive
+        Path orders = java.nio.file.Files.createDirectories(tmp.resolve("encargos"));
+        AiTask task = new AiTask("t1", AiRequestType.WEEKLY_PROPOSALS.taskType(), "lit-1", "Propuestas", "goal",
+                List.of("2026-11-09"), 1, "SONNET", Instant.now());
+        when(promotions.brandOf("lit-1")).thenReturn("litoques");
+        when(promotions.brandOrdersFolder("litoques")).thenReturn(Optional.of(orders.toString()));
+        when(settings.dailyLimit()).thenReturn(100);
+        when(production.queuedAiTasks()).thenReturn(List.of(task));
+        var transactions = mock(TransactionTemplate.class);
+        org.mockito.Mockito.doThrow(new IllegalStateException("La tarea ya no está en cola"))
+                .when(transactions).executeWithoutResult(any());
+        var dispatcher = new AiDispatcher(production, promotions, settings, mock(AiRequestRepository.class), JsonMapper.builder().build(),
+                Clock.systemUTC(), transactions, mock(AiHandlers.class), List.of(), held, new AiUrgentRule(48),
+                mock(ApplicationEventPublisher.class));
+
+        int sent = AppModeHolder.callIn(com.socialhub.platform.AppMode.REAL, dispatcher::dispatchQueued);
+
+        assertThat(sent).isZero();
+        try (var files = java.nio.file.Files.walk(orders)) {
+            assertThat(files.filter(java.nio.file.Files::isRegularFile)).isEmpty();
+        }
+    }
 }
