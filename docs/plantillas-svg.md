@@ -80,6 +80,7 @@ y deja esa zona libre o semitransparente.
 
 - **Cierre del carrusel e historia:** `image` es **obligatorio** (un objeto). Sin él, el kit se rechaza.
 - **Cita** (verso sobre fondo): `image` puede ser `null`.
+- **Bloque 3 (decisión 60):** con kit aprobado, la ilustración va en la zona `image` y la plantilla se pinta encima con fondo transparente (`renderOver`); el kit debe dejar libre esa zona. Sin kit aprobado la plantilla se ignora.
 
 ## Cómo se ajusta un texto
 
