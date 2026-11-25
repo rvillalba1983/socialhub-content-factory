@@ -1340,6 +1340,33 @@ paths:
         "409": { $ref: "#/components/responses/Problem" }
         default: { $ref: "#/components/responses/Problem" }
 
+  /api/publications/{publication_id}/sound:
+    put:
+      tags: [Publications]
+      operationId: setPublicationSound
+      summary: Cambia el sonido de una publicación
+      description: >
+        Sin sonido, tema de Litoques en el vídeo o tema que se elige en la red (con el nombre del tema). No se puede cambiar
+        si está programada, publicándose o publicada. Por ahora solo se guarda: el montaje del audio no está hecho.
+      parameters:
+        - $ref: "#/components/parameters/PublicationId"
+        - $ref: "#/components/parameters/RequestGuard"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PublicationSoundInput" }
+      responses:
+        "200":
+          description: Publicación con el sonido nuevo
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Publication" }
+        "400": { $ref: "#/components/responses/Problem" }
+        "404": { $ref: "#/components/responses/Problem" }
+        "409": { $ref: "#/components/responses/Problem" }
+        default: { $ref: "#/components/responses/Problem" }
+
   /api/publications/{publication_id}/files:
     get:
       tags: [Publications]
@@ -3318,6 +3345,8 @@ components:
         hashtags: { type: string }
         previous_caption: { type: string, description: "Texto de Raúl que sustituyó Claude al pedirlo a mano; se recupera con previous-text-restorations" }
         previous_hashtags: { type: string }
+        sound:
+          $ref: "#/components/schemas/PublicationSound"
         confirmation: { type: string, description: Prueba de que se ha publicado de verdad }
         demo: { type: boolean }
         outcome:
@@ -3330,6 +3359,30 @@ components:
           type: string
           enum: [LOST_MARGIN, CLASH]
           description: Presente si puede moverse a la siguiente hora libre, y por qué (perdió el margen o choca con otra)
+
+    SoundMode:
+      type: string
+      enum: [none, litoques_track, network]
+      description: >
+        none, sin sonido; litoques_track, tema de Litoques en el vídeo; network, el sonido se elige en la propia red social.
+
+    PublicationSound:
+      type: object
+      description: >
+        Sonido pedido para la publicación (decisión 23). Por ahora solo se guarda y se enseña: el montaje del audio no
+        está hecho. Sin sonido es el valor por defecto.
+      required: [mode, label]
+      properties:
+        mode: { $ref: "#/components/schemas/SoundMode" }
+        track: { type: string, maxLength: 200, description: "Nombre del tema, para buscarlo (obligatorio salvo con none)" }
+        label: { type: string, description: "Texto para Raúl: «Sin sonido», «Tema de Litoques en el vídeo: X» o «Elegir en la red: X»" }
+
+    PublicationSoundInput:
+      type: object
+      required: [mode]
+      properties:
+        mode: { $ref: "#/components/schemas/SoundMode" }
+        track: { type: string, maxLength: 200, description: "Nombre del tema; obligatorio con litoques_track y network, se ignora con none" }
 
     PublicationOutcome:
       type: object
@@ -3420,6 +3473,13 @@ components:
           description: Lo asoció el spec.json al generar las piezas o Raúl a mano
         added_at: { type: string, format: date-time }
         available: { type: boolean, description: El archivo existe ahora en este ordenador }
+        page:
+          type: integer
+          minimum: 1
+          description: "Página del PDF del libro de la que sale la imagen de la pieza o diapositiva (el spec la indica); ausente si no se sabe"
+        source_name:
+          type: string
+          description: "Nombre del archivo de imagen que usa la pieza o diapositiva (por ejemplo «page 12.png»); ausente si no se sabe"
 
     PublicationFileList:
       type: object

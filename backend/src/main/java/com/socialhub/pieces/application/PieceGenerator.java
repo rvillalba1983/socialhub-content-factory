@@ -2,12 +2,15 @@ package com.socialhub.pieces.application;
 
 import static com.socialhub.pieces.application.Drawing.*;
 
+import com.socialhub.pieces.ApprovedTemplates;
 import com.socialhub.pieces.domain.BrandLook;
 import com.socialhub.pieces.domain.PieceBatch;
 import com.socialhub.pieces.domain.PieceFiles;
 import com.socialhub.pieces.domain.PieceResult;
 import com.socialhub.pieces.domain.PromoSpec;
 import com.socialhub.pieces.domain.SvgRasterizer;
+import com.socialhub.pieces.domain.TemplateRender;
+import com.socialhub.pieces.domain.TemplateRenderer;
 import com.socialhub.tools.Ffmpeg;
 import java.awt.Color;
 import java.awt.Font;
@@ -23,14 +26,21 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 /**
- * Genera las piezas de un spec.json igual que promo.py: carrusel 1080×1350, historia 1080×1920, reel, clip y
- * compresión de vídeo a menos de 9,5 MB.
+ * Genera las piezas de un spec.json igual que promo.py: carrusel 1080×1350 (1080×1920 en TikTok), historia 1080×1920, reel,
+ * clip y compresión de vídeo a menos de 9,5 MB. Con un kit de marca aprobado y una {@code plantilla} en la pieza (cierre del
+ * carrusel, historia o cita), la pieza se dibuja con la plantilla encima de la ilustración; sin kit o sin plantilla, todo
+ * sale como siempre.
  */
 @Component
 class PieceGenerator {
@@ -39,16 +49,46 @@ class PieceGenerator {
     private static final int W = 1080, H_STORY = 1920, H_POST = 1350, FPS = 30;
     private static final Duration VIDEO_TIMEOUT = Duration.ofMinutes(15);
 
+    private static final int H_TALL_IMAGE = 1200;
+    private static final Pattern FIELD = Pattern.compile("[a-z][a-z0-9_]{0,31}");
+    private static final Set<String> SOUND_MODES = Set.of("none", "litoques_track", "network");
+
     private final Ffmpeg ffmpeg;
     private final SvgRasterizer svg;
+    private final TemplateRenderer templateRenderer;
+    private final ApprovedTemplates approved;
 
-    PieceGenerator(Ffmpeg ffmpeg, SvgRasterizer svg) {
+    PieceGenerator(Ffmpeg ffmpeg, SvgRasterizer svg, TemplateRenderer templateRenderer, ApprovedTemplates approved) {
         this.ffmpeg = ffmpeg;
         this.svg = svg;
+        this.templateRenderer = templateRenderer;
+        this.approved = approved;
     }
 
-    /** Lo que necesitan las piezas al dibujarse: los archivos de la promoción, la marca y dónde anotar lo que pasa. */
-    private record Ctx(PieceFiles files, BrandLook look, Consumer<String> log) {}
+    /** Las plantillas del kit aprobado de la marca, la primera vez que se piden en un spec, y la red de cada publicación. */
+    private record Kit(GenerationSetup setup, Supplier<List<ApprovedTemplates.Template>> templates) {
+        static Kit of(GenerationSetup setup, ApprovedTemplates approved) {
+            return new Kit(setup, memo(() -> setup.brandId() == null ? List.of() : approved.of(setup.brandId())));
+        }
+
+        private static <T> Supplier<T> memo(Supplier<T> source) {
+            Object[] cache = new Object[1];
+            return () -> {
+                synchronized (cache) {
+                    if (cache[0] == null) cache[0] = source.get();
+                    @SuppressWarnings("unchecked") T value = (T) cache[0];
+                    return value;
+                }
+            };
+        }
+
+        boolean vertical(PromoSpec.Piece p) {
+            return notBlank(p.publicacion()) && setup.verticalNetwork().test(p.publicacion().strip());
+        }
+    }
+
+    /** Lo que necesitan las piezas al dibujarse: los archivos de la promoción, la marca, el kit y dónde anotar lo que pasa. */
+    private record Ctx(PieceFiles files, BrandLook look, Consumer<String> log, Kit kit) {}
 
     /**
      * La imagen base de una pieza o slide, por orden: su imagen propia, el {@code fondo_svg} de Claude, la portada de la
@@ -103,6 +143,7 @@ class PieceGenerator {
         files.checkOutputDir(spec.out() == null || spec.out().isBlank() ? "salida" : spec.out());
         for (PromoSpec.Piece p : spec.piezas()) {
             PieceFiles.safeName(p.nombre());
+            checkPieceExtras(p);
             switch (p.tipo()) {
                 case "carrusel" -> {
                     if (p.slides() == null || p.slides().isEmpty()) throw bad(p, "no tiene slides");
@@ -124,9 +165,60 @@ class PieceGenerator {
                     if (p.audio() != null) files.input(p.audio(), PieceFiles.AUDIO, 300);
                 }
                 case "clip", "comprimir" -> files.input(required(p, p.video(), "video"), PieceFiles.VIDEO, 4096);
+                case "cita" -> {
+                    if (notBlank(p.img())) files.input(p.img(), PieceFiles.IMAGES, 60);
+                    if (!notBlank(p.plantilla())) {
+                        throw bad(p, "una cita necesita «plantilla» (una del kit de marca aprobado) y «campos» con el verso");
+                    }
+                }
+                case "infografia", "meme" -> throw bad(p, "el tipo «" + p.tipo() + "» todavía no está activo en SocialHub "
+                        + "(tipos activos: carrusel, historia, reel, clip, comprimir y cita)");
                 default -> throw bad(p, "tipo desconocido «" + p.tipo() + "»");
             }
         }
+    }
+
+    /** Plantilla, campos, páginas y sonido: lo que se puede comprobar sin conocer la marca. */
+    private static void checkPieceExtras(PromoSpec.Piece p) {
+        boolean takesTemplate = p.tipo().equals("historia") || p.tipo().equals("cita");
+        if (notBlank(p.plantilla()) && !takesTemplate) {
+            throw bad(p, p.tipo().equals("carrusel")
+                    ? "en un carrusel la plantilla va dentro de «cierre» («cierre.plantilla»), no en la pieza"
+                    : "este tipo de pieza no admite plantilla (solo el cierre del carrusel, la historia y la cita)");
+        }
+        checkFields(p, "campos", p.campos());
+        if (p.cierre() != null) checkFields(p, "cierre.campos", p.cierre().campos());
+        checkPage(p, p.pagina());
+        if (p.slides() != null) p.slides().forEach(s -> checkPage(p, s.pagina()));
+        if (p.cierre() != null) checkPage(p, p.cierre().pagina());
+        PromoSpec.Sound sound = p.sonido();
+        if (sound != null) {
+            if (!SOUND_MODES.contains(sound.mode())) {
+                throw bad(p, "sonido no válido «" + sound.mode() + "»: usa none (sin sonido), litoques_track (tema de Litoques) "
+                        + "o network (elegir en la red)");
+            }
+            if (!sound.mode().equals("none") && !notBlank(sound.track())) {
+                throw bad(p, "con el sonido «" + sound.mode() + "» hay que decir el nombre del tema («sonido.tema»)");
+            }
+            if (notBlank(sound.track()) && sound.track().strip().length() > 200) {
+                throw bad(p, "el nombre del tema del sonido supera los 200 caracteres");
+            }
+        }
+    }
+
+    private static void checkFields(PromoSpec.Piece p, String where, @Nullable Map<String, String> fields) {
+        if (fields == null) return;
+        if (fields.size() > 40) throw bad(p, "«" + where + "» tiene más de 40 campos");
+        for (String name : fields.keySet()) {
+            if (!FIELD.matcher(name).matches()) {
+                throw bad(p, "el nombre de campo «" + name + "» (en «" + where + "») no vale: minúsculas, cifras y «_», "
+                        + "empieza por letra, hasta 32 caracteres");
+            }
+        }
+    }
+
+    private static void checkPage(PromoSpec.Piece p, @Nullable Integer page) {
+        if (page != null && (page < 1 || page > 9999)) throw bad(p, "la página «" + page + "» no vale: de 1 a 9999");
     }
 
     private static @Nullable String blankToNull(@Nullable String text) {
@@ -135,22 +227,34 @@ class PieceGenerator {
 
     PieceBatch generate(PromoSpec spec, PieceFiles files, BrandLook look, Consumer<String> log, Consumer<Double> progress)
             throws IOException, InterruptedException {
+        return generate(spec, files, look, log, progress, GenerationSetup.NONE);
+    }
+
+    PieceBatch generate(PromoSpec spec, PieceFiles files, BrandLook look, Consumer<String> log, Consumer<Double> progress,
+                        GenerationSetup setup) throws IOException, InterruptedException {
         validate(spec, files);
-        Ctx ctx = new Ctx(files, look, log);
+        Ctx ctx = new Ctx(files, look, log, Kit.of(setup, approved));
+        // Antes de dibujar nada: una plantilla que no existe o no sirve para su pieza para el lote entero
+        checkTemplates(spec, ctx.kit(), log);
         Path out = files.outputDir(spec.out() == null || spec.out().isBlank() ? "salida" : spec.out());
         List<PieceResult> results = new ArrayList<>();
         int i = 0;
         for (PromoSpec.Piece p : spec.piezas()) {
             checkInterrupted();
+            List<PieceResult.Source> sources = new ArrayList<>();
             List<Path> made = switch (p.tipo()) {
-                case "carrusel" -> carousel(p, ctx, out);
-                case "historia" -> story(p, ctx, out);
-                case "reel" -> reel(p, ctx, out);
+                case "carrusel" -> carousel(p, ctx, out, sources);
+                case "historia" -> story(p, ctx, out, sources);
+                case "reel" -> reel(p, ctx, out, sources);
                 case "clip" -> clip(p, files, out);
                 case "comprimir" -> compress(p, files, out);
+                case "cita" -> quote(p, ctx, out, sources);
                 default -> throw bad(p, "tipo desconocido");
             };
-            results.add(new PieceResult(p.nombre(), p.tipo(), blankToNull(p.publicacion()), made));
+            if (p.sonido() != null && blankToNull(p.publicacion()) == null) {
+                log.accept(p.nombre() + ": el spec pide sonido pero la pieza no indica «publicacion»; no se guarda en ninguna");
+            }
+            results.add(new PieceResult(p.nombre(), p.tipo(), blankToNull(p.publicacion()), made, sources, p.sonido()));
             log.accept(p.tipo() + " · " + p.nombre() + ": " + describe(made));
             progress.accept(100.0 * ++i / spec.piezas().size());
         }
@@ -160,20 +264,24 @@ class PieceGenerator {
 
     // ---------------------------------------------------------------- carrusel
 
-    private List<Path> carousel(PromoSpec.Piece p, Ctx ctx, Path out) throws IOException, InterruptedException {
+    private List<Path> carousel(PromoSpec.Piece p, Ctx ctx, Path out, List<PieceResult.Source> sources) throws IOException, InterruptedException {
         List<Path> made = new ArrayList<>();
+        // En una red que pide 9:16 (TikTok) el carrusel sale en 1080×1920; en las demás, como siempre
+        boolean tall = ctx.kit().vertical(p);
+        int height = tall ? H_STORY : H_POST;
+        int imageHeight = tall ? H_TALL_IMAGE : 900;
         int i = 0;
         for (PromoSpec.Slide s : p.slides()) {
             checkInterrupted();
             double[] crop = crop(s.crop(), 0.5, 0.4);
             boolean ownTitle = notBlank(s.titulo());
             String title = ownTitle ? s.titulo().strip() : pieceTitle(p);
-            Base base = base(ctx, s.img(), notBlank(s.fondoSvg()) ? s.fondoSvg() : p.fondoSvg(), W, H_POST, W, 900,
+            Base base = base(ctx, s.img(), notBlank(s.fondoSvg()) ? s.fondoSvg() : p.fondoSvg(), W, height, W, imageHeight,
                     title + (ownTitle ? "" : " " + (i + 1)), title, 0.5, p.nombre() + " (slide " + (i + 1) + ")");
-            BufferedImage img = canvas(W, H_POST, CREAM);
+            BufferedImage img = canvas(W, height, CREAM);
             Graphics2D g = graphics(img);
-            g.drawImage(cover(base.image(), W, 900, crop[0], crop[1]), 0, 0, null);
-            int y = 960;
+            g.drawImage(cover(base.image(), W, imageHeight, crop[0], crop[1]), 0, 0, null);
+            int y = imageHeight + 60;
             // El fondo de SocialHub ya lleva el título de la slide: no se repite debajo
             if (ownTitle && !base.generated()) {
                 centered(g, y, s.titulo(), bold(40), RED, W);
@@ -181,24 +289,48 @@ class PieceGenerator {
             }
             if (notBlank(s.texto())) block(g, y, s.texto(), italic(46), INK, W);
             g.dispose();
-            made.add(saveJpg(img, out, p.nombre() + "_" + ++i, 92));
+            Path file = saveJpg(img, out, p.nombre() + "_" + ++i, 92);
+            made.add(file);
+            sources.add(source(file, s.pagina(), s.img()));
         }
         PromoSpec.Closing c = p.cierre();
         if (c != null) {
-            Base base = base(ctx, c.img(), p.fondoSvg(), W, H_POST, 900, 800, pieceTitle(p) + " cierre", pieceTitle(p), 0.5,
-                    p.nombre() + " (cierre)");
-            BufferedImage img = canvas(W, H_POST, CREAM);
-            Graphics2D g = graphics(img);
-            g.drawImage(cover(base.image(), 900, 800, 0.5, 0.5), 90, 60, null);
-            int y = 900;
-            for (int j = 0; j < c.lineas().size(); j++) {
-                Font font = j == 0 ? bold(64) : italic(40);
-                y = block(g, y, c.lineas().get(j), font, j == 0 ? INK : RED, W) + 10;
+            Optional<ApprovedTemplates.Template> template = resolve(ctx.kit(), p, c.plantilla(), c.campos(), "cierre",
+                    height, false, ctx.log());
+            BufferedImage img;
+            if (template.isPresent()) {
+                ctx.log().accept(p.nombre() + " (cierre): con la plantilla «" + template.get().id() + "» del kit de marca");
+                img = drawTemplate(ctx, p, template.get(), c.campos(), c.img(), p.fondoSvg(), W, height, pieceTitle(p) + " cierre",
+                        0.5, 0.5, p.nombre() + " (cierre)");
+            } else {
+                int closeW = 900, closeH = tall ? 1100 : 800, closeY = tall ? 100 : 60;
+                Base base = base(ctx, c.img(), p.fondoSvg(), W, height, closeW, closeH, pieceTitle(p) + " cierre", pieceTitle(p), 0.5,
+                        p.nombre() + " (cierre)");
+                img = canvas(W, height, CREAM);
+                Graphics2D g = graphics(img);
+                g.drawImage(cover(base.image(), closeW, closeH, 0.5, 0.5), 90, closeY, null);
+                int y = tall ? 1300 : 900;
+                for (int j = 0; j < c.lineas().size(); j++) {
+                    Font font = j == 0 ? bold(64) : italic(40);
+                    y = block(g, y, c.lineas().get(j), font, j == 0 ? INK : RED, W) + 10;
+                }
+                g.dispose();
             }
-            g.dispose();
-            made.add(saveJpg(img, out, p.nombre() + "_" + (made.size() + 1), 92));
+            Path file = saveJpg(img, out, p.nombre() + "_" + (made.size() + 1), 92);
+            made.add(file);
+            sources.add(source(file, c.pagina(), c.img()));
         }
         return made;
+    }
+
+    /** De dónde sale un archivo: su página del PDF y el nombre del archivo de imagen (sin la carpeta). */
+    private static PieceResult.Source source(Path file, @Nullable Integer page, @Nullable String img) {
+        String name = null;
+        if (notBlank(img)) {
+            String normalized = img.strip().replace('\\', '/');
+            name = normalized.substring(normalized.lastIndexOf('/') + 1);
+        }
+        return new PieceResult.Source(file, page, name);
     }
 
     // ---------------------------------------------------------------- historia
@@ -216,8 +348,18 @@ class PieceGenerator {
         return s;
     }
 
-    private List<Path> story(PromoSpec.Piece p, Ctx ctx, Path out) throws IOException {
+    private List<Path> story(PromoSpec.Piece p, Ctx ctx, Path out, List<PieceResult.Source> sources) throws IOException {
         double[] crop = crop(p.crop(), 0.5, 0.5);
+        Optional<ApprovedTemplates.Template> template = resolve(ctx.kit(), p, p.plantilla(), p.campos(), "historia", H_STORY,
+                false, ctx.log());
+        if (template.isPresent()) {
+            ctx.log().accept(p.nombre() + ": con la plantilla «" + template.get().id() + "» del kit de marca");
+            BufferedImage card = drawTemplate(ctx, p, template.get(), p.campos(), p.img(), p.fondoSvg(), W, H_STORY, pieceTitle(p),
+                    crop[0], crop[1], p.nombre());
+            Path file = saveJpg(card, out, p.nombre(), 92);
+            sources.add(source(file, p.pagina(), p.img()));
+            return List.of(file);
+        }
         List<Line> lines = new ArrayList<>();
         lines.add(new Line(p.titulo(), bold(84), LIGHT));
         if (notBlank(p.texto())) lines.add(new Line(p.texto(), italic(46), WARM));
@@ -225,14 +367,33 @@ class PieceGenerator {
         // Sin texto en el fondo propio de SocialHub: el título de la historia ya se dibuja encima
         Base base = base(ctx, p.img(), p.fondoSvg(), W, H_STORY, W, H_STORY, pieceTitle(p), null, 0.5, p.nombre());
         BufferedImage card = verticalCard(base.image(), lines, crop[0], crop[1], 160);
-        return List.of(saveJpg(card, out, p.nombre(), 92));
+        Path file = saveJpg(card, out, p.nombre(), 92);
+        sources.add(source(file, p.pagina(), p.img()));
+        return List.of(file);
+    }
+
+    // ---------------------------------------------------------------- cita
+
+    /** Una cita (verso sobre fondo): siempre con la plantilla del kit aprobado; el tamaño es el de la plantilla. */
+    private List<Path> quote(PromoSpec.Piece p, Ctx ctx, Path out, List<PieceResult.Source> sources) throws IOException {
+        boolean tall = ctx.kit().vertical(p);
+        ApprovedTemplates.Template template = resolve(ctx.kit(), p, p.plantilla(), p.campos(), "cita", tall ? H_STORY : null, true,
+                ctx.log()).orElseThrow();
+        ctx.log().accept(p.nombre() + ": con la plantilla «" + template.id() + "» del kit de marca");
+        int height = (int) Math.round((double) W * template.height() / template.width());
+        double[] crop = crop(p.crop(), 0.5, 0.5);
+        BufferedImage card = drawTemplate(ctx, p, template, p.campos(), p.img(), p.fondoSvg(), W, height, pieceTitle(p), crop[0],
+                crop[1], p.nombre());
+        Path file = saveJpg(card, out, p.nombre(), 92);
+        sources.add(source(file, p.pagina(), p.img()));
+        return List.of(file);
     }
 
     // ---------------------------------------------------------------- reel
 
     private record Segment(String text, double seconds, Font font) {}
 
-    private List<Path> reel(PromoSpec.Piece p, Ctx ctx, Path out) throws IOException, InterruptedException {
+    private List<Path> reel(PromoSpec.Piece p, Ctx ctx, Path out, List<PieceResult.Source> sources) throws IOException, InterruptedException {
         PieceFiles files = ctx.files();
         Base base = base(ctx, p.img(), p.fondoSvg(), W, H_STORY, W, H_STORY, pieceTitle(p), pieceTitle(p), 0.36, p.nombre());
         BufferedImage src = base.image();
@@ -307,7 +468,10 @@ class PieceGenerator {
                     "-pix_fmt", "yuv420p", "-movflags", "+faststart", video.toString()));
             ffmpeg.run("reel", args, VIDEO_TIMEOUT);
             Path cover = saveJpg(endImg, out, p.nombre() + "_portada", 92);
-            return List.of(fitSize(video), cover);
+            Path finalVideo = fitSize(video);
+            sources.add(source(finalVideo, p.pagina(), p.img()));
+            sources.add(source(cover, p.pagina(), p.img()));
+            return List.of(finalVideo, cover);
         } finally {
             deleteTree(frames);
         }
@@ -317,6 +481,125 @@ class PieceGenerator {
         double q = Math.min(progress, 1.0);
         int x = (int) (mx * (0.15 + 0.7 * q)), y = (int) (my * (0.1 + 0.8 * q));
         return copy(big.getSubimage(x, y, W, H_STORY));
+    }
+
+    // ---------------------------------------------------------------- plantillas del kit de marca
+
+    /**
+     * Comprueba, sin dibujar, las plantillas de las piezas del spec contra el kit aprobado de la marca: que existen, que son
+     * de esa pieza, que llevan sus campos obligatorios y que su proporción es la que toca (9:16 en TikTok). Sin kit aprobado
+     * no comprueba nada (las plantillas se ignoran), salvo en la cita, que no se puede dibujar sin plantilla.
+     */
+    void checkTemplates(PromoSpec spec, GenerationSetup setup, Consumer<String> log) {
+        checkTemplates(spec, Kit.of(setup, approved), log);
+    }
+
+    private void checkTemplates(PromoSpec spec, Kit kit, Consumer<String> log) {
+        for (PromoSpec.Piece p : spec.piezas()) {
+            boolean tall = kit.vertical(p);
+            switch (p.tipo()) {
+                case "carrusel" -> {
+                    if (p.cierre() != null) {
+                        resolve(kit, p, p.cierre().plantilla(), p.cierre().campos(), "cierre", tall ? H_STORY : H_POST, false, log);
+                    }
+                }
+                case "historia" -> resolve(kit, p, p.plantilla(), p.campos(), "historia", H_STORY, false, log);
+                case "cita" -> resolve(kit, p, p.plantilla(), p.campos(), "cita", tall ? H_STORY : null, true, log);
+                default -> { }
+            }
+        }
+    }
+
+    /**
+     * La plantilla aprobada que pide la pieza. Sin {@code plantilla} o sin kit aprobado, vacío (la pieza sale como siempre; en
+     * la cita, que no tiene otra forma de dibujarse, es un error). Con kit aprobado, una plantilla que no existe, que es de
+     * otra pieza, a la que le faltan campos o que no tiene la proporción que toca, es un error en español.
+     *
+     * @param expectedHeight alto en píxeles que debe tener la pieza (el ancho es 1080); {@code null}: el que diga la plantilla
+     */
+    private Optional<ApprovedTemplates.Template> resolve(Kit kit, PromoSpec.Piece p, @Nullable String id,
+                                                         @Nullable Map<String, String> fields, String pieceCode,
+                                                         @Nullable Integer expectedHeight, boolean mandatory,
+                                                         Consumer<String> log) {
+        if (!notBlank(id)) return Optional.empty();
+        String wanted = id.strip();
+        List<ApprovedTemplates.Template> all = kit.templates().get();
+        if (all.isEmpty()) {
+            if (mandatory) {
+                throw bad(p, "la marca no tiene un kit de marca aprobado, y una «" + pieceCode + "» no se puede dibujar sin su "
+                        + "plantilla. Pide el kit en la ficha de la marca y apruébalo");
+            }
+            log.accept(p.nombre() + ": la marca no tiene un kit aprobado; se ignora la plantilla «" + wanted
+                    + "» y la pieza sale como siempre");
+            return Optional.empty();
+        }
+        ApprovedTemplates.Template template = all.stream().filter(t -> t.id().equals(wanted)).findFirst().orElseThrow(() -> {
+            List<String> same = all.stream().filter(t -> t.piece().equals(pieceCode)).map(ApprovedTemplates.Template::id).toList();
+            return bad(p, "la plantilla «" + wanted + "» no existe en el kit aprobado de la marca. "
+                    + (same.isEmpty() ? "El kit no tiene plantillas de «" + pieceCode + "»"
+                    : "Plantillas de «" + pieceCode + "»: " + String.join(", ", same)));
+        });
+        if (!template.piece().equals(pieceCode)) {
+            throw bad(p, "la plantilla «" + wanted + "» es de la pieza «" + template.piece() + "» y aquí hace falta una de «"
+                    + pieceCode + "»");
+        }
+        Map<String, String> texts = fields == null ? Map.of() : fields;
+        List<String> missing = template.required().stream().filter(f -> !notBlank(texts.get(f))).toList();
+        if (!missing.isEmpty()) {
+            throw bad(p, "a la plantilla «" + wanted + "» le faltan campos obligatorios en «campos»: " + String.join(", ", missing));
+        }
+        if (expectedHeight != null && !sameRatio(template, W, expectedHeight)) {
+            List<String> fit = all.stream().filter(t -> t.piece().equals(pieceCode) && sameRatio(t, W, expectedHeight))
+                    .map(ApprovedTemplates.Template::id).toList();
+            throw bad(p, "la plantilla «" + wanted + "» es " + template.ratio() + " y esta pieza sale en " + W + "×" + expectedHeight
+                    + (expectedHeight == H_STORY ? " (9:16)" : " (4:5)")
+                    + (fit.isEmpty() ? "; el kit no tiene otra plantilla de «" + pieceCode + "» con esa proporción"
+                    : ". Usa una de esta proporción: " + String.join(", ", fit)));
+        }
+        return Optional.of(template);
+    }
+
+    private static boolean sameRatio(ApprovedTemplates.Template template, int width, int height) {
+        double expected = (double) width / height;
+        double real = (double) template.width() / template.height();
+        return Math.abs(real - expected) / expected <= 0.01;
+    }
+
+    /**
+     * Dibuja la pieza con su plantilla: la ilustración debajo, en la zona {@code image} de la plantilla, y la plantilla (dibujo y
+     * textos) encima (decisión 53). Una plantilla sin zona de imagen (la cita) se dibuja sola.
+     */
+    private BufferedImage drawTemplate(Ctx ctx, PromoSpec.Piece p, ApprovedTemplates.Template template,
+                                       @Nullable Map<String, String> fields, @Nullable String img, @Nullable String fondoSvg,
+                                       int width, int height, String seed, double fx, double fy, String label) throws IOException {
+        Map<String, String> texts = fields == null ? Map.of() : fields;
+        ApprovedTemplates.Zone zone = template.image();
+        if (zone == null) {
+            TemplateRender render = templateRenderer.render(template.svg(), texts, width, height);
+            return finish(p, template, render, label, ctx);
+        }
+        double scale = (double) width / template.width();
+        int zx = (int) Math.round(zone.x() * scale), zy = (int) Math.round(zone.y() * scale);
+        int zw = Math.max(1, (int) Math.round(zone.width() * scale)), zh = Math.max(1, (int) Math.round(zone.height() * scale));
+        // Sin texto propio sobre el fondo de SocialHub: el título ya lo lleva la plantilla
+        Base base = base(ctx, img, fondoSvg, zw, zh, zw, zh, seed, null, 0.5, label);
+        TemplateRender over = templateRenderer.renderOver(template.svg(), texts, width, height);
+        BufferedImage overlay = finish(p, template, over, label, ctx);
+        BufferedImage canvas = canvas(width, height, CREAM);
+        Graphics2D g = graphics(canvas);
+        g.drawImage(cover(base.image(), zw, zh, fx, fy), zx, zy, null);
+        g.drawImage(overlay, 0, 0, null);
+        g.dispose();
+        return canvas;
+    }
+
+    private static BufferedImage finish(PromoSpec.Piece p, ApprovedTemplates.Template template, TemplateRender render, String label,
+                                        Ctx ctx) {
+        if (!render.ok()) {
+            throw bad(p, "no se pudo dibujar con la plantilla «" + template.id() + "»: " + String.join(" ", render.errors()));
+        }
+        for (String warning : render.warnings()) ctx.log().accept(label + " · plantilla «" + template.id() + "»: " + warning);
+        return java.util.Objects.requireNonNull(render.image());
     }
 
     // ---------------------------------------------------------------- clip y comprimir

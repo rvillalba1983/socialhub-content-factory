@@ -31,6 +31,10 @@ class PublicationFileEntity {
 
     private Instant addedAt;
 
+    private @org.jspecify.annotations.Nullable Integer page;
+
+    private @org.jspecify.annotations.Nullable String sourceName;
+
     @EqualsAndHashCode @NoArgsConstructor @AllArgsConstructor
     static class Key implements Serializable {
         private String publicationId;

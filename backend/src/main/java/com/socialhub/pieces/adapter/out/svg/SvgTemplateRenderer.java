@@ -75,15 +75,21 @@ public class SvgTemplateRenderer implements TemplateRenderer {
 
     @Override
     public TemplateRender preview(String templateSvg, int width, int height) {
-        return paint(templateSvg, null, width, height);
+        return paint(templateSvg, null, width, height, false);
     }
 
     @Override
     public TemplateRender render(String templateSvg, Map<String, String> texts, int width, int height) {
-        return paint(templateSvg, texts, width, height);
+        return paint(templateSvg, texts, width, height, false);
     }
 
-    private TemplateRender paint(String templateSvg, @org.jspecify.annotations.Nullable Map<String, String> texts, int width, int height) {
+    @Override
+    public TemplateRender renderOver(String templateSvg, Map<String, String> texts, int width, int height) {
+        return paint(templateSvg, texts, width, height, true);
+    }
+
+    private TemplateRender paint(String templateSvg, @org.jspecify.annotations.Nullable Map<String, String> texts, int width, int height,
+                                boolean transparent) {
         try {
             Analysis analysis = analyze(templateSvg);
             if (!analysis.errors().isEmpty()) return new TemplateRender(null, List.of(), analysis.errors());
@@ -92,7 +98,8 @@ public class SvgTemplateRenderer implements TemplateRenderer {
                 return error("La proporción pedida (" + width + "×" + height + ") no coincide con la de la plantilla ("
                         + trim(analysis.vbWidth()) + "×" + trim(analysis.vbHeight()) + ").");
             }
-            Optional<BufferedImage> background = rasterizer.rasterize(drawing(templateSvg), width, height);
+            Optional<BufferedImage> background = transparent ? rasterizer.rasterizeTransparent(drawing(templateSvg), width, height)
+                    : rasterizer.rasterize(drawing(templateSvg), width, height);
             if (background.isEmpty()) {
                 return error("No se ha podido pintar el dibujo de la plantilla (comprueba el tamaño pedido: como máximo 1080×1920 píxeles).");
             }

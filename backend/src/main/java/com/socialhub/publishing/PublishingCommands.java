@@ -31,6 +31,26 @@ public interface PublishingCommands {
     /** Asocia los archivos generados para una pieza del spec.json. Los que ya estaban se dejan como están. */
     int attachGenerated(String promotionId, String publicationId, List<Path> generated);
 
+    /**
+     * Un archivo generado para una pieza, con su origen: la página del PDF y el nombre del archivo de imagen que usa
+     * (hallazgo K), para ver en la ficha de la publicación que imagen y poema casan.
+     */
+    record GeneratedFile(Path path, @Nullable Integer page, @Nullable String sourceName) {}
+
+    /** Sonido que pide el spec ({@code none}, {@code litoques_track} o {@code network}, con el nombre del tema). */
+    record SoundChoice(String mode, @Nullable String track) {}
+
+    /**
+     * Como {@link #attachGenerated} pero con la página y el archivo de imagen de cada uno, y el sonido que pide el spec (si lo
+     * pide). Si la publicación ya está programada o publicada no cambia nada. Los archivos que ya estaban se dejan como están.
+     *
+     * @return cuántos archivos se asociaron
+     */
+    int attachGeneratedPieces(String promotionId, String publicationId, List<GeneratedFile> generated, @Nullable SoundChoice sound);
+
+    /** Cambia el sonido de la publicación (decisión 23). Con {@code litoques_track} y {@code network} hace falta el nombre del tema. */
+    Publication setSound(String id, String mode, @Nullable String track);
+
     /** Quita la asociación. El archivo no se toca. */
     void detach(String publicationId, String path);
 

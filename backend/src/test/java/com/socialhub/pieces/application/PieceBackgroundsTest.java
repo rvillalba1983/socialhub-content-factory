@@ -31,7 +31,8 @@ class PieceBackgroundsTest {
             + "<rect width=\"1080\" height=\"1350\" fill=\"#ff0000\"/></svg>";
 
     @TempDir Path drive;
-    private final PieceGenerator generator = new PieceGenerator(mock(Ffmpeg.class), new BatikSvgRasterizer());
+    private final PieceGenerator generator = new PieceGenerator(mock(Ffmpeg.class), new BatikSvgRasterizer(),
+            new com.socialhub.pieces.adapter.out.svg.SvgTemplateRenderer(new BatikSvgRasterizer()), brand -> java.util.List.of());
     private PieceFiles files;
     private final List<String> log = new ArrayList<>();
 

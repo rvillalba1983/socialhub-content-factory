@@ -60,6 +60,15 @@ public class BatikSvgRasterizer implements SvgRasterizer {
 
     @Override
     public Optional<BufferedImage> rasterize(String svg, int width, int height) {
+        return rasterize(svg, width, height, false);
+    }
+
+    @Override
+    public Optional<BufferedImage> rasterizeTransparent(String svg, int width, int height) {
+        return rasterize(svg, width, height, true);
+    }
+
+    private Optional<BufferedImage> rasterize(String svg, int width, int height, boolean transparent) {
         if (width <= 0 || height <= 0 || (long) width * height > MAX_PIXELS) return Optional.empty();
         Optional<Document> parsed = parse(svg);
         if (parsed.isEmpty()) return Optional.empty();
@@ -72,13 +81,14 @@ public class BatikSvgRasterizer implements SvgRasterizer {
             Capture capture = new Capture();
             capture.addTranscodingHint(ImageTranscoder.KEY_WIDTH, (float) width);
             capture.addTranscodingHint(ImageTranscoder.KEY_HEIGHT, (float) height);
-            capture.addTranscodingHint(ImageTranscoder.KEY_BACKGROUND_COLOR, Color.WHITE);
+            if (!transparent) capture.addTranscodingHint(ImageTranscoder.KEY_BACKGROUND_COLOR, Color.WHITE);
             capture.addTranscodingHint(ImageTranscoder.KEY_EXECUTE_ONLOAD, false);
             capture.addTranscodingHint(ImageTranscoder.KEY_ALLOWED_SCRIPT_TYPES, "");
             capture.addTranscodingHint(ImageTranscoder.KEY_XML_PARSER_VALIDATING, false);
             capture.transcode(new TranscoderInput(new StringReader(SecureXml.serialize(parsed.get()))), new TranscoderOutput());
             BufferedImage image = capture.image;
             if (image == null) return Optional.empty();
+            if (transparent) return Optional.of(image);
             BufferedImage rgb = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
             var g = rgb.createGraphics();
             g.drawImage(image, 0, 0, Color.WHITE, null);

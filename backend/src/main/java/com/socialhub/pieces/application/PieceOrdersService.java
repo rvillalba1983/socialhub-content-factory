@@ -34,6 +34,8 @@ class PieceOrdersService implements PieceOrders {
     private final PieceOrderRepository orders;
     private final Clock clock;
     private final PiecePublications publications;
+    private final PieceGenerator generator;
+    private final GenerationSetups setups;
 
     @Override
     @Transactional(readOnly = true)
@@ -61,6 +63,7 @@ class PieceOrdersService implements PieceOrders {
     public String order(String promotionId, String specPath) {
         LoadedSpec loaded = reader.load(specPath, promotions.driveFolders(promotionId));
         publications.check(promotionId, loaded.spec());
+        generator.checkTemplates(loaded.spec(), setups.of(promotionId, loaded.spec()), msg -> { });
         return submit(promotionId, loaded.path(), loaded.spec().piezas().size() + " piezas");
     }
 

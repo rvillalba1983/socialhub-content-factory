@@ -972,6 +972,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/publications/{publication_id}/sound": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Cambia el sonido de una publicación
+         * @description Sin sonido, tema de Litoques en el vídeo o tema que se elige en la red (con el nombre del tema). No se puede cambiar si está programada, publicándose o publicada. Por ahora solo se guarda: el montaje del audio no está hecho.
+         */
+        put: operations["setPublicationSound"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/publications/{publication_id}/files": {
         parameters: {
             query?: never;
@@ -2526,6 +2546,7 @@ export interface components {
             /** @description Texto de Raúl que sustituyó Claude al pedirlo a mano; se recupera con previous-text-restorations */
             previous_caption?: string;
             previous_hashtags?: string;
+            sound?: components["schemas"]["PublicationSound"];
             /** @description Prueba de que se ha publicado de verdad */
             confirmation?: string;
             demo: boolean;
@@ -2537,6 +2558,24 @@ export interface components {
              * @enum {string}
              */
             move_reason?: "LOST_MARGIN" | "CLASH";
+        };
+        /**
+         * @description none, sin sonido; litoques_track, tema de Litoques en el vídeo; network, el sonido se elige en la propia red social.
+         * @enum {string}
+         */
+        SoundMode: "none" | "litoques_track" | "network";
+        /** @description Sonido pedido para la publicación (decisión 23). Por ahora solo se guarda y se enseña: el montaje del audio no está hecho. Sin sonido es el valor por defecto. */
+        PublicationSound: {
+            mode: components["schemas"]["SoundMode"];
+            /** @description Nombre del tema, para buscarlo (obligatorio salvo con none) */
+            track?: string;
+            /** @description Texto para Raúl: «Sin sonido», «Tema de Litoques en el vídeo: X» o «Elegir en la red: X» */
+            label: string;
+        };
+        PublicationSoundInput: {
+            mode: components["schemas"]["SoundMode"];
+            /** @description Nombre del tema; obligatorio con litoques_track y network, se ignora con none */
+            track?: string;
         };
         /** @description Cómo ha acabado o va la publicación, solo con datos reales (su estado, su trabajo de publicación y el calendario leído por Claude). Ausente si está cancelada. Sin confirmación, UNCONFIRMED. */
         PublicationOutcome: {
@@ -2641,6 +2680,10 @@ export interface components {
             added_at: string;
             /** @description El archivo existe ahora en este ordenador */
             available: boolean;
+            /** @description Página del PDF del libro de la que sale la imagen de la pieza o diapositiva (el spec la indica); ausente si no se sabe */
+            page?: number;
+            /** @description Nombre del archivo de imagen que usa la pieza o diapositiva (por ejemplo «page 12.png»); ausente si no se sabe */
+            source_name?: string;
         };
         PublicationFileList: {
             items: components["schemas"]["PublicationFile"][];
@@ -2889,6 +2932,9 @@ export type AvailableCommand = components['schemas']['AvailableCommand'];
 export type TaskCommand = components['schemas']['TaskCommand'];
 export type PublicationPage = components['schemas']['PublicationPage'];
 export type Publication = components['schemas']['Publication'];
+export type SoundMode = components['schemas']['SoundMode'];
+export type PublicationSound = components['schemas']['PublicationSound'];
+export type PublicationSoundInput = components['schemas']['PublicationSoundInput'];
 export type PublicationOutcome = components['schemas']['PublicationOutcome'];
 export type DuplicateRef = components['schemas']['DuplicateRef'];
 export type SlotProposal = components['schemas']['SlotProposal'];
@@ -4658,6 +4704,39 @@ export interface operations {
         };
         responses: {
             /** @description Publicación actualizada */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Publication"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            default: components["responses"]["Problem"];
+        };
+    };
+    setPublicationSound: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Debe valer 1. Impide que otras webs abiertas en el navegador hagan peticiones en nombre del usuario. */
+                "X-SocialHub-Request": components["parameters"]["RequestGuard"];
+            };
+            path: {
+                publication_id: components["parameters"]["PublicationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PublicationSoundInput"];
+            };
+        };
+        responses: {
+            /** @description Publicación con el sonido nuevo */
             200: {
                 headers: {
                     [name: string]: unknown;

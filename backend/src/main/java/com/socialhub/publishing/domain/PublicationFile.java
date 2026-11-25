@@ -7,15 +7,22 @@ import java.time.Instant;
 import java.util.HexFormat;
 import java.util.Locale;
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 import org.jmolecules.ddd.annotation.ValueObject;
 
 /**
  * Un archivo asociado a una publicación.
  *
- * @param origin quién lo asoció: el spec.json al generar las piezas o Raúl a mano
+ * @param origin     quién lo asoció: el spec.json al generar las piezas o Raúl a mano
+ * @param page       página del PDF del libro de la que sale la imagen de la pieza (hallazgo K); nula si no se sabe
+ * @param sourceName nombre del archivo de imagen que usa la pieza (por ejemplo {@code page 12.png}); nulo si no se sabe
  */
 @ValueObject
-public record PublicationFile(String path, Origin origin, Instant addedAt) {
+public record PublicationFile(String path, Origin origin, Instant addedAt, @Nullable Integer page, @Nullable String sourceName) {
+
+    public PublicationFile(String path, Origin origin, Instant addedAt) {
+        this(path, origin, addedAt, null, null);
+    }
 
     public enum Origin { SPEC, MANUAL }
 

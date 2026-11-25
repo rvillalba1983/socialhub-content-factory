@@ -15,7 +15,7 @@ class JpaPublicationFileRepository implements PublicationFileRepository {
     @Override
     public List<PublicationFile> files(String publicationId) {
         return jpa.findByPublicationIdOrderByAddedAtAscPathAsc(publicationId).stream()
-                .map(e -> new PublicationFile(e.getPath(), e.getOrigin(), e.getAddedAt()))
+                .map(e -> new PublicationFile(e.getPath(), e.getOrigin(), e.getAddedAt(), e.getPage(), e.getSourceName()))
                 .toList();
     }
 
@@ -28,7 +28,7 @@ class JpaPublicationFileRepository implements PublicationFileRepository {
     public boolean add(String publicationId, PublicationFile file) {
         var key = new PublicationFileEntity.Key(publicationId, file.path());
         if (jpa.existsById(key)) return false;
-        jpa.save(new PublicationFileEntity(publicationId, file.path(), file.origin(), file.addedAt()));
+        jpa.save(new PublicationFileEntity(publicationId, file.path(), file.origin(), file.addedAt(), file.page(), file.sourceName()));
         return true;
     }
 

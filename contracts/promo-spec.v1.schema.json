@@ -17,7 +17,7 @@
         "type": "object",
         "required": ["tipo", "nombre"],
         "properties": {
-          "tipo": { "enum": ["carrusel", "historia", "reel", "clip", "comprimir"] },
+          "tipo": { "enum": ["carrusel", "historia", "reel", "clip", "comprimir", "cita", "infografia", "meme"], "description": "«infografia» y «meme» las admite el contrato pero SocialHub aún no las genera (no están activas para ninguna marca). «cita» es un verso sobre fondo: necesita «plantilla» de un kit aprobado." },
           "nombre": { "type": "string", "pattern": "^[\\p{L}\\p{N} _.-]{1,80}$" },
           "dia": { "type": "string" },
           "publicacion": {
@@ -27,6 +27,10 @@
           "caption": { "type": "string" },
           "fondo_svg": { "$ref": "#/$defs/fondoSvg" },
           "hashtags": { "type": "string" },
+          "plantilla": { "$ref": "#/$defs/plantilla" },
+          "campos": { "$ref": "#/$defs/campos" },
+          "pagina": { "$ref": "#/$defs/pagina" },
+          "sonido": { "$ref": "#/$defs/sonido" },
           "citations": {
             "type": "array",
             "maxItems": 20,
@@ -52,14 +56,21 @@
                 "fondo_svg": { "$ref": "#/$defs/fondoSvg" },
                 "texto": { "type": "string" },
                 "titulo": { "type": "string" },
-                "crop": { "$ref": "#/$defs/crop" }
+                "crop": { "$ref": "#/$defs/crop" },
+                "pagina": { "$ref": "#/$defs/pagina" }
               }
             }
           },
           "cierre": {
             "type": "object",
             "required": ["lineas"],
-            "properties": { "img": { "type": "string" }, "lineas": { "type": "array", "items": { "type": "string" } } }
+            "properties": {
+              "img": { "type": "string" },
+              "lineas": { "type": "array", "items": { "type": "string" } },
+              "plantilla": { "$ref": "#/$defs/plantilla" },
+              "campos": { "$ref": "#/$defs/campos" },
+              "pagina": { "$ref": "#/$defs/pagina" }
+            }
           },
           "img": { "type": "string" },
           "titulo": { "type": "string" },
@@ -79,6 +90,36 @@
     }
   },
   "$defs": {
+    "plantilla": {
+      "description": "Identificador de una plantilla del kit de marca APROBADO (por ejemplo «cierre-4x5»), de la lista «brand_templates» del encargo. Va en la pieza «cita» y «historia» y en el «cierre» de un carrusel. Con kit aprobado y plantilla, SocialHub dibuja la pieza con la plantilla encima de la ilustración y rellena «campos». Sin kit aprobado se ignora y la pieza sale como siempre; si el kit está aprobado y la plantilla no existe o no es de esa pieza, la pieza da error.",
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "maxLength": 40
+    },
+    "campos": {
+      "description": "Textos de la plantilla: nombre del campo (sin «campo-») → texto. Los campos obligatorios de cada plantilla vienen en «brand_templates».",
+      "type": "object",
+      "maxProperties": 40,
+      "propertyNames": { "pattern": "^[a-z][a-z0-9_]{0,31}$" },
+      "additionalProperties": { "type": "string", "maxLength": 2000 }
+    },
+    "pagina": {
+      "description": "Número de página del PDF del libro de la que sale la imagen de esta pieza o diapositiva. Junto al nombre del archivo de «img» (por ejemplo «page 12.png»), se ve en la ficha de la publicación para comprobar de un vistazo que imagen y poema casan.",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9999
+    },
+    "sonido": {
+      "description": "Sonido de la publicación (decisión 23). «none»: sin sonido. «litoques_track»: tema de Litoques en el vídeo (con «tema»). «network»: se elige en la red social (con «tema», el nombre del tema para buscarlo). Por ahora SocialHub solo lo guarda y lo enseña en la ficha.",
+      "type": "object",
+      "required": ["modo"],
+      "properties": {
+        "modo": { "enum": ["none", "litoques_track", "network"] },
+        "tema": { "type": "string", "minLength": 1, "maxLength": 200 }
+      },
+      "if": { "properties": { "modo": { "enum": ["litoques_track", "network"] } }, "required": ["modo"] },
+      "then": { "required": ["tema"] }
+    },
     "fondoSvg": {
       "description": "Fondo dibujado como SVG en línea (máx. 64 KB), que SocialHub rasteriza a 1080x1350 (carrusel) o 1080x1920 (historia y reel). Solo formas de dibujo (svg, g, defs, rect, circle, ellipse, path, polygon, polyline, line, linearGradient, radialGradient, stop, text, tspan, title, desc). Sin script, foreignObject, image, use, style, @import, entidades ni referencias externas; solo valen url(#id) internas. Si no cumple, SocialHub lo ignora y usa el siguiente fondo sin dar error. Los carruseles enseñan la parte de arriba (1080x900) en cada slide.",
       "type": "string",

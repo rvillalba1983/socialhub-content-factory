@@ -97,6 +97,12 @@ public interface PublishingQueries {
     /** Cuántas publicaciones en estado «Propuesta» hay por promoción (solo las promociones que tienen alguna). */
     java.util.Map<String, Long> proposalCounts();
 
+    /** Red social de una publicación (para elegir el formato de sus piezas). */
+    enum Network { INSTAGRAM, TIKTOK }
+
+    /** La red de cada una de esas publicaciones; las que no existen no salen. */
+    java.util.Map<String, Network> networks(java.util.Collection<String> publicationIds);
+
     /** La publicación existe y es de esa promoción. */
     boolean belongsTo(String promotionId, String publicationId);
 
