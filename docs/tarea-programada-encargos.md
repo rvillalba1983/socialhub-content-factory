@@ -203,3 +203,18 @@ Antes se pedía un spec por promoción y semana (domingo). Ahora, por promoción
 - **Urgencia del spec:** a mano siempre es urgente; el automático lo es si alguna de sus publicaciones sale en menos de 48 h.
 - **Sin publicaciones no hay spec:** no se pide, ni solo ni a mano. A mano, sin datos o con una fecha, lleva las pendientes de ese momento; con identificadores, esas publicaciones (que no estén ya en un spec abierto).
 - El contrato `promo-spec.v1` no cambia.
+
+
+## Lo que viaja ya en el encargo (fase 13, bloque 4, paso A)
+
+Cambios de SocialHub que **no tocan las tareas programadas**; el texto nuevo de las tareas (paso B) los usará. Detalle en `docs/decisiones.md` (62 a 64).
+
+- **`inputs.skills` y `inputs.skills_note`** (spec, textos, revisión de calidad y kit): la lista de skills que hay que cargar con la herramienta Skill y qué hacer si alguna no existe en la sesión (seguir sin ella y avisar en `warnings`).
+- **Reglas fijas** en `rules` de esos encargos: sin imágenes IA, versos literales con `citations`, color de marca obligatorio, sin Pinterest ni YouTube. Y en **todos** los encargos: no terminar sin dejar un resultado con el motivo (`failed` o `needs_human`).
+- **Citas:** `source_file` es la ruta completa del documento, sin añadidos.
+- **Llamada a la acción:** `inputs.call_to_action_options` (una formulación por línea de la identidad de la marca) y `inputs.call_to_action_rule`: una distinta en cada texto.
+- **Hashtags por red** en los textos: `inputs.hashtags_by_network` y `inputs.hashtags_rule`.
+- **Sin material interno:** los textos y el spec no reciben la nota interna de la publicación; el sonido solo con el aviso de que no es texto público.
+- **«Programar en Publer»:** `inputs.publication` solo lleva id, red, tipo, texto, hashtags, hora y archivos (sin título ni nota); `inputs.title` y `goal` son genéricos. El sonido: Claude nunca añade música desde Publer; con «Elegir en la red» deja `outputs.note` y `warnings` con «Falta elegir el sonido «X» en la red». `inputs.min_publish_margin_minutes` y su «deadline»: pasado el margen mínimo, no programar (status `failed`).
+- **Una sola programación viva por publicación:** al pedir otra, SocialHub cancela la anterior y retira su archivo de `para-claude-pc` si Claude aún no ha dejado resultado.
+- **Pendiente (decisión 38):** cancelar en Publer sigue siendo a mano. La opción de un encargo `socialhub.publer-cancel` queda sin hacer hasta que Raúl la elija.

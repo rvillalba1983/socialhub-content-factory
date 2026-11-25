@@ -60,6 +60,7 @@ class AiTypesTest {
 
     @Autowired MockMvc mvc;
     @Autowired AiRequestRepository requests;
+    @Autowired com.socialhub.ai.AiOrders aiOrders;
     @Autowired AiAutoOrders autoOrders;
     @Autowired com.socialhub.production.ProductionAiTasks production;
     @Autowired com.socialhub.production.ProductionOrders taskOrders;
@@ -401,6 +402,86 @@ class AiTypesTest {
                 AiRequestType.CAPTIONS.taskType(), title, "Textos", List.of("2030-11-12-instagram"), List.of()), "SONNET");
         waitFor(() -> "WAITING".equals(task(id).get("status").asString()), "encargo enviado");
         return id;
+    }
+
+    @Test
+    @Order(23)
+    void publerOrderHasNoTitleNorInternalNoteAndOnlyOneLiveOrderPerPublication() throws Exception {
+        write(post("/api/promotions/poemario/publications"), """
+                {"platform":"TIKTOK","type":"Reel","title":"Prueba interna de TikTok","scheduled_on":"2031-03-05",
+                 "scheduled_time":"19:00","initial_status":"IN_PRODUCTION","note":"sin música, es una prueba"}""")
+                .andExpect(status().isCreated());
+        String id = "2031-03-05-tiktok";
+        write(put("/api/publications/" + id + "/sound"), "{\"mode\":\"network\",\"track\":\"Púa\"}").andExpect(status().isOk());
+
+        // Textos: el título de la publicación sí (es el tema), la nota interna no, y el sonido solo con su aviso
+        String captions = order("CAPTIONS", "Textos", id);
+        JsonNode captionsRequest = request(captions);
+        JsonNode writing = captionsRequest.get("inputs").get("publications").get(0);
+        assertThat(writing.get("title").asString()).isEqualTo("Prueba interna de TikTok");
+        assertThat(writing.has("note")).isFalse();
+        assertThat(writing.toString()).doesNotContain("es una prueba");
+        assertThat(writing.get("sound").get("public_text").asBoolean()).isFalse();
+        assertThat(writing.get("sound").get("note").asString()).contains("NO es texto público");
+        // Las reglas fijas y las skills viajan en el propio encargo
+        assertThat(captionsRequest.get("rules").toString()).contains("imágenes con IA").contains("Color de marca obligatorio")
+                .contains("RUTA COMPLETA").contains("Nunca termines un encargo sin dejar su resultado");
+        assertThat(captionsRequest.get("inputs").get("skills").toString()).contains("brand-profile").contains("caption-writer")
+                .doesNotContain("meme-and-culture").doesNotContain("infographic-and-data-viz");
+        assertThat(captionsRequest.get("inputs").get("skills_note").asString()).contains("warnings");
+        assertThat(captionsRequest.get("inputs").get("hashtags_by_network").has("TIKTOK")).isTrue();
+        assertThat(captionsRequest.get("inputs").get("hashtags_by_network").has("INSTAGRAM")).isFalse();
+
+        // Publer: sin título de trabajo, sin nota, sin sonido como dato
+        String first = aiOrders.submitInternal("poemario", AiRequestType.PUBLER_SCHEDULE, "Programar en Publer: Prueba interna de TikTok",
+                "Programa en Publer la publicación «Prueba interna de TikTok»", List.of(id));
+        waitFor(() -> "WAITING".equals(task(first).get("status").asString()), "primer encargo enviado");
+        JsonNode publer = pcRequest(first);
+        assertThat(publer.get("goal").asString()).doesNotContain("Prueba interna");
+        assertThat(publer.get("inputs").get("title").asString()).isEqualTo("Programar en Publer");
+        assertThat(publer.get("inputs").get("publication").has("title")).isFalse();
+        assertThat(publer.get("inputs").get("publication").has("note")).isFalse();
+        assertThat(publer.get("inputs").get("publication").has("sound")).isFalse();
+        assertThat(publer.toString()).doesNotContain("Prueba interna").doesNotContain("es una prueba");
+
+        // Una sola programación viva: al pedir otra, la anterior (sin resultado) se cancela y su archivo se retira
+        Path firstFile = pcFile(first);
+        assertThat(firstFile).exists();
+        String second = aiOrders.submitInternal("poemario", AiRequestType.PUBLER_SCHEDULE, "Programar en Publer: otra", "Programa", List.of(id));
+        assertThat(aiOrders.supersede("poemario", AiRequestType.PUBLER_SCHEDULE, id, second)).isEqualTo(1);
+        assertThat(task(first).get("status").asString()).isEqualTo("CANCELLED");
+        assertThat(firstFile).doesNotExist();
+        assertThat(task(second).get("status").asString()).isNotEqualTo("CANCELLED");
+    }
+
+    @Test
+    @Order(24)
+    void aSupersededOrderThatClaudeAlreadyAnsweredIsLeftAlone() throws Exception {
+        String id = "2031-03-05-tiktok";
+        // El encargo vivo del test anterior sale y recibe «algo» de Claude con su nombre
+        String answered = null;
+        for (JsonNode t : json.readTree(mvc.perform(get("/api/tasks?station_id=prog")).andReturn().getResponse().getContentAsString()).get("items")) {
+            if ("AI_PUBLER_SCHEDULE".equals(t.get("type").asString()) && !"CANCELLED".equals(t.get("status").asString())) answered = t.get("id").asString();
+        }
+        assertThat(answered).isNotNull();
+        String live = answered;
+        waitFor(() -> "WAITING".equals(task(live).get("status").asString()), "encargo enviado");
+        Path file = pcFile(live);
+        Path results = Files.createDirectories(orders.resolve("de-claude"));
+        Files.writeString(results.resolve(file.getFileName().toString().replace(".json", "") + "-a.json"), "{}");
+        assertThat(aiOrders.supersede("poemario", AiRequestType.PUBLER_SCHEDULE, id, null)).isZero();
+        assertThat(file).exists();
+        assertThat(task(live).get("status").asString()).isNotEqualTo("CANCELLED");
+    }
+
+    private Path pcFile(String taskId) throws Exception {
+        try (Stream<Path> s = Files.list(orders.resolve("para-claude-pc"))) {
+            return s.filter(p -> p.getFileName().toString().startsWith(taskId)).sorted().reduce((a, b) -> b).orElseThrow();
+        }
+    }
+
+    private JsonNode pcRequest(String taskId) throws Exception {
+        return json.readTree(Files.readString(pcFile(taskId)));
     }
 
     // ---------------------------------------------------------------- utilidades
