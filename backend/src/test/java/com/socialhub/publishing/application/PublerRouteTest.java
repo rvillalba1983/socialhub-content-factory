@@ -58,6 +58,7 @@ class PublerRouteTest {
     private final PublishingQueriesService queries = mock(PublishingQueriesService.class);
     private final PublicationFileRepository files = mock(PublicationFileRepository.class);
     private final PublishingEngine engine = mock(PublishingEngine.class);
+    private final com.socialhub.settings.PublishSettings settings = mock(com.socialhub.settings.PublishSettings.class);
 
     private final List<PublishJob> open = new ArrayList<>();
 
@@ -71,6 +72,7 @@ class PublerRouteTest {
         when(accounts.brandsUsing(TIKTOK_ACCOUNT, Platform.TIKTOK)).thenReturn(List.of("el-delito", "litoques"));
         when(accounts.brandsUsing("Litoques", Platform.INSTAGRAM)).thenReturn(List.of("litoques"));
         when(jobs.withStatus(any())).thenAnswer(i -> open);
+        when(settings.minMarginFor(anyString())).thenReturn(java.time.Duration.ofMinutes(30));
         when(orders.submitInternal(anyString(), eq(AiRequestType.PUBLER_SCHEDULE), anyString(), anyString(), anyList())).thenReturn("task-1");
     }
 
@@ -213,7 +215,7 @@ class PublerRouteTest {
     // ------------------------------------------------------------------ Lo que lleva el encargo
 
     private PublerScheduleHandler handler() {
-        return new PublerScheduleHandler(queries, files, engine, accounts);
+        return new PublerScheduleHandler(queries, files, engine, accounts, settings, Clock.fixed(NOW, ZoneId.of("UTC")));
     }
 
     private AiJob aiJob(Publication p, String brand) {

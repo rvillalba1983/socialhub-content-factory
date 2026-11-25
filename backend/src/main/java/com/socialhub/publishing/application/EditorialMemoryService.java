@@ -59,7 +59,9 @@ class EditorialMemoryService implements EditorialMemory, AiContextProvider {
     @Transactional(readOnly = true)
     public Map<String, Object> context(String promotionId, String brandId) {
         Snapshot s = snapshot(brandId);
-        if (s.decisions().isEmpty() && s.rejections().isEmpty() && s.corrections().isEmpty() && s.published().isEmpty()) {
+        List<EditorialMemoryRepository.Rejection> rejections = memory.rejections(brandId, LIMIT * 5).stream()
+                .filter(r -> !massCleanup(r)).limit(LIMIT).toList();
+        if (s.decisions().isEmpty() && rejections.isEmpty() && s.corrections().isEmpty() && s.published().isEmpty()) {
             return Map.of();
         }
         Map<String, Object> m = new LinkedHashMap<>();
@@ -74,7 +76,8 @@ class EditorialMemoryService implements EditorialMemory, AiContextProvider {
             if (p.getCaption() != null) x.put("caption", shorten(p.getCaption(), 300));
             return x;
         }).toList());
-        m.put("rejections", s.rejections().stream().map(r -> {
+        // Las cancelaciones de una limpieza masiva no son una opinión editorial: no viajan a Claude (decisión 18, arreglo I)
+        m.put("rejections", rejections.stream().map(r -> {
             Map<String, Object> x = new LinkedHashMap<>();
             x.put("what", r.kind() == EditorialMemoryRepository.Kind.TEXT ? "texto descartado" : "publicación cancelada");
             x.put("title", r.title());
@@ -92,6 +95,14 @@ class EditorialMemoryService implements EditorialMemory, AiContextProvider {
             return x;
         }).toList());
         return Map.of("editorial_memory", m);
+    }
+
+    /** Una cancelación de limpieza masiva («Limpieza antes de la prueba de cero…»): se reconoce por la nota. Las que tienen motivo propio, no. */
+    static boolean massCleanup(EditorialMemoryRepository.Rejection r) {
+        if (r.note() == null) return false;
+        String note = java.text.Normalizer.normalize(r.note(), java.text.Normalizer.Form.NFD).replaceAll("\\p{M}", "")
+                .toLowerCase(java.util.Locale.ROOT).strip();
+        return note.startsWith("limpieza");
     }
 
     private static void put(Map<String, Object> m, String key, @Nullable String value) {

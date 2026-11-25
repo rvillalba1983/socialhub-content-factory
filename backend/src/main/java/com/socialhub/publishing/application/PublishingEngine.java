@@ -134,6 +134,16 @@ class PublishingEngine {
             String route = job.getRoute();
             job.cancel(reason, now);
             if (p.getFlag() != null && p.getFlag().startsWith(HELD_FLAG)) p.flag(null);
+            if (!scheduledSomewhere) {
+                PublishRoute pending = route(route);
+                if (pending != null) {
+                    try {
+                        pending.withdrawPending(p, job);
+                    } catch (RuntimeException e) {
+                        job.note(now, route + ": no se pudo retirar el encargo pendiente (" + e.getMessage() + ")");
+                    }
+                }
+            }
             if (scheduledSomewhere) {
                 PublishRoute owner = route(route);
                 boolean removed;

@@ -42,6 +42,10 @@ import tools.jackson.databind.ObjectMapper;
 @RequiredArgsConstructor
 class AiDispatcher {
 
+    /** Objetivo del encargo a Publer: sin el título de trabajo de la publicación. */
+    static final String PUBLER_GOAL = "Programa en Publer la publicación de «inputs.publication» con su texto, hashtags y archivos, "
+            + "a la hora indicada. No la publiques al momento.";
+
     private final ProductionAiTasks production;
     private final PromotionQueries promotions;
     private final AiSettings settings;
@@ -184,15 +188,23 @@ class AiDispatcher {
             request.put("brand", brandId);
             request.put("promotion", task.promotionId());
             request.put("type", type.contractType());
-            request.put("goal", task.goal());
+            // «Programar en Publer» no lleva el título de trabajo: lo que Claude escribe en la red sale solo del texto de la publicación
+            boolean workTitleHidden = type.hidesWorkTitle();
+            request.put("goal", workTitleHidden ? PUBLER_GOAL : task.goal());
             Map<String, Object> inputs = new LinkedHashMap<>();
-            inputs.put("title", task.title());
+            inputs.put("title", workTitleHidden ? type.label() : task.title());
             inputs.put("items", task.inputs());
             AiJob job = jobOf(task, type, brandId);
             Map<String, Object> identity = promotions.identityForAi(task.promotionId());
             if (!identity.isEmpty()) inputs.put("brand_identity", identity);
             contexts.forEach(c -> inputs.putAll(c.context(task.promotionId(), brandId)));
             handlers.of(type).ifPresent(h -> inputs.putAll(h.inputs(job)));
+            inputs.putAll(AiWritingRules.forOrder(type, identity, inputs));
+            List<String> skills = AiSkills.forOrder(type, inputs);
+            if (!skills.isEmpty()) {
+                inputs.put("skills", skills);
+                inputs.put("skills_note", AiSkills.NOTE);
+            }
             if (!task.humanAnswers().isEmpty()) inputs.put("human_answers", humanAnswers(task));
             request.put("inputs", inputs);
             List<String> rules = new ArrayList<>(promotions.rulesFor(task.promotionId()));

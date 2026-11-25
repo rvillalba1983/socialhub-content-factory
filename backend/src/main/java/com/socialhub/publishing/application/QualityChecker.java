@@ -39,6 +39,11 @@ final class QualityChecker {
     private QualityChecker() {}
 
     /** Tipo de pieza a partir del tipo libre de la publicación («Carrusel», «Historia», «Reel»…). */
+    /** Las formulaciones de la llamada a la acción de la marca: una por línea. */
+    static List<String> callToActionOptions(String callToAction) {
+        return callToAction.lines().map(String::strip).filter(l -> !l.isEmpty()).distinct().toList();
+    }
+
     static Kind kind(String type) {
         String t = normalize(type);
         if (t.contains("carrusel") || t.contains("carousel")) return Kind.CAROUSEL;
@@ -72,8 +77,11 @@ final class QualityChecker {
                     issues.put("HASHTAGS_TOO_MANY", "Lleva " + tags + " hashtags: Instagram admite " + INSTAGRAM_HASHTAGS_MAX + ".");
                 }
             }
-            if (!identity.callToAction().isEmpty() && !normalize(caption).contains(normalize(identity.callToAction()))) {
-                issues.put("CTA_MISSING", "Falta la llamada a la acción de la marca: «" + identity.callToAction() + "».");
+            // La marca puede tener varias formulaciones de su llamada a la acción (una por línea): vale cualquiera
+            List<String> ctas = callToActionOptions(identity.callToAction());
+            if (!ctas.isEmpty() && ctas.stream().noneMatch(cta -> normalize(caption).contains(normalize(cta)))) {
+                issues.put("CTA_MISSING", ctas.size() == 1 ? "Falta la llamada a la acción de la marca: «" + ctas.getFirst() + "»."
+                        : "Falta una de las llamadas a la acción de la marca: «" + String.join("» o «", ctas) + "».");
             }
             Matcher fixed = HASHTAG.matcher(identity.fixedHashtags());
             String lower = all.toLowerCase(Locale.ROOT);

@@ -11,6 +11,7 @@ import com.socialhub.publishing.domain.PublishJob;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -22,6 +23,7 @@ import org.springframework.stereotype.Component;
  * resultado hasta 7 h antes. Publer depende de las pasadas de Claude con Chrome en el PC (una cada 5 h; de 08:00 a 18:00 solo las
  * urgentes), así que con un margen mínimo corto (30 minutos por defecto) lo habitual es publicar por la API oficial con SocialHub abierto.
  */
+@Slf4j
 @Component
 @Order(1)
 class PublerRoute implements PublishRoute {
@@ -92,11 +94,20 @@ class PublerRoute implements PublishRoute {
             return new Outcome.Held("La cuenta «" + account + "» de Publer ya tiene " + capacity.limit()
                     + " publicaciones programadas (límite del plan gratuito). Queda en espera hasta que salga alguna");
         }
+        // Una sola programación viva por publicación (decisiones 38 y 40): los encargos anteriores que sigan abiertos se
+        // cancelan antes de crear el nuevo, para que Claude no programe la misma publicación dos veces
+        int superseded = orders.supersede(p.getPromotionId(), AiRequestType.PUBLER_SCHEDULE, p.getId(), null);
+        if (superseded > 0) log.info("Programar en Publer de {}: {} encargo(s) anterior(es) cancelado(s) al pedir uno nuevo", p.getId(), superseded);
         String task = orders.submitInternal(p.getPromotionId(), AiRequestType.PUBLER_SCHEDULE,
                 "Programar en Publer: " + p.getTitle(),
-                "Programa en Publer la publicación «" + p.getTitle() + "» con su texto, hashtags y archivos, a la hora indicada.",
+                "Programa en Publer la publicación indicada, con su texto, hashtags y archivos, a la hora indicada.",
                 List.of(p.getId()));
         return new Outcome.Pending(task);
+    }
+
+    @Override
+    public void withdrawPending(Publication p, PublishJob job) {
+        orders.supersede(p.getPromotionId(), AiRequestType.PUBLER_SCHEDULE, p.getId(), null);
     }
 
     /** Motivo de la retención cuando la marca no tiene cuenta de Publer en esa red. */

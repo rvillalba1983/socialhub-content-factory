@@ -6,6 +6,7 @@ import com.socialhub.platform.AppMode;
 import com.socialhub.platform.AppModeHolder;
 import com.socialhub.publishing.domain.AutoRequestRepository;
 import com.socialhub.publishing.domain.Publication;
+import com.socialhub.publishing.domain.PublicationFileRepository;
 import com.socialhub.publishing.domain.PublicationRepository;
 import com.socialhub.publishing.domain.PublicationStatus;
 import java.nio.charset.StandardCharsets;
@@ -25,7 +26,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 /**
  * Autonomía (fase 8, bloque 2): SocialHub pide solo a Claude
  * <ul>
- *   <li>los textos de las publicaciones en producción que no tienen texto (salvo historias), uno por promoción;</li>
+ *   <li>los textos de las publicaciones en producción que no tienen texto (salvo historias), uno por promoción, y solo cuando
+ *       la publicación ya tiene sus piezas: el orden es spec, piezas y textos;</li>
  *   <li>la revisión de calidad de las que pasan a «Pendiente de revisión», si Claude no ha revisado ya ese texto.</li>
  * </ul>
  * Cada encargo se apunta para no repetirlo. Cuentan en el límite diario como los demás.
@@ -41,14 +43,16 @@ class AutoRequests {
 
     private final PublicationRepository publications;
     private final AutoRequestRepository done;
+    private final PublicationFileRepository files;
     private final AiOrders orders;
     private final TransactionTemplate transactions;
     private final Clock clock;
 
-    AutoRequests(PublicationRepository publications, AutoRequestRepository done, AiOrders orders,
-                 TransactionTemplate transactions, Clock clock) {
+    AutoRequests(PublicationRepository publications, AutoRequestRepository done, PublicationFileRepository files,
+                 AiOrders orders, TransactionTemplate transactions, Clock clock) {
         this.publications = publications;
         this.done = done;
+        this.files = files;
         this.orders = orders;
         this.transactions = transactions;
         this.clock = clock;
@@ -69,10 +73,15 @@ class AutoRequests {
         int n = 0;
         Map<String, List<Publication>> withoutText = new LinkedHashMap<>();
         List<Publication> toReview = new ArrayList<>();
-        for (Publication p : publications.findAll()) {
+        List<Publication> everything = publications.findAll();
+        // Orden spec, piezas, textos (hallazgo 23-12): los textos esperan a que la publicación tenga sus piezas; sin ellas Claude
+        // no sabe qué poema lleva cada una y los versos tienen que ser literales
+        Set<String> withPieces = files.withFiles(everything.stream().filter(p -> !p.isDemo() && IN_PRODUCTION.contains(p.getStatus())
+                && p.getCaption() == null).map(Publication::getId).toList());
+        for (Publication p : everything) {
             if (p.isDemo()) continue;
             boolean story = QualityChecker.kind(p.getType()) == QualityChecker.Kind.STORY;
-            if (IN_PRODUCTION.contains(p.getStatus()) && !story && p.getCaption() == null
+            if (IN_PRODUCTION.contains(p.getStatus()) && !story && p.getCaption() == null && withPieces.contains(p.getId())
                     && !done.exists(p.getId(), CAPTIONS, "")) {
                 withoutText.computeIfAbsent(p.getPromotionId(), k -> new ArrayList<>()).add(p);
             }

@@ -39,6 +39,43 @@ class AiOrdersService implements AiOrders {
 
     @Override
     @Transactional
+    public int supersede(String promotionId, AiRequestType type, String inputId, @org.jspecify.annotations.Nullable String exceptTaskId) {
+        int cancelled = 0;
+        for (var cover : production.coveringAiTasks(type.taskType(), promotionId)) {
+            var task = cover.task();
+            if (cover.cover() != ProductionAiTasks.Cover.OPEN || task.id().equals(exceptTaskId) || !task.inputs().contains(inputId)) continue;
+            List<AiRequest> sent = requests.ofTask(task.id());
+            // Un encargo que Claude ya ha empezado o contestado no se toca: su resultado se avisará como tardío
+            if (!sent.isEmpty() && !withdraw(sent.getLast())) continue;
+            production.cancelAi(task.id());
+            cancelled++;
+        }
+        return cancelled;
+    }
+
+    /** Retira el archivo de un encargo que sigue en Drive sin resultado. {@code false} si ya no se puede retirar con seguridad. */
+    private boolean withdraw(AiRequest request) {
+        if (request.status() != AiRequest.Status.SENT) return true;
+        java.nio.file.Path file = java.nio.file.Path.of(request.requestPath());
+        // Sin la carpeta a la vista no se sabe si Claude ya lo cogió: no se toca
+        if (!java.nio.file.Files.isDirectory(file.getParent())) return false;
+        try {
+            java.nio.file.Path results = file.getParent().resolveSibling(AiFolders.FROM_CLAUDE);
+            String base = file.getFileName().toString().replaceAll("\\.json$", "");
+            if (java.nio.file.Files.isDirectory(results)) {
+                try (var list = java.nio.file.Files.list(results)) {
+                    if (list.anyMatch(f -> f.getFileName().toString().startsWith(base))) return false;
+                }
+            }
+            java.nio.file.Files.deleteIfExists(file);
+            return true;
+        } catch (java.io.IOException | RuntimeException e) {
+            return false;
+        }
+    }
+
+    @Override
+    @Transactional
     public String submit(String promotionId, AiRequestType type, String title, String goal, List<String> inputs) {
         if (type.automatic()) throw new IllegalArgumentException("«" + type.label() + "» lo encarga SocialHub al publicar");
         String taskId = submitInternal(promotionId, type, title, goal, inputs);

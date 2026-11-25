@@ -44,6 +44,7 @@ class AutoRequestsTest {
 
     @Autowired MockMvc mvc;
     @Autowired AutoRequests auto;
+    @Autowired com.socialhub.publishing.domain.PublicationFileRepository files;
     private final JsonMapper json = JsonMapper.builder().build();
 
     @Test
@@ -60,6 +61,12 @@ class AutoRequestsTest {
         create("Historia", "21:00", "IN_PRODUCTION");     // las historias no llevan texto
         create("Reel", "22:00", "IDEA");                  // aún no está en producción
 
+        // Sin piezas no se piden los textos: el orden es spec, piezas y textos (hallazgo 23-12)
+        assertThat(auto.requestDue()).isZero();
+        for (String id : List.of(reel, carousel)) {
+            files.add(id, new com.socialhub.publishing.domain.PublicationFile(orders.resolve("pieza.png").toString(),
+                    com.socialhub.publishing.domain.PublicationFile.Origin.SPEC, java.time.Instant.now()));
+        }
         assertThat(auto.requestDue()).isEqualTo(1);
         List<JsonNode> captions = tasks("AI_CAPTIONS");
         assertThat(captions).hasSize(1);

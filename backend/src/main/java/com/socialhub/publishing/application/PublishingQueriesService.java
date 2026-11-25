@@ -277,10 +277,25 @@ class PublishingQueriesService implements PublishingQueries {
     /** Publicaciones entre dos fechas, como datos sencillos para un encargo a Claude. */
     @Override
     public List<java.util.Map<String, Object>> forAi(String promotionId, java.time.LocalDate from, java.time.LocalDate to) {
-        return between(promotionId, from, to).stream().map(PublishingQueriesService::forAi).toList();
+        return between(promotionId, from, to).stream().map(PublishingQueriesService::forAiWithNote).toList();
     }
 
+    /** Aviso que acompaña al sonido: es un dato de producción, no material para escribir. */
+    static final String SOUND_NOTE = "Dato interno de producción (cómo suena el vídeo): NO es texto público. No lo escribas en el texto, "
+            + "los hashtags ni las piezas («sin música», «sin sonido», el nombre del tema…).";
+
+    /**
+     * La publicación como material de un encargo. Sin la nota interna (hallazgo C y 23-16): lo que Raúl apunta para sí mismo no
+     * puede colarse en un texto público.
+     */
     static java.util.Map<String, Object> forAi(Publication p) {
+        var m = forAiWithNote(p);
+        m.remove("note");
+        return m;
+    }
+
+    /** Con la nota interna: solo para encargos que no escriben textos públicos (propuestas y balance). */
+    static java.util.Map<String, Object> forAiWithNote(Publication p) {
         var m = new java.util.LinkedHashMap<String, Object>();
         m.put("id", p.getId());
         m.put("platform", p.getPlatform().name());
@@ -295,7 +310,8 @@ class PublishingQueriesService implements PublishingQueries {
         if (p.getCaption() != null) m.put("caption", p.getCaption());
         if (p.getHashtags() != null) m.put("hashtags", p.getHashtags());
         if (p.getSound().mode() != com.socialhub.publishing.domain.PublicationSound.Mode.NONE) {
-            m.put("sound", java.util.Map.of("mode", p.getSound().mode().code(), "track", p.getSound().track()));
+            m.put("sound", java.util.Map.of("mode", p.getSound().mode().code(), "track", p.getSound().track(),
+                    "public_text", false, "note", SOUND_NOTE));
         }
         return m;
     }

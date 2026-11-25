@@ -25,4 +25,14 @@ public interface AiOrders {
 
     /** Alta de un encargo que pide SocialHub por su cuenta (también los de publicación con Chrome en el PC): sigue la regla de urgencia. */
     String submitInternal(String promotionId, AiRequestType type, String title, String goal, List<String> inputs);
+
+    /**
+     * Deja una sola copia viva de un encargo por dato de entrada (por ejemplo, una publicación): los demás encargos abiertos
+     * del mismo tipo con ese dato (en cola, en espera de Claude, bloqueados o fallidos con reintentos) se cancelan. Si ya
+     * salieron a Drive y Claude aún no ha dejado su resultado, SocialHub retira su archivo del encargo para que nadie lo haga.
+     *
+     * @param exceptTaskId el encargo que se queda (el nuevo), o {@code null} si no hay ninguno
+     * @return cuántos encargos se han cancelado
+     */
+    int supersede(String promotionId, AiRequestType type, String inputId, @org.jspecify.annotations.Nullable String exceptTaskId);
 }
