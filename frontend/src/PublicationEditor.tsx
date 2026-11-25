@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { ApiError, api } from './api';
 import { Icon } from './icons';
 import {
-  PUBLICATION_NEXT, PUBLICATION_STATUS, PUBLICATION_TYPES, REJECTION_REASONS, routesFor, dateTime, marginFor, spanText, type RejectionReason, type Publication, type PublicationMetrics, type PublishJob, type QualityReport, type PublicationFile, type PublicationInput,
+  PUBLICATION_NEXT, PUBLICATION_STATUS, PUBLICATION_TYPES, REJECTION_REASONS, routesFor, dateTime, marginFor, spanText, type RejectionReason, type Publication, type PublicationMetrics, type PublishJob, type QualityReport, type PublicationFile, type PublicationInput, type SoundMode,
   type PublicationStatus, type PublishSettings, type StatusCode,
 } from './model';
 import { Pill } from './ui';
@@ -215,10 +215,57 @@ export function PublicationEditor({ promotionId, publication, onClose, onSaved }
             <HowItLooks publication={publication} files={files} />
             <ViewOnNetwork publication={publication} />
           </fieldset>
+          <SoundPanel publication={publication} locked={locked} onSaved={onSaved} />
           <PublicationFiles id={publication.id} title={publication.title} locked={locked} files={files} error={filesError} reload={loadFiles} />
         </>
       )}
     </div>
+  );
+}
+
+const SOUND_MODES: { mode: SoundMode; label: string }[] = [
+  { mode: 'none', label: 'Sin sonido' },
+  { mode: 'litoques_track', label: 'Tema de Litoques en el vídeo' },
+  { mode: 'network', label: 'Elegir en la red' },
+];
+
+/** Sonido de la publicación (decisión 23): por ahora solo se guarda; el montaje del audio no está hecho. */
+function SoundPanel({ publication, locked, onSaved }: { publication: Publication; locked: boolean; onSaved: (p: Publication, message: string) => void }) {
+  const current = publication.sound;
+  const [mode, setMode] = useState<SoundMode>(current?.mode ?? 'none');
+  const [track, setTrack] = useState(current?.track ?? '');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // Si la publicación cambia desde fuera, el selector vuelve a su valor guardado
+  useEffect(() => { setMode(current?.mode ?? 'none'); setTrack(current?.track ?? ''); }, [publication.id, current?.mode, current?.track]);
+  const needsTrack = mode !== 'none';
+  const changed = mode !== (current?.mode ?? 'none') || (needsTrack && track.trim() !== (current?.track ?? ''));
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true); setError(null);
+    try { onSaved(await api.setPublicationSound(publication.id, { mode, track: needsTrack ? track.trim() : undefined }), 'Sonido guardado'); }
+    catch (err) { setError(err instanceof Error ? err.message : String(err)); }
+    finally { setBusy(false); }
+  };
+  return (
+    <fieldset className="rows" aria-label="Sonido">
+      <legend>Sonido</legend>
+      <p className="src">Ahora: <strong>{current?.label ?? 'Sin sonido'}</strong>. Por ahora solo se guarda tu elección: el audio no se monta todavía.</p>
+      <form className="sound-form" onSubmit={e => void save(e)}>
+        <label>Sonido
+          <select disabled={locked || busy} value={mode} onChange={e => setMode(e.target.value as SoundMode)}>
+            {SOUND_MODES.map(o => <option key={o.mode} value={o.mode}>{o.label}</option>)}
+          </select></label>
+        {needsTrack && (
+          <label>Nombre del tema
+            <input required disabled={locked || busy} maxLength={200} value={track} onChange={e => setTrack(e.target.value)}
+              placeholder={mode === 'network' ? 'El tema que buscarás en la red' : 'El tema de Litoques'} /></label>
+        )}
+        <button className="btn" disabled={locked || busy || !changed || (needsTrack && !track.trim())}>Guardar sonido</button>
+      </form>
+      {locked && <p className="src">No se puede cambiar: la publicación ya está programada o publicada.</p>}
+      {error && <p className="error" role="alert">{error}</p>}
+    </fieldset>
   );
 }
 
@@ -260,6 +307,11 @@ function PublicationFiles({ id, title, locked, files, error: loadError, reload }
               {!locked && <button type="button" className="ibtn" aria-label="Quitar archivo" title="Quitar de la publicación (no se borra)"
                 onClick={() => void act(() => api.detachPublicationFile(id, f.path))}><Icon name="x" /></button>}
             </div>
+            {(f.page || f.source_name) && (
+              <small className="src file-origin">
+                {f.page ? `Página ${f.page}` : ''}{f.page && f.source_name ? ' · ' : ''}{f.source_name ? `Imagen de origen: ${f.source_name}` : ''}
+              </small>
+            )}
             {shown && <div id={`pv-${f.id}`} className="pv-open"><MediaItem publicationId={id} file={f} label={label} large /></div>}
           </div>
         );

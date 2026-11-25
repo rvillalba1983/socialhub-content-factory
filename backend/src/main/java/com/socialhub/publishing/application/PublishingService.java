@@ -9,6 +9,7 @@ import com.socialhub.promotion.PromotionQueries;
 import com.socialhub.publishing.PublishingCommands;
 import com.socialhub.publishing.domain.Publication;
 import com.socialhub.publishing.domain.PublicationFile;
+import com.socialhub.publishing.domain.PublicationSound;
 import com.socialhub.publishing.domain.PublicationFileRepository;
 import com.socialhub.publishing.domain.PublicationRepository;
 import com.socialhub.publishing.domain.PublicationStatus;
@@ -173,6 +174,14 @@ class PublishingService implements PublishingCommands {
     @Transactional
     @Override
     public int attachGenerated(String promotionId, String publicationId, List<Path> generated) {
+        return attachGeneratedPieces(promotionId, publicationId,
+                generated.stream().map(p -> new GeneratedFile(p, null, null)).toList(), null);
+    }
+
+    @Transactional
+    @Override
+    public int attachGeneratedPieces(String promotionId, String publicationId, List<GeneratedFile> generated,
+                                     @org.jspecify.annotations.Nullable SoundChoice sound) {
         Publication publication = find(publicationId);
         if (!publication.getPromotionId().equals(promotionId)) {
             throw new IllegalArgumentException("La publicación " + publicationId + " no es de esta promoción");
@@ -183,15 +192,34 @@ class PublishingService implements PublishingCommands {
             log.info("Piezas generadas sin asociar: {} ya está programada o publicada", publicationId);
             return 0;
         }
-        for (Path path : generated) {
-            Path real = insideFolders(promotionId, path.toString());
-            if (files.add(publicationId, new PublicationFile(real.toString(), PublicationFile.Origin.SPEC, clock.instant()))) {
+        for (GeneratedFile file : generated) {
+            Path real = insideFolders(promotionId, file.path().toString());
+            if (files.add(publicationId, new PublicationFile(real.toString(), PublicationFile.Origin.SPEC, clock.instant(),
+                    file.page(), file.sourceName()))) {
                 added++;
             }
         }
         if (added > 0) quality.invalidateAcceptances(publicationId);
+        if (sound != null) {
+            if (publication.getSound().mode() == PublicationSound.Mode.NONE) {
+                publication.setSound(PublicationSound.of(sound.mode(), sound.track()));
+                publications.save(publication);
+            } else {
+                log.info("Sonido del spec ignorado en {}: ya tiene el sonido elegido ({})", publicationId, publication.getSound().mode());
+            }
+        }
         events.publishEvent(new FactoryChanged("publication", publicationId));
         return added;
+    }
+
+    @Transactional
+    @Override
+    public Publication setSound(String id, String mode, @org.jspecify.annotations.Nullable String track) {
+        Publication publication = find(id);
+        publication.setSound(PublicationSound.of(mode, track));
+        publications.save(publication);
+        events.publishEvent(new FactoryChanged("publication", id));
+        return publication;
     }
 
     /** Quita la asociación. El archivo no se toca. */

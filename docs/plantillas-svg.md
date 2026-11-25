@@ -43,7 +43,7 @@ El texto que va dentro de cada `<text>` es el **ejemplo**: se usa en la vista pr
 - Su caja: `<rect id="caja-NOMBRE" x y width height>` también hijo directo de `<svg>`, con números sin unidades. La caja no se dibuja (se quita); sirve solo para colocar el texto. Si quieres un recuadro visible, añade otro `<rect>` aparte.
 - Cada campo tiene su caja y cada caja su campo. Los nombres no se repiten. Como máximo **40 campos** por plantilla.
 - La caja tiene que quedar **dentro del lienzo** (`viewBox`, con 1 unidad de tolerancia) y ser lo bastante grande para el tamaño mínimo: alto al menos `data-interlineado × data-tamano-min` y ancho al menos `data-tamano-min`.
-- El origen del `viewBox` (los dos primeros números) va de -4000 a 4000.
+- El origen del `viewBox` (los dos primeros números) va de -4000 a 4000 para el motor, pero **un kit solo se acepta con origen `0 0`**: la zona de la ilustración se mide desde la esquina del lienzo.
 - La `x` e `y` del propio `<text>` se ignoran: manda la caja.
 
 **Atributos del campo**
@@ -80,6 +80,7 @@ y deja esa zona libre o semitransparente.
 
 - **Cierre del carrusel e historia:** `image` es **obligatorio** (un objeto). Sin él, el kit se rechaza.
 - **Cita** (verso sobre fondo): `image` puede ser `null`.
+- **Bloque 3 (decisión 60):** con kit aprobado, la ilustración va en la zona `image` y la plantilla se pinta encima con fondo transparente (`renderOver`); el kit debe dejar libre esa zona. Sin kit aprobado la plantilla se ignora.
 
 ## Cómo se ajusta un texto
 

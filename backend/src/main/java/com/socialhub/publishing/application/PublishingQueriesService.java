@@ -204,6 +204,15 @@ class PublishingQueriesService implements PublishingQueries {
         return publications.countByPromotion(com.socialhub.publishing.domain.PublicationStatus.PROPOSAL);
     }
 
+    @Override
+    public java.util.Map<String, Network> networks(java.util.Collection<String> publicationIds) {
+        java.util.Map<String, Network> networks = new java.util.LinkedHashMap<>();
+        for (String id : publicationIds) {
+            publications.findById(id).ifPresent(p -> networks.put(id, Network.valueOf(p.getPlatform().name())));
+        }
+        return networks;
+    }
+
     /** La publicación existe y es de esa promoción. */
     @Override
     public boolean belongsTo(String promotionId, String publicationId) {
@@ -285,6 +294,9 @@ class PublishingQueriesService implements PublishingQueries {
         if (p.getConfirmation() != null) m.put("confirmation", p.getConfirmation());
         if (p.getCaption() != null) m.put("caption", p.getCaption());
         if (p.getHashtags() != null) m.put("hashtags", p.getHashtags());
+        if (p.getSound().mode() != com.socialhub.publishing.domain.PublicationSound.Mode.NONE) {
+            m.put("sound", java.util.Map.of("mode", p.getSound().mode().code(), "track", p.getSound().track()));
+        }
         return m;
     }
 }

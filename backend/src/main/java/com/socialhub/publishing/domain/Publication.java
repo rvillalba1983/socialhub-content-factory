@@ -41,6 +41,8 @@ public final class Publication {
     /** El texto de Raúl que sustituyó un texto pedido a mano a Claude, para poder recuperarlo. */
     private @Nullable String previousCaption;
     private @Nullable String previousHashtags;
+    /** Sonido pedido (decisión 23); por defecto, sin sonido. */
+    private PublicationSound sound;
     private @Nullable String externalId;
     private @Nullable String confirmation;
     private @Nullable Instant publishedAt;
@@ -54,7 +56,7 @@ public final class Publication {
                        @Nullable String externalId, @Nullable String confirmation, @Nullable Instant publishedAt,
                        boolean demo, long version, @Nullable String caption, @Nullable String hashtags,
                        @Nullable String aiCaption, @Nullable String aiHashtags, @Nullable String previousCaption,
-                       @Nullable String previousHashtags) {
+                       @Nullable String previousHashtags, @Nullable PublicationSound sound) {
         this.id = Objects.requireNonNull(id);
         this.promotionId = Objects.requireNonNull(promotionId);
         this.platform = Objects.requireNonNull(platform);
@@ -78,6 +80,7 @@ public final class Publication {
         this.aiHashtags = aiHashtags;
         this.previousCaption = previousCaption;
         this.previousHashtags = previousHashtags;
+        this.sound = sound == null ? PublicationSound.NONE : sound;
         if (status == PublicationStatus.PUBLISHED && (confirmation == null || confirmation.isBlank())) {
             throw new IllegalArgumentException("Una publicación publicada necesita confirmación");
         }
@@ -117,7 +120,7 @@ public final class Publication {
         return new Publication(id, promotionId, details.platform(), details.type().strip(), details.title().strip(),
                 details.scheduledOn(), details.scheduledTime(), details.timezone(), status, details.route().strip(), null,
                 blankToNull(details.note()), null, null, null, demo, 0, blankToNull(details.caption()),
-                blankToNull(details.hashtags()), null, null, null, null);
+                blankToNull(details.hashtags()), null, null, null, null, null);
     }
 
     /** Fecha y hora de publicación en su zona horaria. */
@@ -217,6 +220,12 @@ public final class Publication {
         if (status == PublicationStatus.PUBLISHING || status == PublicationStatus.PUBLISHED) {
             throw new DomainException("No se cambia una publicación que se está publicando o ya está publicada.");
         }
+    }
+
+    /** Cambia el sonido pedido. No se cambia mientras está programada, publicándose o publicada. */
+    public void setSound(PublicationSound newSound) {
+        requireEditable();
+        this.sound = java.util.Objects.requireNonNull(newSound);
     }
 
     /** Texto y hashtags propuestos (por Claude o por Raúl). No se cambian mientras está programada o publicándose. */

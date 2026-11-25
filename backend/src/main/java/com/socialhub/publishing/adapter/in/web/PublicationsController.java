@@ -83,6 +83,12 @@ class PublicationsController implements PublicationsApi {
     }
 
     @Override
+    public ResponseEntity<PublicationDto> setPublicationSound(String publicationId, String requestGuard,
+                                                              com.socialhub.api.model.PublicationSoundInputDto input) {
+        return ResponseEntity.ok(mapper.toDto(service.setSound(publicationId, input.getMode().getValue(), input.getTrack())));
+    }
+
+    @Override
     public ResponseEntity<PublicationDto> changePublicationStatus(String publicationId, String requestGuard,
                                                                   PublicationStatusChangeDto change) {
         var reason = change.getReason() == null ? null

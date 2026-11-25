@@ -61,6 +61,9 @@ class WeeklySpecHandler implements AiTypeHandler {
     private final PieceOrders orders;
     private final SpecReader reader;
     private final PiecePublications piecePublications;
+    private final PieceGenerator generator;
+    private final com.socialhub.pieces.ApprovedTemplates approvedTemplates;
+    private final GenerationSetups setups;
     private final com.socialhub.publishing.PublicationCitations citations;
     private final JsonContracts contracts;
     private final ObjectMapper json;
@@ -257,11 +260,58 @@ class WeeklySpecHandler implements AiTypeHandler {
                 + "Usa rutas completas de este ordenador, dentro de las carpetas de «folders». Cada pieza que corresponda "
                 + "a una publicación lleva «publicacion» con su id.");
         inputs.put("missing_material_note", MISSING_MATERIAL_NOTE);
+        inputs.put("format_note", FORMAT_NOTE);
+        addBrandTemplates(inputs, job.promotionId());
         // Sin color de marca no se generan fondos: Claude no debe entregar «fondo_svg»
         if (!looks.of(job.promotionId()).hasColor()) {
             inputs.put("brand_color_missing", NO_COLOR_NOTE);
         }
         return inputs;
+    }
+
+    /** Tamaño por red, páginas y sonido (fase 13, bloque 3). */
+    static final String FORMAT_NOTE = "Formato por red: en TikTok todas las piezas salen en 9:16 (1080×1920), también los carruseles; "
+            + "en Instagram el carrusel sale en 4:5 (1080×1350) y la historia y el reel en 9:16. «publicacion» decide la red. "
+            + "En cada diapositiva (y en el cierre, la historia y la cita) pon «pagina» (número de página del PDF del libro) junto a "
+            + "su «img» (por ejemplo «page 12.png»): se enseñan en la ficha para comprobar que imagen y poema casan. "
+            + "Sonido de la publicación, opcional, en la pieza: «sonido»: {\"modo\": \"none\" (sin sonido) | \"litoques_track\" (tema "
+            + "de Litoques en el vídeo) | \"network\" (se elige en la red), \"tema\": nombre del tema (obligatorio salvo con none)}.";
+
+    /** Cómo se usan las plantillas del kit de marca aprobado. */
+    static final String TEMPLATES_RULE = "USA estas plantillas siempre que la pieza lo admita (cita, cierre del carrusel e historia): "
+            + "pon su «id» en «plantilla» (en un carrusel, dentro de «cierre»: «cierre.plantilla»; con plantilla el cierre no necesita «lineas») y los textos en «campos» (nombre "
+            + "del campo → texto, solo los de «required_fields» y «optional_fields»; los «fixed_fields» NO se mandan). La plantilla va "
+            + "ENCIMA de la ilustración: sigue poniendo «img» como siempre (la cita, que va sobre fondo, no la necesita). Su «ratio» "
+            + "tiene que ser el de la pieza: en TikTok 9:16; en Instagram, cierre del carrusel 4:5 e historia 9:16 (la cita, 4:5 o "
+            + "9:16). Un «id» que no está en esta lista, o que es de otra pieza, hace que SocialHub rechace el spec. El verso de una "
+            + "cita va LITERAL, con su «citations» comprobado contra el documento.";
+
+    /** Límite de lo que añade el manejador a los datos de entrada del encargo. */
+    static final int MAX_TEMPLATES_BYTES = 512 * 1024;
+
+    /** Las plantillas aprobadas de la marca (sin el SVG: solo id, pieza, campos y proporción) y la regla de usarlas. */
+    private void addBrandTemplates(Map<String, Object> inputs, String promotionId) {
+        var templates = approvedTemplates.of(promotions.brandOf(promotionId));
+        if (templates.isEmpty()) return;
+        List<Map<String, Object>> list = new java.util.ArrayList<>();
+        for (var t : templates) {
+            Map<String, Object> entry = new LinkedHashMap<>();
+            entry.put("id", t.id());
+            entry.put("piece", t.piece());
+            entry.put("name", t.name());
+            entry.put("ratio", t.ratio());
+            entry.put("required_fields", t.required());
+            entry.put("optional_fields", t.optional());
+            entry.put("fixed_fields", t.fixed());
+            entry.put("illustration_below", t.image() != null);
+            list.add(entry);
+        }
+        if (json.writeValueAsString(list).length() > MAX_TEMPLATES_BYTES) {
+            inputs.put("brand_templates_note", "El kit tiene demasiadas plantillas para enviarlas; SocialHub generará las piezas sin ellas");
+            return;
+        }
+        inputs.put("brand_templates", list);
+        inputs.put("brand_templates_rule", TEMPLATES_RULE);
     }
 
     /** Cuando la marca no tiene color, SocialHub no genera fondos y Claude no los dibuja. */
@@ -272,8 +322,8 @@ class WeeklySpecHandler implements AiTypeHandler {
     static final String MISSING_MATERIAL_NOTE = "Si falta la imagen o el vídeo de una canción o tema, NO te pares a preguntar: "
             + "SocialHub nunca deja una pieza sin fondo. Deja «img» sin poner (en esa pieza o slide) y, si quieres, entrega un fondo "
             + "dibujado por ti en «fondo_svg» (SVG en línea de hasta 64 KB, con xmlns=\"http://www.w3.org/2000/svg\" y viewBox "
-            + "\"0 0 1080 1350\" para carrusel o \"0 0 1080 1920\" para historia y reel; en los carruseles cada slide enseña la parte "
-            + "de arriba, 1080x900). Solo formas de dibujo: svg, g, defs, rect, circle, ellipse, path, polygon, polyline, line, "
+            + "\"0 0 1080 1350\" para carrusel (4:5) o \"0 0 1080 1920\" para historia, reel y carrusel de TikTok (9:16); en los "
+            + "carruseles cada slide enseña la parte de arriba, 1080x900 en 4:5 y 1080x1200 en 9:16). Solo formas de dibujo: svg, g, defs, rect, circle, ellipse, path, polygon, polyline, line, "
             + "linearGradient, radialGradient, stop, text, tspan, title y desc. Sin script, foreignObject, image, use, style ni "
             + "@import, sin href que no sea interno (#id) y sin entidades ni DOCTYPE: un SVG que no cumpla se ignora. No escribas el "
             + "título en el SVG: SocialHub lo pone encima. Si hay «visual_style», úsalo para diseñar los fondos (paleta, motivos, "
@@ -319,6 +369,8 @@ class WeeklySpecHandler implements AiTypeHandler {
         try {
             LoadedSpec loaded = reader.load(file.toString(), promotions.driveFolders(job.promotionId()));
             piecePublications.check(job.promotionId(), loaded.spec());
+            // Una plantilla que no existe en el kit aprobado, o que no es de su pieza, se rechaza aquí y no al generar
+            generator.checkTemplates(loaded.spec(), setups.of(job.promotionId(), loaded.spec()), msg -> { });
         } catch (IllegalArgumentException e) {
             reject(file);
             throw new IllegalArgumentException("El spec no se puede encargar: " + e.getMessage());

@@ -55,6 +55,11 @@ class PublicationEntity {
     @NotAudited private @Nullable String aiHashtags;
     @NotAudited private @Nullable String previousCaption;
     @NotAudited private @Nullable String previousHashtags;
+    @NotAudited
+    @Enumerated(EnumType.STRING)
+    private com.socialhub.publishing.domain.PublicationSound.Mode soundMode = com.socialhub.publishing.domain.PublicationSound.Mode.NONE;
+
+    @NotAudited private @Nullable String soundTrack;
     private @Nullable String externalId;
     private @Nullable String confirmation;
     private @Nullable Instant publishedAt;

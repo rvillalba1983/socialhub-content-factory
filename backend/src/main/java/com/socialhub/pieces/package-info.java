@@ -4,7 +4,9 @@
  * sobrescribe. Aporta al motor la tarea {@code GENERATE_PIECES}.
  *
  * También incluye el motor de plantillas SVG (puerto {@code TemplateRenderer}): dibujo con Batik y texto ajustado con
- * Java 2D y las fuentes incluidas.
+ * Java 2D y las fuentes incluidas. Con un kit de marca aprobado, las piezas (cierre del carrusel, historia y cita) se dibujan con
+ * su plantilla encima de la ilustración; el kit llega por el puerto de salida {@code ApprovedTemplates} (en la raíz, para que el
+ * módulo del kit, que ya depende de este, lo implemente: las piezas no dependen del kit).
  *
  * <ul>
  *   <li>Raíz: puertos primarios ({@code PieceOrders}, {@code ContentGaps}).</li>

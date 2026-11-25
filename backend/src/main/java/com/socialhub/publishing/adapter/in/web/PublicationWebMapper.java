@@ -27,7 +27,15 @@ interface PublicationWebMapper {
     @org.mapstruct.Mapping(target = "outcome", ignore = true)
     @org.mapstruct.Mapping(target = "duplicates", ignore = true)
     @org.mapstruct.Mapping(target = "moveReason", ignore = true)
+    @org.mapstruct.Mapping(target = "sound", expression = "java(toDto(publication.getSound()))")
     PublicationDto toDto(Publication publication);
+
+    default com.socialhub.api.model.PublicationSoundDto toDto(com.socialhub.publishing.domain.PublicationSound sound) {
+        var dto = new com.socialhub.api.model.PublicationSoundDto(
+                com.socialhub.api.model.SoundModeDto.valueOf(sound.mode().name()), sound.label());
+        dto.setTrack(sound.track());
+        return dto;
+    }
 
     List<PublicationDto> toDtos(List<Publication> publications);
 
@@ -94,6 +102,8 @@ interface PublicationWebMapper {
         var dto = new PublicationFileDto(file.id(), file.path(), PublicationFileDto.KindEnum.valueOf(file.kind().name()),
                 PublicationFileDto.OriginEnum.valueOf(file.origin().name()), file.addedAt().atOffset(ZoneOffset.UTC), available);
         dto.setMimeType(file.mimeType());
+        dto.setPage(file.page());
+        dto.setSourceName(file.sourceName());
         return dto;
     }
 }

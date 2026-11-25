@@ -16,4 +16,7 @@ public interface SvgRasterizer {
 
     /** El SVG pintado a ese tamaño en píxeles (RGB, sobre blanco), o vacío si no es seguro o falla. */
     Optional<BufferedImage> rasterize(String svg, int width, int height);
+
+    /** Como {@link #rasterize} pero con transparencia (ARGB): lo que el SVG no dibuja queda transparente, para ponerlo sobre otra imagen. */
+    Optional<BufferedImage> rasterizeTransparent(String svg, int width, int height);
 }

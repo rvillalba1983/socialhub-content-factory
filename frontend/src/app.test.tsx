@@ -22,7 +22,7 @@ import type { ExternalOperationPage, Snapshot, Station, Task } from './model';
 import { TaskPanel } from './Panel';
 import { VersionBadge } from './Version';
 import { TodayCard, World, openAlert } from './World';
-import type { Publication } from './model';
+import type { Publication, PublicationFile } from './model';
 
 const counts = (o: Partial<Station['counts']> = {}): Station['counts'] =>
   ({ total: 0, running: 0, waiting: 0, blocked: 0, failed: 0, completed: 0, idle: 0, cancelled: 0, ...o });
@@ -475,6 +475,68 @@ describe('Publicaciones', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Pasar a «Programada»' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('30 minutos');
     expect(change).toHaveBeenCalledWith('2026-11-10-instagram', 'SCHEDULED');
+  });
+});
+
+describe('Sonido y origen de las piezas de la publicación', () => {
+  const publication: Publication = {
+    id: '2026-11-10-instagram', promotion_id: 'p', platform: 'INSTAGRAM', type: 'Carrusel', title: 'Poema 1',
+    scheduled_on: '2026-11-10', scheduled_time: '19:00', timezone: 'Europe/Madrid', status: 'APPROVED', route: 'Publer', demo: false,
+  };
+  const file = (o: Partial<PublicationFile>): PublicationFile => ({
+    id: 'aaaaaaaaaaaaaaaa', path: 'G:/DeLito/pieza.png', kind: 'IMAGE', mime_type: 'image/png', origin: 'SPEC', added_at: '2026-11-02T09:00:00Z', available: true, ...o,
+  });
+
+  it('enseña la página y el archivo de origen de cada pieza, y nada si no hay datos', async () => {
+    vi.spyOn(api, 'publicationFiles').mockResolvedValue({ items: [
+      file({ id: 'aaaaaaaaaaaaaaaa', path: 'G:/DeLito/a.png', page: 3, source_name: 'page 3.png' }),
+      file({ id: 'bbbbbbbbbbbbbbbb', path: 'G:/DeLito/b.png' }),
+    ] });
+    render(<PublicationEditor promotionId="p" publication={publication} onClose={() => {}} onSaved={() => {}} />);
+    expect(await screen.findByText('Página 3 · Imagen de origen: page 3.png')).toBeInTheDocument();
+    expect(screen.getAllByText(/Página|Imagen de origen/)).toHaveLength(1);
+  });
+
+  it('muestra el sonido actual y lo cambia pidiendo el nombre del tema', async () => {
+    vi.spyOn(api, 'publicationFiles').mockResolvedValue({ items: [] });
+    const saved: Publication = { ...publication, sound: { mode: 'litoques_track', track: 'Púa', label: 'Tema de Litoques en el vídeo: Púa' } };
+    const set = vi.spyOn(api, 'setPublicationSound').mockResolvedValue(saved);
+    const onSaved = vi.fn();
+    render(<PublicationEditor promotionId="p" publication={{ ...publication, sound: { mode: 'none', label: 'Sin sonido' } }} onClose={() => {}} onSaved={onSaved} />);
+    const box = await screen.findByRole('group', { name: 'Sonido' });
+    expect(within(box).getByText('Sin sonido', { selector: 'strong' })).toBeInTheDocument();
+    expect(within(box).getByRole('button', { name: 'Guardar sonido' })).toBeDisabled();
+    fireEvent.change(within(box).getByLabelText('Sonido'), { target: { value: 'litoques_track' } });
+    expect(within(box).getByRole('button', { name: 'Guardar sonido' })).toBeDisabled();
+    fireEvent.change(within(box).getByLabelText('Nombre del tema'), { target: { value: ' Púa ' } });
+    fireEvent.click(within(box).getByRole('button', { name: 'Guardar sonido' }));
+    await waitFor(() => expect(set).toHaveBeenCalledWith('2026-11-10-instagram', { mode: 'litoques_track', track: 'Púa' }));
+    await waitFor(() => expect(onSaved).toHaveBeenCalledWith(saved, 'Sonido guardado'));
+  });
+
+  it('sin sonido no manda tema y el error de la API se ve', async () => {
+    vi.spyOn(api, 'publicationFiles').mockResolvedValue({ items: [] });
+    const set = vi.spyOn(api, 'setPublicationSound').mockRejectedValue(new Error('Falta el nombre del tema'));
+    render(<PublicationEditor promotionId="p" publication={{ ...publication, sound: { mode: 'network', track: 'X', label: 'Elegir en la red: X' } }} onClose={() => {}} onSaved={() => {}} />);
+    const box = await screen.findByRole('group', { name: 'Sonido' });
+    expect(within(box).getByLabelText('Nombre del tema')).toHaveValue('X');
+    fireEvent.change(within(box).getByLabelText('Sonido'), { target: { value: 'none' } });
+    expect(within(box).queryByLabelText('Nombre del tema')).toBeNull();
+    fireEvent.click(within(box).getByRole('button', { name: 'Guardar sonido' }));
+    await waitFor(() => expect(set).toHaveBeenCalledWith('2026-11-10-instagram', { mode: 'none', track: undefined }));
+    expect(await within(box).findByRole('alert')).toHaveTextContent('Falta el nombre del tema');
+  });
+
+  it('programada o publicada: el selector está desactivado y lo explica', async () => {
+    vi.spyOn(api, 'publicationFiles').mockResolvedValue({ items: [] });
+    vi.spyOn(api, 'publicationQuality').mockResolvedValue({ open: 0, issues: [] });
+    vi.spyOn(api, 'publishJob').mockRejectedValue(new Error('x'));
+    render(<PublicationEditor promotionId="p" publication={{ ...publication, status: 'SCHEDULED', sound: { mode: 'network', track: 'X', label: 'Elegir en la red: X' } }} onClose={() => {}} onSaved={() => {}} />);
+    const box = await screen.findByRole('group', { name: 'Sonido' });
+    expect(within(box).getByLabelText('Sonido')).toBeDisabled();
+    expect(within(box).getByLabelText('Nombre del tema')).toBeDisabled();
+    expect(within(box).getByText(/ya está programada o publicada/)).toBeInTheDocument();
+    expect(within(box).getByText('Elegir en la red: X', { selector: 'strong' })).toBeInTheDocument();
   });
 });
 

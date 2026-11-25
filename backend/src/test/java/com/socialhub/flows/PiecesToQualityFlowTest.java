@@ -41,6 +41,7 @@ class PiecesToQualityFlowTest {
 
     @Autowired MockMvc mvc;
     @Autowired FlowClock clock;
+    @Autowired com.socialhub.publishing.PublishingCommands publishing;
 
     private Flow flow;
 
@@ -75,6 +76,7 @@ class PiecesToQualityFlowTest {
         create("2026-12-02", "INSTAGRAM", "Historia", "Pregunta grande");
         create("2026-12-03", "INSTAGRAM", "Reel", "Leer en voz alta");
         create("2026-12-04", "TIKTOK", "Reel", "Lo mismo en TikTok");
+        create("2026-12-05", "TIKTOK", "Carrusel", "Carrusel vertical");
     }
 
     @Test
@@ -82,8 +84,9 @@ class PiecesToQualityFlowTest {
     void theSpecBecomesPiecesAttachedToEachPublicationDrawnForRealAndTheOrderIsComplete() throws Exception {
         Flow f = flow();
         String task = f.order("poemario", "WEEKLY_SPEC", "spec del lote", "2026-12-01-instagram", "2026-12-02-instagram",
-                "2026-12-03-instagram", "2026-12-04-tiktok");
-        assertThat(f.request(task).get("inputs").get("publications").size()).isEqualTo(4);
+                "2026-12-03-instagram", "2026-12-04-tiktok", "2026-12-05-tiktok");
+        assertThat(f.request(task).get("inputs").get("publications").size()).isEqualTo(5);
+        assertThat(f.request(task).get("inputs").get("format_note").asString()).contains("9:16");
 
         String spec = """
                 {"out":%s,"piezas":[
@@ -96,14 +99,18 @@ class PiecesToQualityFlowTest {
                  {"tipo":"reel","nombre":"3_reel","publicacion":"2026-12-03-instagram","img":%s,"gancho":"Frase de tres segundos",
                   "versos":["verso uno"],"final":["El DeLito","un poema de Lito"]},
                  {"tipo":"reel","nombre":"4_reel_tiktok","publicacion":"2026-12-04-tiktok","img":%s,"gancho":"Frase de tres segundos",
-                  "versos":["verso uno"],"final":["El DeLito"]}]}"""
-                .formatted(f.q(generated), f.q(page), f.q(page), f.q(page), f.q(page), f.q(page), f.q(page));
+                  "versos":["verso uno"],"final":["El DeLito"]},
+                 {"tipo":"carrusel","nombre":"5_carrusel_tiktok","publicacion":"2026-12-05-tiktok",
+                  "slides":[{"img":%s,"texto":"Primer verso","pagina":58},{"img":%s,"texto":"Segundo verso","pagina":59}],
+                  "cierre":{"img":%s,"lineas":["El DeLito"],"pagina":60},
+                  "sonido":{"modo":"network","tema":"Púa (Litoques)"}}]}"""
+                .formatted(f.q(generated), f.q(page), f.q(page), f.q(page), f.q(page), f.q(page), f.q(page), f.q(page), f.q(page), f.q(page));
         f.complete(task, "{\"spec\":" + spec + ",\"summary\":\"4 piezas\"}");
         String resultText = f.task(task).get("result").asString();
         assertThat(resultText).contains("piezas encargadas");
         String pieces = resultText.replaceAll(".*\\(tarea ([0-9a-f-]+)\\).*", "$1");
         f.waitFor(() -> "COMPLETED".equals(f.task(pieces).get("status").asString()), "piezas generadas", 240);
-        assertThat(f.task(pieces).get("result").asString()).startsWith("4 piezas");
+        assertThat(f.task(pieces).get("result").asString()).startsWith("5 piezas");
 
         // Cada pieza, con sus medidas y dibujada de verdad (no un lienzo en blanco)
         for (int i = 1; i <= 3; i++) assertImage(generated.resolve("1_carrusel_" + i + ".jpg"), 1080, 1350);
@@ -120,6 +127,35 @@ class PiecesToQualityFlowTest {
         assertThat(files("2026-12-04-tiktok")).hasSize(2);
         for (JsonNode item : f.read("/api/publications/2026-12-01-instagram/files").get("items")) {
             assertThat(item.get("origin").asString()).isEqualTo("SPEC");
+        }
+
+        // Hallazgo B: el carrusel de TikTok sale en 9:16, el de Instagram sigue en 4:5
+        for (int i = 1; i <= 3; i++) assertImage(generated.resolve("5_carrusel_tiktok_" + i + ".jpg"), 1080, 1920);
+        assertThat(files("2026-12-05-tiktok")).hasSize(3);
+
+        // Hallazgo K: cada diapositiva con su página del PDF y el nombre del archivo, en la API de la publicación
+        JsonNode tiktokFiles = f.read("/api/publications/2026-12-05-tiktok/files").get("items");
+        List<String> pages = new ArrayList<>();
+        for (JsonNode item : tiktokFiles) {
+            assertThat(item.get("source_name").asString()).isEqualTo("pagina 58.png");
+            pages.add(item.get("path").asString().replaceAll(".*_(\\d)\\.jpg", "$1") + "=" + item.get("page").asInt());
+        }
+        assertThat(pages).containsExactlyInAnyOrder("1=58", "2=59", "3=60");
+        // Una pieza sin página dicha no inventa ninguna
+        for (JsonNode item : f.read("/api/publications/2026-12-01-instagram/files").get("items")) {
+            assertThat(item.path("page").isNumber()).isFalse();
+            assertThat(item.get("source_name").asString()).isEqualTo("pagina 58.png");
+        }
+
+        // Decisión 23: el sonido que pide el spec queda en la publicación; las demás, sin sonido
+        JsonNode sound = f.read("/api/promotions/poemario/publications?limit=500").get("items");
+        for (JsonNode publication : sound) {
+            boolean tiktokCarousel = publication.get("id").asString().equals("2026-12-05-tiktok");
+            assertThat(publication.get("sound").get("mode").asString()).isEqualTo(tiktokCarousel ? "network" : "none");
+            if (tiktokCarousel) {
+                assertThat(publication.get("sound").get("track").asString()).isEqualTo("Púa (Litoques)");
+                assertThat(publication.get("sound").get("label").asString()).isEqualTo("Elegir en la red: Púa (Litoques)");
+            }
         }
     }
 
@@ -150,6 +186,74 @@ class PiecesToQualityFlowTest {
             }
             assertThat(f.status("poemario", id)).isEqualTo("APPROVED");
         }
+    }
+
+    @Test
+    @Order(4)
+    void theSoundOfAPublicationIsChangedAndValidatedThroughTheApi() throws Exception {
+        Flow f = flow();
+        var set = f.put("/api/publications/2026-12-05-tiktok/sound", "{\"mode\":\"litoques_track\",\"track\":\"Púa\"}");
+        JsonNode changed = f.ok(set);
+        assertThat(changed.get("sound").get("mode").asString()).isEqualTo("litoques_track");
+        assertThat(changed.get("sound").get("label").asString()).isEqualTo("Tema de Litoques en el vídeo: Púa");
+        // Sin sonido no lleva tema aunque venga uno
+        JsonNode none = f.ok(f.put("/api/publications/2026-12-05-tiktok/sound", "{\"mode\":\"none\",\"track\":\"x\"}"));
+        assertThat(none.get("sound").get("mode").asString()).isEqualTo("none");
+        assertThat(none.get("sound").path("track").isString()).isFalse();
+        // Con tema de Litoques o de la red hace falta el nombre
+        var missing = f.put("/api/publications/2026-12-05-tiktok/sound", "{\"mode\":\"network\"}").andReturn().getResponse();
+        assertThat(missing.getStatus()).isEqualTo(400);
+        assertThat(missing.getContentAsString()).contains("Falta el nombre del tema");
+        assertThat(f.put("/api/publications/2026-12-05-tiktok/sound", "{\"mode\":\"loud\"}").andReturn().getResponse().getStatus()).isEqualTo(400);
+        assertThat(f.put("/api/publications/no-existe/sound", "{\"mode\":\"none\"}").andReturn().getResponse().getStatus()).isEqualTo(404);
+    }
+
+    @Test
+    @Order(5)
+    void regeneratingKeepsTheChosenSoundAndRefreshesThePageAndSourceOfAttachedPieces() throws Exception {
+        Flow f = flow();
+        String id = "2026-12-05-tiktok";
+        f.ok(f.put("/api/publications/" + id + "/sound", "{\"mode\":\"litoques_track\",\"track\":\"Elegido por Raúl\"}"));
+        List<Path> same = files(id).stream().map(Path::of).toList();
+        // Se regenera el mismo archivo con otra página y otro origen, y el spec pide otro sonido
+        var regenerated = same.stream().map(path -> new com.socialhub.publishing.PublishingCommands.GeneratedFile(path, 99, "nueva imagen.png")).toList();
+        int added = publishing.attachGeneratedPieces("poemario", id, regenerated,
+                new com.socialhub.publishing.PublishingCommands.SoundChoice("network", "Púa (Litoques)"));
+        assertThat(added).isZero();
+        for (JsonNode item : f.read("/api/publications/" + id + "/files").get("items")) {
+            assertThat(item.get("page").asInt()).isEqualTo(99);
+            assertThat(item.get("source_name").asString()).isEqualTo("nueva imagen.png");
+            assertThat(item.get("origin").asString()).isEqualTo("SPEC");
+        }
+        JsonNode kept = f.read("/api/promotions/poemario/publications?limit=500").get("items");
+        for (JsonNode publication : kept) {
+            if (publication.get("id").asString().equals(id)) {
+                assertThat(publication.get("sound").get("mode").asString()).isEqualTo("litoques_track");
+                assertThat(publication.get("sound").get("track").asString()).isEqualTo("Elegido por Raúl");
+            }
+        }
+        // Sin sonido elegido, sí se aplica el del spec
+        f.ok(f.put("/api/publications/" + id + "/sound", "{\"mode\":\"none\"}"));
+        publishing.attachGeneratedPieces("poemario", id, regenerated,
+                new com.socialhub.publishing.PublishingCommands.SoundChoice("network", "Púa (Litoques)"));
+        for (JsonNode publication : f.read("/api/promotions/poemario/publications?limit=500").get("items")) {
+            if (publication.get("id").asString().equals(id)) {
+                assertThat(publication.get("sound").get("mode").asString()).isEqualTo("network");
+            }
+        }
+    }
+
+    @Test
+    @Order(6)
+    void theSoundOfAScheduledPublicationCannotBeChangedThroughTheApi() throws Exception {
+        Flow f = flow();
+        String id = "2026-12-02-instagram";
+        f.ok(f.put("/api/brands/el-delito/publer-accounts", "{\"items\":[{\"platform\":\"INSTAGRAM\",\"account_name\":\"El DeLito\"}]}"));
+        f.ok(f.post("/api/publications/" + id + "/status-changes", "{\"status\":\"SCHEDULED\"}"));
+        assertThat(f.status("poemario", id)).isEqualTo("SCHEDULED");
+        var response = f.put("/api/publications/" + id + "/sound", "{\"mode\":\"network\",\"track\":\"Púa\"}").andReturn().getResponse();
+        assertThat(response.getStatus()).isEqualTo(409);
+        assertThat(response.getContentAsString()).contains("programada");
     }
 
     // ------------------------------------------------------------------ utilidades
