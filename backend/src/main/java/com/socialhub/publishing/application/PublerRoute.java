@@ -8,6 +8,7 @@ import com.socialhub.publishing.PublishRouteId;
 import com.socialhub.publishing.domain.PublerAccountRepository;
 import com.socialhub.publishing.domain.Publication;
 import com.socialhub.publishing.domain.PublishJob;
+import com.socialhub.settings.PublishSettings;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -35,14 +36,16 @@ class PublerRoute implements PublishRoute {
     private final PublerAccountRepository accounts;
     private final PublerCapacity capacity;
     private final PromotionQueries promotions;
+    private final PublishSettings settings;
     private final java.time.Clock clock;
 
     PublerRoute(AiOrders orders, PublerAccountRepository accounts, PublerCapacity capacity,
-                PromotionQueries promotions, java.time.Clock clock) {
+                PromotionQueries promotions, PublishSettings settings, java.time.Clock clock) {
         this.orders = orders;
         this.accounts = accounts;
         this.capacity = capacity;
         this.promotions = promotions;
+        this.settings = settings;
         this.clock = clock;
     }
 
@@ -53,6 +56,16 @@ class PublerRoute implements PublishRoute {
     @Override public Instant lastMoment(Instant scheduledAt) { return scheduledAt.minus(GIVE_UP); }
 
     static Instant deadline(Instant scheduledAt) { return scheduledAt.minus(DEADLINE); }
+
+    /**
+     * La hora límite del encargo: la más temprana entre las 8 h de Publer y el margen mínimo de publicación de la red (nunca se
+     * publica al instante). Es la misma que usa el encargo, para no crear uno que SocialHub cancelaría al enviarlo.
+     */
+    static Instant limit(Instant scheduledAt, Duration margin) {
+        Instant byPubler = deadline(scheduledAt);
+        Instant byMargin = scheduledAt.minus(margin);
+        return byMargin.isBefore(byPubler) ? byMargin : byPubler;
+    }
 
     /** Cuánto antes de su límite tiene que ser la última pasada de Claude con Chrome que cuente: le deja tiempo de programarla. */
     static final Duration PASS_MARGIN = com.socialhub.ai.domain.ClaudePasses.PASS_MARGIN;
@@ -75,13 +88,17 @@ class PublerRoute implements PublishRoute {
 
     @Override
     public Outcome schedule(Publication p, PublishJob job, Instant now) {
-        if (!now.isBefore(deadline(p.scheduledAt()))) {
-            return new Outcome.Failed("quedan menos de " + DEADLINE.toHours() + " h: no da tiempo a que Claude la programe con Chrome");
+        Duration margin = settings.minMarginFor(p.getPlatform().name());
+        Instant limit = limit(p.scheduledAt(), margin);
+        if (!now.isBefore(limit)) {
+            return new Outcome.Failed(margin.compareTo(DEADLINE) > 0
+                    ? "queda menos del margen mínimo de publicación (" + margin.toMinutes() + " minutos): no da tiempo a que Claude la programe con Chrome"
+                    : "quedan menos de " + DEADLINE.toHours() + " h: no da tiempo a que Claude la programe con Chrome");
         }
         // Las pasadas de Claude con Chrome son cada 5 h: si ninguna que haga este encargo llega antes del límite, ni se pide
-        if (!PcSchedule.canMeet(deadline(p.scheduledAt()), now)) {
-            return new Outcome.Failed("ninguna pasada de Claude con Chrome llega antes del límite de Publer (" + DEADLINE.toHours()
-                    + " h antes de la hora): no da tiempo a que la programe");
+        if (!PcSchedule.canMeet(limit, now)) {
+            return new Outcome.Failed("ninguna pasada de Claude con Chrome llega antes del límite del encargo (" + DEADLINE.toHours()
+                    + " h antes de la hora o el margen mínimo de la red): no da tiempo a que la programe");
         }
         // Sin la cuenta de Publer de la marca en esa red no se crea el encargo: Claude no sabría dónde programarla
         String brandId = promotions.brandOf(p.getPromotionId());
@@ -96,7 +113,7 @@ class PublerRoute implements PublishRoute {
         }
         // Una sola programación viva por publicación (decisiones 38 y 40): los encargos anteriores que sigan abiertos se
         // cancelan antes de crear el nuevo, para que Claude no programe la misma publicación dos veces
-        int superseded = orders.supersede(p.getPromotionId(), AiRequestType.PUBLER_SCHEDULE, p.getId(), null);
+        int superseded = orders.supersede(p.getPromotionId(), AiRequestType.PUBLER_SCHEDULE, p.getId(), null, AiOrders.REPLACED);
         if (superseded > 0) log.info("Programar en Publer de {}: {} encargo(s) anterior(es) cancelado(s) al pedir uno nuevo", p.getId(), superseded);
         String task = orders.submitInternal(p.getPromotionId(), AiRequestType.PUBLER_SCHEDULE,
                 "Programar en Publer: " + p.getTitle(),
@@ -107,7 +124,8 @@ class PublerRoute implements PublishRoute {
 
     @Override
     public void withdrawPending(Publication p, PublishJob job) {
-        orders.supersede(p.getPromotionId(), AiRequestType.PUBLER_SCHEDULE, p.getId(), null);
+        orders.supersede(p.getPromotionId(), AiRequestType.PUBLER_SCHEDULE, p.getId(), null,
+                "Retirada porque la publicación ya no está programada");
     }
 
     /** Motivo de la retención cuando la marca no tiene cuenta de Publer en esa red. */

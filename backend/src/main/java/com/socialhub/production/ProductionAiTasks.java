@@ -35,8 +35,11 @@ public interface ProductionAiTasks {
     /** Marca un encargo a Claude recién creado como pedido por Raúl desde la interfaz. */
     void markManual(String taskId);
 
-    /** Cancela un encargo a Claude en cola que ya no tiene nada que hacer. */
-    void cancelAi(String taskId);
+    /** Retira un encargo a Claude abierto (en cola o esperando su resultado) porque SocialHub ya no lo necesita, con ese motivo. */
+    void withdrawAi(String taskId, String reason);
+
+    /** El encargo a Claude con ese identificador, en el estado que esté (también cancelado o terminado). */
+    Optional<AiTask> aiTask(String taskId);
 
     /** Encargos a Claude en cola, por orden de llegada. */
     List<AiTask> queuedAiTasks();

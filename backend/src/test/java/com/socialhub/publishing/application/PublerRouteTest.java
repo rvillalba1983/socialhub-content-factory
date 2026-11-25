@@ -78,7 +78,7 @@ class PublerRouteTest {
 
     private PublerRoute route() {
         var capacity = new PublerCapacity(jobs, publications, promotions, accounts, 10);
-        return new PublerRoute(orders, accounts, capacity, promotions, Clock.fixed(NOW, ZoneId.of("UTC")));
+        return new PublerRoute(orders, accounts, capacity, promotions, settings, Clock.fixed(NOW, ZoneId.of("UTC")));
     }
 
     private Publication publication(String id, String promotion, Platform platform, int dayOffset) {
@@ -419,7 +419,7 @@ class PublerRouteTest {
 
         route().schedule(p, job(p), NOW);
 
-        inOrder.verify(orders).supersede("promo-litoques", AiRequestType.PUBLER_SCHEDULE, "p1", null);
+        inOrder.verify(orders).supersede("promo-litoques", AiRequestType.PUBLER_SCHEDULE, "p1", null, AiOrders.REPLACED);
         inOrder.verify(orders).submitInternal(eq("promo-litoques"), eq(AiRequestType.PUBLER_SCHEDULE), anyString(), anyString(), eq(List.of("p1")));
     }
 
@@ -427,6 +427,49 @@ class PublerRouteTest {
     void takingThePublicationOutOfScheduledWithdrawsTheOrderThatWasStillPending() {
         var p = publication("p1", "promo-litoques", Platform.TIKTOK, 0);
         route().withdrawPending(p, job(p));
-        verify(orders).supersede("promo-litoques", AiRequestType.PUBLER_SCHEDULE, "p1", null);
+        verify(orders).supersede("promo-litoques", AiRequestType.PUBLER_SCHEDULE, "p1", null,
+                "Retirada porque la publicación ya no está programada");
+    }
+
+    @Test
+    void withAMarginOverEightHoursTheOrderUsesTheSameLimitAsTheHandlerAndFailsWhenItNoLongerFits() {
+        var p = publication("p1", "promo-litoques", Platform.TIKTOK, 0);
+        // La hora de publicación está a menos de 12 h de NOW y el margen de la red es de 12 h: ya no queda margen aunque falten más de 8 h
+        when(settings.minMarginFor("TIKTOK")).thenReturn(java.time.Duration.between(NOW, p.scheduledAt()).plusHours(1));
+        assertThat(PublerRoute.limit(p.scheduledAt(), settings.minMarginFor("TIKTOK"))).isBefore(NOW);
+
+        var outcome = route().schedule(p, job(p), NOW);
+
+        assertThat(outcome).isInstanceOf(PublishRoute.Outcome.Failed.class);
+        assertThat(((PublishRoute.Outcome.Failed) outcome).reason()).contains("margen mínimo");
+        verify(orders, never()).submitInternal(any(), any(), any(), any(), any());
+        verify(orders, never()).supersede(any(), any(), any(), any(), any());
+        // El encargo y la ruta comparten el límite
+        when(queries.find("p1")).thenReturn(Optional.of(p));
+        assertThat(handler().deadline(aiJob(p, "litoques"))).isEqualTo(PublerRoute.limit(p.scheduledAt(), settings.minMarginFor("TIKTOK")));
+    }
+
+    @Test
+    void whenAnOrderIsCancelledUnsentTheEngineIsToldSoTheJobDoesNotKeepWaitingForIt() {
+        var job = new AiJob("t1", AiRequestType.PUBLER_SCHEDULE, "promo-litoques", "litoques", "T", "G", List.of("p1"), NOW, null, false);
+        handler().onCancelled(job, "Retirada: ya no hacía falta enviarla");
+        verify(engine).taskCancelled("p1", "t1", "Retirada: ya no hacía falta enviarla");
+    }
+
+    @Test
+    void aLateResultOfAWithdrawnOrderWarnsToDeleteItInPublerOnlyIfClaudeDidScheduleIt() {
+        var job = new AiJob("t1", AiRequestType.PUBLER_SCHEDULE, "promo-litoques", "litoques", "T", "G", List.of("p1"), NOW, null, false);
+        var json = tools.jackson.databind.json.JsonMapper.builder().build();
+        when(engine.late("p1", "t1")).thenReturn("Revisa Publer y bórrala allí si sobra");
+
+        assertThat(handler().late(job, json.readTree("{\"scheduled\":true}"), json.readTree("{}")))
+                .isEqualTo("Revisa Publer y bórrala allí si sobra");
+        assertThat(handler().late(job, json.readTree("{\"scheduled\":false}"), json.readTree("{}"))).isNull();
+    }
+
+    @Test
+    void theNetworkSoundWarningNamesTheTrackAndTheNetwork() {
+        var named = new com.socialhub.publishing.domain.PublicationSound(com.socialhub.publishing.domain.PublicationSound.Mode.NETWORK, "Púa");
+        assertThat(PublerScheduleHandler.networkSound(named, "TikTok")).contains("Falta elegir el sonido «Púa» en TikTok");
     }
 }

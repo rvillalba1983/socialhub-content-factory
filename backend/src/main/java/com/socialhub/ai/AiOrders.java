@@ -32,7 +32,11 @@ public interface AiOrders {
      * salieron a Drive y Claude aún no ha dejado su resultado, SocialHub retira su archivo del encargo para que nadie lo haga.
      *
      * @param exceptTaskId el encargo que se queda (el nuevo), o {@code null} si no hay ninguno
+     * @param reason el motivo que queda en la tarea retirada («Sustituida por un encargo nuevo», «Retirada porque…»)
      * @return cuántos encargos se han cancelado
      */
-    int supersede(String promotionId, AiRequestType type, String inputId, @org.jspecify.annotations.Nullable String exceptTaskId);
+    int supersede(String promotionId, AiRequestType type, String inputId, @org.jspecify.annotations.Nullable String exceptTaskId,
+                  String reason);
+
+    String REPLACED = "Sustituida por un encargo nuevo";
 }

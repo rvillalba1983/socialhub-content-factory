@@ -76,11 +76,19 @@ class ProductionService implements ProductionOrders, ProductionTasks, Production
                 || t.getStatus() == TaskStatus.CANCELLED).orElse(true);
     }
 
-    /** Cancela un encargo a Claude en cola que ya no tiene nada que hacer. */
+    /** Retira un encargo a Claude abierto porque SocialHub ya no lo necesita: queda cancelado con su propio motivo. */
     @Transactional
     @Override
-    public void cancelAi(String taskId) {
-        execute(taskId, TaskCommandType.CANCEL, null);
+    public void withdrawAi(String taskId, String reason) {
+        Task task = task(taskId);
+        task.withdraw(reason, clock.instant());
+        persist(task);
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public java.util.Optional<AiTask> aiTask(String taskId) {
+        return tasks.findById(taskId).filter(Task::isAiRequest).map(ProductionService::toAiTask);
     }
 
     @Transactional

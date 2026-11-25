@@ -201,19 +201,42 @@ class PublishingEngine {
         PublishJob job = jobs.find(publicationId).orElseThrow(() -> new IllegalStateException("No hay publicación en marcha para " + publicationId));
         Publication p = publications.findById(publicationId).orElseThrow();
         Instant now = clock.instant();
-        if (!taskId.equals(job.getTaskId())) {
-            String flag = LATE_FLAG + "se programó tarde o ya no hacía falta (" + taskId + "). Revisa Publer y bórrala allí si sobra";
-            p.flag(flag);
-            publications.save(p);
-            job.note(now, flag);
-            jobs.save(job);
-            changed(publicationId);
-            return flag;
-        }
+        if (!job.getStatus().open() || !taskId.equals(job.getTaskId())) return lateFlag(job, p, taskId, now);
         job.scheduled(externalId, url, now);
         jobs.save(job);
         changed(publicationId);
         return "Programada en " + job.getRoute() + " para el " + WHEN.format(p.scheduledAt());
+    }
+
+    private String lateFlag(@Nullable PublishJob job, Publication p, String taskId, Instant now) {
+        String flag = LATE_FLAG + "se programó tarde o ya no hacía falta (" + taskId + "). Revisa Publer y bórrala allí si sobra";
+        p.flag(flag);
+        publications.save(p);
+        if (job != null) {
+            job.note(now, flag);
+            jobs.save(job);
+        }
+        changed(p.getId());
+        return flag;
+    }
+
+    /**
+     * Llegó el resultado de un encargo que SocialHub había retirado: Claude lo programó igualmente. Se avisa para que Raúl la
+     * borre en Publer.
+     *
+     * @return el aviso, o {@code null} si ya no hay publicación ni trabajo al que avisar
+     */
+    @Nullable String late(String publicationId, String taskId) {
+        PublishJob job = jobs.find(publicationId).orElse(null);
+        Publication p = publications.findById(publicationId).orElse(null);
+        if (p == null) return null;
+        return lateFlag(job, p, taskId, clock.instant());
+    }
+
+    /** SocialHub canceló sin enviarlo el encargo que esperaba el trabajo: se sigue por otra vía en vez de esperar una tarea cancelada. */
+    void taskCancelled(String publicationId, String taskId, String reason) {
+        jobs.find(publicationId).filter(j -> j.getStatus().open() && taskId.equals(j.getTaskId()))
+                .ifPresent(j -> routeFailed(publicationId, taskId, reason));
     }
 
     /** Una vía no pudo (o Claude no pudo hacer el encargo). */

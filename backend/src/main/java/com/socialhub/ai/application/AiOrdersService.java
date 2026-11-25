@@ -11,9 +11,13 @@ import com.socialhub.promotion.PromotionQueries;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 class AiOrdersService implements AiOrders {
@@ -23,6 +27,7 @@ class AiOrdersService implements AiOrders {
     private final AiSettings settings;
     private final AiHandlers handlers;
     private final AiRequestRepository requests;
+    private final java.time.Clock clock;
 
     @Override
     @Transactional(readOnly = true)
@@ -39,38 +44,64 @@ class AiOrdersService implements AiOrders {
 
     @Override
     @Transactional
-    public int supersede(String promotionId, AiRequestType type, String inputId, @org.jspecify.annotations.Nullable String exceptTaskId) {
+    public int supersede(String promotionId, AiRequestType type, String inputId, @org.jspecify.annotations.Nullable String exceptTaskId,
+                         String reason) {
         int cancelled = 0;
         for (var cover : production.coveringAiTasks(type.taskType(), promotionId)) {
             var task = cover.task();
             if (cover.cover() != ProductionAiTasks.Cover.OPEN || task.id().equals(exceptTaskId) || !task.inputs().contains(inputId)) continue;
             List<AiRequest> sent = requests.ofTask(task.id());
             // Un encargo que Claude ya ha empezado o contestado no se toca: su resultado se avisará como tardío
-            if (!sent.isEmpty() && !withdraw(sent.getLast())) continue;
-            production.cancelAi(task.id());
+            if (!sent.isEmpty() && !withdraw(sent.getLast(), reason)) continue;
+            production.withdrawAi(task.id(), reason);
             cancelled++;
         }
         return cancelled;
     }
 
-    /** Retira el archivo de un encargo que sigue en Drive sin resultado. {@code false} si ya no se puede retirar con seguridad. */
-    private boolean withdraw(AiRequest request) {
+    /**
+     * Retira el archivo de un encargo que sigue en Drive sin resultado y lo deja como retirado. {@code false} si ya no se puede
+     * retirar con seguridad. Que no haya resultado todavía no quiere decir que Claude no lo haya empezado (escribe al final, y
+     * Drive tarda en sincronizar): por eso el envío queda {@code WITHDRAWN} y un resultado posterior se avisa como tardío.
+     */
+    private boolean withdraw(AiRequest request, String reason) {
         if (request.status() != AiRequest.Status.SENT) return true;
         java.nio.file.Path file = java.nio.file.Path.of(request.requestPath());
         // Sin la carpeta a la vista no se sabe si Claude ya lo cogió: no se toca
         if (!java.nio.file.Files.isDirectory(file.getParent())) return false;
         try {
             java.nio.file.Path results = file.getParent().resolveSibling(AiFolders.FROM_CLAUDE);
-            String base = file.getFileName().toString().replaceAll("\\.json$", "");
+            // Los resultados se llaman como el encargo («<tarea>-<intento>»), sea cual sea el sufijo del archivo (_2…)
+            String prefix = request.taskId() + "-" + request.attempt();
             if (java.nio.file.Files.isDirectory(results)) {
                 try (var list = java.nio.file.Files.list(results)) {
-                    if (list.anyMatch(f -> f.getFileName().toString().startsWith(base))) return false;
+                    if (list.anyMatch(f -> f.getFileName().toString().startsWith(prefix))) return false;
                 }
             }
-            java.nio.file.Files.deleteIfExists(file);
-            return true;
         } catch (java.io.IOException | RuntimeException e) {
             return false;
+        }
+        requests.save(request.withdrawn(clock.instant(), reason));
+        deleteAfterCommit(file);
+        return true;
+    }
+
+    /** El archivo se borra de Drive solo cuando la transacción ha confirmado: si se deshace, el encargo sigue en pie. */
+    private static void deleteAfterCommit(java.nio.file.Path file) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override public void afterCommit() { delete(file); }
+            });
+        } else {
+            delete(file);
+        }
+    }
+
+    private static void delete(java.nio.file.Path file) {
+        try {
+            java.nio.file.Files.deleteIfExists(file);
+        } catch (java.io.IOException | RuntimeException e) {
+            log.warn("No se ha podido retirar el archivo del encargo {}: {}", file, e.toString());
         }
     }
 

@@ -44,8 +44,9 @@ final class AiStandingRules {
 
     /** Cualquier encargo: una pasada que no hace nada no puede quedarse muda. */
     static final String NEVER_SILENT = "Nunca termines un encargo sin dejar su resultado: si no lo haces (no hay acceso a las carpetas, "
-            + "falta algo, ya estaba hecho…), crea igualmente el resultado con status «failed» (o «needs_human» si decide Raúl) y el motivo "
-            + "claro en «error». Un encargo que no hace nada y no dice por qué es el peor caso.";
+            + "falta algo…), crea igualmente el resultado con status «failed» (o «needs_human» si decide Raúl) y el motivo "
+            + "claro en «error». Si ya estaba hecho (por ejemplo, la publicación ya está programada en Publer a esa hora), no es un fallo: "
+            + "devuelve «completed» con lo que ya hay. Un encargo que no hace nada y no dice por qué es el peor caso.";
 
     /** Los encargos que usan skills y llevan las reglas fijas del bloque 4. */
     static boolean usesSkills(AiRequestType type) {

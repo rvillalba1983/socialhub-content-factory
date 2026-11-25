@@ -129,19 +129,19 @@ class PublerScheduleHandler implements AiTypeHandler {
 
     /** El sonido se elige en la red, no en Publer: Claude no lo añade, pero deja dicho que falta (decisión 23). */
     static String networkSound(PublicationSound sound, String network) {
-        return network + ", sonido: NO añadas música ni sonidos desde Publer. Raúl elegirá en la propia red el sonido «" + sound.track()
-                + "» (dato interno: no es texto público, no lo escribas en el texto ni en los hashtags). Al terminar, deja en «outputs.note» "
-                + "«Falta elegir el sonido «" + sound.track() + "» en " + network + "» y en «warnings» el mismo aviso.";
+        boolean named = sound.track() != null && !sound.track().isBlank();
+        String warning = named ? "Falta elegir el sonido «" + sound.track() + "» en " + network : "Falta elegir el sonido en " + network;
+        return network + ", sonido: NO añadas música ni sonidos desde Publer. Raúl elegirá en la propia red el sonido"
+                + (named ? " «" + sound.track() + "» (dato interno: no es texto público, no lo escribas en el texto ni en los hashtags)"
+                        : " (aún sin elegir el tema)")
+                + ". Al terminar, deja en «outputs.note» «" + warning + "» y en «warnings» el mismo aviso.";
     }
 
     /** Pasada esta hora Claude no debe programar: 8 h antes (Publer) o, si es antes, el margen mínimo de publicación de la red. */
     @Override
     public @Nullable Instant deadline(AiJob job) {
-        return queries.find(job.inputs().getFirst()).map(p -> {
-            Instant byPubler = PublerRoute.deadline(p.scheduledAt());
-            Instant byMargin = p.scheduledAt().minus(settings.minMarginFor(p.getPlatform().name()));
-            return byMargin.isBefore(byPubler) ? byMargin : byPubler;
-        }).orElse(null);
+        return queries.find(job.inputs().getFirst())
+                .map(p -> PublerRoute.limit(p.scheduledAt(), settings.minMarginFor(p.getPlatform().name()))).orElse(null);
     }
 
     /**
@@ -181,9 +181,23 @@ class PublerScheduleHandler implements AiTypeHandler {
         String done = engine.scheduled(id, job.taskId(), publerId.isBlank() ? null : publerId, url.isBlank() ? null : url);
         // El sonido se elige en la red (decisión 23): el aviso para Raúl viaja en el resultado de la tarea
         if (p.getSound().mode() == PublicationSound.Mode.NETWORK) {
-            done += " · Falta elegir el sonido «" + p.getSound().track() + "» en " + (p.getPlatform() == Platform.TIKTOK ? "TikTok" : "la red");
+            String track = p.getSound().track();
+            done += " · Falta elegir el sonido" + (track == null || track.isBlank() ? "" : " «" + track + "»") + " en "
+                    + (p.getPlatform() == Platform.TIKTOK ? "TikTok" : "la red");
         }
         return done;
+    }
+
+    @Override
+    public void onCancelled(AiJob job, String reason) {
+        engine.taskCancelled(job.inputs().getFirst(), job.taskId(), reason);
+    }
+
+    @Override
+    public @Nullable String late(AiJob job, JsonNode outputs, JsonNode result) {
+        // Si Claude no llegó a programarla («scheduled» no es true), no hay nada que borrar en Publer
+        if (!outputs.path("scheduled").asBoolean(false)) return null;
+        return engine.late(job.inputs().getFirst(), job.taskId());
     }
 
     @Override

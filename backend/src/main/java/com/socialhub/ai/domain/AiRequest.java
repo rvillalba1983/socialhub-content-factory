@@ -16,7 +16,8 @@ public record AiRequest(@Identity AiRequestId id, String taskId, String brandId,
                         @Nullable Long durationMs, @Nullable String runtime, @Nullable String resultModel,
                         @Nullable String error, boolean urgent) {
 
-    public enum Status { SENT, COMPLETED, FAILED, NEEDS_HUMAN, INVALID }
+    /** {@code WITHDRAWN}: SocialHub lo retiró (lo sustituyó otro o ya no hacía falta) sin que hubiera resultado. */
+    public enum Status { SENT, COMPLETED, FAILED, NEEDS_HUMAN, INVALID, WITHDRAWN }
 
     /** Un envío recién salido, aún sin respuesta. */
     public static AiRequest sent(AiRequestId id, String taskId, String brandId, @Nullable String promotionId,
@@ -31,6 +32,12 @@ public record AiRequest(@Identity AiRequestId id, String taskId, String brandId,
                               @Nullable String agentRuntime, @Nullable String agentModel, @Nullable String problem) {
         return new AiRequest(id, taskId, brandId, promotionId, type, model, attempt, newStatus, requestPath, resultFile,
                 sentAt, finished, duration, agentRuntime, agentModel, problem, urgent);
+    }
+
+    /** SocialHub lo retira: su archivo ya no está en Drive. Si llega un resultado después, se avisa como tardío. */
+    public AiRequest withdrawn(Instant when, String reason) {
+        return new AiRequest(id, taskId, brandId, promotionId, type, model, attempt, Status.WITHDRAWN, requestPath, resultPath,
+                sentAt, when, null, runtime, resultModel, reason, urgent);
     }
 
     /** Igual, pero marcado como urgente. */

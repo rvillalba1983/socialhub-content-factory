@@ -2831,7 +2831,7 @@ components:
         type: { $ref: "#/components/schemas/AiRequestType" }
         model: { $ref: "#/components/schemas/AiModel" }
         attempt: { type: integer, format: int32 }
-        status: { type: string, enum: [SENT, COMPLETED, FAILED, NEEDS_HUMAN, INVALID] }
+        status: { type: string, enum: [SENT, COMPLETED, FAILED, NEEDS_HUMAN, INVALID, WITHDRAWN] }
         request_path: { type: string }
         result_path: { type: string }
         sent_at: { type: string, format: date-time }

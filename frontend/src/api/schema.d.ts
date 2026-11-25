@@ -2124,7 +2124,7 @@ export interface components {
             /** Format: int32 */
             attempt: number;
             /** @enum {string} */
-            status: "SENT" | "COMPLETED" | "FAILED" | "NEEDS_HUMAN" | "INVALID";
+            status: "SENT" | "COMPLETED" | "FAILED" | "NEEDS_HUMAN" | "INVALID" | "WITHDRAWN";
             request_path: string;
             result_path?: string;
             /** Format: date-time */

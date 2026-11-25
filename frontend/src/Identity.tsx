@@ -36,10 +36,11 @@ export function IdentityForm({ brandId, brand, onSaved }: {
   if (!identity) return <div className="card" data-card="identity"><h3>Identidad de la marca</h3>{error ? <p className="error" role="alert">{error}</p> : <p className="src">Cargando…</p>}</div>;
   const set = <K extends keyof BrandIdentity>(k: K, v: BrandIdentity[K]) => setIdentity({ ...identity, [k]: v });
   const text = (k: 'tone' | 'audience' | 'font' | 'logo' | 'visual_style' | 'photo_style' | 'call_to_action' | 'fixed_hashtags',
-    label: string, rows = 1, max = 2000) => (
+    label: string, rows = 1, max = 2000, hint?: string) => (
     <label className="field"><span>{label}</span>
       {rows > 1 ? <textarea rows={rows} maxLength={max} value={identity[k]} onChange={e => set(k, e.target.value)} />
-        : <input maxLength={max} value={identity[k]} onChange={e => set(k, e.target.value)} />}</label>
+        : <input maxLength={max} value={identity[k]} onChange={e => set(k, e.target.value)} />}
+      {hint && <small className="src">{hint}</small>}</label>
   );
   const list = (k: 'forbidden_topics' | 'preferred_expressions' | 'forbidden_expressions' | 'colors', label: string) => (
     <ListField label={label} value={identity[k]} onChange={v => set(k, v)} />
@@ -155,7 +156,7 @@ export function IdentityForm({ brandId, brand, onSaved }: {
         {text('visual_style', 'Estilo visual', 3)}
         {text('photo_style', 'Estilo fotográfico', 3)}
       </div>
-      {text('call_to_action', 'Llamada a la acción (al final de los textos, salvo historias)', 1, 500)}
+      {text('call_to_action', 'Llamada a la acción (al final de los textos, salvo historias)', 4, 500, 'Una formulación por línea: Claude elige una distinta en cada texto.')}
       {text('fixed_hashtags', 'Hashtags fijos', 1, 1000)}
       <div className="form-actions">
         {error && <p className="error" role="alert">{error}</p>}

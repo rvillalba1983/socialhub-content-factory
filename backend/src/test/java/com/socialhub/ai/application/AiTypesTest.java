@@ -57,6 +57,7 @@ class AiTypesTest {
     static Path orders;
     static Path reports;
     static Path material;
+    static String replacement;
 
     @Autowired MockMvc mvc;
     @Autowired AiRequestRepository requests;
@@ -448,7 +449,7 @@ class AiTypesTest {
         Path firstFile = pcFile(first);
         assertThat(firstFile).exists();
         String second = aiOrders.submitInternal("poemario", AiRequestType.PUBLER_SCHEDULE, "Programar en Publer: otra", "Programa", List.of(id));
-        assertThat(aiOrders.supersede("poemario", AiRequestType.PUBLER_SCHEDULE, id, second)).isEqualTo(1);
+        assertThat(aiOrders.supersede("poemario", AiRequestType.PUBLER_SCHEDULE, id, second, "Sustituida por un encargo nuevo")).isEqualTo(1);
         assertThat(task(first).get("status").asString()).isEqualTo("CANCELLED");
         assertThat(firstFile).doesNotExist();
         assertThat(task(second).get("status").asString()).isNotEqualTo("CANCELLED");
@@ -469,9 +470,58 @@ class AiTypesTest {
         Path file = pcFile(live);
         Path results = Files.createDirectories(orders.resolve("de-claude"));
         Files.writeString(results.resolve(file.getFileName().toString().replace(".json", "") + "-a.json"), "{}");
-        assertThat(aiOrders.supersede("poemario", AiRequestType.PUBLER_SCHEDULE, id, null)).isZero();
+        assertThat(aiOrders.supersede("poemario", AiRequestType.PUBLER_SCHEDULE, id, null, "Retirada")).isZero();
         assertThat(file).exists();
         assertThat(task(live).get("status").asString()).isNotEqualTo("CANCELLED");
+    }
+
+    @Test
+    @Order(25)
+    void aSupersededOrderIsMarkedWithdrawnAndALateResultIsWarnedInsteadOfDiscarded() throws Exception {
+        write(post("/api/promotions/poemario/publications"), """
+                {"platform":"TIKTOK","type":"Reel","title":"Otra prueba","scheduled_on":"2031-03-06",
+                 "scheduled_time":"19:00","initial_status":"IN_PRODUCTION"}""").andExpect(status().isCreated());
+        String id = "2031-03-06-tiktok";
+        String first = aiOrders.submitInternal("poemario", AiRequestType.PUBLER_SCHEDULE, "Programar", "Programa", List.of(id));
+        waitFor(() -> "WAITING".equals(task(first).get("status").asString()), "primer encargo enviado");
+        // La regla «nunca en silencio» deja claro que «ya estaba hecho» es completed, no failed
+        assertThat(pcRequest(first).get("rules").toString()).contains("Nunca termines un encargo sin dejar su resultado")
+                .contains("devuelve «completed» con lo que ya hay").doesNotContain("ya estaba hecho…)");
+        Path file = pcFile(first);
+
+        String second = aiOrders.submitInternal("poemario", AiRequestType.PUBLER_SCHEDULE, "Programar 2", "Programa", List.of(id));
+        replacement = second;
+        assertThat(aiOrders.supersede("poemario", AiRequestType.PUBLER_SCHEDULE, id, second, com.socialhub.ai.AiOrders.REPLACED)).isEqualTo(1);
+        assertThat(file).doesNotExist();
+        assertThat(task(first).get("status").asString()).isEqualTo("CANCELLED");
+        assertThat(task(first).get("reason").asString()).isEqualTo("Sustituida por un encargo nuevo");
+        assertThat(requests.ofTask(first).getLast().status()).isEqualTo(com.socialhub.ai.domain.AiRequest.Status.WITHDRAWN);
+
+        // Claude ya lo había empezado y escribe su resultado al final: no se descarta en silencio
+        result(first, completed(first, "{\"scheduled\":true,\"scheduled_for\":\"2031-03-06T19:00:00+01:00\"}"));
+        waitFor(() -> publication(id).path("flag").asString("").contains("Revisa Publer y bórrala allí"), "aviso de resultado tardío");
+        assertThat(task(first).get("status").asString()).isEqualTo("CANCELLED");
+    }
+
+    @Test
+    @Order(26)
+    void withTheFolderOutOfSightASentOrderIsNotSuperseded() throws Exception {
+        String id = "2031-03-06-tiktok";
+        String live = replacement;
+        waitFor(() -> "WAITING".equals(task(live).get("status").asString()), "encargo vigente enviado");
+        Path pc = orders.resolve("para-claude-pc");
+        Path away = orders.resolve("para-claude-pc.fuera");
+        Files.move(pc, away);
+        try {
+            assertThat(aiOrders.supersede("poemario", AiRequestType.PUBLER_SCHEDULE, id, null, "Retirada")).isZero();
+        } finally {
+            if (Files.isDirectory(pc)) try (Stream<Path> s = Files.list(pc)) { s.forEach(f -> f.toFile().delete()); }
+            Files.deleteIfExists(pc);
+            Files.move(away, pc);
+        }
+        assertThat(task(live).get("status").asString()).isEqualTo("WAITING");
+        assertThat(requests.ofTask(live).getLast().status()).isEqualTo(com.socialhub.ai.domain.AiRequest.Status.SENT);
+        assertThat(pcFile(live)).exists();
     }
 
     private Path pcFile(String taskId) throws Exception {

@@ -163,6 +163,18 @@ public final class Task {
         return allowedCommands().stream().map(AvailableCommand::of).toList();
     }
 
+    /** SocialHub retira el encargo (lo sustituyó otro o ya no hace falta): se cancela con su propio motivo, no con «Cancelada por ti». */
+    public void withdraw(String reasonText, Instant now) {
+        if (!allowedCommands().contains(TaskCommandType.CANCEL)) {
+            throw new DomainException("No se puede retirar una tarea en estado «" + status.label() + "».");
+        }
+        if (status == RUNNING) pendingNotices.add(new TaskInterrupted(id));
+        status = CANCELLED;
+        paused = false;
+        reason = reasonText;
+        record(now, reasonText);
+    }
+
     /**
      * Ejecuta una orden.
      *

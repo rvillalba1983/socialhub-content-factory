@@ -116,7 +116,9 @@ class AiDispatcher {
         String brandId = promotions.brandOf(task.promotionId());
         AiJob job = jobOf(task, type.get(), brandId);
         if (handlers.of(type.get()).map(h -> h.obsolete(job)).orElse(false)) {
-            production.cancelAi(task.id());
+            String why = "Retirada: ya no hacía falta enviarla";
+            production.withdrawAi(task.id(), why);
+            handlers.of(type.get()).ifPresent(h -> h.onCancelled(job, why));
             log.info("Encargo {} ({}) cancelado: ya no tiene nada que preparar", task.id(), type.get());
             return false;
         }
@@ -145,12 +147,22 @@ class AiDispatcher {
         Written written = write(orders.get(), task, type.get(), brandId, model, requestId);
         Path file = written.file();
         Instant now = clock.instant();
-        transactions.executeWithoutResult(status -> {
-            requests.save(AiRequest.sent(requestId, task.id(), brandId, task.promotionId(), type.get(), model,
-                    task.attempt(), file.toString(), now, written.urgent()));
-            production.delegateToAi(task.id(), model.name(), "Encargada a Claude " + model.label()
-                    + " (intento " + task.attempt() + "): espera su resultado en «" + AiFolders.FROM_CLAUDE + "».");
-        });
+        try {
+            transactions.executeWithoutResult(status -> {
+                requests.save(AiRequest.sent(requestId, task.id(), brandId, task.promotionId(), type.get(), model,
+                        task.attempt(), file.toString(), now, written.urgent()));
+                production.delegateToAi(task.id(), model.name(), "Encargada a Claude " + model.label()
+                        + " (intento " + task.attempt() + "): espera su resultado en «" + AiFolders.FROM_CLAUDE + "».");
+            });
+        } catch (RuntimeException e) {
+            // Por ejemplo, otro encargo la sustituyó mientras se escribía: el archivo ya está en Drive y nadie lo espera
+            try {
+                Files.deleteIfExists(file);
+            } catch (IOException | RuntimeException ignored) {
+                log.warn("No se ha podido borrar el archivo del encargo {} tras fallar: {}", file, ignored.toString());
+            }
+            throw e;
+        }
         log.info("Encargo {} ({}) enviado a Claude {}{}: {}", task.id(), type.get(), model.label(),
                 written.urgent() ? " (urgente)" : "", file);
         return true;

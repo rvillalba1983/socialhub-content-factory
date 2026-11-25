@@ -38,12 +38,12 @@ final class QualityChecker {
 
     private QualityChecker() {}
 
-    /** Tipo de pieza a partir del tipo libre de la publicación («Carrusel», «Historia», «Reel»…). */
     /** Las formulaciones de la llamada a la acción de la marca: una por línea. */
     static List<String> callToActionOptions(String callToAction) {
         return callToAction.lines().map(String::strip).filter(l -> !l.isEmpty()).distinct().toList();
     }
 
+    /** Tipo de pieza a partir del tipo libre de la publicación («Carrusel», «Historia», «Reel»…). */
     static Kind kind(String type) {
         String t = normalize(type);
         if (t.contains("carrusel") || t.contains("carousel")) return Kind.CAROUSEL;

@@ -242,6 +242,33 @@ class RouteFallbackFlowTest {
         clock.reset();
     }
 
+    @Test
+    @Order(4)
+    void takingThePublicationOutOfScheduledRemovesTheRealPendingFileAndALateResultWarnsToDeleteItInPubler() throws Exception {
+        Flow f = flow();
+        clock.reset();
+        down = true;
+        String id = approvedStory("2026-11-14", "09:00");
+
+        f.ok(f.post("/api/publications/" + id + "/status-changes", "{\"status\":\"SCHEDULED\"}"));
+        String task = f.job(id).get("task_id").asString();
+        f.waitFor(() -> "WAITING".equals(f.task(task).get("status").asString()), "encargo de Publer enviado");
+        Path file = Flow.list(orders.resolve("para-claude-pc")).stream()
+                .filter(p -> p.getFileName().toString().startsWith(task)).findFirst().orElseThrow();
+        assertThat(file).exists();
+
+        // Raúl la saca de «Programada»: el archivo se retira de verdad de para-claude-pc y la tarea no queda «Cancelada por ti»
+        f.ok(f.post("/api/publications/" + id + "/status-changes", "{\"status\":\"APPROVED\"}"));
+        f.waitFor(() -> "CANCELLED".equals(f.task(task).get("status").asString()), "encargo retirado");
+        assertThat(file).doesNotExist();
+        assertThat(f.task(task).get("reason").asString()).isEqualTo("Retirada porque la publicación ya no está programada");
+
+        // Claude ya lo había empezado y lo termina: el resultado no se descarta, avisa de que hay que borrarla en Publer
+        f.result(task, Flow.completed(task, "{\"scheduled\":true,\"scheduled_for\":\"2026-11-14T09:00:00+01:00\"}"));
+        f.waitFor(() -> f.publication("poemario", id).path("flag").asString("").contains("Revisa Publer y bórrala allí"),
+                "aviso de resultado tardío");
+    }
+
     // ---------------------------------------------------------------- utilidades
 
     private String approvedStory(String day, String time) throws Exception {
