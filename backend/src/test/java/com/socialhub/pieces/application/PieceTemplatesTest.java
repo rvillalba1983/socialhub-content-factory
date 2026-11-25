@@ -236,6 +236,37 @@ class PieceTemplatesTest {
 
     // ---------------------------------------------------------------- sin kit, todo igual
 
+    private static GenerationSetup setup() { return new GenerationSetup("delito", id -> false); }
+
+    @Test
+    void aClosingWithATemplateDoesNotNeedLinesInTheSpecJson() throws Exception {
+        kit = List.of(closing("cierre-4x5", "4:5", 1350));
+        solid("page 12.png", new Color(0, 200, 0));
+        String json = """
+                {"out":"salida","piezas":[{"tipo":"carrusel","nombre":"c","slides":[{"texto":"Verso"}],
+                 "cierre":{"img":"material/page 12.png","plantilla":"cierre-4x5","campos":{"titulo":"El DeLito","texto":"Enlace"}}}]}""";
+        Files.writeString(drive.resolve("sin_lineas.json"), json);
+        var spec = new SpecFileLoader(JsonMapper.builder().build()).read(drive.resolve("sin_lineas.json").toString(), List.of(drive.toString())).spec();
+        assertThat(spec.piezas().getFirst().cierre().lineas()).isEmpty();
+        var made = generator.generate(spec, files, LOOK, log::add, p -> {}, setup()).pieces().getFirst();
+        assertThat(read(made.files().get(1)).getHeight()).isEqualTo(1350);
+    }
+
+    @Test
+    void aStoryOrClosingWithATemplateAndNoKitWithoutMinimumTextsIsRejectedBeforeGeneratingAnything() {
+        kit = List.of();
+        var story = untitledStory("h", Map.of());
+        assertThatThrownBy(() -> generator.checkTemplates(new PromoSpec("salida", null, null, List.of(story)), setup(), log::add))
+                .hasMessageContaining("la historia pide plantilla").hasMessageContaining("«titulo»");
+        var closing = new PromoSpec.Closing("material/page 12.png", null, "cierre-4x5", Map.of(), null);
+        var carousel = piece("carrusel", "c", null, slides(), closing, null, null, null, null, null);
+        assertThatThrownBy(() -> generator.checkTemplates(new PromoSpec("salida", null, null, List.of(carousel)), setup(), log::add))
+                .hasMessageContaining("el cierre pide plantilla").hasMessageContaining("«lineas»");
+        // Con los textos mínimos, pasa
+        var okStory = untitledStory("h2", Map.of("titulo", "Pregunta"));
+        generator.checkTemplates(new PromoSpec("salida", null, null, List.of(okStory)), setup(), log::add);
+    }
+
     @Test
     void withoutAnApprovedKitTheTemplateIsIgnoredAndThePieceIsAsBefore() throws Exception {
         kit = List.of();
@@ -265,7 +296,7 @@ class PieceTemplatesTest {
         assertThat(read(carousel.files().get(1)).getHeight()).isEqualTo(1350);
         // Y sin título en ningún sitio, error claro
         assertThatThrownBy(() -> run(untitledStory("h2", Map.of())))
-                .hasMessageContaining("falta «titulo»");
+                .hasMessageContaining("la historia pide plantilla");
     }
 
     @Test

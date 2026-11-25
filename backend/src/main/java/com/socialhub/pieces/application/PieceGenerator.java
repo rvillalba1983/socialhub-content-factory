@@ -511,10 +511,22 @@ class PieceGenerator {
             switch (p.tipo()) {
                 case "carrusel" -> {
                     if (p.cierre() != null) {
-                        resolve(kit, p, p.cierre().plantilla(), p.cierre().campos(), "cierre", tall ? H_STORY : H_POST, false, log);
+                        PromoSpec.Closing c = p.cierre();
+                        if (resolve(kit, p, c.plantilla(), c.campos(), "cierre", tall ? H_STORY : H_POST, false, log).isEmpty()
+                                && notBlank(c.plantilla()) && c.lineas().isEmpty()
+                                && !notBlank(field(c.campos(), "titulo")) && !notBlank(field(c.campos(), "texto"))) {
+                            throw bad(p, "el cierre pide plantilla, pero la marca no tiene kit aprobado y sin plantilla el cierre necesita "
+                                    + "«lineas» (o «campos» con «titulo» o «texto»)");
+                        }
                     }
                 }
-                case "historia" -> resolve(kit, p, p.plantilla(), p.campos(), "historia", H_STORY, false, log);
+                case "historia" -> {
+                    if (resolve(kit, p, p.plantilla(), p.campos(), "historia", H_STORY, false, log).isEmpty()
+                            && notBlank(p.plantilla()) && !notBlank(p.titulo()) && !notBlank(field(p.campos(), "titulo"))) {
+                        throw bad(p, "la historia pide plantilla, pero la marca no tiene kit aprobado y sin plantilla necesita «titulo» "
+                                + "(en la pieza o en «campos»)");
+                    }
+                }
                 case "cita" -> resolve(kit, p, p.plantilla(), p.campos(), "cita", tall ? H_STORY : null, true, log);
                 default -> { }
             }

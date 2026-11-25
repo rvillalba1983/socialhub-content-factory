@@ -14,7 +14,7 @@ class PublicationSoundTest {
     private static Publication at(PublicationStatus status) {
         return Publication.builder().id("p").promotionId("promo").platform(Platform.TIKTOK).type("Reel")
                 .title("Prueba").scheduledOn(LocalDate.of(2026, 11, 2)).scheduledTime(LocalTime.of(19, 0))
-                .status(status).build();
+                .status(status).confirmation(status == PublicationStatus.PUBLISHED ? "https://www.tiktok.com/@x/video/1" : null).build();
     }
 
     @Test
@@ -45,7 +45,7 @@ class PublicationSoundTest {
         Publication p = at(PublicationStatus.IN_PRODUCTION);
         p.setSound(PublicationSound.of("litoques_track", "Púa"));
         assertThat(p.getSound().mode()).isEqualTo(PublicationSound.Mode.LITOQUES_TRACK);
-        for (PublicationStatus locked : new PublicationStatus[] {PublicationStatus.SCHEDULED, PublicationStatus.PUBLISHING}) {
+        for (PublicationStatus locked : new PublicationStatus[] {PublicationStatus.SCHEDULED, PublicationStatus.PUBLISHING, PublicationStatus.PUBLISHED}) {
             assertThatThrownBy(() -> at(locked).setSound(PublicationSound.NONE)).isInstanceOf(DomainException.class);
         }
     }

@@ -201,8 +201,12 @@ class PublishingService implements PublishingCommands {
         }
         if (added > 0) quality.invalidateAcceptances(publicationId);
         if (sound != null) {
-            publication.setSound(PublicationSound.of(sound.mode(), sound.track()));
-            publications.save(publication);
+            if (publication.getSound().mode() == PublicationSound.Mode.NONE) {
+                publication.setSound(PublicationSound.of(sound.mode(), sound.track()));
+                publications.save(publication);
+            } else {
+                log.info("Sonido del spec ignorado en {}: ya tiene el sonido elegido ({})", publicationId, publication.getSound().mode());
+            }
         }
         events.publishEvent(new FactoryChanged("publication", publicationId));
         return added;

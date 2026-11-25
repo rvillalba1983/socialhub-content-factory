@@ -63,6 +63,11 @@ public record PromoSpec(@Nullable String out, @Nullable String leeme, @Nullable 
     public record Closing(@Nullable String img, List<String> lineas, @Nullable String plantilla,
                           @Nullable Map<String, String> campos, @Nullable Integer pagina) {
 
+        /** Un cierre con plantilla no necesita «lineas»: sin ellas, la lista queda vacía. */
+        public Closing {
+            lineas = lineas == null ? List.of() : lineas;
+        }
+
         public Closing(@Nullable String img, List<String> lineas) {
             this(img, lineas, null, null, null);
         }

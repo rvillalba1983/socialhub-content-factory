@@ -16,6 +16,8 @@ public class KitValidator {
     public static final int MAX_NOTES = 1000;
     public static final int MAX_SVG_BYTES = 64 * 1024;
     static final Pattern ID = Pattern.compile("[a-z0-9]+(-[a-z0-9]+)*");
+    static final Pattern VIEWBOX_ORIGIN = Pattern.compile(
+            "viewBox\\s*=\\s*[\"']\\s*(-?[0-9.eE+-]+)[\\s,]+(-?[0-9.eE+-]+)[\\s,]+[0-9.eE+-]+[\\s,]+[0-9.eE+-]+\\s*[\"']");
     static final Pattern HEX = Pattern.compile("#[0-9A-Fa-f]{6}");
 
     private final TemplateChecker checker;
@@ -73,6 +75,7 @@ public class KitValidator {
         TemplateChecker.Result result = checker.check(template.svg());
         for (String error : result.errors()) errors.add(label + "(" + piece.code() + "): " + error);
         if (!result.errors().isEmpty()) return;
+        origin(label, piece, template.svg(), errors);
         fields(label, piece, result, errors);
         ratio(label, piece, result, errors);
         image(label, piece, template.image(), result, errors);
@@ -93,6 +96,15 @@ public class KitValidator {
                         + (piece.optionalFields().isEmpty() ? "" : " y, opcional, " + String.join(", ", piece.optionalFields()))
                         + ". Un texto fijo (la marca, una dirección) va con data-fijo=\"true\".");
             }
+        }
+    }
+
+    /** El origen del viewBox tiene que ser 0 0: la zona de la ilustración se mide desde la esquina del lienzo. */
+    private static void origin(String label, KitPiece piece, String svg, List<String> errors) {
+        java.util.regex.Matcher m = VIEWBOX_ORIGIN.matcher(svg);
+        if (m.find() && (Double.parseDouble(m.group(1)) != 0 || Double.parseDouble(m.group(2)) != 0)) {
+            errors.add(label + "(" + piece.code() + ") tiene un viewBox que no empieza en «0 0» (empieza en «" + m.group(1) + " "
+                    + m.group(2) + "»). Usa un viewBox como «0 0 1080 1350» y coloca el dibujo y las cajas dentro de él.");
         }
     }
 

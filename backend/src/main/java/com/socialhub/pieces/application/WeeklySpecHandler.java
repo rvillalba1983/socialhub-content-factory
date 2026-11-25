@@ -279,7 +279,7 @@ class WeeklySpecHandler implements AiTypeHandler {
 
     /** Cómo se usan las plantillas del kit de marca aprobado. */
     static final String TEMPLATES_RULE = "USA estas plantillas siempre que la pieza lo admita (cita, cierre del carrusel e historia): "
-            + "pon su «id» en «plantilla» (en un carrusel, dentro de «cierre»: «cierre.plantilla») y los textos en «campos» (nombre "
+            + "pon su «id» en «plantilla» (en un carrusel, dentro de «cierre»: «cierre.plantilla»; con plantilla el cierre no necesita «lineas») y los textos en «campos» (nombre "
             + "del campo → texto, solo los de «required_fields» y «optional_fields»; los «fixed_fields» NO se mandan). La plantilla va "
             + "ENCIMA de la ilustración: sigue poniendo «img» como siempre (la cita, que va sobre fondo, no la necesita). Su «ratio» "
             + "tiene que ser el de la pieza: en TikTok 9:16; en Instagram, cierre del carrusel 4:5 e historia 9:16 (la cita, 4:5 o "
@@ -322,8 +322,8 @@ class WeeklySpecHandler implements AiTypeHandler {
     static final String MISSING_MATERIAL_NOTE = "Si falta la imagen o el vídeo de una canción o tema, NO te pares a preguntar: "
             + "SocialHub nunca deja una pieza sin fondo. Deja «img» sin poner (en esa pieza o slide) y, si quieres, entrega un fondo "
             + "dibujado por ti en «fondo_svg» (SVG en línea de hasta 64 KB, con xmlns=\"http://www.w3.org/2000/svg\" y viewBox "
-            + "\"0 0 1080 1350\" para carrusel o \"0 0 1080 1920\" para historia y reel; en los carruseles cada slide enseña la parte "
-            + "de arriba, 1080x900). Solo formas de dibujo: svg, g, defs, rect, circle, ellipse, path, polygon, polyline, line, "
+            + "\"0 0 1080 1350\" para carrusel (4:5) o \"0 0 1080 1920\" para historia, reel y carrusel de TikTok (9:16); en los "
+            + "carruseles cada slide enseña la parte de arriba, 1080x900 en 4:5 y 1080x1200 en 9:16). Solo formas de dibujo: svg, g, defs, rect, circle, ellipse, path, polygon, polyline, line, "
             + "linearGradient, radialGradient, stop, text, tspan, title y desc. Sin script, foreignObject, image, use, style ni "
             + "@import, sin href que no sea interno (#id) y sin entidades ni DOCTYPE: un SVG que no cumpla se ignora. No escribas el "
             + "título en el SVG: SocialHub lo pone encima. Si hay «visual_style», úsalo para diseñar los fondos (paleta, motivos, "

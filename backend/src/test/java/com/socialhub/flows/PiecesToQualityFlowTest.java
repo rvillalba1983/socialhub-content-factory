@@ -41,6 +41,7 @@ class PiecesToQualityFlowTest {
 
     @Autowired MockMvc mvc;
     @Autowired FlowClock clock;
+    @Autowired com.socialhub.publishing.PublishingCommands publishing;
 
     private Flow flow;
 
@@ -205,6 +206,54 @@ class PiecesToQualityFlowTest {
         assertThat(missing.getContentAsString()).contains("Falta el nombre del tema");
         assertThat(f.put("/api/publications/2026-12-05-tiktok/sound", "{\"mode\":\"loud\"}").andReturn().getResponse().getStatus()).isEqualTo(400);
         assertThat(f.put("/api/publications/no-existe/sound", "{\"mode\":\"none\"}").andReturn().getResponse().getStatus()).isEqualTo(404);
+    }
+
+    @Test
+    @Order(5)
+    void regeneratingKeepsTheChosenSoundAndRefreshesThePageAndSourceOfAttachedPieces() throws Exception {
+        Flow f = flow();
+        String id = "2026-12-05-tiktok";
+        f.ok(f.put("/api/publications/" + id + "/sound", "{\"mode\":\"litoques_track\",\"track\":\"Elegido por Raúl\"}"));
+        List<Path> same = files(id).stream().map(Path::of).toList();
+        // Se regenera el mismo archivo con otra página y otro origen, y el spec pide otro sonido
+        var regenerated = same.stream().map(path -> new com.socialhub.publishing.PublishingCommands.GeneratedFile(path, 99, "nueva imagen.png")).toList();
+        int added = publishing.attachGeneratedPieces("poemario", id, regenerated,
+                new com.socialhub.publishing.PublishingCommands.SoundChoice("network", "Púa (Litoques)"));
+        assertThat(added).isZero();
+        for (JsonNode item : f.read("/api/publications/" + id + "/files").get("items")) {
+            assertThat(item.get("page").asInt()).isEqualTo(99);
+            assertThat(item.get("source_name").asString()).isEqualTo("nueva imagen.png");
+            assertThat(item.get("origin").asString()).isEqualTo("SPEC");
+        }
+        JsonNode kept = f.read("/api/promotions/poemario/publications?limit=500").get("items");
+        for (JsonNode publication : kept) {
+            if (publication.get("id").asString().equals(id)) {
+                assertThat(publication.get("sound").get("mode").asString()).isEqualTo("litoques_track");
+                assertThat(publication.get("sound").get("track").asString()).isEqualTo("Elegido por Raúl");
+            }
+        }
+        // Sin sonido elegido, sí se aplica el del spec
+        f.ok(f.put("/api/publications/" + id + "/sound", "{\"mode\":\"none\"}"));
+        publishing.attachGeneratedPieces("poemario", id, regenerated,
+                new com.socialhub.publishing.PublishingCommands.SoundChoice("network", "Púa (Litoques)"));
+        for (JsonNode publication : f.read("/api/promotions/poemario/publications?limit=500").get("items")) {
+            if (publication.get("id").asString().equals(id)) {
+                assertThat(publication.get("sound").get("mode").asString()).isEqualTo("network");
+            }
+        }
+    }
+
+    @Test
+    @Order(6)
+    void theSoundOfAScheduledPublicationCannotBeChangedThroughTheApi() throws Exception {
+        Flow f = flow();
+        String id = "2026-12-02-instagram";
+        f.ok(f.put("/api/brands/el-delito/publer-accounts", "{\"items\":[{\"platform\":\"INSTAGRAM\",\"account_name\":\"El DeLito\"}]}"));
+        f.ok(f.post("/api/publications/" + id + "/status-changes", "{\"status\":\"SCHEDULED\"}"));
+        assertThat(f.status("poemario", id)).isEqualTo("SCHEDULED");
+        var response = f.put("/api/publications/" + id + "/sound", "{\"mode\":\"network\",\"track\":\"Púa\"}").andReturn().getResponse();
+        assertThat(response.getStatus()).isEqualTo(409);
+        assertThat(response.getContentAsString()).contains("programada");
     }
 
     // ------------------------------------------------------------------ utilidades

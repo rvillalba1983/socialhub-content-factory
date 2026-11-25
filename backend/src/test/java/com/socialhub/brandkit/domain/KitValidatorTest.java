@@ -34,6 +34,14 @@ class KitValidatorTest {
     }
 
     @Test
+    void aViewBoxThatDoesNotStartAtZeroIsRejectedWithAClearMessage() {
+        String shifted = cita(1080, 1350).replace("viewBox=\"0 0 1080 1350\"", "viewBox=\"10 10 1080 1350\"");
+        assertThat(shifted).contains("viewBox=\"10 10 1080 1350\"");
+        assertThat(errorsOf(KitPiece.CITA, shifted)).singleElement().asString()
+                .contains("no empieza en «0 0»").contains("«10 10»");
+    }
+
+    @Test
     void paletteNeedsThreeToEightValidColors() {
         List<PaletteColor> two = palette().subList(0, 2);
         assertThat(errorsOf(new KitContent(two, null, delitoTemplates()))).containsExactly("La paleta debe tener entre 3 y 8 colores (tiene 2).");

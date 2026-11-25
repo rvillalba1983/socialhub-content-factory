@@ -63,7 +63,8 @@
           },
           "cierre": {
             "type": "object",
-            "required": ["lineas"],
+            "if": { "required": ["plantilla"] },
+            "else": { "required": ["lineas"] },
             "properties": {
               "img": { "type": "string" },
               "lineas": { "type": "array", "items": { "type": "string" } },
