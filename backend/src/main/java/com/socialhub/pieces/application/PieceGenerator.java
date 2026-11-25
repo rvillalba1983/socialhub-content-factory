@@ -157,7 +157,8 @@ class PieceGenerator {
                 }
                 case "historia" -> {
                     if (notBlank(p.img())) files.input(p.img(), PieceFiles.IMAGES, 60);
-                    required(p, p.titulo(), "titulo");
+                    // Con plantilla, el título va en sus campos; si no hay kit aprobado se usa el de «campos» (ver story)
+                    if (!notBlank(p.plantilla())) required(p, p.titulo(), "titulo");
                 }
                 case "reel" -> {
                     if (notBlank(p.img())) files.input(p.img(), PieceFiles.IMAGES, 60);
@@ -310,9 +311,12 @@ class PieceGenerator {
                 Graphics2D g = graphics(img);
                 g.drawImage(cover(base.image(), closeW, closeH, 0.5, 0.5), 90, closeY, null);
                 int y = tall ? 1300 : 900;
-                for (int j = 0; j < c.lineas().size(); j++) {
+                // Pidió plantilla pero no hay kit aprobado y no trajo líneas: se usan el título y el texto de «campos»
+                List<String> closingLines = !c.lineas().isEmpty() ? c.lineas()
+                        : java.util.stream.Stream.of(field(c.campos(), "titulo"), field(c.campos(), "texto")).filter(PieceGenerator::notBlank).toList();
+                for (int j = 0; j < closingLines.size(); j++) {
                     Font font = j == 0 ? bold(64) : italic(40);
-                    y = block(g, y, c.lineas().get(j), font, j == 0 ? INK : RED, W) + 10;
+                    y = block(g, y, closingLines.get(j), font, j == 0 ? INK : RED, W) + 10;
                 }
                 g.dispose();
             }
@@ -360,10 +364,17 @@ class PieceGenerator {
             sources.add(source(file, p.pagina(), p.img()));
             return List.of(file);
         }
+        // Si se pidió plantilla y no hay kit aprobado, la historia sale como siempre con los textos de «campos»
+        String title = notBlank(p.titulo()) ? p.titulo() : field(p.campos(), "titulo");
+        String text = notBlank(p.texto()) ? p.texto() : field(p.campos(), "texto");
+        String cta = notBlank(p.cta()) ? p.cta() : field(p.campos(), "cta");
+        if (!notBlank(title)) {
+            throw bad(p, "falta «titulo»: sin un kit de marca aprobado la historia se dibuja sin plantilla y lo necesita");
+        }
         List<Line> lines = new ArrayList<>();
-        lines.add(new Line(p.titulo(), bold(84), LIGHT));
-        if (notBlank(p.texto())) lines.add(new Line(p.texto(), italic(46), WARM));
-        if (notBlank(p.cta())) lines.add(new Line(p.cta(), bold(44), ACCENT));
+        lines.add(new Line(title, bold(84), LIGHT));
+        if (notBlank(text)) lines.add(new Line(text, italic(46), WARM));
+        if (notBlank(cta)) lines.add(new Line(cta, bold(44), ACCENT));
         // Sin texto en el fondo propio de SocialHub: el título de la historia ya se dibuja encima
         Base base = base(ctx, p.img(), p.fondoSvg(), W, H_STORY, W, H_STORY, pieceTitle(p), null, 0.5, p.nombre());
         BufferedImage card = verticalCard(base.image(), lines, crop[0], crop[1], 160);
@@ -706,6 +717,10 @@ class PieceGenerator {
     }
 
     private static double clamp(double v) { return Math.max(0, Math.min(1, v)); }
+
+    private static @Nullable String field(@Nullable Map<String, String> fields, String name) {
+        return fields == null ? null : fields.get(name);
+    }
 
     private static boolean notBlank(@Nullable String s) { return s != null && !s.isBlank(); }
 
